@@ -11,6 +11,7 @@ from typing import Any
 
 from traceq_dataset.answer_key import FILES
 from traceq_dataset.corpus import Corpus
+from traceq_eval.ratchet import FAILING
 from traceq_eval.submission import Submission
 
 
@@ -74,6 +75,7 @@ def markdown(report: dict[str, Any]) -> str:
         if name != "passed" and g["items"]:
             out += ["", f"{name}:", ""]
             out += [f"- `{json.dumps(i, ensure_ascii=False)}`" for i in g["items"][:20]]
+    out += _ratchet(report.get("ratchet"))
     fab = report["fabrication"]
     out += [
         "",
@@ -110,6 +112,36 @@ def markdown(report: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(out)
+
+
+def _ratchet(r: dict[str, Any] | None) -> list[str]:
+    if r is None:
+        return ["", "## Ratchet: not run (no baseline given)"]
+    base = r["baseline"]
+    sub, ds = base["submission"], base["dataset"]
+    out = [
+        "",
+        f"## Ratchet: {'PASS' if r['passed'] else 'FAIL'}",
+        "",
+        f"Baseline: {_fmt(sub.get('name'))}, model {_fmt(sub.get('model'))}, "
+        f"prompt {_fmt(sub.get('prompt'))}, run {_fmt(sub.get('run_id'))}; dataset "
+        f"{ds['version']}, answer key `{ds['answer_key_sha256'][:12]}`; "
+        f"scorer {base['scorer_version']}",
+    ]
+    if r["reasons"]:
+        out += ["", "Not comparable:", "", *(f"- {x}" for x in r["reasons"])]
+    if r["warnings"]:
+        out += ["", "Warnings:", "", *(f"- {x}" for x in r["warnings"])]
+    if r["metrics"]:
+        out += ["", "| Metric | Better | Baseline | Run | Δ | |", "|---|---|---|---|---|---|"]
+        for m in r["metrics"]:
+            status = f"**{m['status'].upper()}**" if m["status"] in FAILING else m["status"]
+            delta = "–" if m["delta"] is None else f"{m['delta']:+.3f}"
+            out.append(
+                f"| {m['metric']} | {m['direction']} | {_fmt(m['baseline'])} | "
+                f"{_fmt(m['run'])} | {delta} | {status} |"
+            )
+    return out
 
 
 def write(report: dict[str, Any], out: Path) -> None:
