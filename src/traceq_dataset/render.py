@@ -86,6 +86,8 @@ class Placed:
 class Rendered:
     doc_id: str
     rev: int
+    issued: dt.date
+    """Issue date, also the PDF metadata date."""
     pdf: bytes
     placed: Mapping[str, Placed]
     """Keyed by requirement id (URS), ``<step>.acceptance`` / ``<step>.observed`` (FAT,
@@ -205,7 +207,7 @@ def _compile(
         )
         for k, t in texts.items()
     }
-    return Rendered(doc_id=doc.id, rev=doc.rev, pdf=pdf, placed=placed)
+    return Rendered(doc_id=doc.id, rev=doc.rev, issued=issued, pdf=pdf, placed=placed)
 
 
 def _signature(name: str | None, date: dt.date | None, lang: str) -> dict[str, str]:
@@ -460,20 +462,26 @@ def render_all(eq: Equipment, t0: dt.date) -> list[Rendered]:
 
 
 def main(argv: list[str]) -> int:
+    from traceq_dataset.degrade import SEED, degrade
     from traceq_dataset.world import load
 
     parser = argparse.ArgumentParser(prog="traceq_dataset.render")
     parser.add_argument("world", type=Path)
     parser.add_argument("--t0", type=dt.date.fromisoformat, default=EVAL_T0)
+    parser.add_argument("--seed", type=int, default=SEED, help="degrader seed for scans")
     parser.add_argument("--out", type=Path, default=Path("dist"))
     args = parser.parse_args(argv)
 
     eq = load(args.world)
     out = args.out / f"t0-{args.t0.isoformat()}" / eq.tag
     out.mkdir(parents=True, exist_ok=True)
-    for r in render_all(eq, args.t0):
-        (out / r.filename).write_bytes(r.pdf)
-        print(f"{out / r.filename}  ({len(r.pdf):,} bytes, {len(r.placed)} placed strings)")
+    for doc, r in zip(eq.documents, render_all(eq, args.t0), strict=True):
+        # A paper document is published only as its scan.
+        pdf, note = r.pdf, "born-digital"
+        if doc.scan:
+            pdf, note = degrade(r, doc.scan, args.seed).pdf, f"scan, {doc.scan}"
+        (out / r.filename).write_bytes(pdf)
+        print(f"{out / r.filename}  ({len(pdf):,} bytes, {note}, {len(r.placed)} placed strings)")
     return 0
 
 

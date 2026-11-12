@@ -6,6 +6,8 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.13"
 dependencies = [
+    "numpy>=2.5.4",
+    "pillow>=13.0.0",
     "pydantic>=2.11",
     "pypdf>=6",
     "pypdfium2>=5.15.2",

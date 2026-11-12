@@ -5,13 +5,24 @@
 
 // A handwritten entry: OFL handwriting font in pen ink. Records the page and the bounding
 // box (pt, top-left origin, glyph ascender to descender) for the OCR answer key.
+// measure() gives advance widths; slanted handwriting glyphs overhang them, so the box is
+// padded by `overhang` on the left and twice that on the right.
 #let ink = rgb("#1b2a72")
+#let overhang = 0.15em
 #let hand(key, body, size: 12.5pt) = box({
   set text(font: "Caveat", size: size, fill: ink, top-edge: "ascender", bottom-edge: "descender")
   context {
     let p = here().position()
     let s = measure(body)
-    [#metadata((key: key, page: p.page, x: p.x.pt(), y: p.y.pt(), w: s.width.pt(), h: s.height.pt()))<placed>]
+    let pad = overhang.to-absolute().pt()
+    [#metadata((
+      key: key,
+      page: p.page,
+      x: p.x.pt() - pad,
+      y: p.y.pt(),
+      w: s.width.pt() + 3 * pad,
+      h: s.height.pt(),
+    ))<placed>]
   }
   body
 })

@@ -366,6 +366,11 @@ class Document(Model):
         description="Equipment serial number as written on this document, when it differs "
         "from Equipment.serial_no (scenario S3).",
     )
+    scan: Literal["light", "medium", "heavy"] | None = Field(
+        None,
+        description="Paper document published as a scan at this degradation level "
+        "(design section 8, degrader); None = born-digital PDF.",
+    )
     issued_on: Offset
     prepared_by: str = Field(description="Person id.")
     checked_by: str | None = Field(None, description="Person id.")
