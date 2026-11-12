@@ -1,0 +1,39 @@
+# TP-201 answer key: documents.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: URS-TP201
+  type: urs
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: URS-TP201_rev0.pdf}
+  - {rev: 1, file: URS-TP201_rev1.pdf}
+- {id: RA-TP201, type: risk_assessment, stage: design, status: planned}
+- {id: DS-TP201, type: datasheet, stage: design, status: planned}
+- {id: FDS-TP201, type: functional_spec, stage: design, status: planned}
+- {id: DQ-TP201, type: dq_report, stage: design, status: planned}
+- {id: MTC-TP201-01, type: material_certificate, stage: FAT, status: planned}
+- {id: CAL-TP201-01, type: calibration_certificate, stage: FAT, status: planned, note: Compression force
+    sensors (URS-TP201-036).}
+- id: FAT-TP201-M
+  type: fat
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: FAT-TP201-M_rev0.pdf}
+- id: FAT-TP201-C
+  type: fat
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: FAT-TP201-C_rev0.pdf}
+- {id: KAL-2025-0412, type: calibration_certificate, stage: SAT, status: planned, note: TACH-07 (S2).}
+- {id: KAL-2026-0057, type: calibration_certificate, stage: SAT, status: planned, note: SW-03.}
+- id: SAT-TP201
+  type: sat
+  stage: SAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: SAT-TP201_rev0.pdf}
+- {id: IQ-TP201, type: iq_protocol, stage: IQ, status: expected_gap}
+- {id: OQ-TP201, type: oq_protocol, stage: OQ, status: expected_gap}

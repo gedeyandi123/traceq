@@ -21,7 +21,9 @@ pre-commit install
 
 Tests: `uv sync && uv run pytest`.
 
-Render: `uv run python -m traceq_dataset.render world/tp201.yaml [--t0 YYYY-MM-DD] [--seed N] [--out dist]`. Paper documents (`scan:` in world data) are written only as their scan. Output goes to `dist/` (gitignored); the corpus is published as a Release asset, never committed.
+Render: `uv run python -m traceq_dataset.render world/tp201.yaml [--t0 YYYY-MM-DD] [--seed N] [--out dist]`. Paper documents (`scan:` in world data) are written only as their scan. Output goes to `dist/` (gitignored) with the corpus `manifest.json`; the corpus is published as a Release asset, never committed.
+
+Answer key: `uv run python -m traceq_dataset.answer_key world/tp201.yaml [--check]` derives `answer_key/TP-201/*.yaml` from world data and the eval corpus. Never edit it by hand; regenerate it after changing world data or the renderer (`--check` and the tests fail on a stale key).
 
 Hooks: ruff, gitleaks, and a denylist check. The denylist blocks real equipment vendor names (`denylist/public.txt`) and private terms kept in a gitignored `.denylist.local` file (CI reads them from the `DENYLIST` secret).
 

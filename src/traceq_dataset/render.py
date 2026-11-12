@@ -14,6 +14,8 @@ transforms pixels and those boxes.
 Usage::
 
     uv run python -m traceq_dataset.render world/tp201.yaml [--t0 YYYY-MM-DD] [--out dist]
+
+writes ``dist/t0-<T0>/<tag>/*.pdf`` and the corpus ``manifest.json``.
 """
 
 from __future__ import annotations
@@ -462,26 +464,31 @@ def render_all(eq: Equipment, t0: dt.date) -> list[Rendered]:
 
 
 def main(argv: list[str]) -> int:
-    from traceq_dataset.degrade import SEED, degrade
+    from traceq_dataset.corpus import build_corpus, manifest
+    from traceq_dataset.degrade import SEED
     from traceq_dataset.world import load
 
     parser = argparse.ArgumentParser(prog="traceq_dataset.render")
-    parser.add_argument("world", type=Path)
+    parser.add_argument("world", type=Path, nargs="+")
     parser.add_argument("--t0", type=dt.date.fromisoformat, default=EVAL_T0)
     parser.add_argument("--seed", type=int, default=SEED, help="degrader seed for scans")
     parser.add_argument("--out", type=Path, default=Path("dist"))
     args = parser.parse_args(argv)
 
-    eq = load(args.world)
-    out = args.out / f"t0-{args.t0.isoformat()}" / eq.tag
-    out.mkdir(parents=True, exist_ok=True)
-    for doc, r in zip(eq.documents, render_all(eq, args.t0), strict=True):
-        # A paper document is published only as its scan.
-        pdf, note = r.pdf, "born-digital"
-        if doc.scan:
-            pdf, note = degrade(r, doc.scan, args.seed).pdf, f"scan, {doc.scan}"
-        (out / r.filename).write_bytes(pdf)
-        print(f"{out / r.filename}  ({len(pdf):,} bytes, {note}, {len(r.placed)} placed strings)")
+    root = args.out / f"t0-{args.t0.isoformat()}"
+    corpora = [build_corpus(load(w), args.t0, args.seed) for w in args.world]
+    for c in corpora:
+        out = root / c.eq.tag
+        out.mkdir(parents=True, exist_ok=True)
+        for key, r in c.rendered.items():
+            # A paper document is published only as its scan.
+            pdf = c.published(key)
+            note = f"scan, {c.scanned[key].level}" if key in c.scanned else "born-digital"
+            (out / r.filename).write_bytes(pdf)
+            print(f"{out / r.filename}  ({len(pdf):,} bytes, {note}, {len(r.placed)} placed)")
+    text = json.dumps(manifest(corpora), ensure_ascii=False, indent=2) + "\n"
+    (root / "manifest.json").write_text(text, encoding="utf-8", newline="\n")
+    print(root / "manifest.json")
     return 0
 
 

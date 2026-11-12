@@ -387,14 +387,99 @@ class Document(Model):
 # --- Equipment (one world-data file) ------------------------------------------------
 
 
+class DefectType(StrEnum):
+    """Planted defect types (design section 7, taxonomy), plus the two v0 scenarios that a
+    reviewer flags although they are not review errors: a delivered item that does not meet
+    the URS (S6) and an ambiguous value (S7)."""
+
+    MISSING_SIGNATURE = "missing_signature"
+    IMPOSSIBLE_DATE_ORDER = "impossible_date_order"
+    SEGREGATION_OF_DUTIES = "segregation_of_duties"
+    OUT_OF_LIMIT_MARKED_PASS = "out_of_limit_marked_pass"
+    FAILED_RESULT_NO_DEVIATION = "failed_result_no_deviation"
+    AC_CHANGED_WITHOUT_DEVIATION = "ac_changed_without_deviation"
+    VENDOR_PROTOCOL_NOT_APPROVED = "vendor_protocol_not_approved"
+    EXPIRED_CALIBRATION = "expired_calibration"
+    CALCULATION_ERROR = "calculation_error"
+    WATER_USED_IN_PHASE_1 = "water_used_in_phase_1"
+    MISSING_ATTACHMENT = "missing_attachment"
+    OUTDATED_REFERENCE = "outdated_reference"
+    INCONSISTENT_DATA = "inconsistent_data"
+    AC_DEVIATES_FROM_URS = "ac_deviates_from_urs"
+    GDP_CORRECTION = "gdp_correction"
+    LEFTOVER_FROM_OTHER_EQUIPMENT = "leftover_from_other_equipment"
+    DESIGN_CONFLICT = "design_conflict"
+    AMBIGUOUS_VALUE = "ambiguous_value"
+
+
+class Anchor(Model):
+    """Where a finding sits in a document: a string the renderer placed (``field``, a key of
+    ``Rendered.placed``) or printed text found on the page (``text``). An anchor in a
+    document that is not rendered yet names only the document."""
+
+    doc: str
+    rev: int = Field(0, ge=0)
+    field: str | None = None
+    text: str | None = None
+
+    @model_validator(mode="after")
+    def _one_locator(self) -> Anchor:
+        if self.field is not None and self.text is not None:
+            raise ValueError(f"{self.doc}: anchor takes field or text, not both")
+        return self
+
+
+class Finding(Model):
+    """The expected Pre-review finding of a planted scenario (defect manifest).
+
+    Layer and default reference follow from ``type`` (design section 7 taxonomy)."""
+
+    type: DefectType
+    severity: Literal["critical", "major", "minor"]
+    detail: str = Field(description="The expected finding, as a reviewer would write it.")
+    at: tuple[Anchor, ...] = Field(min_length=1)
+
+
 class Scenario(Model):
     """A planted defect or test situation (design section 7, v0 scenarios)."""
 
     id: str = Field(pattern=r"^S\d+$")
     summary: str
-    reference: str = Field("", description="Rule it breaks, e.g. 'CPOB 10.8'.")
+    reference: str = Field(
+        "", description="Rule it breaks, primary first, '; ' between equivalents."
+    )
     targets: tuple[str, ...] = Field(
         description="Requirement ids, protocol doc ids or test steps it is planted in."
+    )
+    note: str | None = None
+    finding: Finding | None = Field(
+        None, description="Expected Pre-review finding; None for a situation that is not one."
+    )
+
+
+class RequiredDocument(Model):
+    """A document the VMP requires for this Equipment (design section 6, "Documents that
+    should exist"). ``missing`` says why it is not in the corpus."""
+
+    id: str
+    type: Literal[
+        "urs",
+        "risk_assessment",
+        "datasheet",
+        "functional_spec",
+        "material_certificate",
+        "calibration_certificate",
+        "dq_report",
+        "fat",
+        "sat",
+        "iq_protocol",
+        "oq_protocol",
+    ]
+    stage: Literal["design", "FAT", "SAT", "IQ", "OQ"]
+    missing: Literal["planned", "expected_gap", "withheld"] | None = Field(
+        None,
+        description="planned: not rendered yet; expected_gap: the document TraceQ drafts "
+        "(IQ/OQ); withheld: deliberately left out, for missing-document recall.",
     )
     note: str | None = None
 
@@ -415,6 +500,7 @@ class Equipment(Model):
     designs: tuple[DesignEvidence, ...] = ()
     scenarios: tuple[Scenario, ...] = ()
     documents: tuple[Document, ...] = ()
+    required_documents: tuple[RequiredDocument, ...] = ()
 
     @model_validator(mode="after")
     def _references(self) -> Equipment:
@@ -505,9 +591,38 @@ class Equipment(Model):
         )
         for s in self.scenarios:
             errors += [f"{s.id}: unknown target {x}" for x in s.targets if x not in known]
+        errors += self._document_list_errors()
         if errors:
             raise ValueError("; ".join(errors))
         return self
+
+    def _document_list_errors(self) -> list[str]:
+        """Required documents agree with the rendered ones; finding anchors point at them."""
+        errors: list[str] = []
+        rendered = {(d.id, d.rev) for d in self.documents}
+        rendered_ids = {d.id for d in self.documents}
+        required = {d.id: d for d in self.required_documents}
+        if len(required) != len(self.required_documents):
+            errors.append("duplicate required document")
+        if self.required_documents:
+            errors += [
+                f"{i}: rendered but not in required_documents"
+                for i in sorted(rendered_ids - set(required))
+            ]
+        for d in self.required_documents:
+            if d.missing is None and d.id not in rendered_ids:
+                errors.append(f"{d.id}: required, not missing, but not rendered")
+            if d.missing is not None and d.id in rendered_ids:
+                errors.append(f"{d.id}: marked {d.missing} but rendered")
+        for s in self.scenarios:
+            for a in s.finding.at if s.finding else ():
+                where = f"{s.id}: anchor {a.doc} rev {a.rev}"
+                if (a.doc, a.rev) in rendered:
+                    if a.field is None and a.text is None:
+                        errors.append(f"{where} needs a field or text")
+                elif a.doc not in required or required[a.doc].missing is None:
+                    errors.append(f"{where} is neither rendered nor a missing required document")
+        return errors
 
     def pending(self) -> list[str]:
         """Paths still to be filled. A frozen dataset has none."""

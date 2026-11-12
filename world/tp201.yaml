@@ -674,33 +674,107 @@ documents:
   # S3: the serial number is written with two digits transposed.
   - {id: SAT-TP201, rev: 0, type: sat, language: en, entry_language: id, serial_no: RTP36-25-0471, scan: medium, issued_on: T0-30d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
 
+# Documents the VMP requires for a new tablet press (design section 5). `missing` says why
+# one is not in the corpus: planned = not rendered yet; expected_gap = what TraceQ drafts.
+required_documents:
+  - {id: URS-TP201, type: urs, stage: design}
+  - {id: RA-TP201, type: risk_assessment, stage: design, missing: planned}
+  - {id: DS-TP201, type: datasheet, stage: design, missing: planned}
+  - {id: FDS-TP201, type: functional_spec, stage: design, missing: planned}
+  - {id: DQ-TP201, type: dq_report, stage: design, missing: planned}
+  - {id: MTC-TP201-01, type: material_certificate, stage: FAT, missing: planned}
+  - {id: CAL-TP201-01, type: calibration_certificate, stage: FAT, missing: planned, note: "Compression force sensors (URS-TP201-036)."}
+  - {id: FAT-TP201-M, type: fat, stage: FAT}
+  - {id: FAT-TP201-C, type: fat, stage: FAT}
+  - {id: KAL-2025-0412, type: calibration_certificate, stage: SAT, missing: planned, note: "TACH-07 (S2)."}
+  - {id: KAL-2026-0057, type: calibration_certificate, stage: SAT, missing: planned, note: "SW-03."}
+  - {id: SAT-TP201, type: sat, stage: SAT}
+  - {id: IQ-TP201, type: iq_protocol, stage: IQ, missing: expected_gap}
+  - {id: OQ-TP201, type: oq_protocol, stage: OQ, missing: expected_gap}
+
+# Planted scenarios. `finding` is the expected Pre-review finding (defect manifest); its
+# layer and default reference follow from the type. Severity is a default for practitioner
+# review. Anchors name a placed string (`field`) or printed text (`text`); an anchor in a
+# document that is not rendered yet names only the document.
 scenarios:
   - id: S1
     summary: A SAT entry is overwritten without initials or date.
     reference: CPOB 10.8; PIC/S PI 041-1 §8.7
     targets: [SAT-01]
+    finding:
+      type: gdp_correction
+      severity: major
+      detail: "SAT-01 output is overwritten (121.400 -> 122.400 tablets/h) without initials, date or reason; the original value is no longer clearly legible."
+      at:
+        - {doc: SAT-TP201, field: SAT-01.observed}
+        - {doc: SAT-TP201, field: SAT-01.observed.original}
   - id: S2
     summary: The tachometer calibration certificate expired on the SAT date.
     reference: CPOB Ch. 12
     targets: [SAT-TP201, SAT-01, SAT-03, TACH-07]
+    finding:
+      type: expired_calibration
+      severity: major
+      detail: "Tachometer TACH-07 (certificate KAL-2025-0412) was used in SAT-01 and SAT-03 one day after its calibration expired; both results lack valid measurement Evidence."
+      at:
+        - {doc: SAT-TP201, field: instrument.TACH-07.due}
+        - {doc: SAT-TP201, field: execution.executed_by.date}
+        - {doc: SAT-TP201, field: SAT-01.instruments}
+        - {doc: SAT-TP201, field: SAT-03.instruments}
+        - {doc: KAL-2025-0412}
   - id: S3
     summary: The SAT serial number differs from the nameplate and datasheet.
     targets: [SAT-TP201, DS-TP201]
     note: SAT-TP201 has RTP36-25-0471; the nameplate (Equipment.serial_no) has RTP36-25-0417.
+    finding:
+      type: inconsistent_data
+      severity: minor
+      detail: "The SAT records serial number RTP36-25-0471; the FAT and the datasheet give RTP36-25-0417. Confirm against the nameplate and correct the SAT record."
+      at:
+        - {doc: SAT-TP201, field: serial}
+        - {doc: FAT-TP201-M, text: RTP36-25-0417}
+        - {doc: DS-TP201}
   - id: S4
     summary: The control-system FAT protocol was executed without site approval.
     reference: CPOB 12.14
     targets: [FAT-TP201-C]
+    finding:
+      type: vendor_protocol_not_approved
+      severity: major
+      detail: "FAT-TP201-C was executed with no site check or approval of the protocol; its results cannot be used as Vendor Evidence."
+      at:
+        - {doc: FAT-TP201-C, text: Approved by}
   - id: S5
     summary: A FAT result outside the Acceptance Criterion is marked "Pass".
     reference: CPOB 12.16
     targets: [FAT-M-03, URS-TP201-004]
+    finding:
+      type: out_of_limit_marked_pass
+      severity: critical
+      detail: "FAT-M-03 records 96 kN against an Acceptance Criterion of at least 100 kN and is marked Pass; it should be a failed result raised as a Deviation."
+      at:
+        - {doc: FAT-TP201-M, field: FAT-M-03.observed}
+        - {doc: FAT-TP201-M, field: FAT-M-03.acceptance}
   - id: S6
     summary: The material certificate says SS 304; the URS requires SS 316L.
+    reference: PerBPOM 7/2024 Bab 4 §4.7
     targets: [MTC-TP201-01, URS-TP201-009]
+    finding:
+      type: design_conflict
+      severity: critical
+      detail: "The material certificate states SS 304 for product-contact parts; URS-TP201-009 requires SS 316L."
+      at:
+        - {doc: URS-TP201, rev: 1, field: URS-TP201-009}
+        - {doc: MTC-TP201-01}
   - id: S7
     summary: '"1.500 rpm" in a mixed-language SAT entry is ambiguous; expected answer is "ask for confirmation".'
     targets: [SAT-03, URS-TP201-017]
+    finding:
+      type: ambiguous_value
+      severity: minor
+      detail: "SAT-03 records \"1.500 rpm\" on an English form filled in with Indonesian number formats: 1500 or 1.5 rpm. Neither meets 10–60 rpm; ask the executor to confirm what was measured."
+      at:
+        - {doc: SAT-TP201, field: SAT-03.observed}
   - id: S8
     summary: URS rev 0 -> rev 1 changes one value.
     targets: [URS-TP201-003]

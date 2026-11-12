@@ -107,7 +107,17 @@ Specification values come from Farmakope Indonesia VI and supplements (verified 
 
 ## 6. Answer key
 
-The answer key lives beside the world data and is never sent to an LLM.
+The answer key lives beside the world data and is never sent to an LLM. It is derived, never written by hand (`uv run python -m traceq_dataset.answer_key world/tp201.yaml`): world data supplies the facts, and the rendered corpus supplies where they ended up (page, printed text, and on a scan the quad of each handwritten entry). The committed key is for the eval corpus (T0 2026-06-01, seed 0), one directory per Equipment:
+
+| File | Contents |
+|---|---|
+| `answer_key/<tag>/requirements.yaml` | Requirements with location, normalised value, superseded revisions, Evidence per step, expected Coverage and the decision-table reason |
+| `answer_key/<tag>/defects.yaml` | Defect manifest |
+| `answer_key/<tag>/ambiguous.yaml` | Ambiguous values and their possible readings |
+| `answer_key/<tag>/documents.yaml` | Documents that should exist, and why any is not in the corpus |
+| `answer_key/<tag>/ocr.yaml` | Every handwritten entry on a scan, with its quad |
+
+What is judged by hand lives in world data: each scenario's expected finding (`scenarios[].finding`: type, severity, detail, anchors) and the documents the VMP requires (`required_documents`). An anchor names a placed string (`field`) or printed text (`text`); an anchor in a document that is not rendered yet becomes a location with `status: planned` and gets its page once the document is rendered.
 
 ### Requirements and Coverage
 
@@ -116,11 +126,15 @@ The answer key lives beside the world data and is never sent to an LLM.
   text: "Kecepatan turret dapat diatur pada rentang 20–70 rpm."
   source: {doc: URS-TP201, rev: 1, page: 1, section: "1. Kinerja"}
   param: turret_speed
-  value: {min: 20, max: 70, unit: rpm}
+  value: {type: range, min: 20, max: 70, unit: rpm}
   critical: true
   evidence:
-    - {doc: FAT-TP201-M, section: "3", step: "FAT-M-02", result: pass, range_tested: {min: 20, max: 60}}
-  expected_coverage: partial  # FAT tested 20–60 only (condition 3)
+  - {doc: FAT-TP201-M, rev: 0, page: 1, step: FAT-M-02, acceptance: 20–60 rpm, observed: 20–60 rpm,
+     value: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass, qualifies: false,
+     failure: "condition 3: full URS range not tested"}
+  design_evidence: []
+  expected_coverage: partial
+  reason: "FAT-M-02: condition 3: full URS range not tested"
   also_valid: []
 ```
 
@@ -153,28 +167,33 @@ Vendor assessment state: TP-201 vendor assessed, full scope. TP-202 vendor asses
 
 ### Documents that should exist
 
-Per Equipment and Qualification Stage, the VMP implies a list of required documents. The answer key stores that list and the documents deliberately left out (e.g. the FBD-101 SAT report, one HSMG-101 OQ attachment).
+Per Equipment and Qualification Stage, the VMP implies a list of required documents. The answer key stores that list with a status: `in_corpus`, `planned` (not rendered yet), `expected_gap` (what TraceQ drafts, e.g. the TP-201 IQ/OQ) or `withheld` (deliberately left out, e.g. the FBD-101 SAT report, one HSMG-101 OQ attachment).
 
 ### Defect manifest
 
 ```yaml
-- id: D-PW001-003
-  type: outdated_reference
-  doc: {id: OQP-PW001, rev: 1}
-  location: {page: 3, section: "2. Referensi"}
-  detail: "Cites WHO TRS 970 Annex 2; current is TRS 1033 Annex 3"
-  severity: major
-  layer: llm
-  reference: {primary: "WHO TRS 1033 Annex 3"}
+- id: D-TP201-005
+  scenario: S5
+  type: out_of_limit_marked_pass
+  severity: critical
+  layer: rule
+  reference: {primary: CPOB 12.16, equivalents: []}
+  detail: FAT-M-03 records 96 kN against an Acceptance Criterion of at least 100 kN and is marked Pass; ...
+  documents: [{doc: FAT-TP201-M, rev: 0}]
+  locations:
+  - {doc: FAT-TP201-M, rev: 0, page: 1, field: FAT-M-03.observed, text: 96 kN}
+  - {doc: FAT-TP201-M, rev: 0, page: 1, field: FAT-M-03.acceptance, text: ≥ 100 kN}
 ```
+
+Layer and default reference follow from the type (section 7, taxonomy); a scenario's own `reference` overrides the default. A location on a scan also carries the entry's `quad`. The manifest holds every scenario a reviewer should flag, so S6 (`design_conflict`, also Coverage `conflict`) and S7 (`ambiguous_value`) are in it. S8 is not a defect: a new revision with a change note is correct practice, so it is answered by the requirement's `superseded` entry.
 
 ### Ambiguous values
 
-Some values are deliberately ambiguous (`1.500 rpm` in a mixed-language document, `03/04/2026`). The expected answer is "ask for confirmation". Deterministic rules never score an ambiguous date.
+Some values are deliberately ambiguous (`1.500 rpm` in a mixed-language document, `03/04/2026`). The expected answer is "ask for confirmation". Deterministic rules never score an ambiguous date. Each entry stores the printed text, both readings (`1500 rpm`: `.` groups thousands, Indonesian; `1.5 rpm`: `.` is the decimal point, English), the true value, and `expected_answer: ask_confirmation`.
 
 ### OCR locations
 
-For scanned documents the renderer knows where each string was drawn, so the answer key stores bounding boxes. OCR accuracy is measured without manual annotation.
+For scanned documents the renderer knows where each string was drawn, so the answer key stores bounding boxes: each handwritten entry's box after the scan's skew (`quad`: four corners in pt, top-left origin, clockwise from top-left; pixels = pt × dpi / 72). OCR accuracy is measured without manual annotation.
 
 ## 7. Planted defects
 
@@ -251,7 +270,8 @@ world/*.yaml ──Pydantic──▶ renderer ──▶ degrader (scans) ──�
   - The **renderer** decides *what is on the page*. It draws the printed form, the handwritten entries (Caveat, OFL, in pen ink), overwritten entries, signatures and stamps as a born-digital PDF, and records each handwritten string with its page and bounding box (`Placed.box`). The validator checks every handwritten string inside its box. Stamps belong here, not in the degrader, because they are content: their text and position matter to the answer key and they can cover other text.
   - The **degrader** (`traceq_dataset.degrade`) decides *how the scan looks*. It only transforms pixels: rasterise, skew 0.5–2° about the page centre, paper tone, blur, sensor noise, JPEG in an image-only PDF (no text layer). Each handwritten box becomes a quad rotated the same way (`ScannedPlaced.quad`, pt, top-left origin), so the OCR answer key follows the pixels. Level is set per document (`Document.scan`: `light`, `medium`, `heavy`), not globally random; random draws come from the corpus seed plus document id and revision, so a scan is byte-identical for the same seed. The validator checks that a scan has no text layer and that every quad lies on its page and holds ink; a unit test checks the quad geometry against Pillow's rotation. Nameplate photos are rendered synthetically.
 - **Binary files are not committed.** The corpus is built in a container with pinned versions and published as a GitHub Release asset per dataset version. The release bytes are canonical, including for extraction cache keys (document hash + pipeline version).
-- **CI** re-renders and runs a semantic validator, not a byte-hash comparison: every answer-key value appears in the rendered text; every defect location and citation exists; the required-document list matches the VMP; the denylist finds nothing.
+- **CI** re-renders and runs a semantic validator, not a byte-hash comparison (`validate.answer_key_problems`): the committed answer key equals the re-derived one; every answer-key value appears on the page it cites (for a scan, in the born-digital render behind the pixels); every handwritten location carries the scan's quad; a `planned` location names a document that is really not rendered; the required-document list matches the corpus; the denylist finds nothing.
+- **Corpus manifest:** `python -m traceq_dataset.render` writes `dist/t0-<T0>/manifest.json` beside the documents: dataset version, T0, seed, versions of the libraries that decide the bytes, and for each published file its path, document id and revision, format (born-digital or scan level), pages, size and SHA-256.
 
 ## 9. Evals
 
