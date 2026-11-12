@@ -19,6 +19,8 @@ pip install pre-commit
 pre-commit install
 ```
 
+Tests: `uv sync && uv run pytest`.
+
 Hooks: ruff, gitleaks, and a denylist check. The denylist blocks real equipment vendor names (`denylist/public.txt`) and private terms kept in a gitignored `.denylist.local` file (CI reads them from the `DENYLIST` secret).
 
 Workflow: short branches (`feat/`, `fix/`, `docs/`, `chore/`), [Conventional Commits](https://www.conventionalcommits.org/), squash-merge via PR.
