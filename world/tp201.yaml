@@ -1,0 +1,452 @@
+# TP-201 world data: SKELETON (dataset v0).
+#
+# Structure, intent and scenario mapping are drafted; every number, Acceptance
+# Criterion and source is `pending` until copied from a cited public source or
+# recorded as a site decision with rationale (design principles 5 and 7).
+# Check progress: uv run python -m traceq_dataset.world world/tp201.yaml
+#
+# Names of the plant, vendor and people are provisional: trademark check before freeze.
+
+tag: TP-201
+name: Rotary tablet press (single-sided)
+site: site-01
+
+vendor:
+  id: vendor-tp201
+  name: Pressora Maschinenbau GmbH
+  assessment:
+    assessed_on: T0-200d
+    scope: [mechanical, control, data_integrity, documentation]
+
+people:
+  - {id: p-qe, name: Rina Wulandari, persona: qualification_engineer, employer: site-01}
+  - {id: p-qs, name: Bayu Pratama, persona: qualification_supervisor, employer: site-01}
+  - {id: p-qa, name: Dewi Anggraini, persona: qa_approver, employer: site-01}
+  - {id: p-wit, name: Agus Setiawan, persona: witness, employer: site-01}
+  - {id: p-adm, name: Fajar Nugroho, persona: system_admin, employer: site-01}
+  - {id: p-ve, name: Markus Brandt, persona: vendor_engineer, employer: vendor-tp201}
+
+protocols:
+  - {doc_id: FAT-TP201-M, stage: FAT, vendor: vendor-tp201, site_approved_on: T0-130d, executed_on: T0-120d}
+  # S4: control-system FAT executed before the site approved it (CPOB 12.14).
+  - {doc_id: FAT-TP201-C, stage: FAT, vendor: vendor-tp201, site_approved_on: null, executed_on: T0-118d}
+  - {doc_id: SAT-TP201, stage: SAT, vendor: vendor-tp201, site_approved_on: T0-25d, executed_on: T0-14d}
+
+requirements:
+  # --- 1. Kinerja ---------------------------------------------------------------
+  - id: URS-TP201-001
+    section: "1. Kinerja"
+    text: "Mesin memiliki {min} stasiun punch."
+    param: punch_stations
+    spec: {type: pending, expected: range, unit: stations}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-002
+    section: "1. Kinerja"
+    text: "Kecepatan turret dapat diatur pada rentang {min}–{max} rpm."
+    param: turret_speed
+    spec: {type: pending, expected: range, unit: rpm}
+    source: {kind: pending}
+    scope: mechanical
+    critical: true
+    transport_sensitive: false
+    intended_coverage: partial  # FAT tested a narrower range (condition 3)
+  - id: URS-TP201-003
+    section: "1. Kinerja"
+    text: "Kapasitas produksi minimal {min} tablet/jam."
+    param: output_rate
+    spec: {type: pending, expected: range, unit: tablets/h}
+    superseded_spec: {type: pending, expected: range, unit: tablets/h}  # S8: rev 0 value
+    source: {kind: pending}
+    scope: mechanical
+    critical: true
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-004
+    section: "1. Kinerja"
+    text: "Gaya tekan utama maksimal {max} kN."
+    param: main_compression_force
+    spec: {type: pending, expected: range, unit: kN}
+    source: {kind: pending}
+    scope: mechanical
+    critical: true
+    intended_coverage: partial  # S5: FAT value outside AC recorded "pass"
+  - id: URS-TP201-005
+    section: "1. Kinerja"
+    text: "Gaya pra-kompresi maksimal {max} kN."
+    param: precompression_force
+    spec: {type: pending, expected: range, unit: kN}
+    source: {kind: pending}
+    scope: mechanical
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-006
+    section: "1. Kinerja"
+    text: "Diameter tablet maksimal {max} mm."
+    param: tablet_diameter
+    spec: {type: pending, expected: range, unit: mm}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-007
+    section: "1. Kinerja"
+    text: "Kedalaman pengisian maksimal {max} mm."
+    param: fill_depth
+    spec: {type: pending, expected: range, unit: mm}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-008
+    section: "1. Kinerja"
+    text: "Mesin menggunakan tooling tipe {allowed}."
+    param: tooling_type
+    spec: {type: pending, expected: one_of}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: conflict  # datasheet states another tooling type
+
+  # --- 2. Material dan konstruksi ------------------------------------------------
+  - id: URS-TP201-009
+    section: "2. Material dan konstruksi"
+    text: "Semua bagian yang kontak dengan produk terbuat dari {allowed}."
+    param: product_contact_material
+    spec: {type: one_of, allowed: [SS 316L]}  # decision log Q29 (S6); source still pending
+    source: {kind: pending}
+    scope: mechanical
+    critical: true
+    transport_sensitive: false
+    intended_coverage: conflict
+  - id: URS-TP201-010
+    section: "2. Material dan konstruksi"
+    text: "Kekasaran permukaan bagian kontak produk Ra maksimal {max} µm."
+    param: contact_surface_roughness
+    spec: {type: pending, expected: range, unit: µm}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-011
+    section: "2. Material dan konstruksi"
+    text: "Bagian yang tidak kontak dengan produk terbuat dari {allowed}."
+    param: non_contact_material
+    spec: {type: pending, expected: one_of}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-012
+    section: "2. Material dan konstruksi"
+    text: "Gasket dan seal yang kontak dengan produk terbuat dari {allowed}."
+    param: seal_material
+    spec: {type: pending, expected: one_of}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: gap
+  - id: URS-TP201-013
+    section: "2. Material dan konstruksi"
+    text: "Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade."
+    param: food_grade_lubricant
+    spec: {type: present}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: gap
+
+  # --- 3. Kontrol dan keselamatan ------------------------------------------------
+  - id: URS-TP201-014
+    section: "3. Kontrol dan keselamatan"
+    text: "Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan."
+    param: automatic_weight_control
+    spec: {type: present}
+    source: {kind: pending}
+    scope: control
+    critical: true
+    intended_coverage: partial  # tested only in the unapproved control FAT (S4)
+  - id: URS-TP201-015
+    section: "3. Kontrol dan keselamatan"
+    text: "Tablet di luar batas berat ditolak otomatis."
+    param: automatic_rejection
+    spec: {type: present}
+    source: {kind: pending}
+    scope: control
+    critical: true
+    intended_coverage: partial  # S4
+  - id: URS-TP201-016
+    section: "3. Kontrol dan keselamatan"
+    text: "Akurasi pengukuran gaya tekan maksimal ±{max}% dari skala penuh."
+    param: force_measurement_accuracy
+    spec: {type: pending, expected: range, unit: "% FS"}
+    source: {kind: pending}
+    scope: control
+    critical: true
+    intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
+  - id: URS-TP201-017
+    section: "3. Kontrol dan keselamatan"
+    text: "Kecepatan paddle feeder dapat diatur pada rentang {min}–{max} rpm."
+    param: feeder_paddle_speed
+    spec: {type: pending, expected: range, unit: rpm}
+    source: {kind: pending}
+    scope: control
+    transport_sensitive: false
+    intended_coverage: partial  # FAT range too narrow; SAT single reading is ambiguous (S7)
+  - id: URS-TP201-018
+    section: "3. Kontrol dan keselamatan"
+    text: "Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka."
+    param: guard_door_interlock
+    spec: {type: present}
+    source: {kind: pending}
+    scope: control
+    critical: true
+    intended_coverage: gap
+  - id: URS-TP201-019
+    section: "3. Kontrol dan keselamatan"
+    text: "Tombol emergency stop tersedia dan berfungsi."
+    param: emergency_stop
+    spec: {type: present}
+    source: {kind: pending}
+    scope: control
+    critical: true
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-020
+    section: "3. Kontrol dan keselamatan"
+    text: "Mesin berhenti otomatis saat terjadi overload pada punch."
+    param: punch_overload_protection
+    spec: {type: present}
+    source: {kind: pending}
+    scope: control
+    intended_coverage: covered_by_vendor
+
+  # --- 4. Integritas data HMI (CPOB Aneks 7, decision log Q22) --------------------
+  - id: URS-TP201-021
+    section: "4. Integritas data HMI"
+    text: "HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin)."
+    param: hmi_access_levels
+    spec: {type: present}
+    source: {kind: pending}
+    scope: data_integrity
+    critical: true
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-022
+    section: "4. Integritas data HMI"
+    text: "HMI merekam audit trail untuk setiap perubahan parameter dan resep."
+    param: hmi_audit_trail
+    spec: {type: present}
+    source: {kind: pending}
+    scope: data_integrity
+    critical: true
+    intended_coverage: partial  # S4
+  - id: URS-TP201-023
+    section: "4. Integritas data HMI"
+    text: "HMI menyimpan log alarm beserta waktu dan pengguna."
+    param: hmi_alarm_log
+    spec: {type: present}
+    source: {kind: pending}
+    scope: data_integrity
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-024
+    section: "4. Integritas data HMI"
+    text: "Resep produk dapat di-backup dan dipulihkan."
+    param: recipe_backup
+    spec: {type: present}
+    source: {kind: pending}
+    scope: data_integrity
+    intended_coverage: gap
+  - id: URS-TP201-025
+    section: "4. Integritas data HMI"
+    text: "Jam sistem HMI disinkronkan dengan sumber waktu pabrik."
+    param: time_synchronisation
+    spec: {type: present}
+    source: {kind: pending}
+    scope: data_integrity
+    intended_coverage: gap
+
+  # --- 5. Utilitas dan lingkungan (site_only) ------------------------------------
+  - id: URS-TP201-026
+    section: "5. Utilitas dan lingkungan"
+    text: "Mesin beroperasi dengan suplai listrik {min} V, 3 fase."
+    param: power_supply_voltage
+    spec: {type: pending, expected: range, unit: V}
+    source: {kind: pending}
+    scope: mechanical
+    site_only: true
+    intended_coverage: site_only
+  - id: URS-TP201-027
+    section: "5. Utilitas dan lingkungan"
+    text: "Mesin beroperasi dengan udara tekan {min}–{max} bar."
+    param: compressed_air_pressure
+    spec: {type: pending, expected: range, unit: bar}
+    source: {kind: pending}
+    scope: mechanical
+    site_only: true
+    intended_coverage: site_only
+  - id: URS-TP201-028
+    section: "5. Utilitas dan lingkungan"
+    text: "Sambungan dust extraction kompatibel dengan sistem pabrik minimal {min} m³/jam."
+    param: dust_extraction_flow
+    spec: {type: pending, expected: range, unit: m3/h}
+    source: {kind: pending}
+    scope: mechanical
+    site_only: true
+    intended_coverage: site_only
+  - id: URS-TP201-029
+    section: "5. Utilitas dan lingkungan"
+    text: "Tingkat kebisingan di posisi operator maksimal {max} dBA."
+    param: noise_level
+    spec: {type: pending, expected: range, unit: dBA}
+    source: {kind: pending}
+    scope: mechanical
+    site_only: true
+    intended_coverage: site_only
+  - id: URS-TP201-030
+    section: "5. Utilitas dan lingkungan"
+    text: "Dimensi mesin muat di ruang cetak dengan tinggi plafon {max} mm."
+    param: room_height_fit
+    spec: {type: pending, expected: range, unit: mm}
+    source: {kind: pending}
+    scope: mechanical
+    site_only: true
+    intended_coverage: site_only
+  - id: URS-TP201-031
+    section: "5. Utilitas dan lingkungan"
+    text: "Mesin beroperasi normal pada suhu ruang {min}–{max} °C."
+    param: room_temperature
+    spec: {type: pending, expected: range, unit: °C}
+    source: {kind: pending}
+    scope: mechanical
+    site_only: true
+    intended_coverage: site_only
+
+  # --- 6. Pembersihan -------------------------------------------------------------
+  - id: URS-TP201-032
+    section: "6. Pembersihan"
+    text: "Waktu changeover dan pembersihan antar produk maksimal {max} menit."
+    param: changeover_time
+    spec: {type: pending, expected: range, unit: min}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: gap
+  - id: URS-TP201-033
+    section: "6. Pembersihan"
+    text: "Bagian kontak produk dapat dilepas untuk dibersihkan tanpa alat khusus."
+    param: toolless_disassembly
+    spec: {type: present}
+    source: {kind: pending}
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+
+  # --- 7. Dokumentasi -------------------------------------------------------------
+  - id: URS-TP201-034
+    section: "7. Dokumentasi"
+    text: "Manual operasi dan perawatan tersedia dalam bahasa Indonesia atau Inggris."
+    param: manuals
+    spec: {type: present}
+    source: {kind: pending}
+    scope: documentation
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-035
+    section: "7. Dokumentasi"
+    text: "Sertifikat material 3.1 tersedia untuk semua bagian kontak produk."
+    param: material_certificates
+    spec: {type: present}
+    source: {kind: pending}
+    scope: documentation
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP201-036
+    section: "7. Dokumentasi"
+    text: "Sertifikat kalibrasi sensor gaya tekan tersedia dan masih berlaku."
+    param: force_sensor_calibration
+    spec: {type: present}
+    source: {kind: pending}
+    scope: documentation
+    intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
+  - id: URS-TP201-037
+    section: "7. Dokumentasi"
+    text: "Deklarasi kesesuaian keselamatan mesin tersedia."
+    param: machinery_safety_declaration
+    spec: {type: present}
+    source: {kind: pending}
+    scope: documentation
+    transport_sensitive: false
+    intended_coverage: gap
+  - id: URS-TP201-038
+    section: "7. Dokumentasi"
+    text: "Daftar suku cadang dan gambar teknis as-built tersedia."
+    param: spare_parts_and_drawings
+    spec: {type: present}
+    source: {kind: pending}
+    scope: documentation
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+
+# Executed FAT/SAT steps. Observed values follow the URS values once filled;
+# recorded_result is the design intent (S5 records "pass" on an out-of-limit value).
+tests:
+  - {step: FAT-M-01, protocol: FAT-TP201-M, requirement: URS-TP201-001, observed: {type: pending, expected: number, unit: stations}, recorded_result: pass}
+  - {step: FAT-M-02, protocol: FAT-TP201-M, requirement: URS-TP201-002, observed: {type: pending, expected: range, unit: rpm}, recorded_result: pass}
+  - {step: FAT-M-03, protocol: FAT-TP201-M, requirement: URS-TP201-004, observed: {type: pending, expected: number, unit: kN}, recorded_result: pass}
+  - {step: FAT-M-04, protocol: FAT-TP201-M, requirement: URS-TP201-006, observed: {type: pending, expected: number, unit: mm}, recorded_result: pass}
+  - {step: FAT-M-05, protocol: FAT-TP201-M, requirement: URS-TP201-007, observed: {type: pending, expected: number, unit: mm}, recorded_result: pass}
+  - {step: FAT-M-06, protocol: FAT-TP201-M, requirement: URS-TP201-010, observed: {type: pending, expected: number, unit: µm}, recorded_result: pass}
+  - {step: FAT-M-07, protocol: FAT-TP201-M, requirement: URS-TP201-011, observed: {type: pending, expected: text}, recorded_result: pass}
+  - {step: FAT-M-08, protocol: FAT-TP201-M, requirement: URS-TP201-016, observed: {type: pending, expected: number, unit: "% FS"}, recorded_result: pass}
+  - {step: FAT-M-09, protocol: FAT-TP201-M, requirement: URS-TP201-017, observed: {type: pending, expected: range, unit: rpm}, recorded_result: pass}
+  - {step: FAT-M-10, protocol: FAT-TP201-M, requirement: URS-TP201-033, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-M-11, protocol: FAT-TP201-M, requirement: URS-TP201-034, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-M-12, protocol: FAT-TP201-M, requirement: URS-TP201-035, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-M-13, protocol: FAT-TP201-M, requirement: URS-TP201-036, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-M-14, protocol: FAT-TP201-M, requirement: URS-TP201-038, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-C-01, protocol: FAT-TP201-C, requirement: URS-TP201-014, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-C-02, protocol: FAT-TP201-C, requirement: URS-TP201-015, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-C-03, protocol: FAT-TP201-C, requirement: URS-TP201-022, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: SAT-01, protocol: SAT-TP201, requirement: URS-TP201-003, observed: {type: pending, expected: number, unit: tablets/h}, recorded_result: pass}
+  - {step: SAT-02, protocol: SAT-TP201, requirement: URS-TP201-005, observed: {type: pending, expected: number, unit: kN}, recorded_result: pass}
+  - {step: SAT-03, protocol: SAT-TP201, requirement: URS-TP201-017, observed: {type: pending, expected: number, unit: rpm}, recorded_result: pass}
+  - {step: SAT-04, protocol: SAT-TP201, requirement: URS-TP201-019, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: SAT-05, protocol: SAT-TP201, requirement: URS-TP201-020, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: SAT-06, protocol: SAT-TP201, requirement: URS-TP201-021, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: SAT-07, protocol: SAT-TP201, requirement: URS-TP201-023, observed: {type: present, value: true}, recorded_result: pass}
+
+# Design and delivered-item facts.
+designs:
+  - {doc_id: DS-TP201, requirement: URS-TP201-008, observed: {type: pending, expected: text}}
+  - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, observed: {type: text, value: SS 304}}  # S6, decision log Q29
+
+scenarios:
+  - id: S1
+    summary: A SAT entry is overwritten without initials or date.
+    reference: CPOB 10.8; PIC/S PI 041-1 §8.7
+    targets: [SAT-01]
+  - id: S2
+    summary: The tachometer calibration certificate expired on the SAT date.
+    reference: CPOB Ch. 12
+    targets: [SAT-TP201, SAT-01, SAT-03]
+    note: Instruments and certificates are modelled with the document catalogue.
+  - id: S3
+    summary: The SAT serial number differs from the nameplate and datasheet.
+    targets: [SAT-TP201, DS-TP201]
+    note: Serial numbers are modelled with the document catalogue.
+  - id: S4
+    summary: The control-system FAT protocol was executed without site approval.
+    reference: CPOB 12.14
+    targets: [FAT-TP201-C]
+  - id: S5
+    summary: A FAT result outside the Acceptance Criterion is marked "Pass".
+    reference: CPOB 12.16
+    targets: [FAT-M-03, URS-TP201-004]
+  - id: S6
+    summary: The material certificate says SS 304; the URS requires SS 316L.
+    targets: [MTC-TP201-01, URS-TP201-009]
+  - id: S7
+    summary: '"1.500 rpm" in a mixed-language SAT entry is ambiguous; expected answer is "ask for confirmation".'
+    targets: [SAT-03, URS-TP201-017]
+  - id: S8
+    summary: URS rev 0 -> rev 1 changes one value.
+    targets: [URS-TP201-003]

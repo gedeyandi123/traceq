@@ -19,9 +19,13 @@ One dataset serves four consumers. A document or defect that none of them needs 
 2. **Defects are planted explicitly.** Each defect has an ID in the defect manifest, a location, and the expected finding. There are no accidental defects.
 3. **Clean documents are required:** at least 30% of documents carry no defect, so Pre-review is measured on precision as well as recall.
 4. **Reproducible.** Generation is deterministic from a seed. Binary output is never committed (section 8).
-5. **Every value has a public source.** Each Acceptance Criterion and technical limit in the world data records its source (CPOB / PerBPOM 7/2024, WHO TRS 1033 Annex 3, Farmakope Indonesia, published literature).
+5. **Every value has a public source.** Each Acceptance Criterion and technical limit in the world data records its source in one of two tiers:
+   - **Quoted:** regulation (CPOB / PerBPOM 7/2024, WHO TRS 1033 Annex 3, Permenaker), pharmacopoeia (Farmakope Indonesia), or literature (peer-reviewed papers, textbooks, brand-free trade press). The source stores `url`, a verbatim `quote` (≤ 200 characters) containing the value, and the `accessed` date.
+   - **Site decision:** a URS value is the plant's own need, not a copy of a brochure. It stores a written `rationale` and, where one exists, a quote from literature showing the value is realistic. Site decisions without such a quote are listed for the design-partner review.
+
+   Real vendor brochures are not cited: the denylist keeps real vendor names out of the repository (principle 6), and literature plus practitioner review give the same evidence of realism.
 6. **Everything is fictional:** plant, vendors, people, serial numbers. Vendor names are checked against registered trademarks before they are frozen, and a denylist check in CI blocks real equipment vendor names.
-7. **LLMs never produce numbers or Acceptance Criteria.** TP-201 and PW-001 world data is written by hand from public sources. Other Equipment may be drafted with an LLM, then edited and frozen.
+7. **LLMs never produce numbers or Acceptance Criteria from memory.** For TP-201 and PW-001, every value is copied from a cited source (principle 5). An LLM may do the copying; the schema checks that each quoted value appears in its quote, `scripts/verify_quotes.py` checks each quote against the live page, and a human checks a sample of critical values before the data is frozen. Other Equipment may be drafted with an LLM, then edited and frozen.
 
 ## 3. Regulatory references
 
@@ -215,6 +219,14 @@ Density: 1–3 defects per defective document; at least 30% of documents clean.
 8. URS rev 0 → rev 1 with one value changed.
 
 The DQ report and functional specification are clean. About 10% of eval items are hallucination probes.
+
+### World-data workflow
+
+World data is filled in stages. A skeleton holds `pending` values and sources (`type: pending` in specs and observations, `kind: pending` in sources); the renderer refuses any file that still has them.
+
+- Each requirement states its `intended_coverage`. Once its values are filled, the decision table must reproduce it; a test checks every filled requirement, so a value that silently changes a Coverage class fails CI.
+- `uv run python -m traceq_dataset.world world/tp201.yaml` prints the pending list and the Coverage distribution against the target.
+- `uv run python scripts/verify_quotes.py world/tp201.yaml` downloads each cited page and checks the quote (local only; CI has no network access).
 
 ## 8. Generator pipeline
 

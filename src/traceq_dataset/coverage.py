@@ -23,6 +23,8 @@ from traceq_dataset.schema import (
     NumberObs,
     Observation,
     OneOfSpec,
+    PendingObs,
+    PendingSpec,
     PresentObs,
     PresentSpec,
     RangeObs,
@@ -39,6 +41,10 @@ from traceq_dataset.schema import (
 
 class IncomparableError(ValueError):
     """An observation cannot be compared with a spec (wrong kind or unit)."""
+
+
+class PendingError(ValueError):
+    """A skeleton value is not filled yet, so Coverage cannot be decided."""
 
 
 def meets(spec: Spec, obs: Observation) -> bool:
@@ -96,6 +102,8 @@ def classify(
     vendors: Mapping[str, Vendor],
 ) -> CoverageResult:
     """Apply the decision table to one requirement. Inputs may hold other requirements' data."""
+    tests, designs = list(tests), list(designs)
+    _require_filled(req, tests, designs)
     for fact in designs:
         if fact.requirement == req.id and not meets(req.spec, fact.observed):
             return CoverageResult(CoverageClass.CONFLICT, f"{fact.doc_id} does not meet the URS")
@@ -124,6 +132,14 @@ def classify(
         failures.append("condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)")
 
     return CoverageResult(CoverageClass.PARTIAL, "; ".join(failures))
+
+
+def _require_filled(
+    req: Requirement, tests: list[TestEvidence], designs: list[DesignEvidence]
+) -> None:
+    observed = [e.observed for e in [*tests, *designs] if e.requirement == req.id]
+    if isinstance(req.spec, PendingSpec) or any(isinstance(o, PendingObs) for o in observed):
+        raise PendingError(f"{req.id}: value or Evidence still pending")
 
 
 def _first_failure(
