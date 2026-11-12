@@ -6,7 +6,8 @@ Usage::
 
 Prints the pending count, the intended Coverage distribution against the design
 target, and, once nothing is pending, whether the decision table agrees with every
-``intended_coverage``. Exit code 1 on a schema error or a disagreement.
+``intended_coverage`` and which judged values still await human review. "frozen-ready"
+needs all three. Exit code 1 on a schema error or a disagreement.
 """
 
 from __future__ import annotations
@@ -68,8 +69,19 @@ def main(argv: list[str]) -> int:
     bad = disagreements(eq)
     for line in bad:
         print(f"DISAGREE {line}")
-    print("frozen-ready" if not bad else f"{len(bad)} disagreement(s)")
-    return 1 if bad else 0
+    if bad:
+        print(f"{len(bad)} disagreement(s)")
+        return 1
+
+    review = eq.unreviewed()
+    if review:
+        print(f"awaiting human review: {len(review)} judged value(s) (* = no supporting quote)")
+        for r in review:
+            mark = " " if r.source.quote else "*"
+            print(f"  {mark} {r.id} {r.param} [{r.source.drafted_by}]")
+        return 0
+    print("frozen-ready")
+    return 0
 
 
 if __name__ == "__main__":

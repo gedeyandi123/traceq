@@ -48,22 +48,40 @@ def test_quote_length_capped() -> None:
         Source.model_validate({**QUOTED, "quote": "x" * 201})
 
 
+SITE = {
+    "kind": "site_decision",
+    "ref": "VMP §5",
+    "rationale": "room height 3 m",
+    "drafted_by": "llm",
+}
+
+
 def test_site_decision_needs_rationale() -> None:
     with pytest.raises(ValidationError, match="rationale"):
-        Source.model_validate({"kind": "site_decision", "ref": "VMP §5"})
-    ok = {"kind": "site_decision", "ref": "VMP §5", "rationale": "room height 3 m"}
-    assert Source.model_validate(ok).rationale
+        Source.model_validate({k: v for k, v in SITE.items() if k != "rationale"})
+    assert Source.model_validate(SITE).rationale
+
+
+def test_site_decision_needs_drafted_by() -> None:
+    with pytest.raises(ValidationError, match="drafted_by"):
+        Source.model_validate({k: v for k, v in SITE.items() if k != "drafted_by"})
+
+
+@pytest.mark.parametrize("field", ["drafted_by", "reviewed_by"])
+def test_quoted_source_is_not_drafted_or_reviewed(field: str) -> None:
+    value = "llm" if field == "drafted_by" else "owner"
+    with pytest.raises(ValidationError, match="copied"):
+        Source.model_validate({**QUOTED, field: value})
 
 
 def test_site_decision_may_add_supporting_quote() -> None:
-    data = {**QUOTED, "kind": "site_decision", "rationale": "below the legal limit"}
-    assert Source.model_validate(data).kind == "site_decision"
+    data = {**QUOTED, **SITE, "rationale": "below the legal limit"}
+    assert Source.model_validate(data).judged
 
 
 def test_url_and_quote_go_together() -> None:
-    data = {"kind": "site_decision", "ref": "VMP §5", "rationale": "r", "url": QUOTED["url"]}
     with pytest.raises(ValidationError, match="together"):
-        Source.model_validate(data)
+        Source.model_validate({**SITE, "url": QUOTED["url"]})
 
 
 def test_pending_source_needs_nothing() -> None:
@@ -94,7 +112,7 @@ def test_quoted_value_must_appear_in_quote() -> None:
 
 
 def test_site_decision_value_need_not_appear_in_quote() -> None:
-    source = {**QUOTED, "kind": "site_decision", "rationale": "stricter than the legal limit"}
+    source = {**QUOTED, **SITE, "rationale": "stricter than the legal limit"}
     assert _req({"type": "range", "max": 80, "unit": "dBA"}, source)
 
 
@@ -136,7 +154,9 @@ def test_scenario_target_must_exist() -> None:
 
 
 def test_classify_refuses_pending_values() -> None:
-    eq = load(TP201)
+    raw = _raw()
+    raw["tests"][1]["observed"] = {"type": "pending", "expected": "range", "unit": "rpm"}
+    eq = Equipment.model_validate(raw)
     req = next(r for r in eq.requirements if r.id == "URS-TP201-002")
     with pytest.raises(PendingError):
         classify(req, eq.tests, eq.designs, {p.doc_id: p for p in eq.protocols}, {})
@@ -167,6 +187,16 @@ def test_tp201_coverage_distribution_near_target(tp201: Equipment) -> None:
 
 def test_tp201_has_the_eight_v0_scenarios(tp201: Equipment) -> None:
     assert [s.id for s in tp201.scenarios] == [f"S{i}" for i in range(1, 9)]
+
+
+def test_unreviewed_lists_judged_values_until_signed_off() -> None:
+    raw = _raw()
+    first = next(r for r in raw["requirements"] if r["source"]["kind"] == "site_decision")
+    before = {r.id for r in Equipment.model_validate(raw).unreviewed()}
+    assert first["id"] in before
+    first["source"]["reviewed_by"] = "practitioner"
+    after = {r.id for r in Equipment.model_validate(raw).unreviewed()}
+    assert after == before - {first["id"]}
 
 
 def test_tp201_filled_requirements_agree_with_intent(tp201: Equipment) -> None:
