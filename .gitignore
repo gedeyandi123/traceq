@@ -1,0 +1,27 @@
+# Private denylist terms (see scripts/check_denylist.py)
+.denylist.local
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Rendered corpus: published as GitHub Release assets, never committed
+/dist/
+/build/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# gitleaks binary downloaded in CI
+/gitleaks

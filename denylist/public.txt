@@ -1,0 +1,39 @@
+# Real equipment and utility vendors. The synthetic dataset uses fictional
+# vendors only, so none of these names may appear anywhere in the repo.
+# One literal per line; matched case-insensitively on word boundaries.
+
+# Tablet presses, granulation, drying, coating
+Fette
+Korsch
+Kilian
+Romaco
+Natoli
+Kikusui
+Cadmach
+Sejong
+Courtoy
+Manesty
+Syntegon
+Bosch
+Bohle
+Glatt
+Diosna
+Collette
+Aeromatic
+GEA
+Freund-Vector
+O'Hara Technologies
+Thomas Engineering
+Gansons
+ACG Engineering
+Hata Iron Works
+
+# Purified water systems
+Stilmas
+Veolia
+BWT
+Evoqua
+Christ Pharma
+Honeyman
+Pharmatec
+Mar Cor
