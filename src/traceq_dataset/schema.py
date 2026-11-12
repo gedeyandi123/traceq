@@ -277,6 +277,32 @@ class VendorProtocol(Model):
     executed_on: Offset
 
 
+class CalibrationCertificate(Model):
+    """The current calibration certificate of a test instrument."""
+
+    id: str = Field(description="Certificate number.")
+    calibrated_on: Offset
+    valid_until: Offset = Field(description="Last day the calibration is valid.")
+
+
+class Instrument(Model):
+    """A site test instrument used in FAT/SAT steps (scenario S2: expired calibration)."""
+
+    id: str = Field(description="Site asset tag, e.g. 'TACH-07'.")
+    name: str
+    serial_no: str
+    certificate: CalibrationCertificate
+
+
+class Correction(Model):
+    """A handwritten entry overwritten on paper with no initials, date or reason (S1,
+    CPOB 10.8). ``TestEvidence.observed`` is the final value; ``original`` the value
+    first written beneath it. Correctly documented corrections follow with the other
+    GDP variants."""
+
+    original: Observation
+
+
 class TestEvidence(Model):
     """One executed FAT/SAT step that addresses a requirement."""
 
@@ -295,6 +321,16 @@ class TestEvidence(Model):
         description="The protocol's Acceptance Criterion when it is not the URS spec, e.g. a "
         "vendor FAT that tests a narrower range (Coverage `partial`, not a defect).",
     )
+    instruments: tuple[str, ...] = Field((), description="Instrument ids used in the step.")
+    correction: Correction | None = None
+
+    @model_validator(mode="after")
+    def _correction_same_kind(self) -> TestEvidence:
+        if self.correction:
+            a, b = self.correction.original, self.observed
+            if a.type != b.type or getattr(a, "unit", None) != getattr(b, "unit", None):
+                raise ValueError(f"{self.step}: correction must keep the observation type/unit")
+        return self
 
 
 class DesignEvidence(Model):
@@ -317,17 +353,27 @@ class Document(Model):
 
     id: str = Field(description="Document number, e.g. 'URS-TP201'; a FAT is its protocol id.")
     rev: int = Field(ge=0)
-    type: Literal["urs", "fat"]
+    type: Literal["urs", "fat", "sat"]
     title: str = Field("", description="Subtitle, e.g. 'Mechanical' for a FAT protocol.")
-    language: Literal["id", "en"]
+    language: Literal["id", "en"] = Field(description="Language of the printed text.")
+    entry_language: Literal["id", "en"] | None = Field(
+        None,
+        description="Language of handwritten entries on a paper form (SAT only): site staff "
+        "write Indonesian number and date formats on an English vendor form.",
+    )
+    serial_no: str | None = Field(
+        None,
+        description="Equipment serial number as written on this document, when it differs "
+        "from Equipment.serial_no (scenario S3).",
+    )
     issued_on: Offset
     prepared_by: str = Field(description="Person id.")
     checked_by: str | None = Field(None, description="Person id.")
     approved_by: str | None = Field(
         None, description="Person id. For a FAT: site approval, dated by the protocol."
     )
-    executed_by: str | None = Field(None, description="Person id (FAT only).")
-    witnessed_by: str | None = Field(None, description="Person id (FAT only).")
+    executed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
+    witnessed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     change_note: str = Field("", description="Revision history entry; empty for rev 0.")
 
     ROLES: ClassVar = ("prepared_by", "checked_by", "approved_by", "executed_by", "witnessed_by")
@@ -360,6 +406,7 @@ class Equipment(Model):
     requirements: tuple[Requirement, ...] = Field(min_length=1)
     protocols: tuple[VendorProtocol, ...] = ()
     tests: tuple[TestEvidence, ...] = ()
+    instruments: tuple[Instrument, ...] = ()
     designs: tuple[DesignEvidence, ...] = ()
     scenarios: tuple[Scenario, ...] = ()
     documents: tuple[Document, ...] = ()
@@ -378,6 +425,7 @@ class Equipment(Model):
         dupes([p.doc_id for p in self.protocols], "protocol")
         dupes([t.step for t in self.tests], "test step")
         dupes([s.id for s in self.scenarios], "scenario")
+        dupes([i.id for i in self.instruments], "instrument")
         dupes([f"{d.id} rev {d.rev}" for d in self.documents], "document")
         errors += [f"{r} does not start with {prefix}" for r in req_ids if not r.startswith(prefix)]
 
@@ -393,7 +441,11 @@ class Equipment(Model):
             for p in self.protocols
             if p.vendor != self.vendor.id
         ]
+        instruments = {i.id for i in self.instruments}
         for t in self.tests:
+            errors += [
+                f"{t.step}: unknown instrument {i}" for i in t.instruments if i not in instruments
+            ]
             if t.requirement not in reqs:
                 errors.append(f"{t.step}: unknown requirement {t.requirement}")
             if t.protocol not in protocols:
@@ -425,18 +477,27 @@ class Equipment(Model):
                     if getattr(d, r)
                 ]
             else:
+                stage = Stage(d.type.upper())
                 protocol = by_protocol.get(d.id)
-                if protocol is None or protocol.stage is not Stage.FAT:
-                    errors.append(f"{name}: no FAT protocol {d.id}")
+                if protocol is None or protocol.stage is not stage:
+                    errors.append(f"{name}: no {stage} protocol {d.id}")
                     continue
+                if (d.entry_language is None) != (stage is Stage.FAT):
+                    errors.append(f"{name}: entry_language is required for SAT and absent for FAT")
                 errors += [
-                    f"{name}: FAT needs {r}"
+                    f"{name}: {stage} needs {r}"
                     for r in ("executed_by", "witnessed_by")
                     if not getattr(d, r)
                 ]
                 if (d.approved_by is None) != (protocol.site_approved_on is None):
                     errors.append(f"{name}: approved_by must match the protocol's site approval")
-        known = reqs | protocols | {t.step for t in self.tests} | {d.doc_id for d in self.designs}
+        known = (
+            reqs
+            | protocols
+            | instruments
+            | {t.step for t in self.tests}
+            | {d.doc_id for d in self.designs}
+        )
         for s in self.scenarios:
             errors += [f"{s.id}: unknown target {x}" for x in s.targets if x not in known]
         if errors:

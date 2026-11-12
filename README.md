@@ -10,7 +10,7 @@ Status: early. Work starts with the synthetic dataset that drives the demo and t
 
 ## Licence
 
-Code: [Apache-2.0](LICENSE). Dataset and rendered documents: [CC BY 4.0](LICENSE-DATA).
+Code: [Apache-2.0](LICENSE). Dataset and rendered documents: [CC BY 4.0](LICENSE-DATA). The handwriting font Caveat (`src/traceq_dataset/fonts/`) is under the [SIL Open Font License 1.1](src/traceq_dataset/fonts/OFL-Caveat.txt).
 
 ## Development
 

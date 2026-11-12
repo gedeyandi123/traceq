@@ -1,7 +1,8 @@
 """Semantic validator for rendered documents (design section 8, "CI").
 
 CI re-renders and checks meaning, not bytes: every placed string the answer key relies on
-must appear in the extracted text of the page the renderer says it is on.
+must appear in the extracted text of the page the renderer says it is on. A handwritten
+entry must also appear inside its recorded bounding box, which the OCR answer key uses.
 """
 
 from __future__ import annotations
@@ -9,11 +10,14 @@ from __future__ import annotations
 import io
 import re
 
+import pypdfium2 as pdfium
 from pypdf import PdfReader
 
-from traceq_dataset.render import Rendered
+from traceq_dataset.render import Box, Rendered
 
 _SPACE = re.compile(r"\s+")
+BOX_TOLERANCE = 1.0
+"""pt added on every side: glyph outlines may touch the measured box."""
 
 
 def normalise(text: str) -> str:
@@ -25,13 +29,32 @@ def page_texts(pdf: bytes) -> list[str]:
     return [normalise(p.extract_text()) for p in PdfReader(io.BytesIO(pdf)).pages]
 
 
+def text_in_box(pdf: pdfium.PdfDocument, page: int, box: Box) -> str:
+    """Text whose characters lie inside ``box`` (top-left origin, pt) on ``page`` (1-based)."""
+    p = pdf[page - 1]
+    height, t = p.get_height(), BOX_TOLERANCE
+    return normalise(
+        p.get_textpage().get_text_bounded(
+            left=box.x - t,
+            bottom=height - box.y - box.h - t,
+            right=box.x + box.w + t,
+            top=height - box.y + t,
+        )
+    )
+
+
 def missing_text(rendered: Rendered) -> list[str]:
-    """Placed strings not found on their recorded page."""
+    """Placed strings not found on their recorded page, or outside their recorded box."""
     pages = page_texts(rendered.pdf)
+    pdf = pdfium.PdfDocument(rendered.pdf)
     out = []
     for key, placed in rendered.placed.items():
+        where = f"{rendered.filename} {key}"
+        text = normalise(placed.text)
         if not 1 <= placed.page <= len(pages):
-            out.append(f"{rendered.filename} {key}: page {placed.page} out of range")
-        elif normalise(placed.text) not in pages[placed.page - 1]:
-            out.append(f"{rendered.filename} {key}: text not on page {placed.page}")
+            out.append(f"{where}: page {placed.page} out of range")
+        elif text not in pages[placed.page - 1]:
+            out.append(f"{where}: text not on page {placed.page}")
+        elif placed.box and text not in text_in_box(pdf, placed.page, placed.box):
+            out.append(f"{where}: text not in its box on page {placed.page}")
     return out
