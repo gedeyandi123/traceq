@@ -27,7 +27,8 @@ gates. ``ocr.yaml`` is not scored yet.
 
 Gates, absolute floor 0: fabricated Acceptance Criterion, fabricated citation, fabricated
 Evidence, and a ``gap`` / ``partial`` / ``conflict`` requirement labelled
-``covered_by_vendor``. Every other metric is for the ratchet against a baseline.
+``covered_by_vendor``. Every other metric is for the ratchet against a baseline
+(``traceq_eval.ratchet``).
 """
 
 from __future__ import annotations
@@ -50,7 +51,7 @@ from traceq_eval.citations import (
 from traceq_eval.judge import Criterion, Judge, NoJudge, UrsRequirement
 from traceq_eval.submission import Citation, Submission
 
-SCORER_VERSION = "0.2.0"
+SCORER_VERSION = "0.3.0"
 
 CLAIMS_A_TEST = frozenset({"covered_by_vendor", "partial"})
 """Coverage classes that say a vendor step tested the requirement."""
