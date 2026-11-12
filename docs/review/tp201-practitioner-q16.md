@@ -37,6 +37,21 @@ Pemilik menyetujui nilai-nilai ini berdasarkan logika dan cek fakta umum. Prakti
 | 15 | URS-TP201-026 | Listrik 380 V, 3 fase, 50 Hz | Wajar? |
 | 16 | URS-TP201-004 | Gaya tekan utama minimal 100 kN; produk terbesar dikempa sampai sekitar 200 MPa | Apakah 100 kN wajar untuk tablet sampai 25 mm? |
 
+## D. Risk assessment, kalibrasi, dan answer key
+
+Isi bagian ini menyangkut penilaian, bukan nilai URS. Kriteria kritis (D1–D3) memblokir sign-off RA (`risk_assessment.reviewed_by`). Dengan aturan RA sekarang (Aspek kritis = Ya bila S ≥ 4), mengubah kritis sebuah requirement berarti mengubah `critical` di URS dan skor S-nya di RA sekaligus. Kelas Coverage tidak ikut berubah.
+
+| # | Topik | Keadaan sekarang | Pertanyaan |
+|---|---|---|---|
+| D1 | URS-TP201-003, kritis | Kapasitas produksi minimal 120.000 tablet/jam ditandai **kritis** (RA: S = 4) | Kapasitas lebih ke kebutuhan bisnis daripada mutu produk. Apakah lazim ditandai sebagai aspek kritis? |
+| D2 | URS-TP201-013, -020, -028, tidak kritis | Pelumas food-grade, proteksi overload punch, dan dust extraction ditandai **tidak kritis** (RA: S = 3) | Ketiganya bisa berdampak ke mutu produk (kontaminasi pelumas, serpihan logam, kontaminasi silang). Mana yang biasanya dianggap aspek kritis? |
+| D3 | Fungsi vs dokumen | Akurasi gaya tekan (016) S = 4 tetapi sertifikat kalibrasinya (036) S = 3; material kontak (009) S = 5 tetapi sertifikat materialnya (035) S = 3 | Apakah kegagalan dokumen bukti dinilai lebih rendah daripada kegagalan fungsinya, atau disamakan? |
+| D4 | Format RA | FMEA singkat: satu baris per persyaratan URS, skala S/O/D 1–5, RPN = S × O × D, aspek kritis bila S ≥ 4, dan satu kolom pengendalian per kelompok persyaratan | Apakah format dan ambang ini lazim? Kolom apa yang biasanya ada tetapi di sini tidak ada? |
+| D5 | Sertifikat sensor gaya (CAL-TP201-01) | Diterbitkan vendor, dua kanal (gaya utama dan pra-kompresi), dikalibrasi sebelum FAT, berlaku 12 bulan | Apakah sertifikat dari vendor diterima, atau pabrik meminta lab terakreditasi? Apakah sensor gaya dikalibrasi ulang setelah instalasi? |
+| D6 | Evidence dari alat kedaluwarsa (S2) | SAT-01 memakai tachometer yang kalibrasinya kedaluwarsa sehari sebelumnya, tetapi URS-TP201-003 tetap dihitung *covered_by_vendor* lewat SAT-01 | Apakah hasil uji dari alat ukur yang kedaluwarsa masih dihitung sebagai bukti? |
+| D7 | Tanggal ambigu di SAT | Tanggal tulisan tangan seperti `07/05/2026` ambigu dd/mm vs mm/dd bila dibaca sendiri; konteks dokumen memastikannya. Tidak ditanam sebagai cacat. | Apakah reviewer di lapangan akan mempermasalahkannya? |
+| D8 | Severity cacat | S5 dan S6 critical; S1, S2, S4 major; S3 dan S7 minor (lihat `answer_key/TP-201/defects.yaml`) | Apakah pembagian ini sesuai cara pabrik menilai temuan? |
+
 ## C. Di luar nilai (opsional, jika waktu cukup)
 
 - Apakah ada persyaratan yang lazim di URS mesin cetak tablet tetapi tidak ada di daftar 38 persyaratan TP-201?

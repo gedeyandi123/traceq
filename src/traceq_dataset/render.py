@@ -856,6 +856,7 @@ RA_COLUMNS = (
     ("D", 5),
     ("RPN", 7),
     ("Aspek kritis", 12),
+    ("Pengendalian dan verifikasi", 40),
 )
 RA_SCORES = ("severity", "occurrence", "detection", "rpn", "critical")
 """Placed cells of each FMEA row: ``<requirement id>.<name>``."""
@@ -923,6 +924,7 @@ def render_risk_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
             row.detection,
             row.rpn,
             critical,
+            ra.controls[r.scope],
         )
         y = top + n
         for col, value in enumerate(values, 1):
@@ -947,6 +949,8 @@ def render_risk_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
         f"{EN_DASH}5. RPN = S {TIMES} O {TIMES} D.",
         f"Aspek kritis = Ya bila S ≥ {ra.critical_from}: kegagalan berdampak langsung pada "
         "mutu produk, keselamatan, atau integritas data.",
+        "RPN menentukan prioritas pengujian: makin tinggi RPN, makin awal dan makin ketat "
+        "pengujiannya di protokol kualifikasi.",
     )
     for i, line in enumerate(legend):
         ws.cell(y + i, 1, line)
