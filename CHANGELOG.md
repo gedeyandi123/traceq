@@ -13,3 +13,4 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 ### Added
 
 - Dataset design, glossary, datasheet skeleton, and licences (code Apache-2.0, data CC BY 4.0).
+- `traceq_dataset` package: world-data schema (Pydantic), T0 date offsets, and the `covered_by_vendor` decision table with tests.
