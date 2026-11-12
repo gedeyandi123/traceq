@@ -128,7 +128,7 @@ def test_force_sensor_certificate_from_the_vendor(eq: Equipment) -> None:
     assert cal.placed["instrument"].text == "FMS-TP201"
     text = page_texts(cal.pdf)[0]
     assert "Pressora Maschinenbau GmbH" in text
-    assert "Main compression 100 100.42 +0.42 ± 0.3" in text
+    assert "Main compression 100 100.42 +0.42 ± 0.25" in text
     assert "Pre-compression 20 20.07 +0.07 ± 0.06" in text
     fms = next(i for i in eq.instruments if i.id == "FMS-TP201")
     cert, dates = fms.certificate, {p.doc_id: p for p in eq.protocols}
@@ -139,8 +139,16 @@ def test_force_sensor_certificate_from_the_vendor(eq: Equipment) -> None:
     assert max(abs(p.reading - p.nominal) for p in main) <= 0.5
 
 
-def test_calibration_readings_await_review(eq: Equipment) -> None:
-    assert {i.id for i in eq.unreviewed_results()} == {"TACH-07", "SW-03", "FMS-TP201"}
+def test_calibration_readings_reviewed_by_owner(eq: Equipment) -> None:
+    assert eq.unreviewed_results() == []
+
+
+def test_force_calibration_uncertainty_ratio(eq: Equipment) -> None:
+    """U at every main-channel point is at most a quarter of the URS tolerance (1 kN)."""
+    fms = next(i for i in eq.instruments if i.id == "FMS-TP201")
+    assert fms.certificate.results is not None
+    main = [p for p in fms.certificate.results.points if p.channel == "Main compression"]
+    assert all(p.uncertainty <= 0.25 for p in main)
 
 
 # --- Functional design specification --------------------------------------------------
@@ -209,6 +217,23 @@ def test_risk_assessment_is_values_not_formulas(ra: Rendered) -> None:
     rpn = ra.placed["URS-TP201-015.rpn"]
     assert (rpn.sheet, cells[(RA_SHEET, rpn.cell or "")]) == (RA_SHEET, "40")
     assert "URS-TP201 rev 1 (SKP)" in cells.values()
+
+
+def test_risk_controls_are_the_same_per_scope(eq: Equipment, ra: Rendered) -> None:
+    """The control column follows the scope only, so it gives no Coverage label away."""
+    cells = cell_texts(ra.data)
+    row = ra.placed["URS-TP201-018.critical"].cell or ""
+    control = cells[(RA_SHEET, "K" + row.lstrip("J"))]
+    assert control == "Tinjauan FDS; uji fungsi saat FAT/SAT dan OQ"
+    assert "RPN menentukan prioritas pengujian" in " ".join(cells.values())
+
+
+def test_risk_assessment_needs_a_control_per_scope(eq: Equipment) -> None:
+    def edit(d: dict) -> None:
+        del d["risk_assessment"]["controls"]["documentation"]
+
+    with pytest.raises(ValidationError, match="no control for scope 'documentation'"):
+        _with(eq, edit)
 
 
 def test_risk_assessment_bytes_are_deterministic(eq: Equipment, ra: Rendered) -> None:

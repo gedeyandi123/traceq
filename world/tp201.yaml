@@ -653,7 +653,8 @@ tests:
 
 # Site test instruments. S2: TACH-07's calibration lapsed the day before the SAT (T0-14d).
 # Calibration readings are judged numbers (design principle 7): drafted by an LLM, they
-# block freeze until a human reviews them. They are not Acceptance Criteria.
+# block freeze until a human reviews them (owner review done 13 Nov 2026). They are not
+# Acceptance Criteria.
 instruments:
   - id: TACH-07
     name: Digital tachometer
@@ -671,6 +672,7 @@ instruments:
           - {nominal: 1000, reading: 1000.3, uncertainty: 0.6}
           - {nominal: 3000, reading: 3000.8, uncertainty: 1.5}
         drafted_by: llm
+        reviewed_by: owner
   - id: SW-03
     name: Stopwatch
     serial_no: SW-11907
@@ -686,9 +688,11 @@ instruments:
           - {nominal: 600, reading: 600.05, uncertainty: 0.2}
           - {nominal: 3600, reading: 3600.1, uncertainty: 0.3}
         drafted_by: llm
+        reviewed_by: owner
   # The press's own force measuring system (URS-TP201-016, -036), calibrated by the vendor
   # before the FAT. Clean: valid through FAT and SAT; largest main-channel error 0.42 kN
-  # (0.42% of the 100 kN full scale), consistent with FAT-M-08 (0.5% FS).
+  # (0.42% of the 100 kN full scale), consistent with FAT-M-08 (0.5% FS). U at 100 kN is
+  # 0.25 kN, a 4:1 ratio to the URS tolerance of 1 kN (owner review).
   - id: FMS-TP201
     name: Compression force measuring system
     serial_no: FMS36-25-1183
@@ -704,11 +708,12 @@ instruments:
           - {channel: Main compression, nominal: 40, reading: 40.11, uncertainty: 0.15}
           - {channel: Main compression, nominal: 60, reading: 60.19, uncertainty: 0.2}
           - {channel: Main compression, nominal: 80, reading: 80.31, uncertainty: 0.25}
-          - {channel: Main compression, nominal: 100, reading: 100.42, uncertainty: 0.3}
+          - {channel: Main compression, nominal: 100, reading: 100.42, uncertainty: 0.25}
           - {channel: Pre-compression, nominal: 5, reading: 5.02, uncertainty: 0.03}
           - {channel: Pre-compression, nominal: 10, reading: 10.03, uncertainty: 0.04}
           - {channel: Pre-compression, nominal: 20, reading: 20.07, uncertainty: 0.06}
         drafted_by: llm
+        reviewed_by: owner
 
 # Design and delivered-item facts. Datasheet values are copied from the URS spec, except
 # the output (36 stations x 70 rpm x 60, URS-TP201-003 rationale) and the planted conflict;
@@ -825,11 +830,19 @@ designs:
 # Short FMEA of the site (RA-TP201, XLSX), one row per requirement. Severity >= 4 marks a
 # Critical Aspect and must agree with `critical` in the URS (schema check). Scores and the
 # threshold are judged numbers (design principle 7): drafted, they block freeze until a
-# human reviews them.
+# human reviews them. Criticality of URS-003, -013, -020 and -028 goes to the practitioner
+# (Q16 section D), so the owner does not sign off yet.
+# `controls`: the planned control and verification per requirement scope. The same text for
+# every requirement of a scope, so it cannot leak a Coverage label.
 risk_assessment:
   doc_id: RA-TP201
   critical_from: 4
   drafted_by: llm
+  controls:
+    mechanical: "Tinjauan desain di DQ; verifikasi fisik saat FAT/SAT dan IQ"
+    control: "Tinjauan FDS; uji fungsi saat FAT/SAT dan OQ"
+    data_integrity: "Tinjauan FDS; uji fungsi HMI saat FAT/SAT dan OQ"
+    documentation: "Pemeriksaan kelengkapan dokumen saat FAT dan IQ"
   rows:
     - {requirement: URS-TP201-001, failure_mode: "Jumlah stasiun punch kurang dari kebutuhan", effect: "Kapasitas produksi tidak tercapai", severity: 2, occurrence: 1, detection: 1}
     - {requirement: URS-TP201-002, failure_mode: "Rentang kecepatan turret tidak tercapai", effect: "Bobot dan kekerasan tablet menyimpang pada kecepatan produksi", severity: 4, occurrence: 2, detection: 2}

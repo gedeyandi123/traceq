@@ -484,6 +484,10 @@ class RiskAssessment(Model):
 
     doc_id: str
     critical_from: Score = Field(description="Least severity that marks a Critical Aspect.")
+    controls: dict[str, str] = Field(
+        description="Planned control and verification per requirement scope, the same for "
+        "every requirement of a scope (so it gives no Coverage label away)."
+    )
     rows: tuple[Risk, ...] = Field(min_length=1)
     drafted_by: Literal["llm", "human"]
     reviewed_by: Literal["owner", "practitioner"] | None = None
@@ -762,6 +766,8 @@ class Equipment(Model):
             f"{ra.doc_id}: {r} has more than one row" for r, n in Counter(rows).items() if n > 1
         ]
         errors += [f"{ra.doc_id}: no row for {r}" for r in reqs if r not in rows]
+        scopes = sorted({r.scope for r in self.requirements} - set(ra.controls))
+        errors += [f"{ra.doc_id}: no control for scope {s!r}" for s in scopes]
         errors += [
             f"{ra.doc_id}: {row.requirement} severity {row.severity} disagrees with "
             f"critical={reqs[row.requirement].critical}"
