@@ -8,12 +8,14 @@
 #   human sets reviewed_by.
 # Check: uv run python -m traceq_dataset.world world/tp201.yaml
 #
-# Names of the plant, vendor and people are provisional: trademark check before freeze.
+# Names of the plant, vendor, lab and people are provisional: trademark check before freeze.
 
 tag: TP-201
 name: Rotary tablet press (single-sided)
 serial_no: RTP36-25-0417  # nameplate; S3 writes RTP36-25-0471 in the SAT
+model: RTP 36
 site: site-01
+site_name: PT Arunika Farma Lestari
 
 vendor:
   id: vendor-tp201
@@ -22,6 +24,9 @@ vendor:
     assessed_on: T0-200d
     scope: [mechanical, control, data_integrity, documentation]
 
+labs:
+  - {id: lab-01, name: PT Kalibrasi Teknika Mandiri}
+
 people:
   - {id: p-qe, name: Rina Wulandari, persona: qualification_engineer, employer: site-01}
   - {id: p-qs, name: Bayu Pratama, persona: qualification_supervisor, employer: site-01}
@@ -29,6 +34,9 @@ people:
   - {id: p-wit, name: Agus Setiawan, persona: witness, employer: site-01}
   - {id: p-adm, name: Fajar Nugroho, persona: system_admin, employer: site-01}
   - {id: p-ve, name: Markus Brandt, persona: vendor_engineer, employer: vendor-tp201}
+  - {id: p-vqc, name: Jonas Keller, persona: vendor_inspector, employer: vendor-tp201}
+  - {id: p-labt, name: Hendra Wijaya, persona: lab_staff, employer: lab-01}
+  - {id: p-labm, name: Sari Kusumawati, persona: lab_staff, employer: lab-01}
 
 protocols:
   - {doc_id: FAT-TP201-M, stage: FAT, vendor: vendor-tp201, site_approved_on: T0-130d, executed_on: T0-120d}
@@ -644,14 +652,76 @@ tests:
   - {step: SAT-07, protocol: SAT-TP201, requirement: URS-TP201-023, observed: {type: present, value: true}, recorded_result: pass, description: "Trigger an alarm and acknowledge it; confirm the alarm log shows time and user."}
 
 # Site test instruments. S2: TACH-07's calibration lapsed the day before the SAT (T0-14d).
+# Calibration readings are judged numbers (design principle 7): drafted by an LLM, they
+# block freeze until a human reviews them. They are not Acceptance Criteria.
 instruments:
-  - {id: TACH-07, name: Digital tachometer, serial_no: DT2236-58812, certificate: {id: KAL-2025-0412, calibrated_on: T0-380d, valid_until: T0-15d}}
-  - {id: SW-03, name: Stopwatch, serial_no: SW-11907, certificate: {id: KAL-2026-0057, calibrated_on: T0-120d, valid_until: T0+245d}}
+  - id: TACH-07
+    name: Digital tachometer
+    serial_no: DT2236-58812
+    certificate:
+      id: KAL-2025-0412
+      lab: lab-01
+      calibrated_on: T0-380d
+      valid_until: T0-15d
+      results:
+        unit: rpm
+        points:
+          - {nominal: 50, reading: 50.0, uncertainty: 0.1}
+          - {nominal: 100, reading: 100.1, uncertainty: 0.2}
+          - {nominal: 1000, reading: 1000.3, uncertainty: 0.6}
+          - {nominal: 3000, reading: 3000.8, uncertainty: 1.5}
+        drafted_by: llm
+  - id: SW-03
+    name: Stopwatch
+    serial_no: SW-11907
+    certificate:
+      id: KAL-2026-0057
+      lab: lab-01
+      calibrated_on: T0-120d
+      valid_until: T0+245d
+      results:
+        unit: s
+        points:
+          - {nominal: 60, reading: 60.02, uncertainty: 0.2}
+          - {nominal: 600, reading: 600.05, uncertainty: 0.2}
+          - {nominal: 3600, reading: 3600.1, uncertainty: 0.3}
+        drafted_by: llm
 
-# Design and delivered-item facts.
+# Design and delivered-item facts. Datasheet values are copied from the URS spec, except
+# the output (36 stations x 70 rpm x 60, URS-TP201-003 rationale) and the planted conflict;
+# a value that silently stops meeting the URS fails the intended-Coverage test.
+# Requirements meant to be `gap` are not on the datasheet, so their label stays clean.
 designs:
-  - {doc_id: DS-TP201, requirement: URS-TP201-008, observed: {type: text, value: EU B}}
-  - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, observed: {type: text, value: SS 304}}  # S6, decision log Q29
+  - {doc_id: DS-TP201, requirement: URS-TP201-001, section: Performance, label: Number of punch stations, observed: {type: number, value: 36, unit: stations}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-002, section: Performance, label: Turret speed, observed: {type: range, min: 20, max: 70, unit: rpm}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-003, section: Performance, label: Maximum output, observed: {type: number, value: 151200, unit: tablets/h}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-004, section: Performance, label: Maximum main compression force, observed: {type: number, value: 100, unit: kN}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-005, section: Performance, label: Maximum pre-compression force, observed: {type: number, value: 20, unit: kN}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-006, section: Tooling, label: Maximum tablet diameter, observed: {type: number, value: 25, unit: mm}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-007, section: Tooling, label: Maximum fill depth, observed: {type: number, value: 18, unit: mm}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-008, section: Tooling, label: Tooling standard, observed: {type: text, value: EU B}}  # conflict: URS EU D
+  - {doc_id: DS-TP201, requirement: URS-TP201-009, section: Materials and finish, label: Product-contact parts, observed: {type: text, value: SS 316L}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-010, section: Materials and finish, label: "Surface roughness Ra, product-contact parts (max.)", observed: {type: number, value: 0.8, unit: µm}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-011, section: Materials and finish, label: Frame and covers, observed: {type: text, value: SS 304}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-014, section: Control and safety, label: "Automatic tablet weight control (force-based)", observed: {type: present, value: true}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-015, section: Control and safety, label: Automatic rejection of out-of-limit tablets, observed: {type: present, value: true}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-016, section: Control and safety, label: "Compression force measurement accuracy (max. ±)", observed: {type: number, value: 1, unit: "% FS"}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-017, section: Control and safety, label: Feeder paddle speed, observed: {type: range, min: 10, max: 60, unit: rpm}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-019, section: Control and safety, label: Emergency stop, observed: {type: present, value: true}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-020, section: Control and safety, label: Punch overload protection, observed: {type: present, value: true}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-021, section: HMI and data, label: "User access levels (operator, supervisor, admin)", observed: {type: present, value: true}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-022, section: HMI and data, label: Audit trail of parameter and recipe changes, observed: {type: present, value: true}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-023, section: HMI and data, label: Alarm log with time and user, observed: {type: present, value: true}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-026, section: Utilities, label: "Power supply (3 phase, 50 Hz)", observed: {type: number, value: 380, unit: V}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-027, section: Utilities, label: Compressed air, observed: {type: range, min: 6, max: 7, unit: bar}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-028, section: Utilities, label: Dust extraction flow (required), observed: {type: number, value: 300, unit: m3/h}}
+  # 3.1 material certificate, one row per product-contact part. S6 (decision log Q29): the
+  # feed frame housing is SS 304 among SS 316L parts; the datasheet promised SS 316L.
+  - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Hopper, observed: {type: text, value: SS 316L}}
+  - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Feed frame housing, observed: {type: text, value: SS 304}}
+  - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Feeder paddles, observed: {type: text, value: SS 316L}}
+  - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Take-off scraper, observed: {type: text, value: SS 316L}}
+  - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Tablet discharge chute, observed: {type: text, value: SS 316L}}
 
 # Rendered documents. Rev 1 is issued before the vendor assessment (T0-200d).
 documents:
@@ -673,21 +743,38 @@ documents:
   # published as a medium-quality scan.
   # S3: the serial number is written with two digits transposed.
   - {id: SAT-TP201, rev: 0, type: sat, language: en, entry_language: id, serial_no: RTP36-25-0471, scan: medium, issued_on: T0-30d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
+  # Vendor datasheet for this machine (serial from the nameplate, S3), issued with the offer.
+  - {id: DS-TP201, rev: 0, type: datasheet, language: en, issued_on: T0-205d, prepared_by: p-ve}
+  # DQ: the site reviews the datasheet against URS rev 1. Clean: it records the tooling
+  # mismatch (URS-TP201-008) as an open item instead of passing it.
+  - id: DQ-TP201
+    rev: 0
+    type: dq_report
+    language: id
+    issued_on: T0-190d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+    reviews: [{doc: URS-TP201, rev: 1}, {doc: DS-TP201, rev: 0}]
+  # Paper certificates, published as scans.
+  - {id: MTC-TP201-01, rev: 0, type: material_certificate, language: en, scan: medium, issued_on: T0-160d, prepared_by: p-vqc}
+  - {id: KAL-2025-0412, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-378d, prepared_by: p-labt, approved_by: p-labm}
+  - {id: KAL-2026-0057, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-118d, prepared_by: p-labt, approved_by: p-labm}
 
 # Documents the VMP requires for a new tablet press (design section 5). `missing` says why
 # one is not in the corpus: planned = not rendered yet; expected_gap = what TraceQ drafts.
 required_documents:
   - {id: URS-TP201, type: urs, stage: design}
   - {id: RA-TP201, type: risk_assessment, stage: design, missing: planned}
-  - {id: DS-TP201, type: datasheet, stage: design, missing: planned}
+  - {id: DS-TP201, type: datasheet, stage: design}
   - {id: FDS-TP201, type: functional_spec, stage: design, missing: planned}
-  - {id: DQ-TP201, type: dq_report, stage: design, missing: planned}
-  - {id: MTC-TP201-01, type: material_certificate, stage: FAT, missing: planned}
+  - {id: DQ-TP201, type: dq_report, stage: design}
+  - {id: MTC-TP201-01, type: material_certificate, stage: FAT}
   - {id: CAL-TP201-01, type: calibration_certificate, stage: FAT, missing: planned, note: "Compression force sensors (URS-TP201-036)."}
   - {id: FAT-TP201-M, type: fat, stage: FAT}
   - {id: FAT-TP201-C, type: fat, stage: FAT}
-  - {id: KAL-2025-0412, type: calibration_certificate, stage: SAT, missing: planned, note: "TACH-07 (S2)."}
-  - {id: KAL-2026-0057, type: calibration_certificate, stage: SAT, missing: planned, note: "SW-03."}
+  - {id: KAL-2025-0412, type: calibration_certificate, stage: SAT, note: "TACH-07 (S2)."}
+  - {id: KAL-2026-0057, type: calibration_certificate, stage: SAT, note: "SW-03."}
   - {id: SAT-TP201, type: sat, stage: SAT}
   - {id: IQ-TP201, type: iq_protocol, stage: IQ, missing: expected_gap}
   - {id: OQ-TP201, type: oq_protocol, stage: OQ, missing: expected_gap}
@@ -721,7 +808,7 @@ scenarios:
         - {doc: SAT-TP201, field: execution.executed_by.date}
         - {doc: SAT-TP201, field: SAT-01.instruments}
         - {doc: SAT-TP201, field: SAT-03.instruments}
-        - {doc: KAL-2025-0412}
+        - {doc: KAL-2025-0412, field: valid_until}
   - id: S3
     summary: The SAT serial number differs from the nameplate and datasheet.
     targets: [SAT-TP201, DS-TP201]
@@ -733,7 +820,7 @@ scenarios:
       at:
         - {doc: SAT-TP201, field: serial}
         - {doc: FAT-TP201-M, text: RTP36-25-0417}
-        - {doc: DS-TP201}
+        - {doc: DS-TP201, field: serial}
   - id: S4
     summary: The control-system FAT protocol was executed without site approval.
     reference: CPOB 12.14
@@ -756,16 +843,16 @@ scenarios:
         - {doc: FAT-TP201-M, field: FAT-M-03.observed}
         - {doc: FAT-TP201-M, field: FAT-M-03.acceptance}
   - id: S6
-    summary: The material certificate says SS 304; the URS requires SS 316L.
+    summary: The material certificate lists a product-contact part in SS 304; the URS requires SS 316L.
     reference: PerBPOM 7/2024 Bab 4 §4.7
     targets: [MTC-TP201-01, URS-TP201-009]
     finding:
       type: design_conflict
       severity: critical
-      detail: "The material certificate states SS 304 for product-contact parts; URS-TP201-009 requires SS 316L."
+      detail: "The 3.1 material certificate lists the feed frame housing, a product-contact part, as SS 304 (1.4301); URS-TP201-009 requires SS 316L and the datasheet promised SS 316L."
       at:
         - {doc: URS-TP201, rev: 1, field: URS-TP201-009}
-        - {doc: MTC-TP201-01}
+        - {doc: MTC-TP201-01, field: item-2.material}
   - id: S7
     summary: '"1.500 rpm" in a mixed-language SAT entry is ambiguous; expected answer is "ask for confirmation".'
     targets: [SAT-03, URS-TP201-017]

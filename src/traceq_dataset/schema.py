@@ -185,6 +185,8 @@ class Persona(StrEnum):
     WITNESS = "witness"
     SYSTEM_ADMIN = "system_admin"
     VENDOR_ENGINEER = "vendor_engineer"
+    VENDOR_INSPECTOR = "vendor_inspector"  # signs 3.1 material certificates
+    LAB_STAFF = "lab_staff"  # calibrates and signs calibration certificates
 
 
 class Person(Model):
@@ -205,6 +207,13 @@ class Vendor(Model):
     id: str
     name: str
     assessment: VendorAssessment | None = None
+
+
+class Organisation(Model):
+    """Another party that issues documents, e.g. the calibration lab."""
+
+    id: str
+    name: str
 
 
 # --- Requirements and Evidence ------------------------------------------------------
@@ -277,12 +286,33 @@ class VendorProtocol(Model):
     executed_on: Offset
 
 
+class CalibrationPoint(Model):
+    """One row of a calibration certificate's results table."""
+
+    nominal: float
+    reading: float
+    uncertainty: float = Field(gt=0, description="Expanded uncertainty (k = 2).")
+
+
+class CalibrationResults(Model):
+    """Readings printed on a calibration certificate. They are not Acceptance Criteria,
+    but they are judged numbers (design principle 7): drafted, then reviewed by a human."""
+
+    unit: str
+    points: tuple[CalibrationPoint, ...] = Field(min_length=1)
+    drafted_by: Literal["llm", "human"]
+    reviewed_by: Literal["owner", "practitioner"] | None = None
+
+
 class CalibrationCertificate(Model):
-    """The current calibration certificate of a test instrument."""
+    """The current calibration certificate of a test instrument. Its ``id`` is the document
+    number when the certificate is rendered."""
 
     id: str = Field(description="Certificate number.")
+    lab: str | None = Field(None, description="Organisation id of the issuing lab.")
     calibrated_on: Offset
     valid_until: Offset = Field(description="Last day the calibration is valid.")
+    results: CalibrationResults | None = None
 
 
 class Instrument(Model):
@@ -334,14 +364,25 @@ class TestEvidence(Model):
 
 
 class DesignEvidence(Model):
-    """A design or delivered-item fact (datasheet, material certificate, nameplate)."""
+    """A design or delivered-item fact (datasheet, material certificate, nameplate).
+
+    ``label`` is the vendor's printed wording: a datasheet row or a certificate's part.
+    A datasheet prints one row per requirement; a material certificate one row per part.
+    """
 
     doc_id: str
     requirement: str
     observed: Observation
+    label: str | None = None
+    section: str | None = Field(None, description="Datasheet section heading.")
 
 
 # --- Documents ----------------------------------------------------------------------
+
+
+class DocRef(Model):
+    doc: str
+    rev: int = Field(0, ge=0)
 
 
 class Document(Model):
@@ -353,7 +394,15 @@ class Document(Model):
 
     id: str = Field(description="Document number, e.g. 'URS-TP201'; a FAT is its protocol id.")
     rev: int = Field(ge=0)
-    type: Literal["urs", "fat", "sat"]
+    type: Literal[
+        "urs",
+        "fat",
+        "sat",
+        "datasheet",
+        "material_certificate",
+        "calibration_certificate",
+        "dq_report",
+    ]
     title: str = Field("", description="Subtitle, e.g. 'Mechanical' for a FAT protocol.")
     language: Literal["id", "en"] = Field(description="Language of the printed text.")
     entry_language: Literal["id", "en"] | None = Field(
@@ -380,8 +429,12 @@ class Document(Model):
     executed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     witnessed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     change_note: str = Field("", description="Revision history entry; empty for rev 0.")
+    reviews: tuple[DocRef, ...] = Field(
+        (), description="Documents a DQ report reviews, e.g. the URS and the datasheet."
+    )
 
     ROLES: ClassVar = ("prepared_by", "checked_by", "approved_by", "executed_by", "witnessed_by")
+    DESIGN_TYPES: ClassVar = frozenset({"datasheet", "material_certificate"})
 
 
 # --- Equipment (one world-data file) ------------------------------------------------
@@ -490,8 +543,11 @@ class Equipment(Model):
     tag: str = Field(pattern=r"^[A-Z]+-\d{3}$")
     name: str
     serial_no: str | None = Field(None, description="True serial number, as on the nameplate.")
+    model: str | None = Field(None, description="Vendor's model designation.")
     site: str
+    site_name: str | None = Field(None, description="Plant name printed on certificates.")
     vendor: Vendor
+    labs: tuple[Organisation, ...] = ()
     people: tuple[Person, ...]
     requirements: tuple[Requirement, ...] = Field(min_length=1)
     protocols: tuple[VendorProtocol, ...] = ()
@@ -521,7 +577,8 @@ class Equipment(Model):
         errors += [f"{r} does not start with {prefix}" for r in req_ids if not r.startswith(prefix)]
 
         reqs, protocols = set(req_ids), {p.doc_id for p in self.protocols}
-        employers = {self.site, self.vendor.id}
+        labs = {o.id for o in self.labs}
+        employers = {self.site, self.vendor.id} | labs
         errors += [
             f"{p.id}: unknown employer {p.employer}"
             for p in self.people
@@ -533,6 +590,11 @@ class Equipment(Model):
             if p.vendor != self.vendor.id
         ]
         instruments = {i.id for i in self.instruments}
+        errors += [
+            f"{i.id}: unknown lab {i.certificate.lab}"
+            for i in self.instruments
+            if i.certificate.lab is not None and i.certificate.lab not in labs
+        ]
         for t in self.tests:
             errors += [
                 f"{t.step}: unknown instrument {i}" for i in t.instruments if i not in instruments
@@ -546,42 +608,8 @@ class Equipment(Model):
             for d in self.designs
             if d.requirement not in reqs
         ]
-        people = {p.id for p in self.people}
-        by_protocol = {p.doc_id: p for p in self.protocols}
         for d in self.documents:
-            name = f"{d.id} rev {d.rev}"
-            for role in Document.ROLES:
-                pid = getattr(d, role)
-                if pid is not None and pid not in people:
-                    errors.append(f"{name}: unknown {role} {pid}")
-            if d.rev > 0 and not d.change_note:
-                errors.append(f"{name}: needs a change_note")
-            if d.type == "urs":
-                errors += [
-                    f"{name}: URS needs {r}"
-                    for r in ("checked_by", "approved_by")
-                    if not getattr(d, r)
-                ]
-                errors += [
-                    f"{name}: URS has no {r}"
-                    for r in ("executed_by", "witnessed_by")
-                    if getattr(d, r)
-                ]
-            else:
-                stage = Stage(d.type.upper())
-                protocol = by_protocol.get(d.id)
-                if protocol is None or protocol.stage is not stage:
-                    errors.append(f"{name}: no {stage} protocol {d.id}")
-                    continue
-                if (d.entry_language is None) != (stage is Stage.FAT):
-                    errors.append(f"{name}: entry_language is required for SAT and absent for FAT")
-                errors += [
-                    f"{name}: {stage} needs {r}"
-                    for r in ("executed_by", "witnessed_by")
-                    if not getattr(d, r)
-                ]
-                if (d.approved_by is None) != (protocol.site_approved_on is None):
-                    errors.append(f"{name}: approved_by must match the protocol's site approval")
+            errors += self._document_errors(d)
         known = (
             reqs
             | protocols
@@ -595,6 +623,80 @@ class Equipment(Model):
         if errors:
             raise ValueError("; ".join(errors))
         return self
+
+    def _document_errors(self, d: Document) -> list[str]:
+        """Signatories and the type-specific content a document needs to be rendered."""
+        name = f"{d.id} rev {d.rev}"
+        people = {p.id: p for p in self.people}
+        errors = [
+            f"{name}: unknown {role} {pid}"
+            for role in Document.ROLES
+            if (pid := getattr(d, role)) is not None and pid not in people
+        ]
+        if d.rev > 0 and not d.change_note:
+            errors.append(f"{name}: needs a change_note")
+        if d.type in ("fat", "sat"):
+            return errors + self._protocol_document_errors(d, name)
+        if d.entry_language is not None:
+            errors.append(f"{name}: entry_language is for SAT only")
+        if d.type != "dq_report" and d.reviews:
+            errors.append(f"{name}: only a DQ report reviews documents")
+        errors += [
+            f"{name}: {d.type} has no {r}" for r in ("executed_by", "witnessed_by") if getattr(d, r)
+        ]
+        if d.type in ("urs", "dq_report"):
+            errors += [
+                f"{name}: {d.type} needs {r}"
+                for r in ("checked_by", "approved_by")
+                if not getattr(d, r)
+            ]
+        if d.type in Document.DESIGN_TYPES and not any(e.doc_id == d.id for e in self.designs):
+            errors.append(f"{name}: {d.type} needs design facts (designs[].doc_id)")
+        if d.type == "material_certificate":
+            for e in self.designs:
+                if e.doc_id == d.id and (e.label is None or not isinstance(e.observed, TextObs)):
+                    errors.append(f"{name}: each part needs a label and a text material")
+        if d.type == "datasheet":
+            errors += [
+                f"{name}: {e.requirement} needs a label and section"
+                for e in self.designs
+                if e.doc_id == d.id and (e.label is None or e.section is None)
+            ]
+        if d.type == "dq_report":
+            rendered = {(x.id, x.rev) for x in self.documents}
+            errors += [
+                f"{name}: reviews {r.doc} rev {r.rev}, which is not rendered"
+                for r in d.reviews
+                if (r.doc, r.rev) not in rendered
+            ]
+        if d.type == "calibration_certificate":
+            cert = next((i.certificate for i in self.instruments if i.certificate.id == d.id), None)
+            if cert is None:
+                errors.append(f"{name}: no instrument has certificate {d.id}")
+            elif cert.lab is None or cert.results is None:
+                errors.append(f"{name}: certificate needs a lab and results")
+            elif people.get(d.prepared_by) and people[d.prepared_by].employer != cert.lab:
+                errors.append(f"{name}: prepared_by must work for {cert.lab}")
+            elif d.issued_on < cert.calibrated_on:
+                errors.append(f"{name}: issued before calibration")
+        return errors
+
+    def _protocol_document_errors(self, d: Document, name: str) -> list[str]:
+        stage = Stage(d.type.upper())
+        protocol = next((p for p in self.protocols if p.doc_id == d.id), None)
+        if protocol is None or protocol.stage is not stage:
+            return [f"{name}: no {stage} protocol {d.id}"]
+        errors = []
+        if (d.entry_language is None) != (stage is Stage.FAT):
+            errors.append(f"{name}: entry_language is required for SAT and absent for FAT")
+        errors += [
+            f"{name}: {stage} needs {r}"
+            for r in ("executed_by", "witnessed_by")
+            if not getattr(d, r)
+        ]
+        if (d.approved_by is None) != (protocol.site_approved_on is None):
+            errors.append(f"{name}: approved_by must match the protocol's site approval")
+        return errors
 
     def _document_list_errors(self) -> list[str]:
         """Required documents agree with the rendered ones; finding anchors point at them."""
@@ -614,6 +716,11 @@ class Equipment(Model):
                 errors.append(f"{d.id}: required, not missing, but not rendered")
             if d.missing is not None and d.id in rendered_ids:
                 errors.append(f"{d.id}: marked {d.missing} but rendered")
+        errors += [
+            f"{e.doc_id}: design fact in a document that is neither rendered nor required"
+            for e in self.designs
+            if e.doc_id not in rendered_ids and e.doc_id not in required
+        ]
         for s in self.scenarios:
             for a in s.finding.at if s.finding else ():
                 where = f"{s.id}: anchor {a.doc} rev {a.rev}"
@@ -639,5 +746,13 @@ class Equipment(Model):
         return out
 
     def unreviewed(self) -> list[Requirement]:
-        """Judged values without human sign-off. A frozen dataset has none."""
+        """Judged requirement values without human sign-off. A frozen dataset has none."""
         return [r for r in self.requirements if r.source.judged and r.source.reviewed_by is None]
+
+    def unreviewed_results(self) -> list[Instrument]:
+        """Instruments whose calibration readings (judged numbers) lack human sign-off."""
+        return [
+            i
+            for i in self.instruments
+            if i.certificate.results and i.certificate.results.reviewed_by is None
+        ]

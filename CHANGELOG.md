@@ -33,7 +33,15 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 - Schema: `Scenario.finding` (`DefectType`, severity, detail, anchors by placed field or printed text) and `Equipment.required_documents` with a `missing` reason; anchors, required documents and rendered documents are cross-checked.
 - Validator `answer_key_problems`: checks a committed answer key against a freshly rendered corpus (value on its page, placed field and quad match, planned documents really unrendered, required documents match the corpus).
 - Corpus (`traceq_dataset.corpus`): builds all documents and scans of an Equipment; `render` writes the corpus `manifest.json` (version, T0, seed, library versions; per file path, format, pages, size, SHA-256) and accepts several world files.
+- TP-201 design documents and certificates:
+  - DS-TP201: vendor technical datasheet (English, dense tables), 23 design facts plus the nameplate serial (S3). Values are copied from the URS spec, except the output (36 × 70 × 60 = 151,200 tablets/h) and tooling EU B (`conflict` with URS-TP201-008).
+  - MTC-TP201-01: 3.1 material certificate (EN 10204), scan `medium`, five product-contact parts; S6 is the feed frame housing in SS 304 (1.4301) among SS 316L parts.
+  - KAL-2025-0412 (TACH-07, valid until T0-15d, S2) and KAL-2026-0057 (SW-03): calibration certificates from a fictional lab, scan `light`, with a results table.
+  - DQ-TP201: design qualification report (Indonesian, clean) reviewing URS rev 1 against the datasheet; it records the tooling mismatch as an open item.
+- Schema: `Document` types `datasheet`, `material_certificate`, `calibration_certificate`, `dq_report` with per-type checks; `DesignEvidence.label` and `section`; `Organisation` (`Equipment.labs`), `Equipment.model` and `site_name`; personas `vendor_inspector` and `lab_staff`; `CalibrationCertificate.lab` and `results` (readings drafted by an LLM block freeze until reviewed, `Equipment.unreviewed_results()`).
+- `coverage.meets` accepts a design range: it meets the URS when it spans the whole URS range.
 
 ### Changed
 
+- Answer key: datasheet, material certificate and calibration certificates are located, so S2, S3 and S6 point at placed fields (`valid_until`, `serial`, `item-2.material`) instead of `status: planned`; `design_evidence` carries page, field, text and, on a certificate, the part. S6 detail now names the feed frame housing. Still planned: RA-TP201, FDS-TP201, CAL-TP201-01.
 - Principles 5 and 7: values may be copied by an LLM from a cited source, never produced from memory; real vendor brochures are not cited.

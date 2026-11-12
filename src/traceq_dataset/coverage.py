@@ -48,8 +48,11 @@ class PendingError(ValueError):
 
 
 def meets(spec: Spec, obs: Observation) -> bool:
-    """Does a single observed value satisfy the URS spec?"""
+    """Does an observed value satisfy the URS spec? A range (a datasheet's design range)
+    meets it when it spans the whole URS range."""
     match spec, obs:
+        case RangeSpec(), RangeObs():
+            return covers_full_range(spec, obs)
         case RangeSpec(), NumberObs():
             _same_unit(spec.unit, obs.unit)
             return (spec.min is None or obs.value >= spec.min) and (

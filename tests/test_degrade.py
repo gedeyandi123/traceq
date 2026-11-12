@@ -85,4 +85,9 @@ def test_validator_catches_a_quad_without_ink(scan: Scanned) -> None:
 
 def test_only_paper_documents_are_scanned() -> None:
     eq = load(TP201)
-    assert {(d.id, d.scan) for d in eq.documents if d.scan} == {("SAT-TP201", "medium")}
+    assert {(d.id, d.scan) for d in eq.documents if d.scan} == {
+        ("SAT-TP201", "medium"),
+        ("MTC-TP201-01", "medium"),
+        ("KAL-2025-0412", "light"),
+        ("KAL-2026-0057", "light"),
+    }

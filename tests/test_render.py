@@ -171,6 +171,11 @@ def test_every_document_validates(eq: Equipment) -> None:
         "FAT-TP201-M_rev0.pdf",
         "FAT-TP201-C_rev0.pdf",
         "SAT-TP201_rev0.pdf",
+        "DS-TP201_rev0.pdf",
+        "DQ-TP201_rev0.pdf",
+        "MTC-TP201-01_rev0.pdf",
+        "KAL-2025-0412_rev0.pdf",
+        "KAL-2026-0057_rev0.pdf",
     }
     assert [p for r in rendered for p in missing_text(r)] == []
 

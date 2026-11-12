@@ -9,10 +9,25 @@
   - {rev: 0, file: URS-TP201_rev0.pdf}
   - {rev: 1, file: URS-TP201_rev1.pdf}
 - {id: RA-TP201, type: risk_assessment, stage: design, status: planned}
-- {id: DS-TP201, type: datasheet, stage: design, status: planned}
+- id: DS-TP201
+  type: datasheet
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: DS-TP201_rev0.pdf}
 - {id: FDS-TP201, type: functional_spec, stage: design, status: planned}
-- {id: DQ-TP201, type: dq_report, stage: design, status: planned}
-- {id: MTC-TP201-01, type: material_certificate, stage: FAT, status: planned}
+- id: DQ-TP201
+  type: dq_report
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: DQ-TP201_rev0.pdf}
+- id: MTC-TP201-01
+  type: material_certificate
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: MTC-TP201-01_rev0.pdf}
 - {id: CAL-TP201-01, type: calibration_certificate, stage: FAT, status: planned, note: Compression force
     sensors (URS-TP201-036).}
 - id: FAT-TP201-M
@@ -27,8 +42,20 @@
   status: in_corpus
   files:
   - {rev: 0, file: FAT-TP201-C_rev0.pdf}
-- {id: KAL-2025-0412, type: calibration_certificate, stage: SAT, status: planned, note: TACH-07 (S2).}
-- {id: KAL-2026-0057, type: calibration_certificate, stage: SAT, status: planned, note: SW-03.}
+- id: KAL-2025-0412
+  type: calibration_certificate
+  stage: SAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: KAL-2025-0412_rev0.pdf}
+  note: TACH-07 (S2).
+- id: KAL-2026-0057
+  type: calibration_certificate
+  stage: SAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: KAL-2026-0057_rev0.pdf}
+  note: SW-03.
 - id: SAT-TP201
   type: sat
   stage: SAT

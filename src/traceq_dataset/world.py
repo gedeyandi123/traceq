@@ -6,7 +6,8 @@ Usage::
 
 Prints the pending count, the intended Coverage distribution against the design
 target, and, once nothing is pending, whether the decision table agrees with every
-``intended_coverage`` and which judged values still await human review. "frozen-ready"
+``intended_coverage`` and which judged values (requirement values, calibration readings)
+still await human review. "frozen-ready"
 needs all three. Exit code 1 on a schema error or a disagreement.
 """
 
@@ -73,12 +74,17 @@ def main(argv: list[str]) -> int:
         print(f"{len(bad)} disagreement(s)")
         return 1
 
-    review = eq.unreviewed()
+    review, readings = eq.unreviewed(), eq.unreviewed_results()
     if review:
         print(f"awaiting human review: {len(review)} judged value(s) (* = no supporting quote)")
         for r in review:
             mark = " " if r.source.quote else "*"
             print(f"  {mark} {r.id} {r.param} [{r.source.drafted_by}]")
+    if readings:
+        print(f"awaiting human review: {len(readings)} calibration result table(s)")
+        for i in readings:
+            print(f"    {i.certificate.id} ({i.id}) [{i.certificate.results.drafted_by}]")
+    if review or readings:
         return 0
     print("frozen-ready")
     return 0

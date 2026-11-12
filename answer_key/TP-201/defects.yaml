@@ -88,7 +88,7 @@
     - [406.76, 708.78]
     - [406.99, 724.53]
     - [361.84, 725.18]
-  - {doc: KAL-2025-0412, rev: 0, status: planned}
+  - {doc: KAL-2025-0412, rev: 0, page: 1, field: valid_until, text: 17-May-2026}
 - id: D-TP201-003
   scenario: S3
   type: inconsistent_data
@@ -113,7 +113,7 @@
     - [241.88, 229.35]
     - [164.78, 230.46]
   - {doc: FAT-TP201-M, rev: 0, page: 1, text: RTP36-25-0417}
-  - {doc: DS-TP201, rev: 0, status: planned}
+  - {doc: DS-TP201, rev: 0, page: 1, field: serial, text: RTP36-25-0417}
 - id: D-TP201-004
   scenario: S4
   type: vendor_protocol_not_approved
@@ -151,15 +151,15 @@
   reference:
     primary: PerBPOM 7/2024 Bab 4 §4.7
     equivalents: []
-  detail: The material certificate states SS 304 for product-contact parts; URS-TP201-009 requires SS
-    316L.
+  detail: The 3.1 material certificate lists the feed frame housing, a product-contact part, as SS 304
+    (1.4301); URS-TP201-009 requires SS 316L and the datasheet promised SS 316L.
   documents:
   - {doc: URS-TP201, rev: 1}
   - {doc: MTC-TP201-01, rev: 0}
   locations:
   - {doc: URS-TP201, rev: 1, page: 1, field: URS-TP201-009, text: Semua bagian yang kontak dengan produk
       terbuat dari SS 316L.}
-  - {doc: MTC-TP201-01, rev: 0, status: planned}
+  - {doc: MTC-TP201-01, rev: 0, page: 1, field: item-2.material, text: SS 304}
 - id: D-TP201-007
   scenario: S7
   type: ambiguous_value
