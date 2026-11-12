@@ -639,6 +639,19 @@ designs:
   - {doc_id: DS-TP201, requirement: URS-TP201-008, observed: {type: text, value: EU B}}
   - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, observed: {type: text, value: SS 304}}  # S6, decision log Q29
 
+# Rendered documents. Rev 1 is issued before the vendor assessment (T0-200d).
+documents:
+  - {id: URS-TP201, rev: 0, type: urs, language: id, issued_on: T0-260d, prepared_by: p-qe, checked_by: p-qs, approved_by: p-qa}
+  - id: URS-TP201
+    rev: 1
+    type: urs
+    language: id
+    issued_on: T0-215d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+    change_note: "URS-TP201-003: kapasitas produksi minimal dinaikkan sesuai revisi proyeksi volume."  # S8
+
 scenarios:
   - id: S1
     summary: A SAT entry is overwritten without initials or date.

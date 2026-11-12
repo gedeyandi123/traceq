@@ -297,6 +297,27 @@ class DesignEvidence(Model):
     observed: Observation
 
 
+# --- Documents ----------------------------------------------------------------------
+
+
+class Document(Model):
+    """One revision of a document the renderer produces (design section 5).
+
+    Content comes from the rest of the world data; this holds what only the document
+    itself has: number, revision, issue date and signatories.
+    """
+
+    id: str = Field(description="Document number, e.g. 'URS-TP201'.")
+    rev: int = Field(ge=0)
+    type: Literal["urs"]
+    language: Literal["id", "en"]
+    issued_on: Offset
+    prepared_by: str = Field(description="Person id.")
+    checked_by: str = Field(description="Person id.")
+    approved_by: str = Field(description="Person id.")
+    change_note: str = Field("", description="Revision history entry; empty for rev 0.")
+
+
 # --- Equipment (one world-data file) ------------------------------------------------
 
 
@@ -325,6 +346,7 @@ class Equipment(Model):
     tests: tuple[TestEvidence, ...] = ()
     designs: tuple[DesignEvidence, ...] = ()
     scenarios: tuple[Scenario, ...] = ()
+    documents: tuple[Document, ...] = ()
 
     @model_validator(mode="after")
     def _references(self) -> Equipment:
@@ -340,6 +362,7 @@ class Equipment(Model):
         dupes([p.doc_id for p in self.protocols], "protocol")
         dupes([t.step for t in self.tests], "test step")
         dupes([s.id for s in self.scenarios], "scenario")
+        dupes([f"{d.id} rev {d.rev}" for d in self.documents], "document")
         errors += [f"{r} does not start with {prefix}" for r in req_ids if not r.startswith(prefix)]
 
         reqs, protocols = set(req_ids), {p.doc_id for p in self.protocols}
@@ -364,6 +387,13 @@ class Equipment(Model):
             for d in self.designs
             if d.requirement not in reqs
         ]
+        people = {p.id for p in self.people}
+        for d in self.documents:
+            for role in ("prepared_by", "checked_by", "approved_by"):
+                if getattr(d, role) not in people:
+                    errors.append(f"{d.id} rev {d.rev}: unknown {role} {getattr(d, role)}")
+            if d.rev > 0 and not d.change_note:
+                errors.append(f"{d.id} rev {d.rev}: needs a change_note")
         known = reqs | protocols | {t.step for t in self.tests} | {d.doc_id for d in self.designs}
         for s in self.scenarios:
             errors += [f"{s.id}: unknown target {x}" for x in s.targets if x not in known]

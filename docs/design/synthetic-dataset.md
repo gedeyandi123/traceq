@@ -239,7 +239,12 @@ world/*.yaml ──Pydantic──▶ renderer ──▶ degrader (scans) ──�
      └──────────────────── answer key ──────────────────────▶ answer_key/*.yaml
 ```
 
-- **Renderer:** Typst vs WeasyPrint is decided in the spec. Either way the version is pinned and document metadata dates are fixed.
+- **Renderer: Typst**, through the `typst` Python package pinned to an exact version in `pyproject.toml` (`traceq_dataset.render`). Chosen over WeasyPrint because:
+  - it is a self-contained wheel locked by `uv.lock`; WeasyPrint needs system Pango/GTK libraries, which do not install with uv and fail on Windows development machines;
+  - output is byte-identical for the same input, with system fonts ignored (bundled fonts only) and PDF metadata dates set to the document's issue date;
+  - the renderer can query where content was placed (`metadata` + `here()`), which gives each requirement's page now and bounding boxes for the OCR answer key later (section 6).
+
+  Python formats every string (numbers and dates in the document language); templates in `src/traceq_dataset/templates/` only lay it out, so the expected text is known exactly. Document number, revision, issue date and signatories are world data (`documents:`).
 - **Degrader:** rasterise, skew 0.5–2°, noise, JPEG compression, stamps, handwritten entries in OFL fonts (e.g. Caveat, Kalam). Level set per document, not globally random. Nameplate photos are rendered synthetically.
 - **Binary files are not committed.** The corpus is built in a container with pinned versions and published as a GitHub Release asset per dataset version. The release bytes are canonical, including for extraction cache keys (document hash + pipeline version).
 - **CI** re-renders and runs a semantic validator, not a byte-hash comparison: every answer-key value appears in the rendered text; every defect location and citation exists; the required-document list matches the VMP; the denylist finds nothing.
