@@ -37,6 +37,7 @@ from pydantic import BaseModel
 
 from traceq_dataset.corpus import Corpus, DocKey, build_corpus
 from traceq_dataset.coverage import classify, meets, step_failure
+from traceq_dataset.render import design_field
 from traceq_dataset.schema import Anchor, DefectType, Equipment, Requirement, Scenario
 from traceq_dataset.validate import normalise, page_texts
 
@@ -202,20 +203,22 @@ def _test_evidence(corpus: Corpus, r: Requirement) -> list[dict[str, Any]]:
 
 
 def _design_evidence(corpus: Corpus, r: Requirement) -> list[dict[str, Any]]:
+    """Design facts with where the renderer placed them (``status: planned`` while their
+    document is not rendered). A certificate row also names its part."""
     out = []
     for d in corpus.eq.designs:
         if d.requirement != r.id:
             continue
-        if (d.doc_id, 0) in corpus.rendered:
-            raise AnswerKeyError(f"{d.doc_id} is rendered: locate its design facts first")
-        out.append(
-            {
-                "doc": d.doc_id,
-                "status": "planned",
-                "value": _plain(d.observed),
-                "meets_urs": meets(r.spec, d.observed),
-            }
-        )
+        entry: dict[str, Any] = {"doc": d.doc_id, "rev": 0}
+        field = design_field(corpus.eq, d)
+        if field is None:
+            entry["status"] = "planned"
+        else:
+            placed = corpus.rendered[(d.doc_id, 0)].placed[field]
+            entry |= {"page": placed.page, "field": field, "text": placed.text}
+            if corpus.document((d.doc_id, 0)).type == "material_certificate":
+                entry["part"] = d.label
+        out.append(entry | {"value": _plain(d.observed), "meets_urs": meets(r.spec, d.observed)})
     return out
 
 

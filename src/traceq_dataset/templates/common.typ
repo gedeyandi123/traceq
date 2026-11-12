@@ -44,3 +44,13 @@
   table.header(..header.map(h => strong(h))),
   ..rows.flatten(),
 )
+
+// A handwritten signature (not placed: the answer key does not rely on it).
+#let sig(name) = text(font: "Caveat", size: 15pt, fill: ink, skew(ax: -10deg, name))
+
+// Page set-up shared by the vendor and lab documents: issuer left, number and page right.
+#let page-header(issuer, doc_id, rev) = grid(
+  columns: (1fr, auto),
+  [*#issuer*],
+  context [#doc_id · Rev. #rev · Page #counter(page).get().first() of #counter(page).final().first()],
+)

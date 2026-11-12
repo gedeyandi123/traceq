@@ -17,7 +17,14 @@
     value: {type: number, value: 36, unit: stations}
     recorded_result: pass
     qualifies: true
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: punch_stations
+    text: 36 stations
+    value: {type: number, value: 36, unit: stations}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by FAT-TP201-M
   also_valid: []
@@ -38,7 +45,14 @@
     recorded_result: pass
     qualifies: false
     failure: 'condition 3: full URS range not tested'
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: turret_speed
+    text: 20–70 rpm
+    value: {type: range, min: 20, max: 70, unit: rpm}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-M-02: condition 3: full URS range not tested'
   also_valid: []
@@ -69,7 +83,14 @@
     - [498.69, 625.25]
     - [498.92, 641.0]
     - [414.51, 642.21]
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: output_rate
+    text: 151,200 tablets/h
+    value: {type: number, value: 151200, unit: tablets/h}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -90,7 +111,14 @@
     recorded_result: pass
     qualifies: false
     failure: result does not meet the URS
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: main_compression_force
+    text: 100 kN
+    value: {type: number, value: 100, unit: kN}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-M-03: result does not meet the URS'
   also_valid: []
@@ -115,7 +143,14 @@
     - [455.1, 679.41]
     - [455.33, 695.16]
     - [415.28, 695.73]
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: precompression_force
+    text: 20 kN
+    value: {type: number, value: 20, unit: kN}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -135,7 +170,14 @@
     value: {type: number, value: 25, unit: mm}
     recorded_result: pass
     qualifies: true
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: tablet_diameter
+    text: 25 mm
+    value: {type: number, value: 25, unit: mm}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by FAT-TP201-M
   also_valid: []
@@ -155,7 +197,14 @@
     value: {type: number, value: 18, unit: mm}
     recorded_result: pass
     qualifies: true
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: fill_depth
+    text: 18 mm
+    value: {type: number, value: 18, unit: mm}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by FAT-TP201-M
   also_valid: []
@@ -170,7 +219,10 @@
   evidence: []
   design_evidence:
   - doc: DS-TP201
-    status: planned
+    rev: 0
+    page: 1
+    field: tooling_type
+    text: EU B
     value: {type: text, value: EU B}
     meets_urs: false
   expected_coverage: conflict
@@ -186,10 +238,53 @@
   critical: true
   evidence: []
   design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: product_contact_material
+    text: SS 316L
+    value: {type: text, value: SS 316L}
+    meets_urs: true
   - doc: MTC-TP201-01
-    status: planned
+    rev: 0
+    page: 1
+    field: item-1.material
+    text: SS 316L
+    part: Hopper
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  - doc: MTC-TP201-01
+    rev: 0
+    page: 1
+    field: item-2.material
+    text: SS 304
+    part: Feed frame housing
     value: {type: text, value: SS 304}
     meets_urs: false
+  - doc: MTC-TP201-01
+    rev: 0
+    page: 1
+    field: item-3.material
+    text: SS 316L
+    part: Feeder paddles
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  - doc: MTC-TP201-01
+    rev: 0
+    page: 1
+    field: item-4.material
+    text: SS 316L
+    part: Take-off scraper
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  - doc: MTC-TP201-01
+    rev: 0
+    page: 1
+    field: item-5.material
+    text: SS 316L
+    part: Tablet discharge chute
+    value: {type: text, value: SS 316L}
+    meets_urs: true
   expected_coverage: conflict
   reason: MTC-TP201-01 does not meet the URS
   also_valid: []
@@ -209,7 +304,14 @@
     value: {type: number, value: 0.6, unit: µm}
     recorded_result: pass
     qualifies: true
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: contact_surface_roughness
+    text: 0.8 µm
+    value: {type: number, value: 0.8, unit: µm}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by FAT-TP201-M
   also_valid: []
@@ -231,7 +333,14 @@
     value: {type: text, value: SS 304}
     recorded_result: pass
     qualifies: true
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: non_contact_material
+    text: SS 304
+    value: {type: text, value: SS 304}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by FAT-TP201-M
   also_valid: []
@@ -276,7 +385,14 @@
     recorded_result: pass
     qualifies: false
     failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: automatic_weight_control
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-C-01: condition 2: protocol not approved by site before execution (CPOB 12.14)'
   also_valid: []
@@ -297,7 +413,14 @@
     recorded_result: pass
     qualifies: false
     failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: automatic_rejection
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-C-02: condition 2: protocol not approved by site before execution (CPOB 12.14)'
   also_valid: []
@@ -317,7 +440,14 @@
     value: {type: number, value: 0.5, unit: '% FS'}
     recorded_result: pass
     qualifies: true
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: force_measurement_accuracy
+    text: 1 % FS
+    value: {type: number, value: 1, unit: '% FS'}
+    meets_urs: true
   expected_coverage: partial
   reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
   also_valid: []
@@ -353,7 +483,14 @@
     - [465.31, 707.94]
     - [465.54, 723.69]
     - [415.7, 724.41]
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: feeder_paddle_speed
+    text: 10–60 rpm
+    value: {type: range, min: 10, max: 60, unit: rpm}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-M-09: condition 3: full URS range not tested; SAT-03: result does not meet the URS'
   also_valid: []
@@ -389,7 +526,14 @@
     - [498.67, 736.14]
     - [498.9, 751.89]
     - [416.11, 753.08]
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: emergency_stop
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -414,7 +558,14 @@
     - [499.62, 116.38]
     - [499.34, 132.13]
     - [416.55, 130.64]
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: punch_overload_protection
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -439,7 +590,14 @@
     - [499.11, 145.06]
     - [498.83, 160.8]
     - [416.04, 159.31]
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: hmi_access_levels
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -460,7 +618,14 @@
     recorded_result: pass
     qualifies: false
     failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: hmi_audit_trail
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-C-03: condition 2: protocol not approved by site before execution (CPOB 12.14)'
   also_valid: []
@@ -485,7 +650,14 @@
     - [498.59, 173.73]
     - [498.31, 189.48]
     - [415.52, 187.99]
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: hmi_alarm_log
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -518,7 +690,14 @@
   value: {type: range, min: 380, max: 380, unit: V}
   critical: false
   evidence: []
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: power_supply_voltage
+    text: 380 V
+    value: {type: number, value: 380, unit: V}
+    meets_urs: true
   expected_coverage: site_only
   reason: cannot be tested by the vendor
   also_valid: []
@@ -529,7 +708,14 @@
   value: {type: range, min: 6, max: 7, unit: bar}
   critical: false
   evidence: []
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: compressed_air_pressure
+    text: 6–7 bar
+    value: {type: range, min: 6, max: 7, unit: bar}
+    meets_urs: true
   expected_coverage: site_only
   reason: cannot be tested by the vendor
   also_valid: []
@@ -540,7 +726,14 @@
   value: {type: range, min: 300, unit: m3/h}
   critical: false
   evidence: []
-  design_evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    rev: 0
+    page: 1
+    field: dust_extraction_flow
+    text: 300 m3/h
+    value: {type: number, value: 300, unit: m3/h}
+    meets_urs: true
   expected_coverage: site_only
   reason: cannot be tested by the vendor
   also_valid: []

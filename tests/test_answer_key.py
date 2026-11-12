@@ -95,7 +95,7 @@ def test_readings() -> None:
 def test_scan_locations_carry_quads(key: dict, corpus: Corpus) -> None:
     sat = corpus.scanned[("SAT-TP201", 0)]
     handwritten = {k for k, p in sat.placed.items() if p.quad}
-    [ocr] = key["ocr.yaml"]
+    ocr = next(s for s in key["ocr.yaml"] if s["doc"] == "SAT-TP201")
     assert {e["field"] for e in ocr["entries"]} == handwritten
     for d in key["defects.yaml"]:
         for loc in d["locations"]:
@@ -106,7 +106,11 @@ def test_scan_locations_carry_quads(key: dict, corpus: Corpus) -> None:
 def test_documents_that_should_exist(key: dict) -> None:
     status = {d["id"]: d["status"] for d in key["documents.yaml"]}
     assert status["SAT-TP201"] == "in_corpus"
-    assert status["DS-TP201"] == "planned"
+    assert {i for i, s in status.items() if s == "planned"} == {
+        "RA-TP201",
+        "FDS-TP201",
+        "CAL-TP201-01",
+    }
     assert {i for i, s in status.items() if s == "expected_gap"} == {"IQ-TP201", "OQ-TP201"}
     urs = next(d for d in key["documents.yaml"] if d["id"] == "URS-TP201")
     assert [f["rev"] for f in urs["files"]] == [0, 1]
