@@ -172,6 +172,8 @@ class VendorProtocol(Model):
 class TestEvidence(Model):
     """One executed FAT/SAT step that addresses a requirement."""
 
+    __test__ = False  # not a pytest class
+
     step: str
     protocol: str = Field(description="VendorProtocol.doc_id")
     requirement: str
