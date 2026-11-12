@@ -669,9 +669,10 @@ documents:
   - {id: FAT-TP201-M, rev: 0, type: fat, title: Mechanical, language: en, issued_on: T0-140d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
   # S4: no site check or approval before execution.
   - {id: FAT-TP201-C, rev: 0, type: fat, title: Control system, language: en, issued_on: T0-138d, prepared_by: p-ve, executed_by: p-ve, witnessed_by: p-wit}
-  # SAT: vendor form in English, filled in by hand at site (Indonesian number/date formats).
+  # SAT: vendor form in English, filled in by hand at site (Indonesian number/date formats),
+  # published as a medium-quality scan.
   # S3: the serial number is written with two digits transposed.
-  - {id: SAT-TP201, rev: 0, type: sat, language: en, entry_language: id, serial_no: RTP36-25-0471, issued_on: T0-30d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
+  - {id: SAT-TP201, rev: 0, type: sat, language: en, entry_language: id, serial_no: RTP36-25-0471, scan: medium, issued_on: T0-30d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
 
 scenarios:
   - id: S1
