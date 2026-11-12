@@ -1,6 +1,6 @@
 """Semantic validator for rendered documents (design section 8, "CI").
 
-CI re-renders and checks meaning, not bytes: every string the answer key relies on
+CI re-renders and checks meaning, not bytes: every placed string the answer key relies on
 must appear in the extracted text of the page the renderer says it is on.
 """
 
@@ -26,12 +26,12 @@ def page_texts(pdf: bytes) -> list[str]:
 
 
 def missing_text(rendered: Rendered) -> list[str]:
-    """Requirements whose text is not found on their recorded page."""
+    """Placed strings not found on their recorded page."""
     pages = page_texts(rendered.pdf)
     out = []
-    for rid, placed in rendered.requirements.items():
+    for key, placed in rendered.placed.items():
         if not 1 <= placed.page <= len(pages):
-            out.append(f"{rendered.filename} {rid}: page {placed.page} out of range")
+            out.append(f"{rendered.filename} {key}: page {placed.page} out of range")
         elif normalise(placed.text) not in pages[placed.page - 1]:
-            out.append(f"{rendered.filename} {rid}: text not on page {placed.page}")
+            out.append(f"{rendered.filename} {key}: text not on page {placed.page}")
     return out

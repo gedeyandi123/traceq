@@ -12,6 +12,7 @@
 
 tag: TP-201
 name: Rotary tablet press (single-sided)
+serial_no: RTP36-25-0417  # nameplate; S3 plants a different number in the SAT
 site: site-01
 
 vendor:
@@ -609,23 +610,23 @@ requirements:
 # Executed FAT/SAT steps. Observed values follow the URS values once filled;
 # recorded_result is the design intent (S5 records "pass" on an out-of-limit value).
 tests:
-  - {step: FAT-M-01, protocol: FAT-TP201-M, requirement: URS-TP201-001, observed: {type: number, value: 36, unit: stations}, recorded_result: pass}
-  - {step: FAT-M-02, protocol: FAT-TP201-M, requirement: URS-TP201-002, observed: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass}
-  - {step: FAT-M-03, protocol: FAT-TP201-M, requirement: URS-TP201-004, observed: {type: number, value: 96, unit: kN}, recorded_result: pass}  # S5: below the 100 kN AC, recorded pass
-  - {step: FAT-M-04, protocol: FAT-TP201-M, requirement: URS-TP201-006, observed: {type: number, value: 25, unit: mm}, recorded_result: pass}
-  - {step: FAT-M-05, protocol: FAT-TP201-M, requirement: URS-TP201-007, observed: {type: number, value: 18, unit: mm}, recorded_result: pass}
-  - {step: FAT-M-06, protocol: FAT-TP201-M, requirement: URS-TP201-010, observed: {type: number, value: 0.6, unit: µm}, recorded_result: pass}
-  - {step: FAT-M-07, protocol: FAT-TP201-M, requirement: URS-TP201-011, observed: {type: text, value: SS 304}, recorded_result: pass}
-  - {step: FAT-M-08, protocol: FAT-TP201-M, requirement: URS-TP201-016, observed: {type: number, value: 0.5, unit: "% FS"}, recorded_result: pass}
-  - {step: FAT-M-09, protocol: FAT-TP201-M, requirement: URS-TP201-017, observed: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass}
-  - {step: FAT-M-10, protocol: FAT-TP201-M, requirement: URS-TP201-033, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: FAT-M-11, protocol: FAT-TP201-M, requirement: URS-TP201-034, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: FAT-M-12, protocol: FAT-TP201-M, requirement: URS-TP201-035, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: FAT-M-13, protocol: FAT-TP201-M, requirement: URS-TP201-036, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: FAT-M-14, protocol: FAT-TP201-M, requirement: URS-TP201-038, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: FAT-C-01, protocol: FAT-TP201-C, requirement: URS-TP201-014, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: FAT-C-02, protocol: FAT-TP201-C, requirement: URS-TP201-015, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: FAT-C-03, protocol: FAT-TP201-C, requirement: URS-TP201-022, observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-M-01, protocol: FAT-TP201-M, requirement: URS-TP201-001, observed: {type: number, value: 36, unit: stations}, recorded_result: pass, description: "Count the punch stations on the turret."}
+  - {step: FAT-M-02, protocol: FAT-TP201-M, requirement: URS-TP201-002, observed: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass, description: "Run the empty turret across its speed range; record the lowest and highest stable speed.", acceptance: {type: range, min: 20, max: 60, unit: rpm}}
+  - {step: FAT-M-03, protocol: FAT-TP201-M, requirement: URS-TP201-004, observed: {type: number, value: 96, unit: kN}, recorded_result: pass, description: "Apply main compression with the test tooling; record the highest force reached."}  # S5: below the 100 kN AC, recorded pass
+  - {step: FAT-M-04, protocol: FAT-TP201-M, requirement: URS-TP201-006, observed: {type: number, value: 25, unit: mm}, recorded_result: pass, description: "Fit tooling for the largest tablet diameter and run 5 minutes."}
+  - {step: FAT-M-05, protocol: FAT-TP201-M, requirement: URS-TP201-007, observed: {type: number, value: 18, unit: mm}, recorded_result: pass, description: "Set the maximum fill cam; measure the fill depth."}
+  - {step: FAT-M-06, protocol: FAT-TP201-M, requirement: URS-TP201-010, observed: {type: number, value: 0.6, unit: µm}, recorded_result: pass, description: "Measure surface roughness Ra on product-contact parts."}
+  - {step: FAT-M-07, protocol: FAT-TP201-M, requirement: URS-TP201-011, observed: {type: text, value: SS 304}, recorded_result: pass, description: "Check frame and cover material against the bill of materials."}
+  - {step: FAT-M-08, protocol: FAT-TP201-M, requirement: URS-TP201-016, observed: {type: number, value: 0.5, unit: "% FS"}, recorded_result: pass, description: "Check the main compression force channel against a reference load cell."}
+  - {step: FAT-M-09, protocol: FAT-TP201-M, requirement: URS-TP201-017, observed: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass, description: "Run the paddle feeder across its speed range; record the lowest and highest speed.", acceptance: {type: range, min: 20, max: 60, unit: rpm}}
+  - {step: FAT-M-10, protocol: FAT-TP201-M, requirement: URS-TP201-033, observed: {type: present, value: true}, recorded_result: pass, description: "Remove and refit product-contact parts without tools."}
+  - {step: FAT-M-11, protocol: FAT-TP201-M, requirement: URS-TP201-034, observed: {type: present, value: true}, recorded_result: pass, description: "Check that operating and maintenance manuals are supplied."}
+  - {step: FAT-M-12, protocol: FAT-TP201-M, requirement: URS-TP201-035, observed: {type: present, value: true}, recorded_result: pass, description: "Check 3.1 material certificates for all product-contact parts."}
+  - {step: FAT-M-13, protocol: FAT-TP201-M, requirement: URS-TP201-036, observed: {type: present, value: true}, recorded_result: pass, description: "Check calibration certificates of the compression force sensors."}
+  - {step: FAT-M-14, protocol: FAT-TP201-M, requirement: URS-TP201-038, observed: {type: present, value: true}, recorded_result: pass, description: "Check the spare parts list and as-built drawings."}
+  - {step: FAT-C-01, protocol: FAT-TP201-C, requirement: URS-TP201-014, observed: {type: present, value: true}, recorded_result: pass, description: "Simulate a tablet weight drift; confirm the force-based weight control corrects it."}
+  - {step: FAT-C-02, protocol: FAT-TP201-C, requirement: URS-TP201-015, observed: {type: present, value: true}, recorded_result: pass, description: "Feed out-of-limit tablets; confirm they are rejected automatically."}
+  - {step: FAT-C-03, protocol: FAT-TP201-C, requirement: URS-TP201-022, observed: {type: present, value: true}, recorded_result: pass, description: "Change a parameter and a recipe on the HMI; confirm both appear in the audit trail."}
   - {step: SAT-01, protocol: SAT-TP201, requirement: URS-TP201-003, observed: {type: number, value: 122400, unit: tablets/h}, recorded_result: pass}
   - {step: SAT-02, protocol: SAT-TP201, requirement: URS-TP201-005, observed: {type: number, value: 20.4, unit: kN}, recorded_result: pass}
   - {step: SAT-03, protocol: SAT-TP201, requirement: URS-TP201-017, observed: {type: number, value: 1500, unit: rpm}, recorded_result: pass}  # S7: drive-motor speed, written "1.500 rpm"
@@ -651,6 +652,10 @@ documents:
     checked_by: p-qs
     approved_by: p-qa
     change_note: "URS-TP201-003: kapasitas produksi minimal dinaikkan sesuai revisi proyeksi volume."  # S8
+  # FAT: combined protocol and report. Site approval date comes from the protocol.
+  - {id: FAT-TP201-M, rev: 0, type: fat, title: Mechanical, language: en, issued_on: T0-140d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
+  # S4: no site check or approval before execution.
+  - {id: FAT-TP201-C, rev: 0, type: fat, title: Control system, language: en, issued_on: T0-138d, prepared_by: p-ve, executed_by: p-ve, witnessed_by: p-wit}
 
 scenarios:
   - id: S1

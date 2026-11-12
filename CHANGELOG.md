@@ -23,6 +23,8 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 - Renderer (Typst, `typst==0.15.2`): `python -m traceq_dataset.render world/tp201.yaml` renders URS-TP201 rev 0 and rev 1 (SKP, Indonesian) for a given T0 (eval T0 2026-06-01). Rev 0 uses `superseded_spec` (S8). Output is deterministic and records each requirement's page.
 - Schema: `Document` (number, revision, language, issue date, signatories, change note) with person and revision checks; TP-201 URS rev 0 (T0-260d) and rev 1 (T0-215d).
 - Semantic validator (`traceq_dataset.validate`): every requirement sentence must appear on its recorded page.
+- FAT renderer: FAT-TP201-M (mechanical) and FAT-TP201-C (control system) as combined protocol-and-report vendor documents in English. S4 renders as an empty site check/approval block; S5 as 96 kN against "≥ 100 kN" recorded Pass. Each step's acceptance criterion and result are placed and validated.
+- Schema: `TestEvidence.description` and `acceptance` (the vendor's own AC where it is narrower than the URS); `Equipment.serial_no`; `Document` type `fat` whose site approval must match its protocol.
 
 ### Changed
 

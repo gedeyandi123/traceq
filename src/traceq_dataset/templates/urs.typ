@@ -1,7 +1,7 @@
 // URS / SKP layout. All text and formatting come from render.py via sys.inputs.data;
-// this file only lays it out. Each requirement row records its page as metadata
-// (<req>), which render.py queries for the answer key.
+// this file only lays it out. Each requirement row records its page (place()).
 
+#import "common.typ": place, rows-table
 #let d = json(bytes(sys.inputs.data))
 
 #set document(title: d.doc_id + " rev " + str(d.rev), author: d.signatures.at(0).name)
@@ -40,7 +40,7 @@
     columns: (3cm, 1.4cm, 1fr),
     table.header([*No.*], [*Kritis*], [*Persyaratan*]),
     ..s.requirements.map(r => (
-      [#r.id#context [#metadata((id: r.id, page: here().page()))<req>]],
+      [#r.id#place(r.id)],
       [#r.critical],
       [#r.text],
     )).flatten(),
