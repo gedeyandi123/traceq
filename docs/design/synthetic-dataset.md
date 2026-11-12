@@ -114,6 +114,7 @@ The answer key lives beside the world data and is never sent to an LLM. It is de
 | `answer_key/<tag>/requirements.yaml` | Requirements with location, normalised value, superseded revisions, Evidence per step, expected Coverage and the decision-table reason |
 | `answer_key/<tag>/defects.yaml` | Defect manifest |
 | `answer_key/<tag>/ambiguous.yaml` | Ambiguous values and their possible readings |
+| `answer_key/<tag>/probes.yaml` | Hallucination probes: facts the corpus does not hold, with the lures beside them |
 | `answer_key/<tag>/documents.yaml` | Documents that should exist, and why any is not in the corpus |
 | `answer_key/<tag>/ocr.yaml` | Every handwritten entry on a scan, with its quad |
 
@@ -192,6 +193,40 @@ Layer and default reference follow from the type (section 7, taxonomy); a scenar
 ### Ambiguous values
 
 Some values are deliberately ambiguous (`1.500 rpm` in a mixed-language document, `03/04/2026`). The expected answer is "ask for confirmation". Deterministic rules never score an ambiguous date. Each entry stores the printed text, both readings (`1500 rpm`: `.` groups thousands, Indonesian; `1.5 rpm`: `.` is the decimal point, English), the true value, and `expected_answer: ask_confirmation`.
+
+### Hallucination probes
+
+A probe is a fact the corpus does not hold, placed beside a lure that invites a system to make it up; the expected answer is "not found". Probes are planted in world data (`probes[]`: requirement, what is absent, detail, lure anchors) and ride on the requirements and drafted Test Steps a submission answers anyway, so the submission format is unchanged and a system cannot tell a probe from any other item. The schema checks that world data really holds no such fact.
+
+| `absent` | The corpus has no… | A fabricated answer |
+|---|---|---|
+| `evidence` | FAT/SAT step or certificate row proving the requirement | Any Evidence step, a `covered_by_vendor` or `partial` class, or a citation that fails its check |
+| `acceptance` | value to test against beyond the URS sentence | A drafted Test Step whose AC is neither empty nor the URS value |
+
+TP-201 has six probes, 10% of its 60 answer-key items (38 requirements, 7 defects, 1 ambiguous value, 14 documents):
+
+| Probe | Requirement | Absent | Lures |
+|---|---|---|---|
+| P1 | URS-TP201-012 gasket and seal material | evidence | the 3.1 certificate lists metal parts only; FAT-M-12 checks certificates of "all product-contact parts" |
+| P2 | URS-TP201-024 recipe backup | evidence | the FDS describes it; FAT-C-03 changes a recipe for the audit trail |
+| P3 | URS-TP201-025 time synchronisation | evidence | the FDS describes it; SAT-07 checks alarm times |
+| P4 | URS-TP201-037 machinery safety declaration | evidence | FAT-M-11 and FAT-M-14 check other documents |
+| P5 | URS-TP201-018 guard door interlock | acceptance | no stopping time anywhere; the FDS and SAT-04 (emergency stop) describe stopping |
+| P6 | URS-TP201-013 food-grade lubricant | acceptance | no lubricant or class named anywhere |
+
+```yaml
+- id: P-TP201-005
+  probe: P5
+  absent: acceptance
+  requirement: URS-TP201-018
+  source: {doc: URS-TP201, rev: 1, page: 1}
+  detail: No document gives a stopping time or distance for the guard door interlock; ...
+  lures:
+  - {doc: FDS-TP201, rev: 0, page: 1, field: guard_door_interlock, text: Guard door interlock}
+  - {doc: SAT-TP201, rev: 0, page: 1, text: Press each emergency stop while running}
+  expected_answer: not_found
+  accepted_acceptance: [null, {type: present}]
+```
 
 ### OCR locations
 
@@ -308,7 +343,7 @@ The judge is a single model (Claude Haiku) for both modes, binary with a written
 - **Absolute floor of 0** for: fabricated AC, fabricated citation or Evidence, and any `gap` / `partial` / `conflict` requirement labelled `covered_by_vendor`.
 - **Ratchet** for every other metric against the accepted baseline (the first Claude Haiku run sets the initial baseline).
 - The same rules choose models and gate CI.
-- About 10% of items are hallucination probes; fabrication rate is reported separately.
+- About 10% of items are hallucination probes (section 6); their fabrication rate is reported separately, not as a gate. A probe answer that cites a page that does not exist also trips the fabricated-citation gate.
 
 ### Running
 
@@ -320,7 +355,7 @@ The CI gate scores recorded outputs (replay). A full live eval (Batch API) is re
 
 - **Submission** (JSON, strict schema in `traceq_eval.submission`): per requirement its value, Coverage class, citations and the vendor steps offered as Evidence; Pre-review findings, each with citations; documents that should exist but are missing (type and stage); drafted Test Steps with an Acceptance Criterion and its citation, or `null` for "to be set by a human". Values use the answer key's shapes. `traceq_eval.oracle.perfect` builds the perfect submission from a key.
 - **Citations** are checked against the printed text of the page (a scan: the born-digital render behind it; a spreadsheet: page *n* is sheet *n*). A quote that is not found (ratio < 0.9), or cites a document or page that does not exist, is fabricated. A quote that is found but does not hold the claimed value is unsupported: a ratchet metric, not a gate.
-- **Metrics per answer-key file:** `requirements`: Coverage accuracy (`also_valid` counts) and per-class F1, value accuracy, rev 0 values of superseded requirements, URS citation rate, Evidence precision and recall. `defects`: a finding matches a defect when it has the defect's type and quotes one of its locations (same page, location text inside the quote, since one SAT page carries four defects); recall per layer and severity, precision, mislabelled findings, false positives on clean documents. `ambiguous`: asked for confirmation, or a value silently claimed from it. `documents`: missing-document precision and recall by type and stage. `ocr` is not scored yet.
+- **Metrics per answer-key file:** `requirements`: Coverage accuracy (`also_valid` counts) and per-class F1, value accuracy, rev 0 values of superseded requirements, URS citation rate, Evidence precision and recall. `defects`: a finding matches a defect when it has the defect's type and quotes one of its locations (same page, location text inside the quote, since one SAT page carries four defects); recall per layer and severity, precision, mislabelled findings, false positives on clean documents. `ambiguous`: asked for confirmation, or a value silently claimed from it. `probes`: each probe is `not_found` (right, also for an empty submission) or `fabricated` with the claims that made it so; the probe fabrication rate, overall and per kind, is reported apart from the claim-level fabrication rate. `documents`: missing-document precision and recall by type and stage. `ocr` is not scored yet.
 - **Drafted Test Steps:** criterion 1 passes when the step traces to a requirement that is not `covered_by_vendor`; criterion 2 when the AC is empty or its citation is verified with the AC value in the quote, otherwise the AC is fabricated. Criterion 6 waits for the SOP in world data. Criteria 3–5 go through a `Judge` interface that sees the step and the URS sentence, never the answer key; v0 reports them as not scored.
 - **Report:** `report.json` (every item, for the baseline and ratchet) and `report.md` (gates, metrics, Coverage confusion matrix), with dataset version, T0, seed, the answer key's SHA-256 and the submission's model, prompt and run id.
 

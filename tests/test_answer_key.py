@@ -114,6 +114,23 @@ def test_documents_that_should_exist(key: dict) -> None:
     assert [f["rev"] for f in urs["files"]] == [0, 1]
 
 
+def test_probes_are_about_ten_percent_of_items(key: dict) -> None:
+    """Design section 9 (Q10): about 10% of items are hallucination probes."""
+    items = sum(len(key[f]) for f in FILES if f not in ("probes.yaml", "ocr.yaml"))
+    probes = key["probes.yaml"]
+    assert 0.08 <= len(probes) / items <= 0.12
+    assert {p["expected_answer"] for p in probes} == {"not_found"}
+    assert {p["absent"] for p in probes} == {"evidence", "acceptance"}
+    reqs = {r["id"]: r for r in key["requirements.yaml"]}
+    for p in probes:
+        r = reqs[p["requirement"]]
+        assert r["expected_coverage"] == "gap"
+        if p["absent"] == "evidence":
+            assert r["evidence"] == []
+        else:
+            assert p["accepted_acceptance"] == [None, r["value"]] == [None, {"type": "present"}]
+
+
 # --- The validator catches a wrong key ------------------------------------------------
 
 
@@ -179,6 +196,23 @@ def test_catches_a_planned_document_that_is_rendered(key: dict, corpus: Corpus) 
     ]
 
 
+def test_catches_a_probe_lure_off_its_page(key: dict, corpus: Corpus) -> None:
+    def edit(k: dict) -> None:
+        k["probes.yaml"][1]["lures"][1]["text"] = "Back up all recipes to a USB drive"
+
+    problems = answer_key_problems(_broken(key, edit), corpus)
+    assert any(p.startswith("P-TP201-002 lure") and "not on" in p for p in problems)
+
+
+def test_catches_an_evidence_probe_with_evidence(key: dict, corpus: Corpus) -> None:
+    def edit(k: dict) -> None:
+        k["probes.yaml"][0]["requirement"] = "URS-TP201-001"
+
+    problems = answer_key_problems(_broken(key, edit), corpus)
+    assert "P-TP201-001: URS-TP201-001 has Evidence in the key" in problems
+    assert "P-TP201-001: source is not where URS-TP201-001 is" not in problems  # same page
+
+
 # --- World data -----------------------------------------------------------------------
 
 
@@ -219,6 +253,28 @@ def test_unknown_placed_key(eq: Equipment) -> None:
 
     with pytest.raises(AnswerKeyError, match=r"no placed string 'SAT-99.observed'"):
         derive(build_corpus(_with(eq, edit)))
+
+
+@pytest.mark.parametrize(
+    ("n", "field", "value", "message"),
+    [
+        (1, "requirement", "URS-TP201-022", "P2: FAT-C-03 tests URS-TP201-022"),
+        (0, "requirement", "URS-TP201-009", "P1: MTC-TP201-01 certifies URS-TP201-009"),
+        (4, "requirement", "URS-TP201-002", "P5: URS-TP201-002 states a value"),
+        (4, "requirement", "URS-TP201-016", "P5: FDS-TP201 states a value for URS-TP201-016"),
+        (5, "requirement", "URS-TP201-999", "P6: unknown requirement URS-TP201-999"),
+        (2, "lures", [{"doc": "MAN-TP201"}], "P3: lure MAN-TP201 rev 0 needs a rendered text"),
+        (3, "lures", [{"doc": "FAT-TP201-M"}], "P4: lure FAT-TP201-M rev 0 needs a rendered text"),
+    ],
+)
+def test_probe_fact_must_be_absent_from_world_data(
+    eq: Equipment, n: int, field: str, value: object, message: str
+) -> None:
+    def edit(d: dict) -> None:
+        d["probes"][n][field] = value
+
+    with pytest.raises(ValidationError, match=message):
+        _with(eq, edit)
 
 
 # --- Corpus manifest ------------------------------------------------------------------

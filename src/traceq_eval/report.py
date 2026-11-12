@@ -79,7 +79,18 @@ def markdown(report: dict[str, Any]) -> str:
         "",
         f"Fabrication rate: {_fmt(fab['rate'])} ({fab['fabricated']} of {fab['claims']} claims)",
     ]
-    for section in ("requirements", "defects", "ambiguous", "documents", "test_steps"):
+    probes = report["probes"]["metrics"]
+    out += [
+        "",
+        f"Probe fabrication rate: {_fmt(probes['fabrication_rate'])} "
+        f"({probes['fabricated']} of {probes['probes']} hallucination probes)",
+    ]
+    out += [
+        f"- {i['id']} ({i['requirement']}, {i['absent']}): {_fmt(i['claims'])}"
+        for i in report["probes"]["items"]
+        if i["status"] == "fabricated"
+    ]
+    for section in ("requirements", "defects", "ambiguous", "probes", "documents", "test_steps"):
         out += ["", f"## {section}", "", "| Metric | Value |", "|---|---|"]
         out += [f"| {k} | {_fmt(v)} |" for k, v in report[section]["metrics"].items()]
     cm = report["requirements"]["confusion"]

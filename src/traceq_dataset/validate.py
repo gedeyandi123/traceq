@@ -136,8 +136,9 @@ def answer_key_problems(key: Mapping[str, Any], corpus: Corpus) -> list[str]:
 
     Every value must appear on the page it is cited on (scans: in the born-digital render
     behind the pixels), every handwritten location must carry the quad of the scan, every
-    planned location must name a document that is really not rendered yet, and the list of
-    documents that should exist must match the corpus.
+    planned location must name a document that is really not rendered yet, every probe's lure
+    must be on its page (and an evidence probe's requirement have no Evidence), and the list
+    of documents that should exist must match the corpus.
     """
     check = _KeyCheck(corpus)
     for r in key["requirements.yaml"]:
@@ -165,6 +166,18 @@ def answer_key_problems(key: Mapping[str, Any], corpus: Corpus) -> list[str]:
             check.location(d["id"], loc)
     for a in key["ambiguous.yaml"]:
         check.location(a["id"], a["location"])
+    reqs = {r["id"]: r for r in key["requirements.yaml"]}
+    for p in key["probes.yaml"]:
+        r = reqs.get(p["requirement"])
+        if r is None:
+            check.out.append(f"{p['id']}: unknown requirement {p['requirement']}")
+            continue
+        if p["source"] != {k: r["source"][k] for k in ("doc", "rev", "page")}:
+            check.out.append(f"{p['id']}: source is not where {r['id']} is")
+        if p["absent"] == "evidence" and r["evidence"]:
+            check.out.append(f"{p['id']}: {r['id']} has Evidence in the key")
+        for loc in p["lures"]:
+            check.location(f"{p['id']} lure", loc)
     check.documents(key["documents.yaml"])
     for scan in key["ocr.yaml"]:
         doc = (scan["doc"], scan["rev"])

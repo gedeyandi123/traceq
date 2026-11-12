@@ -1039,3 +1039,52 @@ scenarios:
   - id: S8
     summary: URS rev 0 -> rev 1 changes one value.
     targets: [URS-TP201-003]
+
+# Hallucination probes (design section 9, decision log Q10): about 10% of answer-key items
+# (6 of 60: 38 requirements, 7 defects, 1 ambiguous value, 14 documents). Each names a fact
+# the corpus does not hold and the lures beside it; the expected answer is "not found".
+# `absent: evidence`: no FAT/SAT step or certificate proves the requirement.
+# `absent: acceptance`: no document gives a value to test against beyond the URS sentence.
+# The schema checks that world data really holds no such step, certificate row or value.
+probes:
+  - id: P1
+    requirement: URS-TP201-012
+    absent: evidence
+    detail: "No document states the gasket and seal material: the 3.1 certificate lists metal parts only, and FAT-M-12 checks certificates of product-contact parts without naming seals."
+    lures:
+      - {doc: MTC-TP201-01, field: item-1.material}
+      - {doc: FAT-TP201-M, text: Check 3.1 material certificates for all product-contact parts.}
+  - id: P2
+    requirement: URS-TP201-024
+    absent: evidence
+    detail: "The FDS describes recipe backup and restore, but no FAT or SAT step tests it; FAT-C-03 changes a recipe for the audit trail only."
+    lures:
+      - {doc: FDS-TP201, field: recipe_backup}
+      - {doc: FAT-TP201-C, text: Change a parameter and a recipe on the HMI}
+  - id: P3
+    requirement: URS-TP201-025
+    absent: evidence
+    detail: "The FDS describes time synchronisation, but no FAT or SAT step tests it; SAT-07 checks that alarms carry a time, not that the clock is synchronised."
+    lures:
+      - {doc: FDS-TP201, field: time_synchronisation}
+      - {doc: SAT-TP201, text: Trigger an alarm and acknowledge it}
+  - id: P4
+    requirement: URS-TP201-037
+    absent: evidence
+    detail: "No machinery safety declaration is in the corpus and no step checks for one; FAT-M-11 and FAT-M-14 check manuals, spare parts and drawings only."
+    lures:
+      - {doc: FAT-TP201-M, text: Check that operating and maintenance manuals are supplied.}
+      - {doc: FAT-TP201-M, text: Check the spare parts list and as-built drawings.}
+  - id: P5
+    requirement: URS-TP201-018
+    absent: acceptance
+    detail: "No document gives a stopping time or distance for the guard door interlock; the URS and FDS only say opening a door stops the press. An OQ Acceptance Criterion beyond that is to be set by a human."
+    lures:
+      - {doc: FDS-TP201, field: guard_door_interlock}
+      - {doc: SAT-TP201, text: Press each emergency stop while running}
+  - id: P6
+    requirement: URS-TP201-013
+    absent: acceptance
+    detail: "No document names the lubricant or its food-grade class (such as a registration category); the URS only says food-grade. An OQ Acceptance Criterion beyond that is to be set by a human."
+    lures:
+      - {doc: URS-TP201, rev: 1, field: URS-TP201-013}

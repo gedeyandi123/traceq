@@ -569,6 +569,30 @@ class Scenario(Model):
     )
 
 
+class Probe(Model):
+    """A hallucination probe (design section 9): a fact the corpus does not hold, beside a
+    lure that invites a system to make it up. The expected answer is "not found".
+
+    ``absent`` says what is missing for the requirement:
+
+    - ``evidence``: no FAT/SAT step or certificate proves it, so a submission offers no
+      Evidence, no ``covered_by_vendor``/``partial`` class and no unverified citation;
+    - ``acceptance``: no document states a value to test against beyond the URS sentence,
+      so a drafted Test Step leaves its Acceptance Criterion empty or copies the URS value.
+
+    Probes ride on the requirements and Test Steps a submission already answers, so a system
+    cannot tell them from other items.
+    """
+
+    id: str = Field(pattern=r"^P\d+$")
+    requirement: str
+    absent: Literal["evidence", "acceptance"]
+    detail: str = Field(description="What the corpus does not say, as a reviewer would put it.")
+    lures: tuple[Anchor, ...] = Field(
+        min_length=1, description="Nearby text that invites the made-up answer."
+    )
+
+
 class RequiredDocument(Model):
     """A document the VMP requires for this Equipment (design section 6, "Documents that
     should exist"). ``missing`` says why it is not in the corpus."""
@@ -615,6 +639,7 @@ class Equipment(Model):
     designs: tuple[DesignEvidence, ...] = ()
     risk_assessment: RiskAssessment | None = None
     scenarios: tuple[Scenario, ...] = ()
+    probes: tuple[Probe, ...] = ()
     documents: tuple[Document, ...] = ()
     required_documents: tuple[RequiredDocument, ...] = ()
 
@@ -681,6 +706,8 @@ class Equipment(Model):
         )
         for s in self.scenarios:
             errors += [f"{s.id}: unknown target {x}" for x in s.targets if x not in known]
+        dupes([p.id for p in self.probes], "probe")
+        errors += self._probe_errors()
         errors += self._document_list_errors()
         if errors:
             raise ValueError("; ".join(errors))
@@ -793,6 +820,40 @@ class Equipment(Model):
             errors.append(f"{name}: approved_by must match the protocol's site approval")
         return errors
 
+    def _probe_errors(self) -> list[str]:
+        """A probe's fact really is absent from world data, so the corpus cannot hold it."""
+        errors: list[str] = []
+        reqs = {r.id: r for r in self.requirements}
+        types = {d.id: d.type for d in self.documents}
+        for p in self.probes:
+            r = reqs.get(p.requirement)
+            if r is None:
+                errors.append(f"{p.id}: unknown requirement {p.requirement}")
+                continue
+            if p.absent == "evidence":
+                errors += [
+                    f"{p.id}: {t.step} tests {r.id}, so its Evidence is not absent"
+                    for t in self.tests
+                    if t.requirement == r.id
+                ]
+                errors += [
+                    f"{p.id}: {d.doc_id} certifies {r.id}"
+                    for d in self.designs
+                    if d.requirement == r.id and types.get(d.doc_id) == "material_certificate"
+                ]
+                continue
+            if not isinstance(r.spec, PresentSpec):
+                errors.append(f"{p.id}: {r.id} states a value, so a test value is not absent")
+            errors += [
+                f"{p.id}: {x} states a value for {r.id}"
+                for x, req, obs in (
+                    *((t.step, t.requirement, t.observed) for t in self.tests),
+                    *((d.doc_id, d.requirement, d.observed) for d in self.designs),
+                )
+                if req == r.id and obs.type != "present"
+            ]
+        return errors
+
     def _document_list_errors(self) -> list[str]:
         """Required documents agree with the rendered ones; finding anchors point at them."""
         errors: list[str] = []
@@ -824,6 +885,10 @@ class Equipment(Model):
                         errors.append(f"{where} needs a field or text")
                 elif a.doc not in required or required[a.doc].missing is None:
                     errors.append(f"{where} is neither rendered nor a missing required document")
+        for p in self.probes:
+            for a in p.lures:
+                if (a.doc, a.rev) not in rendered or (a.field is None and a.text is None):
+                    errors.append(f"{p.id}: lure {a.doc} rev {a.rev} needs a rendered text")
         return errors
 
     def pending(self) -> list[str]:
