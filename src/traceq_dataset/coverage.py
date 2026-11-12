@@ -119,7 +119,7 @@ def classify(
     qualifying: list[VendorProtocol] = []
     for step in steps:
         protocol = protocols[step.protocol]
-        failure = _first_failure(req, step, protocol, vendors[protocol.vendor])
+        failure = step_failure(req, step, protocol, vendors[protocol.vendor])
         if failure is None:
             qualifying.append(protocol)
         else:
@@ -142,7 +142,7 @@ def _require_filled(
         raise PendingError(f"{req.id}: value or Evidence still pending")
 
 
-def _first_failure(
+def step_failure(
     req: Requirement, step: TestEvidence, protocol: VendorProtocol, vendor: Vendor
 ) -> str | None:
     if not proves(req, step):

@@ -1,0 +1,23 @@
+# TP-201 answer key: ambiguous.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: A-TP201-001
+  scenario: S7
+  location:
+    doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: SAT-03.observed
+    text: 1.500 rpm
+    quad:
+    - [415.47, 708.66]
+    - [465.31, 707.94]
+    - [465.54, 723.69]
+    - [415.7, 724.41]
+  readings:
+  - {value: 1500, separator: thousands, convention: id, unit: rpm}
+  - {value: 1.5, separator: decimal, convention: en, unit: rpm}
+  true_value: {type: number, value: 1500, unit: rpm}
+  requirement: URS-TP201-017
+  requirement_value: {type: range, min: 10, max: 60, unit: rpm}
+  expected_answer: ask_confirmation

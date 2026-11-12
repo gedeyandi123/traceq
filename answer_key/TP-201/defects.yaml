@@ -1,0 +1,183 @@
+# TP-201 answer key: defects.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: D-TP201-001
+  scenario: S1
+  type: gdp_correction
+  severity: major
+  layer: vision
+  reference:
+    primary: CPOB 10.8
+    equivalents: [PIC/S PI 041-1 §8.7]
+  detail: SAT-01 output is overwritten (121.400 -> 122.400 tablets/h) without initials, date or reason;
+    the original value is no longer clearly legible.
+  documents:
+  - {doc: SAT-TP201, rev: 0}
+  locations:
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: SAT-01.observed
+    text: 122.400 tablets/h
+    quad:
+    - [414.28, 626.46]
+    - [498.69, 625.25]
+    - [498.92, 641.0]
+    - [414.51, 642.21]
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: SAT-01.observed.original
+    text: 121.400 tablets/h
+    quad:
+    - [414.28, 626.46]
+    - [498.69, 625.25]
+    - [498.92, 641.0]
+    - [414.51, 642.21]
+- id: D-TP201-002
+  scenario: S2
+  type: expired_calibration
+  severity: major
+  layer: rule
+  reference:
+    primary: CPOB Ch. 12
+    equivalents: []
+  detail: Tachometer TACH-07 (certificate KAL-2025-0412) was used in SAT-01 and SAT-03 one day after its
+    calibration expired; both results lack valid measurement Evidence.
+  documents:
+  - {doc: SAT-TP201, rev: 0}
+  - {doc: KAL-2025-0412, rev: 0}
+  locations:
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: instrument.TACH-07.due
+    text: 17/05/2026
+    quad:
+    - [474.85, 501.1]
+    - [533.72, 500.25]
+    - [533.94, 516.0]
+    - [475.08, 516.85]
+  - doc: SAT-TP201
+    rev: 0
+    page: 2
+    field: execution.executed_by.date
+    text: 18/05/2026
+    quad:
+    - [481.55, 300.09]
+    - [540.41, 301.15]
+    - [540.13, 316.9]
+    - [481.27, 315.84]
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: SAT-01.instruments
+    text: TACH-07 SW-03
+    quad:
+    - [360.43, 627.24]
+    - [405.58, 626.59]
+    - [406.15, 666.21]
+    - [361.0, 666.86]
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: SAT-03.instruments
+    text: TACH-07
+    quad:
+    - [361.62, 709.43]
+    - [406.76, 708.78]
+    - [406.99, 724.53]
+    - [361.84, 725.18]
+  - {doc: KAL-2025-0412, rev: 0, status: planned}
+- id: D-TP201-003
+  scenario: S3
+  type: inconsistent_data
+  severity: minor
+  layer: llm
+  reference: null
+  detail: The SAT records serial number RTP36-25-0471; the FAT and the datasheet give RTP36-25-0417. Confirm
+    against the nameplate and correct the SAT record.
+  documents:
+  - {doc: SAT-TP201, rev: 0}
+  - {doc: FAT-TP201-M, rev: 0}
+  - {doc: DS-TP201, rev: 0}
+  locations:
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: serial
+    text: RTP36-25-0471
+    quad:
+    - [164.55, 214.71]
+    - [241.66, 213.6]
+    - [241.88, 229.35]
+    - [164.78, 230.46]
+  - {doc: FAT-TP201-M, rev: 0, page: 1, text: RTP36-25-0417}
+  - {doc: DS-TP201, rev: 0, status: planned}
+- id: D-TP201-004
+  scenario: S4
+  type: vendor_protocol_not_approved
+  severity: major
+  layer: rule
+  reference:
+    primary: CPOB 12.14
+    equivalents: []
+  detail: FAT-TP201-C was executed with no site check or approval of the protocol; its results cannot
+    be used as Vendor Evidence.
+  documents:
+  - {doc: FAT-TP201-C, rev: 0}
+  locations:
+  - {doc: FAT-TP201-C, rev: 0, page: 1, text: Approved by}
+- id: D-TP201-005
+  scenario: S5
+  type: out_of_limit_marked_pass
+  severity: critical
+  layer: rule
+  reference:
+    primary: CPOB 12.16
+    equivalents: []
+  detail: FAT-M-03 records 96 kN against an Acceptance Criterion of at least 100 kN and is marked Pass;
+    it should be a failed result raised as a Deviation.
+  documents:
+  - {doc: FAT-TP201-M, rev: 0}
+  locations:
+  - {doc: FAT-TP201-M, rev: 0, page: 1, field: FAT-M-03.observed, text: 96 kN}
+  - {doc: FAT-TP201-M, rev: 0, page: 1, field: FAT-M-03.acceptance, text: ≥ 100 kN}
+- id: D-TP201-006
+  scenario: S6
+  type: design_conflict
+  severity: critical
+  layer: llm
+  reference:
+    primary: PerBPOM 7/2024 Bab 4 §4.7
+    equivalents: []
+  detail: The material certificate states SS 304 for product-contact parts; URS-TP201-009 requires SS
+    316L.
+  documents:
+  - {doc: URS-TP201, rev: 1}
+  - {doc: MTC-TP201-01, rev: 0}
+  locations:
+  - {doc: URS-TP201, rev: 1, page: 1, field: URS-TP201-009, text: Semua bagian yang kontak dengan produk
+      terbuat dari SS 316L.}
+  - {doc: MTC-TP201-01, rev: 0, status: planned}
+- id: D-TP201-007
+  scenario: S7
+  type: ambiguous_value
+  severity: minor
+  layer: llm
+  reference: null
+  detail: 'SAT-03 records "1.500 rpm" on an English form filled in with Indonesian number formats: 1500
+    or 1.5 rpm. Neither meets 10–60 rpm; ask the executor to confirm what was measured.'
+  documents:
+  - {doc: SAT-TP201, rev: 0}
+  locations:
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: SAT-03.observed
+    text: 1.500 rpm
+    quad:
+    - [415.47, 708.66]
+    - [465.31, 707.94]
+    - [465.54, 723.69]
+    - [415.7, 724.41]

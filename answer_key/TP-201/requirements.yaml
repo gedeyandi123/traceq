@@ -1,0 +1,701 @@
+# TP-201 answer key: requirements.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: URS-TP201-001
+  text: Mesin memiliki 36 stasiun punch.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: punch_stations
+  value: {type: range, min: 36, unit: stations}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-01
+    acceptance: ≥ 36 stations
+    observed: 36 stations
+    value: {type: number, value: 36, unit: stations}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-002
+  text: Kecepatan turret dapat diatur pada rentang 20–70 rpm.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: turret_speed
+  value: {type: range, min: 20, max: 70, unit: rpm}
+  critical: true
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-02
+    acceptance: 20–60 rpm
+    observed: 20–60 rpm
+    value: {type: range, min: 20, max: 60, unit: rpm}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 3: full URS range not tested'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-M-02: condition 3: full URS range not tested'
+  also_valid: []
+- id: URS-TP201-003
+  text: Kapasitas produksi minimal 120.000 tablet/jam.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: output_rate
+  value: {type: range, min: 120000, unit: tablets/h}
+  critical: true
+  superseded:
+  - rev: 0
+    page: 1
+    text: Kapasitas produksi minimal 100.000 tablet/jam.
+    value: {type: range, min: 100000, unit: tablets/h}
+  evidence:
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    step: SAT-01
+    acceptance: ≥ 120,000 tablets/h
+    observed: 122.400 tablets/h
+    value: {type: number, value: 122400, unit: tablets/h}
+    recorded_result: pass
+    qualifies: true
+    corrected_from: {type: number, value: 121400, unit: tablets/h}
+    quad:
+    - [414.28, 626.46]
+    - [498.69, 625.25]
+    - [498.92, 641.0]
+    - [414.51, 642.21]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-TP201
+  also_valid: []
+- id: URS-TP201-004
+  text: Gaya tekan utama yang dapat dicapai minimal 100 kN.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: main_compression_force
+  value: {type: range, min: 100, unit: kN}
+  critical: true
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-03
+    acceptance: ≥ 100 kN
+    observed: 96 kN
+    value: {type: number, value: 96, unit: kN}
+    recorded_result: pass
+    qualifies: false
+    failure: result does not meet the URS
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-M-03: result does not meet the URS'
+  also_valid: []
+- id: URS-TP201-005
+  text: Gaya pra-kompresi yang dapat dicapai minimal 20 kN.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: precompression_force
+  value: {type: range, min: 20, unit: kN}
+  critical: false
+  evidence:
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    step: SAT-02
+    acceptance: ≥ 20 kN
+    observed: 20,4 kN
+    value: {type: number, value: 20.4, unit: kN}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [415.06, 679.99]
+    - [455.1, 679.41]
+    - [455.33, 695.16]
+    - [415.28, 695.73]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-TP201
+  also_valid: []
+- id: URS-TP201-006
+  text: Diameter tablet maksimal 25 mm.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: tablet_diameter
+  value: {type: range, max: 25, unit: mm}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-04
+    acceptance: ≤ 25 mm
+    observed: 25 mm
+    value: {type: number, value: 25, unit: mm}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-007
+  text: Kedalaman pengisian maksimal 18 mm.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: fill_depth
+  value: {type: range, max: 18, unit: mm}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-05
+    acceptance: ≤ 18 mm
+    observed: 18 mm
+    value: {type: number, value: 18, unit: mm}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-008
+  text: Mesin menggunakan tooling tipe EU D.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 1. Kinerja}
+  param: tooling_type
+  value:
+    type: one_of
+    allowed: [EU D]
+  critical: false
+  evidence: []
+  design_evidence:
+  - doc: DS-TP201
+    status: planned
+    value: {type: text, value: EU B}
+    meets_urs: false
+  expected_coverage: conflict
+  reason: DS-TP201 does not meet the URS
+  also_valid: []
+- id: URS-TP201-009
+  text: Semua bagian yang kontak dengan produk terbuat dari SS 316L.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 2. Material dan konstruksi}
+  param: product_contact_material
+  value:
+    type: one_of
+    allowed: [SS 316L]
+  critical: true
+  evidence: []
+  design_evidence:
+  - doc: MTC-TP201-01
+    status: planned
+    value: {type: text, value: SS 304}
+    meets_urs: false
+  expected_coverage: conflict
+  reason: MTC-TP201-01 does not meet the URS
+  also_valid: []
+- id: URS-TP201-010
+  text: Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 2. Material dan konstruksi}
+  param: contact_surface_roughness
+  value: {type: range, max: 0.8, unit: µm}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-06
+    acceptance: ≤ 0.8 µm
+    observed: 0.6 µm
+    value: {type: number, value: 0.6, unit: µm}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-011
+  text: Bagian yang tidak kontak dengan produk terbuat dari SS 304.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 2. Material dan konstruksi}
+  param: non_contact_material
+  value:
+    type: one_of
+    allowed: [SS 304]
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-07
+    acceptance: SS 304
+    observed: SS 304
+    value: {type: text, value: SS 304}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-012
+  text: Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 2. Material dan konstruksi}
+  param: seal_material
+  value:
+    type: one_of
+    allowed: [EPDM, silicone]
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP201-013
+  text: Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 2. Material dan konstruksi}
+  param: food_grade_lubricant
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP201-014
+  text: Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
+  param: automatic_weight_control
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-TP201-C
+    rev: 0
+    page: 1
+    step: FAT-C-01
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-C-01: condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  also_valid: []
+- id: URS-TP201-015
+  text: Tablet di luar batas berat ditolak otomatis.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
+  param: automatic_rejection
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-TP201-C
+    rev: 0
+    page: 1
+    step: FAT-C-02
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-C-02: condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  also_valid: []
+- id: URS-TP201-016
+  text: Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
+  param: force_measurement_accuracy
+  value: {type: range, max: 1, unit: '% FS'}
+  critical: true
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-08
+    acceptance: ≤ 1 % FS
+    observed: 0.5 % FS
+    value: {type: number, value: 0.5, unit: '% FS'}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-TP201-017
+  text: Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
+  param: feeder_paddle_speed
+  value: {type: range, min: 10, max: 60, unit: rpm}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-09
+    acceptance: 20–60 rpm
+    observed: 20–60 rpm
+    value: {type: range, min: 20, max: 60, unit: rpm}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 3: full URS range not tested'
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    step: SAT-03
+    acceptance: 10–60 rpm
+    observed: 1.500 rpm
+    value: {type: number, value: 1500, unit: rpm}
+    recorded_result: pass
+    qualifies: false
+    failure: result does not meet the URS
+    quad:
+    - [415.47, 708.66]
+    - [465.31, 707.94]
+    - [465.54, 723.69]
+    - [415.7, 724.41]
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-M-09: condition 3: full URS range not tested; SAT-03: result does not meet the URS'
+  also_valid: []
+- id: URS-TP201-018
+  text: Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
+  param: guard_door_interlock
+  value: {type: present}
+  critical: true
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP201-019
+  text: Tombol emergency stop tersedia dan berfungsi.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
+  param: emergency_stop
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: SAT-TP201
+    rev: 0
+    page: 1
+    step: SAT-04
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [415.88, 737.33]
+    - [498.67, 736.14]
+    - [498.9, 751.89]
+    - [416.11, 753.08]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-TP201
+  also_valid: []
+- id: URS-TP201-020
+  text: Mesin berhenti otomatis saat terjadi overload pada punch.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
+  param: punch_overload_protection
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: SAT-TP201
+    rev: 0
+    page: 2
+    step: SAT-05
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [416.84, 114.89]
+    - [499.62, 116.38]
+    - [499.34, 132.13]
+    - [416.55, 130.64]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-TP201
+  also_valid: []
+- id: URS-TP201-021
+  text: HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin).
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 4. Integritas data HMI}
+  param: hmi_access_levels
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: SAT-TP201
+    rev: 0
+    page: 2
+    step: SAT-06
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [416.32, 143.57]
+    - [499.11, 145.06]
+    - [498.83, 160.8]
+    - [416.04, 159.31]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-TP201
+  also_valid: []
+- id: URS-TP201-022
+  text: HMI merekam audit trail untuk setiap perubahan parameter dan resep.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 4. Integritas data HMI}
+  param: hmi_audit_trail
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-TP201-C
+    rev: 0
+    page: 1
+    step: FAT-C-03
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-C-03: condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  also_valid: []
+- id: URS-TP201-023
+  text: HMI menyimpan log alarm beserta waktu dan pengguna.
+  source: {doc: URS-TP201, rev: 1, page: 1, section: 4. Integritas data HMI}
+  param: hmi_alarm_log
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: SAT-TP201
+    rev: 0
+    page: 2
+    step: SAT-07
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [415.81, 172.24]
+    - [498.59, 173.73]
+    - [498.31, 189.48]
+    - [415.52, 187.99]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-TP201
+  also_valid: []
+- id: URS-TP201-024
+  text: Resep produk dapat di-backup dan dipulihkan.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 4. Integritas data HMI}
+  param: recipe_backup
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP201-025
+  text: Jam sistem HMI disinkronkan dengan sumber waktu pabrik.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 4. Integritas data HMI}
+  param: time_synchronisation
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP201-026
+  text: Mesin beroperasi dengan suplai listrik 380 V, 3 fase.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 5. Utilitas dan lingkungan}
+  param: power_supply_voltage
+  value: {type: range, min: 380, max: 380, unit: V}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-TP201-027
+  text: Mesin beroperasi dengan udara tekan 6–7 bar.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 5. Utilitas dan lingkungan}
+  param: compressed_air_pressure
+  value: {type: range, min: 6, max: 7, unit: bar}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-TP201-028
+  text: Sambungan dust extraction kompatibel dengan sistem pabrik minimal 300 m³/jam.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 5. Utilitas dan lingkungan}
+  param: dust_extraction_flow
+  value: {type: range, min: 300, unit: m3/h}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-TP201-029
+  text: Tingkat kebisingan di posisi operator maksimal 85 dBA.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 5. Utilitas dan lingkungan}
+  param: noise_level
+  value: {type: range, max: 85, unit: dBA}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-TP201-030
+  text: Dimensi mesin muat di ruang cetak dengan tinggi plafon 3.000 mm.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 5. Utilitas dan lingkungan}
+  param: room_height_fit
+  value: {type: range, max: 3000, unit: mm}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-TP201-031
+  text: Mesin beroperasi normal pada suhu ruang 18–25 °C.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 5. Utilitas dan lingkungan}
+  param: room_temperature
+  value: {type: range, min: 18, max: 25, unit: °C}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-TP201-032
+  text: Waktu changeover dan pembersihan antar produk maksimal 120 menit.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 6. Pembersihan}
+  param: changeover_time
+  value: {type: range, max: 120, unit: min}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP201-033
+  text: Bagian kontak produk dapat dilepas untuk dibersihkan tanpa alat khusus.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 6. Pembersihan}
+  param: toolless_disassembly
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-10
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-034
+  text: Manual operasi dan perawatan tersedia dalam bahasa Indonesia atau Inggris.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 7. Dokumentasi}
+  param: manuals
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-11
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-035
+  text: Sertifikat material 3.1 tersedia untuk semua bagian kontak produk.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 7. Dokumentasi}
+  param: material_certificates
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-12
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []
+- id: URS-TP201-036
+  text: Sertifikat kalibrasi sensor gaya tekan tersedia dan masih berlaku.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 7. Dokumentasi}
+  param: force_sensor_calibration
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 1
+    step: FAT-M-13
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-TP201-037
+  text: Deklarasi kesesuaian keselamatan mesin tersedia.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 7. Dokumentasi}
+  param: machinery_safety_declaration
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP201-038
+  text: Daftar suku cadang dan gambar teknis as-built tersedia.
+  source: {doc: URS-TP201, rev: 1, page: 2, section: 7. Dokumentasi}
+  param: spare_parts_and_drawings
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-TP201-M
+    rev: 0
+    page: 2
+    step: FAT-M-14
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP201-M
+  also_valid: []

@@ -1,0 +1,306 @@
+# TP-201 answer key: ocr.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- doc: SAT-TP201
+  rev: 0
+  file: SAT-TP201_rev0.pdf
+  dpi: 150
+  level: medium
+  skew: [0.8249, -1.0306]
+  entries:
+  - field: SAT-01.observed
+    page: 1
+    text: 122.400 tablets/h
+    quad:
+    - [414.28, 626.46]
+    - [498.69, 625.25]
+    - [498.92, 641.0]
+    - [414.51, 642.21]
+  - field: SAT-01.result
+    page: 1
+    text: Lulus
+    quad:
+    - [510.65, 625.07]
+    - [536.85, 624.7]
+    - [537.08, 640.45]
+    - [510.88, 640.82]
+  - field: SAT-01.instruments
+    page: 1
+    text: TACH-07 SW-03
+    quad:
+    - [360.43, 627.24]
+    - [405.58, 626.59]
+    - [406.15, 666.21]
+    - [361.0, 666.86]
+  - field: SAT-01.observed.original
+    page: 1
+    text: 121.400 tablets/h
+    quad:
+    - [414.28, 626.46]
+    - [498.69, 625.25]
+    - [498.92, 641.0]
+    - [414.51, 642.21]
+  - field: SAT-02.observed
+    page: 1
+    text: 20,4 kN
+    quad:
+    - [415.06, 679.99]
+    - [455.1, 679.41]
+    - [455.33, 695.16]
+    - [415.28, 695.73]
+  - field: SAT-02.result
+    page: 1
+    text: Lulus
+    quad:
+    - [511.42, 678.6]
+    - [537.62, 678.22]
+    - [537.85, 693.97]
+    - [511.65, 694.35]
+  - field: SAT-03.observed
+    page: 1
+    text: 1.500 rpm
+    quad:
+    - [415.47, 708.66]
+    - [465.31, 707.94]
+    - [465.54, 723.69]
+    - [415.7, 724.41]
+  - field: SAT-03.result
+    page: 1
+    text: Lulus
+    quad:
+    - [511.84, 707.27]
+    - [538.03, 706.89]
+    - [538.26, 722.64]
+    - [512.06, 723.02]
+  - field: SAT-03.instruments
+    page: 1
+    text: TACH-07
+    quad:
+    - [361.62, 709.43]
+    - [406.76, 708.78]
+    - [406.99, 724.53]
+    - [361.84, 725.18]
+  - field: SAT-04.observed
+    page: 1
+    text: Ada dan berfungsi
+    quad:
+    - [415.88, 737.33]
+    - [498.67, 736.14]
+    - [498.9, 751.89]
+    - [416.11, 753.08]
+  - field: SAT-04.result
+    page: 1
+    text: Lulus
+    quad:
+    - [512.25, 735.95]
+    - [538.45, 735.57]
+    - [538.67, 751.32]
+    - [512.48, 751.69]
+  - field: SAT-05.observed
+    page: 2
+    text: Ada dan berfungsi
+    quad:
+    - [416.84, 114.89]
+    - [499.62, 116.38]
+    - [499.34, 132.13]
+    - [416.55, 130.64]
+  - field: SAT-05.result
+    page: 2
+    text: Lulus
+    quad:
+    - [513.2, 116.63]
+    - [539.4, 117.1]
+    - [539.11, 132.85]
+    - [512.92, 132.38]
+  - field: SAT-06.observed
+    page: 2
+    text: Ada dan berfungsi
+    quad:
+    - [416.32, 143.57]
+    - [499.11, 145.06]
+    - [498.83, 160.8]
+    - [416.04, 159.31]
+  - field: SAT-06.result
+    page: 2
+    text: Lulus
+    quad:
+    - [512.68, 145.3]
+    - [538.88, 145.77]
+    - [538.6, 161.52]
+    - [512.4, 161.05]
+  - field: SAT-07.observed
+    page: 2
+    text: Ada dan berfungsi
+    quad:
+    - [415.81, 172.24]
+    - [498.59, 173.73]
+    - [498.31, 189.48]
+    - [415.52, 187.99]
+  - field: SAT-07.result
+    page: 2
+    text: Lulus
+    quad:
+    - [512.17, 173.97]
+    - [538.36, 174.44]
+    - [538.08, 190.19]
+    - [511.89, 189.72]
+  - field: serial
+    page: 1
+    text: RTP36-25-0471
+    quad:
+    - [164.55, 214.71]
+    - [241.66, 213.6]
+    - [241.88, 229.35]
+    - [164.78, 230.46]
+  - field: approval.prepared_by.name
+    page: 1
+    text: Markus Brandt
+    quad:
+    - [132.6, 358.09]
+    - [204.45, 357.05]
+    - [204.68, 372.8]
+    - [132.82, 373.83]
+  - field: approval.prepared_by.date
+    page: 1
+    text: 02/05/2026
+    quad:
+    - [478.39, 353.11]
+    - [537.26, 352.26]
+    - [537.48, 368.01]
+    - [478.61, 368.86]
+  - field: approval.checked_by.name
+    page: 1
+    text: Bayu Pratama
+    quad:
+    - [133.19, 399.18]
+    - [199.32, 398.23]
+    - [199.55, 413.98]
+    - [133.42, 414.93]
+  - field: approval.checked_by.date
+    page: 1
+    text: 07/05/2026
+    quad:
+    - [478.98, 394.21]
+    - [537.85, 393.36]
+    - [538.07, 409.11]
+    - [479.21, 409.95]
+  - field: approval.approved_by.name
+    page: 1
+    text: Dewi Anggraini
+    quad:
+    - [133.56, 424.93]
+    - [203.45, 423.93]
+    - [203.68, 439.67]
+    - [133.79, 440.68]
+  - field: approval.approved_by.date
+    page: 1
+    text: 07/05/2026
+    quad:
+    - [479.35, 419.95]
+    - [538.22, 419.11]
+    - [538.45, 434.85]
+    - [479.58, 435.7]
+  - field: instrument.TACH-07.id
+    page: 1
+    text: TACH-07
+    quad:
+    - [55.36, 507.14]
+    - [100.51, 506.49]
+    - [100.74, 522.24]
+    - [55.59, 522.89]
+  - field: instrument.TACH-07.serial
+    page: 1
+    text: DT2236-58812
+    quad:
+    - [304.79, 503.55]
+    - [377.93, 502.5]
+    - [378.16, 518.24]
+    - [305.01, 519.3]
+  - field: instrument.TACH-07.certificate
+    page: 1
+    text: KAL-2025-0412
+    quad:
+    - [389.82, 502.33]
+    - [466.16, 501.23]
+    - [466.39, 516.97]
+    - [390.04, 518.07]
+  - field: instrument.TACH-07.due
+    page: 1
+    text: 17/05/2026
+    quad:
+    - [474.85, 501.1]
+    - [533.72, 500.25]
+    - [533.94, 516.0]
+    - [475.08, 516.85]
+  - field: instrument.SW-03.id
+    page: 1
+    text: SW-03
+    quad:
+    - [55.74, 532.89]
+    - [92.01, 532.37]
+    - [92.23, 548.11]
+    - [55.96, 548.64]
+  - field: instrument.SW-03.serial
+    page: 1
+    text: SW-11907
+    quad:
+    - [305.16, 529.3]
+    - [358.3, 528.53]
+    - [358.53, 544.28]
+    - [305.38, 545.05]
+  - field: instrument.SW-03.certificate
+    page: 1
+    text: KAL-2026-0057
+    quad:
+    - [390.19, 528.07]
+    - [466.53, 526.97]
+    - [466.76, 542.72]
+    - [390.42, 543.82]
+  - field: instrument.SW-03.due
+    page: 1
+    text: 01/02/2027
+    quad:
+    - [475.22, 526.85]
+    - [534.09, 526.0]
+    - [534.31, 541.75]
+    - [475.45, 542.6]
+  - field: deviations
+    page: 2
+    text: Tidak ada
+    quad:
+    - [52.79, 216.29]
+    - [99.48, 217.13]
+    - [99.2, 232.88]
+    - [52.51, 232.04]
+  - field: execution.executed_by.name
+    page: 2
+    text: Markus Brandt
+    quad:
+    - [135.78, 293.87]
+    - [207.63, 295.16]
+    - [207.35, 310.91]
+    - [135.49, 309.62]
+  - field: execution.executed_by.date
+    page: 2
+    text: 18/05/2026
+    quad:
+    - [481.55, 300.09]
+    - [540.41, 301.15]
+    - [540.13, 316.9]
+    - [481.27, 315.84]
+  - field: execution.witnessed_by.name
+    page: 2
+    text: Agus Setiawan
+    quad:
+    - [135.04, 334.97]
+    - [202.33, 336.18]
+    - [202.04, 351.92]
+    - [134.76, 350.71]
+  - field: execution.witnessed_by.date
+    page: 2
+    text: 18/05/2026
+    quad:
+    - [480.81, 341.19]
+    - [539.68, 342.24]
+    - [539.39, 357.99]
+    - [480.53, 356.93]
