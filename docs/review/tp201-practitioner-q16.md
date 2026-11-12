@@ -37,9 +37,9 @@ Pemilik menyetujui nilai-nilai ini berdasarkan logika dan cek fakta umum. Prakti
 | 15 | URS-TP201-026 | Listrik 380 V, 3 fase, 50 Hz | Wajar? |
 | 16 | URS-TP201-004 | Gaya tekan utama minimal 100 kN; produk terbesar dikempa sampai sekitar 200 MPa | Apakah 100 kN wajar untuk tablet sampai 25 mm? |
 
-## D. Risk assessment, kalibrasi, dan answer key
+## D. Risk assessment, kalibrasi, dan answer key (agenda lisan, bukan form)
 
-Isi bagian ini menyangkut penilaian, bukan nilai URS. Kriteria kritis (D1–D3) memblokir sign-off RA (`risk_assessment.reviewed_by`). Dengan aturan RA sekarang (Aspek kritis = Ya bila S ≥ 4), mengubah kritis sebuah requirement berarti mengubah `critical` di URS dan skor S-nya di RA sekaligus. Kelas Coverage tidak ikut berubah.
+Bagian A–C sudah dikirim sebagai Google Form. Bagian D tidak dikirim sebagai form kedua agar praktisi tidak menerima kiriman berulang; isinya dibahas lisan di sesi review 30 menit (Q16), yang digabung dengan demo minggu 3–4. Isi bagian ini menyangkut penilaian, bukan nilai URS. Kriteria kritis (D1–D3) memblokir sign-off RA (`risk_assessment.reviewed_by`). Dengan aturan RA sekarang (Aspek kritis = Ya bila S ≥ 4), mengubah kritis sebuah requirement berarti mengubah `critical` di URS dan skor S-nya di RA sekaligus. Kelas Coverage tidak ikut berubah.
 
 | # | Topik | Keadaan sekarang | Pertanyaan |
 |---|---|---|---|
@@ -51,6 +51,8 @@ Isi bagian ini menyangkut penilaian, bukan nilai URS. Kriteria kritis (D1–D3) 
 | D6 | Evidence dari alat kedaluwarsa (S2) | SAT-01 memakai tachometer yang kalibrasinya kedaluwarsa sehari sebelumnya, tetapi URS-TP201-003 tetap dihitung *covered_by_vendor* lewat SAT-01 | Apakah hasil uji dari alat ukur yang kedaluwarsa masih dihitung sebagai bukti? |
 | D7 | Tanggal ambigu di SAT | Tanggal tulisan tangan seperti `07/05/2026` ambigu dd/mm vs mm/dd bila dibaca sendiri; konteks dokumen memastikannya. Tidak ditanam sebagai cacat. | Apakah reviewer di lapangan akan mempermasalahkannya? |
 | D8 | Severity cacat | S5 dan S6 critical; S1, S2, S4 major; S3 dan S7 minor (lihat `answer_key/TP-201/defects.yaml`) | Apakah pembagian ini sesuai cara pabrik menilai temuan? |
+| D9 | AC vendor lebih sempit dari URS | FAT-M-02 menguji 20–60 rpm terhadap URS 20–70 rpm. Dihitung *partial* (rentang URS tidak teruji penuh), bukan cacat "AC menyimpang dari URS" | Apakah pabrik menganggapnya cukup dicatat dan diuji ulang di OQ, atau sudah termasuk temuan? |
+| D10 | Decision table Coverage | Empat syarat *covered_by_vendor* (vendor dinilai, protokol disetujui site sebelum eksekusi, rentang URS teruji penuh, tidak sensitif transportasi atau diuji ulang di SAT); lihat `docs/design/synthetic-dataset.md` §6 | Apakah ini cara pabrik memutuskan hasil vendor boleh dipakai? Ada syarat yang kurang atau berlebihan? |
 
 ## C. Di luar nilai (opsional, jika waktu cukup)
 
