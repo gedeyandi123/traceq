@@ -106,12 +106,10 @@ def test_scan_locations_carry_quads(key: dict, corpus: Corpus) -> None:
 def test_documents_that_should_exist(key: dict) -> None:
     status = {d["id"]: d["status"] for d in key["documents.yaml"]}
     assert status["SAT-TP201"] == "in_corpus"
-    assert {i for i, s in status.items() if s == "planned"} == {
-        "RA-TP201",
-        "FDS-TP201",
-        "CAL-TP201-01",
-    }
+    assert {i for i, s in status.items() if s != "in_corpus"} == {"IQ-TP201", "OQ-TP201"}
     assert {i for i, s in status.items() if s == "expected_gap"} == {"IQ-TP201", "OQ-TP201"}
+    ra = next(d for d in key["documents.yaml"] if d["id"] == "RA-TP201")
+    assert ra["files"] == [{"rev": 0, "file": "RA-TP201_rev0.xlsx"}]
     urs = next(d for d in key["documents.yaml"] if d["id"] == "URS-TP201")
     assert [f["rev"] for f in urs["files"]] == [0, 1]
 
@@ -145,6 +143,22 @@ def test_catches_a_value_not_in_the_document(key: dict, corpus: Corpus) -> None:
     assert answer_key_problems(_broken(key, edit), corpus) == [
         "URS-TP201-002: value '75' not in 'Kecepatan turret dapat diatur pada rentang 20–70 rpm.'"
     ]
+
+
+def test_catches_a_wrong_risk_score(key: dict, corpus: Corpus) -> None:
+    def edit(k: dict) -> None:
+        k["requirements.yaml"][1]["risk"]["severity"] = 3
+
+    problems = answer_key_problems(_broken(key, edit), corpus)
+    assert problems == ["URS-TP201-002 risk: severity is not 3 in F11"]
+
+
+def test_catches_a_risk_on_the_wrong_row(key: dict, corpus: Corpus) -> None:
+    def edit(k: dict) -> None:
+        k["requirements.yaml"][1]["risk"]["row"] = 12
+
+    problems = answer_key_problems(_broken(key, edit), corpus)
+    assert "URS-TP201-002 risk: critical is not on row 12" in problems
 
 
 def test_catches_a_moved_quad(key: dict, corpus: Corpus) -> None:
@@ -219,6 +233,9 @@ def test_manifest_lists_every_published_file(corpus: Corpus) -> None:
     assert (sat["format"], sat["scan_level"], sat["pages"]) == ("scan", "medium", 2)
     published = corpus.published(("SAT-TP201", 0))
     assert sat["sha256"] == hashlib.sha256(published).hexdigest()
+    ra = by_path["TP-201/RA-TP201_rev0.xlsx"]
+    assert (ra["format"], ra["sheets"], ra["scan_level"]) == ("xlsx", 1, None)
+    assert "pages" not in ra
 
 
 def test_files_are_the_documented_set() -> None:

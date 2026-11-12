@@ -8,8 +8,9 @@ entries on a scan). Layer and default reference of a finding follow from its typ
 
 Files, one directory per Equipment (``answer_key/TP-201/``):
 
-- ``requirements.yaml``: each requirement with its location, normalised value, Evidence
-  per step, and expected Coverage with the decision-table reason;
+- ``requirements.yaml``: each requirement with its location, normalised value, its row in
+  the risk assessment (Critical Aspect and scores), Evidence per step, design facts, and
+  expected Coverage with the decision-table reason;
 - ``defects.yaml``: the defect manifest, one entry per scenario with a finding;
 - ``ambiguous.yaml``: values whose expected answer is "ask for confirmation";
 - ``documents.yaml``: documents that should exist, and why any is not in the corpus;
@@ -33,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from openpyxl.utils.cell import coordinate_from_string
 from pydantic import BaseModel
 
 from traceq_dataset.corpus import Corpus, DocKey, build_corpus
@@ -115,6 +117,8 @@ def locate(corpus: Corpus, anchor: Anchor, texts: dict[DocKey, list[str]]) -> di
         loc |= {"page": placed.page, "field": anchor.field, "text": placed.text}
         quad = _quad(corpus, doc, anchor.field)
         return loc | ({"quad": quad} if quad else {})
+    if rendered.format != "pdf":
+        raise AnswerKeyError(f"{rendered.filename}: a text anchor needs a PDF")
     pages = texts.setdefault(doc, page_texts(rendered.pdf))
     wanted = normalise(anchor.text or "")
     found = [i for i, t in enumerate(pages, 1) if wanted in t]
@@ -158,6 +162,9 @@ def requirements(corpus: Corpus) -> list[dict[str, Any]]:
         ]
         if superseded:
             entry["superseded"] = superseded
+        risk = _risk(corpus, r)
+        if risk:
+            entry["risk"] = risk
         entry["evidence"] = _test_evidence(corpus, r)
         entry["design_evidence"] = _design_evidence(corpus, r)
         entry |= {
@@ -167,6 +174,29 @@ def requirements(corpus: Corpus) -> list[dict[str, Any]]:
         }
         out.append(entry)
     return out
+
+
+def _risk(corpus: Corpus, r: Requirement) -> dict[str, Any] | None:
+    """The requirement's FMEA row in the rendered risk assessment: where it is, whether it
+    marks a Critical Aspect, and its scores."""
+    ra = corpus.eq.risk_assessment
+    if ra is None or (ra.doc_id, 0) not in corpus.rendered:
+        return None
+    row = next(x for x in ra.rows if x.requirement == r.id)
+    placed = corpus.rendered[(ra.doc_id, 0)].placed[f"{r.id}.critical"]
+    assert placed.cell is not None
+    return {
+        "doc": ra.doc_id,
+        "rev": 0,
+        "sheet": placed.sheet,
+        "row": coordinate_from_string(placed.cell)[1],
+        "text": placed.text,
+        "critical": ra.critical(row),
+        "severity": row.severity,
+        "occurrence": row.occurrence,
+        "detection": row.detection,
+        "rpn": row.rpn,
+    }
 
 
 def _test_evidence(corpus: Corpus, r: Requirement) -> list[dict[str, Any]]:

@@ -25,7 +25,7 @@ One dataset serves four consumers. A document or defect that none of them needs 
 
    Real vendor brochures are not cited: the denylist keeps real vendor names out of the repository (principle 6), and literature plus practitioner review give the same evidence of realism.
 6. **Everything is fictional:** plant, vendors, people, serial numbers. Vendor names are checked against registered trademarks before they are frozen, and a denylist check in CI blocks real equipment vendor names.
-7. **No LLM-chosen number is frozen without human review.** For TP-201 and PW-001, a quoted value is copied from a cited source (principle 5): an LLM may do the copying, the schema checks that the value appears in its quote, and `scripts/verify_quotes.py` checks the quote against the live page. A site decision is a judgement; when an LLM drafts it (`drafted_by: llm`) it blocks freeze until a human signs it off (`reviewed_by: owner | practitioner`). Human review therefore goes to judged values, not to quotes the machine already checked. The same holds for other numbers no source fixes, such as the readings on a calibration certificate: they are drafted (`results.drafted_by`) and block freeze until reviewed. Datasheet values need no review of their own: they are copied from the URS spec, and the intended-Coverage test fails if one stops meeting it. Other Equipment may be drafted with an LLM, then edited and frozen.
+7. **No LLM-chosen number is frozen without human review.** For TP-201 and PW-001, a quoted value is copied from a cited source (principle 5): an LLM may do the copying, the schema checks that the value appears in its quote, and `scripts/verify_quotes.py` checks the quote against the live page. A site decision is a judgement; when an LLM drafts it (`drafted_by: llm`) it blocks freeze until a human signs it off (`reviewed_by: owner | practitioner`). Human review therefore goes to judged values, not to quotes the machine already checked. The same holds for other numbers no source fixes, such as the readings on a calibration certificate (`results.drafted_by`) or the scores and criticality threshold of the risk assessment (`risk_assessment.drafted_by`): they are drafted and block freeze until reviewed. Datasheet values need no review of their own: they are copied from the URS spec, and the intended-Coverage test fails if one stops meeting it. Other Equipment may be drafted with an LLM, then edited and frozen.
 
 ## 3. Regulatory references
 
@@ -117,7 +117,7 @@ The answer key lives beside the world data and is never sent to an LLM. It is de
 | `answer_key/<tag>/documents.yaml` | Documents that should exist, and why any is not in the corpus |
 | `answer_key/<tag>/ocr.yaml` | Every handwritten entry on a scan, with its quad |
 
-What is judged by hand lives in world data: each scenario's expected finding (`scenarios[].finding`: type, severity, detail, anchors) and the documents the VMP requires (`required_documents`). An anchor names a placed string (`field`) or printed text (`text`); an anchor in a document that is not rendered yet becomes a location with `status: planned` and gets its page once the document is rendered. Design facts (`designs`: a datasheet row, a material-certificate part) are placed by the renderer too, so each requirement's `design_evidence` carries page, field and printed text (and the part, on a certificate).
+What is judged by hand lives in world data: each scenario's expected finding (`scenarios[].finding`: type, severity, detail, anchors) and the documents the VMP requires (`required_documents`). An anchor names a placed string (`field`) or printed text (`text`); an anchor in a document that is not rendered yet becomes a location with `status: planned` and gets its page once the document is rendered. Design facts (`designs`: a datasheet row, a function of the functional spec, a material-certificate part) are placed by the renderer too, so each requirement's `design_evidence` carries page, field and printed text (and the part, on a certificate). The risk assessment is a spreadsheet: each requirement's `risk` entry names the sheet and row of its FMEA line, whether it marks a Critical Aspect (`text`: `Ya` / `Tidak`), and its scores.
 
 ### Requirements and Coverage
 
@@ -128,6 +128,8 @@ What is judged by hand lives in world data: each scenario's expected finding (`s
   param: turret_speed
   value: {type: range, min: 20, max: 70, unit: rpm}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 11, text: Ya, critical: true,
+         severity: 4, occurrence: 2, detection: 2, rpn: 16}
   evidence:
   - {doc: FAT-TP201-M, rev: 0, page: 1, step: FAT-M-02, acceptance: 20–60 rpm, observed: 20–60 rpm,
      value: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass, qualifies: false,
@@ -239,7 +241,7 @@ A vendor FAT/SAT whose own Acceptance Criterion tests less than the URS asks (e.
 7. `1.500 rpm` ambiguous.
 8. URS rev 0 → rev 1 with one value changed.
 
-The DQ report and functional specification are clean. A clean DQ is not one that passes everything: it records the datasheet's tooling mismatch (URS-TP201-008, `conflict`) as an open item, as a correct review would. About 10% of eval items are hallucination probes.
+The risk assessment, functional specification, force-sensor calibration certificate and DQ report are clean. The risk assessment marks exactly the URS's critical requirements (severity ≥ 4; a schema check keeps the two in step). The functional specification describes every control and data-integrity function, including the door interlock, recipe backup and time synchronisation that no FAT/SAT step tests: designed but untested is still `gap`. A clean DQ is not one that passes everything: it records the datasheet's tooling mismatch (URS-TP201-008, `conflict`) as an open item, as a correct review would. About 10% of eval items are hallucination probes.
 
 ### World-data workflow
 
@@ -270,8 +272,9 @@ world/*.yaml ──Pydantic──▶ renderer ──▶ degrader (scans) ──�
   - The **renderer** decides *what is on the page*. It draws the printed form, the handwritten entries (Caveat, OFL, in pen ink), overwritten entries, signatures and stamps as a born-digital PDF, and records each handwritten string with its page and bounding box (`Placed.box`). The validator checks every handwritten string inside its box. Stamps belong here, not in the degrader, because they are content: their text and position matter to the answer key and they can cover other text.
   - The **degrader** (`traceq_dataset.degrade`) decides *how the scan looks*. It only transforms pixels: rasterise, skew 0.5–2° about the page centre, paper tone, blur, sensor noise, JPEG in an image-only PDF (no text layer). Each handwritten box becomes a quad rotated the same way (`ScannedPlaced.quad`, pt, top-left origin), so the OCR answer key follows the pixels. Level is set per document (`Document.scan`: `light`, `medium`, `heavy`), not globally random; random draws come from the corpus seed plus document id and revision, so a scan is byte-identical for the same seed. The validator checks that a scan has no text layer and that every quad lies on its page and holds ink; a unit test checks the quad geometry against Pillow's rotation. Nameplate photos are rendered synthetically.
 - **Binary files are not committed.** The corpus is built in a container with pinned versions and published as a GitHub Release asset per dataset version. The release bytes are canonical, including for extraction cache keys (document hash + pipeline version).
-- **CI** re-renders and runs a semantic validator, not a byte-hash comparison (`validate.answer_key_problems`): the committed answer key equals the re-derived one; every answer-key value appears on the page it cites (for a scan, in the born-digital render behind the pixels); every handwritten location carries the scan's quad; a `planned` location names a document that is really not rendered; the required-document list matches the corpus; the denylist finds nothing.
-- **Corpus manifest:** `python -m traceq_dataset.render` writes `dist/t0-<T0>/manifest.json` beside the documents: dataset version, T0, seed, versions of the libraries that decide the bytes, and for each published file its path, document id and revision, format (born-digital or scan level), pages, size and SHA-256.
+- **Spreadsheets** (the risk assessment) are written with openpyxl as values, not formulas, so a reader needs no cached results. Each placed string records its sheet and cell; zip-entry and document-property dates are set to the issue date, so the bytes are identical per T0.
+- **CI** re-renders and runs a semantic validator, not a byte-hash comparison (`validate.answer_key_problems`): the committed answer key equals the re-derived one; every answer-key value appears on the page it cites (for a scan, in the born-digital render behind the pixels; for a spreadsheet, in the cell the renderer placed it in); every handwritten location carries the scan's quad; a `planned` location names a document that is really not rendered; the required-document list matches the corpus; the denylist finds nothing.
+- **Corpus manifest:** `python -m traceq_dataset.render` writes `dist/t0-<T0>/manifest.json` beside the documents: dataset version, T0, seed, versions of the libraries that decide the bytes, and for each published file its path, document id and revision, format (born-digital, scan level, or xlsx), pages (sheets, for a spreadsheet), size and SHA-256.
 
 ## 9. Evals
 

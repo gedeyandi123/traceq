@@ -289,6 +289,9 @@ class VendorProtocol(Model):
 class CalibrationPoint(Model):
     """One row of a calibration certificate's results table."""
 
+    channel: str | None = Field(
+        None, description="Measuring channel, for a system calibrated as one item."
+    )
     nominal: float
     reading: float
     uncertainty: float = Field(gt=0, description="Expanded uncertainty (k = 2).")
@@ -309,14 +312,18 @@ class CalibrationCertificate(Model):
     number when the certificate is rendered."""
 
     id: str = Field(description="Certificate number.")
-    lab: str | None = Field(None, description="Organisation id of the issuing lab.")
+    lab: str | None = Field(
+        None, description="Organisation id of the issuer: a calibration lab or the vendor."
+    )
     calibrated_on: Offset
     valid_until: Offset = Field(description="Last day the calibration is valid.")
     results: CalibrationResults | None = None
 
 
 class Instrument(Model):
-    """A site test instrument used in FAT/SAT steps (scenario S2: expired calibration)."""
+    """A calibrated measuring instrument: a site test instrument used in FAT/SAT steps
+    (scenario S2: expired calibration), or a measuring system built into the Equipment
+    (the press's compression force sensors, calibrated by the vendor)."""
 
     id: str = Field(description="Site asset tag, e.g. 'TACH-07'.")
     name: str
@@ -364,17 +371,21 @@ class TestEvidence(Model):
 
 
 class DesignEvidence(Model):
-    """A design or delivered-item fact (datasheet, material certificate, nameplate).
+    """A design or delivered-item fact (datasheet, functional spec, material certificate).
 
-    ``label`` is the vendor's printed wording: a datasheet row or a certificate's part.
-    A datasheet prints one row per requirement; a material certificate one row per part.
+    ``label`` is the vendor's printed wording: a datasheet row, a function heading in the
+    functional spec, or a certificate's part. A datasheet prints one row per requirement; a
+    functional spec one function per requirement; a material certificate one row per part.
     """
 
     doc_id: str
     requirement: str
     observed: Observation
     label: str | None = None
-    section: str | None = Field(None, description="Datasheet section heading.")
+    section: str | None = Field(None, description="Datasheet or functional-spec section.")
+    description: str | None = Field(
+        None, description="Function description in the functional spec, in its language."
+    )
 
 
 # --- Documents ----------------------------------------------------------------------
@@ -402,6 +413,8 @@ class Document(Model):
         "material_certificate",
         "calibration_certificate",
         "dq_report",
+        "functional_spec",
+        "risk_assessment",
     ]
     title: str = Field("", description="Subtitle, e.g. 'Mechanical' for a FAT protocol.")
     language: Literal["id", "en"] = Field(description="Language of the printed text.")
@@ -430,11 +443,53 @@ class Document(Model):
     witnessed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     change_note: str = Field("", description="Revision history entry; empty for rev 0.")
     reviews: tuple[DocRef, ...] = Field(
-        (), description="Documents a DQ report reviews, e.g. the URS and the datasheet."
+        (),
+        description="Documents a DQ report or risk assessment reviews, e.g. the URS and the "
+        "datasheet.",
     )
 
     ROLES: ClassVar = ("prepared_by", "checked_by", "approved_by", "executed_by", "witnessed_by")
-    DESIGN_TYPES: ClassVar = frozenset({"datasheet", "material_certificate"})
+    DESIGN_TYPES: ClassVar = frozenset({"datasheet", "functional_spec", "material_certificate"})
+    REVIEWING_TYPES: ClassVar = frozenset({"dq_report", "risk_assessment"})
+
+
+# --- Risk assessment ----------------------------------------------------------------
+
+
+Score = Annotated[int, Field(ge=1, le=5)]
+
+
+class Risk(Model):
+    """One FMEA row: the failure of one requirement, scored 1-5."""
+
+    requirement: str
+    failure_mode: str = Field(description="In the risk assessment's language.")
+    effect: str
+    severity: Score
+    occurrence: Score
+    detection: Score = Field(description="1 = almost certainly detected, 5 = hardly detected.")
+
+    @property
+    def rpn(self) -> int:
+        return self.severity * self.occurrence * self.detection
+
+
+class RiskAssessment(Model):
+    """The site's short FMEA over every URS requirement; it marks the Critical Aspects.
+
+    Scores and the criticality threshold are judged numbers (design principle 7): drafted,
+    then reviewed by a human before freeze. A requirement is critical when its severity
+    reaches ``critical_from``, and that must agree with ``Requirement.critical``.
+    """
+
+    doc_id: str
+    critical_from: Score = Field(description="Least severity that marks a Critical Aspect.")
+    rows: tuple[Risk, ...] = Field(min_length=1)
+    drafted_by: Literal["llm", "human"]
+    reviewed_by: Literal["owner", "practitioner"] | None = None
+
+    def critical(self, row: Risk) -> bool:
+        return row.severity >= self.critical_from
 
 
 # --- Equipment (one world-data file) ------------------------------------------------
@@ -554,6 +609,7 @@ class Equipment(Model):
     tests: tuple[TestEvidence, ...] = ()
     instruments: tuple[Instrument, ...] = ()
     designs: tuple[DesignEvidence, ...] = ()
+    risk_assessment: RiskAssessment | None = None
     scenarios: tuple[Scenario, ...] = ()
     documents: tuple[Document, ...] = ()
     required_documents: tuple[RequiredDocument, ...] = ()
@@ -590,10 +646,11 @@ class Equipment(Model):
             if p.vendor != self.vendor.id
         ]
         instruments = {i.id for i in self.instruments}
+        issuers = labs | {self.vendor.id}
         errors += [
-            f"{i.id}: unknown lab {i.certificate.lab}"
+            f"{i.id}: unknown issuer {i.certificate.lab}"
             for i in self.instruments
-            if i.certificate.lab is not None and i.certificate.lab not in labs
+            if i.certificate.lab is not None and i.certificate.lab not in issuers
         ]
         for t in self.tests:
             errors += [
@@ -610,6 +667,7 @@ class Equipment(Model):
         ]
         for d in self.documents:
             errors += self._document_errors(d)
+        errors += self._risk_errors()
         known = (
             reqs
             | protocols
@@ -639,12 +697,12 @@ class Equipment(Model):
             return errors + self._protocol_document_errors(d, name)
         if d.entry_language is not None:
             errors.append(f"{name}: entry_language is for SAT only")
-        if d.type != "dq_report" and d.reviews:
-            errors.append(f"{name}: only a DQ report reviews documents")
+        if d.type not in Document.REVIEWING_TYPES and d.reviews:
+            errors.append(f"{name}: only a DQ report or risk assessment reviews documents")
         errors += [
             f"{name}: {d.type} has no {r}" for r in ("executed_by", "witnessed_by") if getattr(d, r)
         ]
-        if d.type in ("urs", "dq_report"):
+        if d.type in ("urs", "dq_report", "risk_assessment"):
             errors += [
                 f"{name}: {d.type} needs {r}"
                 for r in ("checked_by", "approved_by")
@@ -662,7 +720,18 @@ class Equipment(Model):
                 for e in self.designs
                 if e.doc_id == d.id and (e.label is None or e.section is None)
             ]
-        if d.type == "dq_report":
+        if d.type == "functional_spec":
+            errors += [
+                f"{name}: {e.requirement} needs a label, section and description"
+                for e in self.designs
+                if e.doc_id == d.id
+                and (e.label is None or e.section is None or e.description is None)
+            ]
+        if d.type == "risk_assessment" and (
+            self.risk_assessment is None or self.risk_assessment.doc_id != d.id
+        ):
+            errors.append(f"{name}: needs risk_assessment with doc_id {d.id}")
+        if d.type in Document.REVIEWING_TYPES:
             rendered = {(x.id, x.rev) for x in self.documents}
             errors += [
                 f"{name}: reviews {r.doc} rev {r.rev}, which is not rendered"
@@ -679,6 +748,26 @@ class Equipment(Model):
                 errors.append(f"{name}: prepared_by must work for {cert.lab}")
             elif d.issued_on < cert.calibrated_on:
                 errors.append(f"{name}: issued before calibration")
+        return errors
+
+    def _risk_errors(self) -> list[str]:
+        """One FMEA row per requirement; its criticality agrees with the URS."""
+        ra = self.risk_assessment
+        if ra is None:
+            return []
+        reqs = {r.id: r for r in self.requirements}
+        rows = [row.requirement for row in ra.rows]
+        errors = [f"{ra.doc_id}: unknown requirement {r}" for r in rows if r not in reqs]
+        errors += [
+            f"{ra.doc_id}: {r} has more than one row" for r, n in Counter(rows).items() if n > 1
+        ]
+        errors += [f"{ra.doc_id}: no row for {r}" for r in reqs if r not in rows]
+        errors += [
+            f"{ra.doc_id}: {row.requirement} severity {row.severity} disagrees with "
+            f"critical={reqs[row.requirement].critical}"
+            for row in ra.rows
+            if row.requirement in reqs and ra.critical(row) != reqs[row.requirement].critical
+        ]
         return errors
 
     def _protocol_document_errors(self, d: Document, name: str) -> list[str]:
@@ -748,6 +837,10 @@ class Equipment(Model):
     def unreviewed(self) -> list[Requirement]:
         """Judged requirement values without human sign-off. A frozen dataset has none."""
         return [r for r in self.requirements if r.source.judged and r.source.reviewed_by is None]
+
+    def unreviewed_risks(self) -> bool:
+        """The FMEA scores (judged numbers) lack human sign-off."""
+        return self.risk_assessment is not None and self.risk_assessment.reviewed_by is None
 
     def unreviewed_results(self) -> list[Instrument]:
         """Instruments whose calibration readings (judged numbers) lack human sign-off."""

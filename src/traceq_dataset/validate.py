@@ -2,7 +2,8 @@
 
 CI re-renders and checks meaning, not bytes: every placed string the answer key relies on
 must appear in the extracted text of the page the renderer says it is on. A handwritten
-entry must also appear inside its recorded bounding box, which the OCR answer key uses.
+entry must also appear inside its recorded bounding box, which the OCR answer key uses. In a
+spreadsheet, every placed string must be the value of its recorded cell.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pypdfium2 as pdfium
+from openpyxl import load_workbook
+from openpyxl.utils.cell import coordinate_from_string
 from PIL import Image, ImageDraw
 from pypdf import PdfReader
 
@@ -82,8 +85,28 @@ def scan_problems(scanned: Scanned) -> list[str]:
     return out
 
 
+def cell_texts(xlsx: bytes) -> dict[tuple[str, str], str]:
+    """Every non-empty cell of a workbook as text, keyed by (sheet, cell)."""
+    wb = load_workbook(io.BytesIO(xlsx), read_only=True)
+    return {
+        (ws.title, c.coordinate): str(c.value)
+        for ws in wb.worksheets
+        for row in ws.iter_rows()
+        for c in row
+        if c.value is not None and hasattr(c, "coordinate")
+    }
+
+
 def missing_text(rendered: Rendered) -> list[str]:
-    """Placed strings not found on their recorded page, or outside their recorded box."""
+    """Placed strings not found on their recorded page, or outside their recorded box; in a
+    spreadsheet, not the value of their recorded cell."""
+    if rendered.format == "xlsx":
+        cells = cell_texts(rendered.data)
+        return [
+            f"{rendered.filename} {key}: not in {p.sheet}!{p.cell}"
+            for key, p in rendered.placed.items()
+            if cells.get((p.sheet or "", p.cell or "")) != p.text
+        ]
     pages = page_texts(rendered.pdf)
     pdf = pdfium.PdfDocument(rendered.pdf)
     out = []
@@ -100,6 +123,9 @@ def missing_text(rendered: Rendered) -> list[str]:
 
 
 # --- Answer key (design section 8, "CI") -----------------------------------------------
+
+RISK_SCORES = ("severity", "occurrence", "detection", "rpn", "critical")
+"""Fields of an answer-key ``risk`` entry that are cells of the FMEA row."""
 
 QUAD_TOLERANCE = 0.01
 """pt: a committed quad may differ from the re-derived one by rounding only."""
@@ -132,6 +158,8 @@ def answer_key_problems(key: Mapping[str, Any], corpus: Corpus) -> list[str]:
                 )
         for ev in r["design_evidence"]:
             check.location(f"{r['id']} {ev['doc']}", {"doc": ev["doc"], "rev": 0, **ev})
+        if "risk" in r:
+            check.risk(r["id"], r["risk"])
     for d in key["defects.yaml"]:
         for loc in d["locations"]:
             check.location(d["id"], loc)
@@ -187,6 +215,27 @@ class _KeyCheck:
         else:
             tokens = []
         self.out += [f"{name}: value {t!r} not in {text!r}" for t in tokens if t not in text]
+
+    def risk(self, req: str, risk: Mapping[str, Any]) -> None:
+        """An FMEA row: each score and the criticality are the values of the cells the
+        renderer placed, all on one row of the named sheet."""
+        doc = (risk["doc"], risk["rev"])
+        rendered = self.corpus.rendered.get(doc)
+        if rendered is None or rendered.format != "xlsx":
+            self.out.append(f"{req} risk: {doc[0]} rev {doc[1]} is not a spreadsheet in the corpus")
+            return
+        cells = cell_texts(rendered.data)
+        expected = {**{k: risk[k] for k in RISK_SCORES[:-1]}, "critical": risk["text"]}
+        for name, value in expected.items():
+            placed = rendered.placed.get(f"{req}.{name}")
+            if placed is None or placed.sheet != risk["sheet"] or placed.cell is None:
+                self.out.append(f"{req} risk: no {name} cell on sheet {risk['sheet']!r}")
+            elif coordinate_from_string(placed.cell)[1] != risk["row"]:
+                self.out.append(f"{req} risk: {name} is not on row {risk['row']}")
+            elif cells.get((placed.sheet, placed.cell)) != str(value):
+                self.out.append(f"{req} risk: {name} is not {value!r} in {placed.cell}")
+        if (risk["text"] == "Ya") != risk["critical"]:
+            self.out.append(f"{req} risk: critical {risk['critical']} but marked {risk['text']!r}")
 
     def location(self, name: str, loc: Mapping[str, Any]) -> None:
         doc = (loc["doc"], loc["rev"])

@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import io
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from importlib.metadata import version
 from typing import Any
 
 import pypdfium2 as pdfium
+from openpyxl import load_workbook
 
 from traceq_dataset.degrade import SEED, Scanned, degrade
 from traceq_dataset.render import EVAL_T0, Rendered, render_all
@@ -23,7 +25,7 @@ from traceq_dataset.schema import Document, Equipment
 DocKey = tuple[str, int]
 """(document id, revision)"""
 
-GENERATOR_PACKAGES = ("typst", "pillow", "pypdfium2", "numpy")
+GENERATOR_PACKAGES = ("typst", "pillow", "pypdfium2", "numpy", "openpyxl")
 """Versions recorded in the manifest: they decide the bytes of the corpus."""
 
 
@@ -42,7 +44,7 @@ class Corpus:
 
     def published(self, key: DocKey) -> bytes:
         """The file a user of the corpus gets: the scan for paper documents."""
-        return self.scanned[key].pdf if key in self.scanned else self.rendered[key].pdf
+        return self.scanned[key].pdf if key in self.scanned else self.rendered[key].data
 
     def filename(self, key: DocKey) -> str:
         return self.rendered[key].filename
@@ -61,7 +63,8 @@ def build_corpus(eq: Equipment, t0: dt.date = EVAL_T0, seed: int = SEED) -> Corp
 def manifest(corpora: Iterable[Corpus]) -> dict[str, Any]:
     """``manifest.json`` of a corpus directory: one entry per published file.
 
-    All corpora must share T0 and seed; paths are relative to the corpus directory.
+    All corpora must share T0 and seed; paths are relative to the corpus directory. A
+    spreadsheet records its number of sheets instead of pages.
     """
     corpora = list(corpora)
     t0s, seeds = {c.t0 for c in corpora}, {c.seed for c in corpora}
@@ -70,7 +73,12 @@ def manifest(corpora: Iterable[Corpus]) -> dict[str, Any]:
     documents = []
     for c in corpora:
         for key in c.rendered:
-            doc, pdf = c.document(key), c.published(key)
+            doc, data = c.document(key), c.published(key)
+            if c.rendered[key].format == "xlsx":
+                fmt, extent = "xlsx", {"sheets": len(load_workbook(io.BytesIO(data)).sheetnames)}
+            else:
+                fmt = "scan" if doc.scan else "born_digital"
+                extent = {"pages": len(pdfium.PdfDocument(data))}
             documents.append(
                 {
                     "path": f"{c.eq.tag}/{c.filename(key)}",
@@ -79,12 +87,12 @@ def manifest(corpora: Iterable[Corpus]) -> dict[str, Any]:
                     "rev": doc.rev,
                     "type": doc.type,
                     "language": doc.language,
-                    "format": "scan" if doc.scan else "born_digital",
+                    "format": fmt,
                     "scan_level": doc.scan,
                     "issued": c.rendered[key].issued.isoformat(),
-                    "pages": len(pdfium.PdfDocument(pdf)),
-                    "bytes": len(pdf),
-                    "sha256": hashlib.sha256(pdf).hexdigest(),
+                    **extent,
+                    "bytes": len(data),
+                    "sha256": hashlib.sha256(data).hexdigest(),
                 }
             )
     return {

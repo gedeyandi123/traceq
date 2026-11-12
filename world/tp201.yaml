@@ -686,6 +686,29 @@ instruments:
           - {nominal: 600, reading: 600.05, uncertainty: 0.2}
           - {nominal: 3600, reading: 3600.1, uncertainty: 0.3}
         drafted_by: llm
+  # The press's own force measuring system (URS-TP201-016, -036), calibrated by the vendor
+  # before the FAT. Clean: valid through FAT and SAT; largest main-channel error 0.42 kN
+  # (0.42% of the 100 kN full scale), consistent with FAT-M-08 (0.5% FS).
+  - id: FMS-TP201
+    name: Compression force measuring system
+    serial_no: FMS36-25-1183
+    certificate:
+      id: CAL-TP201-01
+      lab: vendor-tp201
+      calibrated_on: T0-150d
+      valid_until: T0+215d
+      results:
+        unit: kN
+        points:
+          - {channel: Main compression, nominal: 20, reading: 20.06, uncertainty: 0.12}
+          - {channel: Main compression, nominal: 40, reading: 40.11, uncertainty: 0.15}
+          - {channel: Main compression, nominal: 60, reading: 60.19, uncertainty: 0.2}
+          - {channel: Main compression, nominal: 80, reading: 80.31, uncertainty: 0.25}
+          - {channel: Main compression, nominal: 100, reading: 100.42, uncertainty: 0.3}
+          - {channel: Pre-compression, nominal: 5, reading: 5.02, uncertainty: 0.03}
+          - {channel: Pre-compression, nominal: 10, reading: 10.03, uncertainty: 0.04}
+          - {channel: Pre-compression, nominal: 20, reading: 20.07, uncertainty: 0.06}
+        drafted_by: llm
 
 # Design and delivered-item facts. Datasheet values are copied from the URS spec, except
 # the output (36 stations x 70 rpm x 60, URS-TP201-003 rationale) and the planted conflict;
@@ -715,6 +738,82 @@ designs:
   - {doc_id: DS-TP201, requirement: URS-TP201-026, section: Utilities, label: "Power supply (3 phase, 50 Hz)", observed: {type: number, value: 380, unit: V}}
   - {doc_id: DS-TP201, requirement: URS-TP201-027, section: Utilities, label: Compressed air, observed: {type: range, min: 6, max: 7, unit: bar}}
   - {doc_id: DS-TP201, requirement: URS-TP201-028, section: Utilities, label: Dust extraction flow (required), observed: {type: number, value: 300, unit: m3/h}}
+  # Functional design specification (clean): one function per control and data-integrity
+  # requirement, gap requirements included (designed but never tested, so still `gap`).
+  # Numbers only as in the URS spec and datasheet; no new values. `observed` is what the
+# description states: a feature is present, or the value it gives (URS-TP201-016, -017).
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-014
+    section: Process control
+    label: Automatic tablet weight control
+    observed: {type: present, value: true}
+    description: "The PLC measures the main compression force of every tablet. When the average force drifts from the set point, the controller adjusts the fill depth automatically to bring tablet weight back within limits. Set point and limits are part of the product recipe."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-015
+    section: Process control
+    label: Automatic rejection of out-of-limit tablets
+    observed: {type: present, value: true}
+    description: "A tablet whose compression force lies outside the reject limits of the recipe is diverted by the reject gate into the reject container. The reject count is shown on the HMI and printed in the batch report."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-016
+    section: Process control
+    label: Compression force measurement
+    observed: {type: number, value: 1, unit: "% FS"}
+    description: "Main and pre-compression forces are measured by load cells in the compression roller supports, with an accuracy within ±1% of full scale. Both channels are calibrated before delivery."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-017
+    section: Process control
+    label: Feeder paddle speed control
+    observed: {type: range, min: 10, max: 60, unit: rpm}
+    description: "The paddle feeder has its own drive. Its speed is set on the HMI between 10 and 60 rpm, independently of the turret speed, and is stored in the recipe."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-018
+    section: Safety functions and interlocks
+    label: Guard door interlock
+    observed: {type: present, value: true}
+    description: "Every guard door around the compression area is monitored by a safety switch. Opening a door while the press runs stops the turret and the feeder; the press cannot restart until the door is closed and the alarm is acknowledged."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-019
+    section: Safety functions and interlocks
+    label: Emergency stop
+    observed: {type: present, value: true}
+    description: "Emergency stop buttons on the operator panel and on both sides of the machine stop all drives through the safety relay. A restart needs the button released and a reset on the HMI."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-020
+    section: Safety functions and interlocks
+    label: Punch overload protection
+    observed: {type: present, value: true}
+    description: "If the compression force exceeds the overload limit of the fitted tooling, the press stops at once and an alarm names the punch station."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-021
+    section: HMI and data integrity
+    label: User access levels
+    observed: {type: present, value: true}
+    description: "Users log in with individual accounts at one of three levels: operator (run recipes, acknowledge alarms), supervisor (edit recipes and process limits) and administrator (user management and system settings)."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-022
+    section: HMI and data integrity
+    label: Audit trail
+    observed: {type: present, value: true}
+    description: "Every change of a process parameter or recipe is recorded with the old and new value, user, date and time, and the reason entered by the user. No user level can edit or delete audit trail entries."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-023
+    section: HMI and data integrity
+    label: Alarm log
+    observed: {type: present, value: true}
+    description: "Every alarm is logged with the time it occurred, the time it was acknowledged and the user who acknowledged it."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-024
+    section: HMI and data integrity
+    label: Recipe backup and restore
+    observed: {type: present, value: true}
+    description: "The administrator can export all recipes to external storage and restore them from it. Export and restore are recorded in the audit trail."
+  - doc_id: FDS-TP201
+    requirement: URS-TP201-025
+    section: HMI and data integrity
+    label: Time synchronisation
+    observed: {type: present, value: true}
+    description: "The HMI clock is synchronised with the plant time server over the network. Users cannot change the system time."
   # 3.1 material certificate, one row per product-contact part. S6 (decision log Q29): the
   # feed frame housing is SS 304 among SS 316L parts; the datasheet promised SS 316L.
   - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Hopper, observed: {type: text, value: SS 316L}}
@@ -722,6 +821,54 @@ designs:
   - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Feeder paddles, observed: {type: text, value: SS 316L}}
   - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Take-off scraper, observed: {type: text, value: SS 316L}}
   - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, label: Tablet discharge chute, observed: {type: text, value: SS 316L}}
+
+# Short FMEA of the site (RA-TP201, XLSX), one row per requirement. Severity >= 4 marks a
+# Critical Aspect and must agree with `critical` in the URS (schema check). Scores and the
+# threshold are judged numbers (design principle 7): drafted, they block freeze until a
+# human reviews them.
+risk_assessment:
+  doc_id: RA-TP201
+  critical_from: 4
+  drafted_by: llm
+  rows:
+    - {requirement: URS-TP201-001, failure_mode: "Jumlah stasiun punch kurang dari kebutuhan", effect: "Kapasitas produksi tidak tercapai", severity: 2, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-002, failure_mode: "Rentang kecepatan turret tidak tercapai", effect: "Bobot dan kekerasan tablet menyimpang pada kecepatan produksi", severity: 4, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-003, failure_mode: "Kapasitas produksi di bawah kebutuhan", effect: "Kecepatan dinaikkan di luar rentang tervalidasi untuk mengejar target; mutu tablet tidak terjamin", severity: 4, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-004, failure_mode: "Gaya tekan utama tidak tercapai", effect: "Kekerasan dan disolusi tablet tidak memenuhi spesifikasi", severity: 5, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-005, failure_mode: "Gaya pra-kompresi tidak tercapai", effect: "Tablet capping atau laminasi", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-006, failure_mode: "Diameter tablet terbesar tidak dapat dicetak", effect: "Produk berukuran besar tidak dapat diproduksi", severity: 2, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-007, failure_mode: "Kedalaman pengisian tidak mencukupi", effect: "Bobot tablet produk terberat tidak tercapai", severity: 3, occurrence: 1, detection: 2}
+    - {requirement: URS-TP201-008, failure_mode: "Tipe tooling berbeda dari inventaris pabrik", effect: "Tooling yang ada tidak dapat dipakai; pengadaan tooling baru", severity: 2, occurrence: 2, detection: 1}
+    - {requirement: URS-TP201-009, failure_mode: "Bagian kontak produk tidak terbuat dari SS 316L", effect: "Korosi atau reaksi dengan produk; kontaminasi produk", severity: 5, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-010, failure_mode: "Permukaan kontak produk terlalu kasar", effect: "Residu tertahan; pembersihan tidak efektif", severity: 3, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-011, failure_mode: "Material rangka dan penutup tidak tahan pembersihan", effect: "Korosi rangka; partikel di ruang produksi", severity: 2, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-012, failure_mode: "Material gasket atau seal tidak sesuai", effect: "Seal terdegradasi; partikel masuk ke produk", severity: 3, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-013, failure_mode: "Pelumas bukan food-grade", effect: "Kontaminasi produk bila terjadi kontak dengan pelumas", severity: 3, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-014, failure_mode: "Kontrol berat otomatis tidak bekerja", effect: "Bobot tablet di luar batas tidak terkoreksi di antara pemeriksaan IPC", severity: 5, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-015, failure_mode: "Tablet di luar batas tidak ditolak", effect: "Tablet di luar batas bobot masuk ke produk ruahan", severity: 5, occurrence: 2, detection: 4}
+    - {requirement: URS-TP201-016, failure_mode: "Pengukuran gaya tekan tidak akurat", effect: "Kontrol berat dan penolakan bekerja dengan sinyal yang salah", severity: 4, occurrence: 2, detection: 4}
+    - {requirement: URS-TP201-017, failure_mode: "Kecepatan paddle feeder tidak dapat diatur pada rentangnya", effect: "Pengisian die tidak seragam; variasi bobot tablet", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-018, failure_mode: "Interlock pintu pelindung tidak berfungsi", effect: "Operator cedera oleh bagian yang bergerak", severity: 5, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-019, failure_mode: "Emergency stop tidak menghentikan mesin", effect: "Mesin tidak dapat dihentikan dalam keadaan darurat", severity: 5, occurrence: 1, detection: 2}
+    - {requirement: URS-TP201-020, failure_mode: "Proteksi overload punch tidak bekerja", effect: "Punch, die atau mesin rusak", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-021, failure_mode: "Level akses pengguna tidak terpisah", effect: "Parameter diubah oleh pengguna yang tidak berwenang", severity: 4, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-022, failure_mode: "Audit trail tidak merekam perubahan", effect: "Perubahan parameter atau resep tidak dapat ditelusuri", severity: 4, occurrence: 2, detection: 4}
+    - {requirement: URS-TP201-023, failure_mode: "Log alarm tidak lengkap", effect: "Investigasi penyimpangan terhambat", severity: 3, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-024, failure_mode: "Resep tidak dapat dipulihkan", effect: "Resep diketik ulang dengan risiko salah input", severity: 3, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-025, failure_mode: "Jam HMI tidak sinkron dengan waktu pabrik", effect: "Waktu di audit trail dan log alarm tidak dapat dikorelasikan", severity: 3, occurrence: 3, detection: 3}
+    - {requirement: URS-TP201-026, failure_mode: "Suplai listrik tidak sesuai spesifikasi mesin", effect: "Mesin tidak dapat dioperasikan atau rusak", severity: 2, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-027, failure_mode: "Tekanan udara tekan tidak sesuai", effect: "Fungsi pneumatik tidak andal", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-028, failure_mode: "Kapasitas dust extraction tidak memadai", effect: "Debu menyebar; risiko kontaminasi silang", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-029, failure_mode: "Kebisingan melebihi batas", effect: "Gangguan pendengaran operator", severity: 3, occurrence: 2, detection: 1}
+    - {requirement: URS-TP201-030, failure_mode: "Mesin tidak muat di ruang cetak", effect: "Instalasi tertunda", severity: 2, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-031, failure_mode: "Mesin tidak stabil pada suhu ruang", effect: "Gangguan operasi", severity: 2, occurrence: 1, detection: 2}
+    - {requirement: URS-TP201-032, failure_mode: "Changeover dan pembersihan melebihi waktu", effect: "Kapasitas efektif turun", severity: 2, occurrence: 2, detection: 1}
+    - {requirement: URS-TP201-033, failure_mode: "Bagian kontak produk tidak dapat dilepas tanpa alat", effect: "Pembersihan tidak menyeluruh", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-034, failure_mode: "Manual operasi dan perawatan tidak tersedia", effect: "Kesalahan operasi atau perawatan", severity: 2, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-035, failure_mode: "Sertifikat material 3.1 tidak tersedia", effect: "Material bagian kontak tidak dapat dibuktikan", severity: 3, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-036, failure_mode: "Sertifikat kalibrasi sensor gaya tidak tersedia atau kedaluwarsa", effect: "Akurasi pengukuran gaya tekan tidak terbukti", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-037, failure_mode: "Deklarasi kesesuaian keselamatan tidak tersedia", effect: "Kesesuaian keselamatan mesin tidak terbukti", severity: 2, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-038, failure_mode: "Daftar suku cadang dan gambar as-built tidak tersedia", effect: "Perawatan dan perubahan mesin terhambat", severity: 2, occurrence: 1, detection: 1}
 
 # Rendered documents. Rev 1 is issued before the vendor assessment (T0-200d).
 documents:
@@ -743,6 +890,16 @@ documents:
   # published as a medium-quality scan.
   # S3: the serial number is written with two digits transposed.
   - {id: SAT-TP201, rev: 0, type: sat, language: en, entry_language: id, serial_no: RTP36-25-0471, scan: medium, issued_on: T0-30d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
+  # Site risk assessment (short FMEA) of URS rev 1, as a spreadsheet. Clean.
+  - id: RA-TP201
+    rev: 0
+    type: risk_assessment
+    language: id
+    issued_on: T0-210d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+    reviews: [{doc: URS-TP201, rev: 1}]
   # Vendor datasheet for this machine (serial from the nameplate, S3), issued with the offer.
   - {id: DS-TP201, rev: 0, type: datasheet, language: en, issued_on: T0-205d, prepared_by: p-ve}
   # DQ: the site reviews the datasheet against URS rev 1. Clean: it records the tooling
@@ -756,21 +913,25 @@ documents:
     checked_by: p-qs
     approved_by: p-qa
     reviews: [{doc: URS-TP201, rev: 1}, {doc: DS-TP201, rev: 0}]
+  # Vendor functional design specification, approved by the site before the FAT. Clean.
+  - {id: FDS-TP201, rev: 0, type: functional_spec, language: en, issued_on: T0-170d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa}
   # Paper certificates, published as scans.
   - {id: MTC-TP201-01, rev: 0, type: material_certificate, language: en, scan: medium, issued_on: T0-160d, prepared_by: p-vqc}
   - {id: KAL-2025-0412, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-378d, prepared_by: p-labt, approved_by: p-labm}
   - {id: KAL-2026-0057, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-118d, prepared_by: p-labt, approved_by: p-labm}
+  # The vendor's certificate for the press's force sensors (URS-TP201-036). Clean.
+  - {id: CAL-TP201-01, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-148d, prepared_by: p-ve, approved_by: p-vqc}
 
 # Documents the VMP requires for a new tablet press (design section 5). `missing` says why
-# one is not in the corpus: planned = not rendered yet; expected_gap = what TraceQ drafts.
+# one is not in the corpus: expected_gap = what TraceQ drafts.
 required_documents:
   - {id: URS-TP201, type: urs, stage: design}
-  - {id: RA-TP201, type: risk_assessment, stage: design, missing: planned}
+  - {id: RA-TP201, type: risk_assessment, stage: design}
   - {id: DS-TP201, type: datasheet, stage: design}
-  - {id: FDS-TP201, type: functional_spec, stage: design, missing: planned}
+  - {id: FDS-TP201, type: functional_spec, stage: design}
   - {id: DQ-TP201, type: dq_report, stage: design}
   - {id: MTC-TP201-01, type: material_certificate, stage: FAT}
-  - {id: CAL-TP201-01, type: calibration_certificate, stage: FAT, missing: planned, note: "Compression force sensors (URS-TP201-036)."}
+  - {id: CAL-TP201-01, type: calibration_certificate, stage: FAT, note: "Compression force sensors (URS-TP201-036)."}
   - {id: FAT-TP201-M, type: fat, stage: FAT}
   - {id: FAT-TP201-C, type: fat, stage: FAT}
   - {id: KAL-2025-0412, type: calibration_certificate, stage: SAT, note: "TACH-07 (S2)."}

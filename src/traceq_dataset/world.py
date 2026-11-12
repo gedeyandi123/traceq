@@ -74,7 +74,7 @@ def main(argv: list[str]) -> int:
         print(f"{len(bad)} disagreement(s)")
         return 1
 
-    review, readings = eq.unreviewed(), eq.unreviewed_results()
+    review, readings, risks = eq.unreviewed(), eq.unreviewed_results(), eq.unreviewed_risks()
     if review:
         print(f"awaiting human review: {len(review)} judged value(s) (* = no supporting quote)")
         for r in review:
@@ -84,7 +84,14 @@ def main(argv: list[str]) -> int:
         print(f"awaiting human review: {len(readings)} calibration result table(s)")
         for i in readings:
             print(f"    {i.certificate.id} ({i.id}) [{i.certificate.results.drafted_by}]")
-    if review or readings:
+    if risks:
+        ra = eq.risk_assessment
+        assert ra is not None
+        print(
+            f"awaiting human review: {ra.doc_id} scores of {len(ra.rows)} FMEA rows and the "
+            f"criticality threshold [{ra.drafted_by}]"
+        )
+    if review or readings or risks:
         return 0
     print("frozen-ready")
     return 0

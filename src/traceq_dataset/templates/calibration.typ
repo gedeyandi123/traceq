@@ -1,5 +1,5 @@
-// Calibration certificate of a site test instrument, issued by an external lab: printed,
-// signed and stamped by hand, published as a scan.
+// Calibration certificate of a measuring instrument, issued by a lab or by the vendor:
+// printed, signed and stamped by hand, published as a scan.
 
 #import "common.typ": page-header, place, rows-table, sig, stamp
 #let d = json(bytes(sys.inputs.data))
@@ -30,9 +30,9 @@
 
 == Results
 #rows-table(
-  (1fr, 1fr, 1fr, 1fr),
+  d.header.map(_ => 1fr),
   d.header,
-  d.results.map(r => ([#r.nominal], [#r.reading], [#r.error], [#r.uncertainty])),
+  d.results.map(r => r.map(c => [#c])),
 )
 #v(0.3em)
 #d.statement
