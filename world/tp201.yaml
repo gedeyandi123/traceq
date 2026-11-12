@@ -50,6 +50,7 @@ requirements:
       quote: "A conventional rotary tablet press equipped with 36 punch stations was utilized."
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -66,6 +67,7 @@ requirements:
       quote: "compaction stresses of approx. 50, 150, and 300 MPa were applied and turret speeds in the range of 20 to 70 rpm were simulated"
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     critical: true
     transport_sensitive: false
@@ -84,6 +86,7 @@ requirements:
       quote: "the tableting process was conducted at 80 rpm (80% of maximum speed), which is equivalent to 62,400 tab/h"
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     critical: true
     intended_coverage: covered_by_vendor
@@ -95,11 +98,12 @@ requirements:
     source:
       kind: site_decision
       ref: "VMP TP-201, site decision; see Wünsch et al. 2020, Pharmaceutics 12(4):310, doi:10.3390/pharmaceutics12040310 §2.3"
-      rationale: "A 25 mm round tablet (URS-TP201-006) at 200 MPa needs about 98 kN; stresses up to 300 MPa are used in the cited study, so the press must reach at least 100 kN."
+      rationale: "A 25 mm round tablet (URS-TP201-006) at 200 MPa needs about 98 kN, so the press must reach at least 100 kN. The cited study shows compaction stresses of 50–300 MPa are used; the plant's largest product is compressed at up to 200 MPa."
       url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7238235/fullTextXML
       quote: "compaction stresses of approx. 50, 150, and 300 MPa were applied and turret speeds in the range of 20 to 70 rpm were simulated"
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     critical: true
     intended_coverage: partial  # S5: FAT value outside AC recorded "pass"
@@ -141,6 +145,7 @@ requirements:
       quote: "three fill cams with fill depth of 10, 14 and 16 mm were used"
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -157,6 +162,7 @@ requirements:
       quote: "The press was equipped with four flat-faced round Euro-D punches with a diameter of 9 mm."
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     transport_sensitive: false
     intended_coverage: conflict  # datasheet states another tooling type
@@ -166,7 +172,7 @@ requirements:
     section: "2. Material dan konstruksi"
     text: "Semua bagian yang kontak dengan produk terbuat dari {allowed}."
     param: product_contact_material
-    spec: {type: one_of, allowed: [SS 316L]}  # decision log Q29 (S6); source still pending
+    spec: {type: one_of, allowed: [SS 316L]}  # decision log Q29 (S6)
     source:
       kind: site_decision
       ref: "VMP TP-201, site decision; see PerBPOM 7/2024 Bab 4 §4.7"
@@ -175,6 +181,7 @@ requirements:
       quote: "Bagian alat produksi yang bersentuhan dengan produk tidak boleh bersifat reaktif, aditif atau absorbtif yang dapat memengaruhi mutu dan berakibat buruk pada produk."
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     critical: true
     transport_sensitive: false
@@ -245,6 +252,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Weight control by compression force keeps tablet weight within limits between manual IPC checks; required on all new presses."
       drafted_by: llm
+      reviewed_by: owner
     scope: control
     critical: true
     intended_coverage: partial  # tested only in the unapproved control FAT (S4)
@@ -261,6 +269,7 @@ requirements:
       quote: "Tablet yang ditolak atau yang disingkirkan seharusnya ditempatkan dalam wadah yang ditandai dengan jelas"
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: control
     critical: true
     intended_coverage: partial  # S4
@@ -290,6 +299,7 @@ requirements:
       quote: "three turret speeds as well as four paddle speeds were used, including the machine-specific minimum and maximum as well as intermediates"
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: control
     transport_sensitive: false
     intended_coverage: partial  # FAT range too narrow; SAT single reading is ambiguous (S7)
@@ -303,6 +313,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Operator safety: opening a guard door must stop the turret (plant machinery safety standard)."
       drafted_by: llm
+      reviewed_by: owner
     scope: control
     critical: true
     intended_coverage: gap
@@ -316,6 +327,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Operator safety: an emergency stop at the operator position (plant machinery safety standard)."
       drafted_by: llm
+      reviewed_by: owner
     scope: control
     critical: true
     intended_coverage: covered_by_vendor
@@ -329,6 +341,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Protects punches and dies from damage that could release metal particles into product."
       drafted_by: llm
+      reviewed_by: owner
     scope: control
     intended_coverage: covered_by_vendor
 
@@ -374,6 +387,7 @@ requirements:
       quote: "Sistem manajemen data dan dokumen seharusnya dirancang untuk mencatat identitas operator yang masuk, mengubah, mengonfirmasikan atau menghapus data termasuk tanggal dan waktu."
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: data_integrity
     intended_coverage: covered_by_vendor
   - id: URS-TP201-024
@@ -414,6 +428,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "The plant's low-voltage supply is 220/380 V, 3 phase, 50 Hz."
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -443,6 +458,7 @@ requirements:
       quote: "Mesin pencetak tablet seharusnya dilengkapi dengan fasilitas pengendali debu yang efektif"
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -545,6 +561,7 @@ requirements:
       quote: "Bagian alat produksi yang bersentuhan dengan produk tidak boleh bersifat reaktif, aditif atau absorbtif yang dapat memengaruhi mutu dan berakibat buruk pada produk."
       accessed: 2026-11-12
       drafted_by: llm
+      reviewed_by: owner
     scope: documentation
     transport_sensitive: false
     intended_coverage: covered_by_vendor

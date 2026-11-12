@@ -192,6 +192,7 @@ def test_tp201_has_the_eight_v0_scenarios(tp201: Equipment) -> None:
 def test_unreviewed_lists_judged_values_until_signed_off() -> None:
     raw = _raw()
     first = next(r for r in raw["requirements"] if r["source"]["kind"] == "site_decision")
+    first["source"].pop("reviewed_by", None)  # independent of the file's review state
     before = {r.id for r in Equipment.model_validate(raw).unreviewed()}
     assert first["id"] in before
     first["source"]["reviewed_by"] = "practitioner"
