@@ -34,3 +34,5 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+# Rendered documents write ranges with an en dash (20–60 rpm), as in the design doc.
+allowed-confusables = ["–"]

@@ -207,6 +207,8 @@ Weights per type are set once discovery confirms which review errors are most co
 
 Density: 1–3 defects per defective document; at least 30% of documents clean.
 
+A vendor FAT/SAT whose own Acceptance Criterion tests less than the URS asks (e.g. 20–60 rpm against a URS of 20–70) is not "AC deviates from URS": that type applies to the site's own protocols. The shortfall is scored as Coverage `partial` (decision table condition 3), not as a defect.
+
 ### v0 scenarios (TP-201 package)
 
 1. A SAT entry overwritten without initials/date (CPOB 10.8).

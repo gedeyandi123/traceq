@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime as dt
 from collections import Counter
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
@@ -287,6 +287,14 @@ class TestEvidence(Model):
     requirement: str
     observed: Observation
     recorded_result: Literal["pass", "fail"]
+    description: str | None = Field(
+        None, description="Test as written in the protocol, in the protocol's language."
+    )
+    acceptance: Spec | None = Field(
+        None,
+        description="The protocol's Acceptance Criterion when it is not the URS spec, e.g. a "
+        "vendor FAT that tests a narrower range (Coverage `partial`, not a defect).",
+    )
 
 
 class DesignEvidence(Model):
@@ -307,15 +315,22 @@ class Document(Model):
     itself has: number, revision, issue date and signatories.
     """
 
-    id: str = Field(description="Document number, e.g. 'URS-TP201'.")
+    id: str = Field(description="Document number, e.g. 'URS-TP201'; a FAT is its protocol id.")
     rev: int = Field(ge=0)
-    type: Literal["urs"]
+    type: Literal["urs", "fat"]
+    title: str = Field("", description="Subtitle, e.g. 'Mechanical' for a FAT protocol.")
     language: Literal["id", "en"]
     issued_on: Offset
     prepared_by: str = Field(description="Person id.")
-    checked_by: str = Field(description="Person id.")
-    approved_by: str = Field(description="Person id.")
+    checked_by: str | None = Field(None, description="Person id.")
+    approved_by: str | None = Field(
+        None, description="Person id. For a FAT: site approval, dated by the protocol."
+    )
+    executed_by: str | None = Field(None, description="Person id (FAT only).")
+    witnessed_by: str | None = Field(None, description="Person id (FAT only).")
     change_note: str = Field("", description="Revision history entry; empty for rev 0.")
+
+    ROLES: ClassVar = ("prepared_by", "checked_by", "approved_by", "executed_by", "witnessed_by")
 
 
 # --- Equipment (one world-data file) ------------------------------------------------
@@ -338,6 +353,7 @@ class Equipment(Model):
 
     tag: str = Field(pattern=r"^[A-Z]+-\d{3}$")
     name: str
+    serial_no: str | None = Field(None, description="True serial number, as on the nameplate.")
     site: str
     vendor: Vendor
     people: tuple[Person, ...]
@@ -388,12 +404,38 @@ class Equipment(Model):
             if d.requirement not in reqs
         ]
         people = {p.id for p in self.people}
+        by_protocol = {p.doc_id: p for p in self.protocols}
         for d in self.documents:
-            for role in ("prepared_by", "checked_by", "approved_by"):
-                if getattr(d, role) not in people:
-                    errors.append(f"{d.id} rev {d.rev}: unknown {role} {getattr(d, role)}")
+            name = f"{d.id} rev {d.rev}"
+            for role in Document.ROLES:
+                pid = getattr(d, role)
+                if pid is not None and pid not in people:
+                    errors.append(f"{name}: unknown {role} {pid}")
             if d.rev > 0 and not d.change_note:
-                errors.append(f"{d.id} rev {d.rev}: needs a change_note")
+                errors.append(f"{name}: needs a change_note")
+            if d.type == "urs":
+                errors += [
+                    f"{name}: URS needs {r}"
+                    for r in ("checked_by", "approved_by")
+                    if not getattr(d, r)
+                ]
+                errors += [
+                    f"{name}: URS has no {r}"
+                    for r in ("executed_by", "witnessed_by")
+                    if getattr(d, r)
+                ]
+            else:
+                protocol = by_protocol.get(d.id)
+                if protocol is None or protocol.stage is not Stage.FAT:
+                    errors.append(f"{name}: no FAT protocol {d.id}")
+                    continue
+                errors += [
+                    f"{name}: FAT needs {r}"
+                    for r in ("executed_by", "witnessed_by")
+                    if not getattr(d, r)
+                ]
+                if (d.approved_by is None) != (protocol.site_approved_on is None):
+                    errors.append(f"{name}: approved_by must match the protocol's site approval")
         known = reqs | protocols | {t.step for t in self.tests} | {d.doc_id for d in self.designs}
         for s in self.scenarios:
             errors += [f"{s.id}: unknown target {x}" for x in s.targets if x not in known]
