@@ -1,0 +1,77 @@
+# TP-201 answer key: probes.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: P-TP201-001
+  probe: P1
+  absent: evidence
+  requirement: URS-TP201-012
+  source: {doc: URS-TP201, rev: 1, page: 1}
+  detail: 'No document states the gasket and seal material: the 3.1 certificate lists metal parts only,
+    and FAT-M-12 checks certificates of product-contact parts without naming seals.'
+  lures:
+  - {doc: MTC-TP201-01, rev: 0, page: 1, field: item-1.material, text: SS 316L}
+  - {doc: FAT-TP201-M, rev: 0, page: 1, text: Check 3.1 material certificates for all product-contact
+      parts.}
+  expected_answer: not_found
+- id: P-TP201-002
+  probe: P2
+  absent: evidence
+  requirement: URS-TP201-024
+  source: {doc: URS-TP201, rev: 1, page: 2}
+  detail: The FDS describes recipe backup and restore, but no FAT or SAT step tests it; FAT-C-03 changes
+    a recipe for the audit trail only.
+  lures:
+  - {doc: FDS-TP201, rev: 0, page: 2, field: recipe_backup, text: Recipe backup and restore}
+  - {doc: FAT-TP201-C, rev: 0, page: 1, text: Change a parameter and a recipe on the HMI}
+  expected_answer: not_found
+- id: P-TP201-003
+  probe: P3
+  absent: evidence
+  requirement: URS-TP201-025
+  source: {doc: URS-TP201, rev: 1, page: 2}
+  detail: The FDS describes time synchronisation, but no FAT or SAT step tests it; SAT-07 checks that
+    alarms carry a time, not that the clock is synchronised.
+  lures:
+  - {doc: FDS-TP201, rev: 0, page: 2, field: time_synchronisation, text: Time synchronisation}
+  - {doc: SAT-TP201, rev: 0, page: 2, text: Trigger an alarm and acknowledge it}
+  expected_answer: not_found
+- id: P-TP201-004
+  probe: P4
+  absent: evidence
+  requirement: URS-TP201-037
+  source: {doc: URS-TP201, rev: 1, page: 2}
+  detail: No machinery safety declaration is in the corpus and no step checks for one; FAT-M-11 and FAT-M-14
+    check manuals, spare parts and drawings only.
+  lures:
+  - {doc: FAT-TP201-M, rev: 0, page: 1, text: Check that operating and maintenance manuals are supplied.}
+  - {doc: FAT-TP201-M, rev: 0, page: 2, text: Check the spare parts list and as-built drawings.}
+  expected_answer: not_found
+- id: P-TP201-005
+  probe: P5
+  absent: acceptance
+  requirement: URS-TP201-018
+  source: {doc: URS-TP201, rev: 1, page: 1}
+  detail: No document gives a stopping time or distance for the guard door interlock; the URS and FDS
+    only say opening a door stops the press. An OQ Acceptance Criterion beyond that is to be set by a
+    human.
+  lures:
+  - {doc: FDS-TP201, rev: 0, page: 1, field: guard_door_interlock, text: Guard door interlock}
+  - {doc: SAT-TP201, rev: 0, page: 1, text: Press each emergency stop while running}
+  expected_answer: not_found
+  accepted_acceptance:
+  - null
+  - {type: present}
+- id: P-TP201-006
+  probe: P6
+  absent: acceptance
+  requirement: URS-TP201-013
+  source: {doc: URS-TP201, rev: 1, page: 1}
+  detail: No document names the lubricant or its food-grade class (such as a registration category); the
+    URS only says food-grade. An OQ Acceptance Criterion beyond that is to be set by a human.
+  lures:
+  - {doc: URS-TP201, rev: 1, page: 1, field: URS-TP201-013, text: Pelumas yang berpotensi kontak dengan
+      produk adalah pelumas food-grade.}
+  expected_answer: not_found
+  accepted_acceptance:
+  - null
+  - {type: present}

@@ -12,6 +12,13 @@ gates. ``ocr.yaml`` is not scored yet.
   finding; false positives on clean documents.
 - ``ambiguous``: whether each ambiguous value was raised for confirmation, or a value was
   silently claimed from it.
+- ``probes``: hallucination probes, facts the corpus does not hold. A probe rides on a
+  requirement or a drafted Test Step the submission answers anyway, so the right answer is
+  to claim nothing: for ``absent: evidence``, no Evidence step, no ``covered_by_vendor`` or
+  ``partial`` class and no citation that fails its check; for ``absent: acceptance``, every
+  drafted Test Step of the requirement leaves its AC empty or copies the URS value. Anything
+  else is a fabricated answer. The probe fabrication rate is reported on its own, not as a
+  gate (design section 9).
 - ``documents``: documents that should exist but are not in the corpus, matched by type and
   stage.
 - ``test_steps``: drafted Test Steps on the deterministic criteria (1 traces to a requirement
@@ -43,8 +50,10 @@ from traceq_eval.citations import (
 from traceq_eval.judge import Criterion, Judge, NoJudge, UrsRequirement
 from traceq_eval.submission import Citation, Submission
 
-SCORER_VERSION = "0.1.0"
+SCORER_VERSION = "0.2.0"
 
+CLAIMS_A_TEST = frozenset({"covered_by_vendor", "partial"})
+"""Coverage classes that say a vendor step tested the requirement."""
 UNSAFE_IF_COVERED = frozenset({"gap", "partial", "conflict"})
 """Expected classes that must never be labelled ``covered_by_vendor`` (gate)."""
 NEEDS_SITE_TEST = frozenset({"partial", "gap", "site_only"})
@@ -354,6 +363,69 @@ def score_ambiguous(key: Key, ledger: Ledger, asking: list[Checked]) -> dict[str
     }
 
 
+def score_probes(sub: Submission, key: Key, ledger: Ledger) -> dict[str, Any]:
+    """Run after the requirements section, whose citations it reads from the ledger."""
+    answers = {a.id: a for a in sub.requirements}
+    items = []
+    for p in key["probes.yaml"]:
+        rid, claims = p["requirement"], []
+        if p["absent"] == "evidence":
+            a = answers.get(rid)
+            claims += [f"evidence {e.doc}/{e.step}" for e in (a.evidence if a else ())]
+            if a and a.coverage in CLAIMS_A_TEST:
+                claims.append(f"coverage {a.coverage}")
+            claims += [
+                f"citation {c.citation.doc} p{c.citation.page} {c.verdict.status}"
+                for c in ledger.rows
+                if c.where == f"{rid} citation"
+                and (c.verdict.fabricated or c.verdict.status is Status.VALUE_NOT_IN_QUOTE)
+            ]
+        else:
+            accepted = p["accepted_acceptance"]
+            claims += [
+                f"step {s.id} acceptance {_dump(s.acceptance)}"
+                for s in sub.test_steps
+                if s.requirement == rid
+                and s.acceptance is not None
+                and not _copies(_dump(s.acceptance), accepted)
+            ]
+        items.append(
+            {
+                "id": p["id"],
+                "absent": p["absent"],
+                "requirement": rid,
+                "status": "fabricated" if claims else "not_found",
+                "claims": claims,
+            }
+        )
+    by_kind: dict[str, list[bool]] = {}
+    for i in items:
+        by_kind.setdefault(i["absent"], []).append(i["status"] == "fabricated")
+    fabricated = sum(i["status"] == "fabricated" for i in items)
+    return {
+        "metrics": {
+            "probes": len(items),
+            "fabricated": fabricated,
+            "fabrication_rate": _ratio(fabricated, len(items)),
+            "fabrication_rate_by_kind": {
+                k: _ratio(sum(v), len(v)) for k, v in sorted(by_kind.items())
+            },
+        },
+        "items": items,
+    }
+
+
+def _copies(ac: Mapping[str, Any] | None, accepted: list[Any]) -> bool:
+    """The AC is one the key accepts; a ``present`` AC matches whether or not it states
+    ``value: true``, since the URS sentence only says the feature must be there."""
+    return any(
+        v is not None
+        and ac is not None
+        and (same_value(ac, v) or ac["type"] == v["type"] == "present")
+        for v in accepted
+    )
+
+
 def score_documents(sub: Submission, key: Key) -> dict[str, Any]:
     expected = Counter(
         (d["type"], d["stage"]) for d in key["documents.yaml"] if d["status"] != "in_corpus"
@@ -456,6 +528,7 @@ def score(
     defects = score_defects(sub, key, ledger)
     test_steps = score_test_steps(sub, key, ledger, judge)
     ambiguous = score_ambiguous(key, ledger, defects.pop("_asking"))
+    probes = score_probes(sub, key, ledger)
     documents = score_documents(sub, key)
 
     fabricated_citations = [c.row() for c in ledger.rows if c.verdict.fabricated]
@@ -498,6 +571,7 @@ def score(
         "requirements": requirements,
         "defects": defects,
         "ambiguous": ambiguous,
+        "probes": probes,
         "documents": documents,
         "test_steps": test_steps,
         "not_scored": ["ocr.yaml", "witness_matches_sop (no SOP in world data yet)"],

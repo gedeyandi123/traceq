@@ -117,6 +117,10 @@ _Avoid_: AI decision, AI result
 A finding produced by a deterministic rule, with no model involved (e.g. a result outside its Acceptance Criterion marked as passed).
 _Avoid_: AI Finding (for rule output)
 
+**Hallucination Probe**:
+An eval item whose fact the corpus does not hold, planted beside a lure; the right answer is "not found", and any value, Evidence or citation given for it counts as fabricated.
+_Avoid_: trick question
+
 **Pre-review**:
 The automated review of a Protocol or Execution before human review: deterministic rules first (Check Findings), then the LLM for the rest (AI Findings).
 _Avoid_: AI review, auto-review

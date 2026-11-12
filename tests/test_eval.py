@@ -140,6 +140,8 @@ def test_perfect_submission_scores_one_everywhere(key: dict, pages: PageTexts) -
     assert steps["criteria_pass_rate"]["traces_to_requirement"] == 1.0
     assert steps["criteria_pass_rate"]["ac_sourced_or_empty"] == 1.0
     assert steps["criteria_pass_rate"]["witness_matches_sop"] == "not_scored"
+    probes = report["probes"]["metrics"]
+    assert (probes["probes"], probes["fabricated"], probes["fabrication_rate"]) == (6, 0, 0.0)
 
 
 def test_empty_submission_passes_gates_but_scores_zero(key: dict, pages: PageTexts) -> None:
@@ -157,6 +159,8 @@ def test_empty_submission_passes_gates_but_scores_zero(key: dict, pages: PageTex
     assert report["test_steps"]["metrics"]["site_test_recall"] == 0.0
     assert set(report["test_steps"]["metrics"]["criteria_pass_rate"]) == set(CRITERIA)
     assert report["fabrication"]["rate"] is None
+    assert report["probes"]["metrics"]["fabrication_rate"] == 0.0  # "not found" is right
+    assert {i["status"] for i in report["probes"]["items"]} == {"not_found"}
 
 
 def test_wrong_equipment_is_refused(key: dict, pages: PageTexts) -> None:
@@ -275,6 +279,74 @@ def test_wrong_values_and_superseded_trap(best: dict, key: dict, pages: PageText
     assert m["superseded_values"] == 1
     assert m["unknown_requirements"] == ["URS-TP201-099"]
     assert report["fabrication"]["fabricated"] == 1
+
+
+def test_submission_taken_in_by_probes(best: dict, key: dict, pages: PageTexts) -> None:
+    """Each lure taken is a fabricated probe answer, reported apart from the gates."""
+    sub = copy.deepcopy(best)
+    seals = _req(sub, "URS-TP201-012")  # P1: a certificate row that does not exist
+    seals["citations"].append(
+        {
+            "doc": "MTC-TP201-01",
+            "rev": 0,
+            "page": 1,
+            "quote": "Gaskets and seals: EPDM",
+            "value": {"type": "one_of", "allowed": ["EPDM"]},
+        }
+    )
+    backup = _req(sub, "URS-TP201-024")  # P2: a neighbouring step offered as Evidence
+    backup["coverage"] = "partial"
+    backup["evidence"] = [{"doc": "FAT-TP201-C", "rev": 0, "step": "FAT-C-03"}]
+    _req(sub, "URS-TP201-025")["coverage"] = "covered_by_vendor"  # P3: claims a test
+    steps = {s["requirement"]: s for s in sub["test_steps"]}
+    fds = {"doc": "FDS-TP201", "rev": 0, "page": 1, "quote": "Guard door interlock"}
+    steps["URS-TP201-018"] |= {  # P5: a stopping time no document gives
+        "acceptance": {"type": "range", "max": 1, "unit": "s"},
+        "acceptance_citation": fds,
+    }
+    steps["URS-TP201-013"]["acceptance"] = {"type": "text", "value": "NSF H1"}  # P6
+    report = score(Submission.model_validate(sub), key, pages)
+
+    probes = report["probes"]
+    status = {i["requirement"]: i["status"] for i in probes["items"]}
+    assert status == {
+        "URS-TP201-012": "fabricated",
+        "URS-TP201-024": "fabricated",
+        "URS-TP201-025": "fabricated",
+        "URS-TP201-037": "not_found",  # P4 left alone
+        "URS-TP201-018": "fabricated",
+        "URS-TP201-013": "fabricated",
+    }
+    claims = {i["requirement"]: i["claims"] for i in probes["items"]}
+    assert claims["URS-TP201-012"] == ["citation MTC-TP201-01 p1 quote_not_found"]
+    assert claims["URS-TP201-024"] == ["evidence FAT-TP201-C/FAT-C-03", "coverage partial"]
+    assert probes["metrics"]["fabrication_rate"] == pytest.approx(5 / 6, 1e-3)
+    assert probes["metrics"]["fabrication_rate_by_kind"] == {"acceptance": 1.0, "evidence": 0.75}
+    # Some lures also trip a gate; a real step offered as Evidence does not.
+    assert not report["gates"]["fabricated_citation"]["passed"]
+    assert report["gates"]["fabricated_evidence"]["passed"]
+    assert "Probe fabrication rate: 0.833 (5 of 6 hallucination probes)" in markdown(report)
+
+
+def test_probe_answers_that_claim_nothing_new(best: dict, key: dict, pages: PageTexts) -> None:
+    """A true design citation, or the URS value as AC, is not a made-up answer."""
+    sub = copy.deepcopy(best)
+    _req(sub, "URS-TP201-024")["citations"].append(
+        {
+            "doc": "FDS-TP201",
+            "rev": 0,
+            "page": 2,
+            "quote": "Recipe backup and restore",
+            "value": {"type": "present"},
+        }
+    )
+    steps = {s["requirement"]: s for s in sub["test_steps"]}
+    steps["URS-TP201-018"]["acceptance"] = {"type": "present", "value": True}
+    steps["URS-TP201-013"].pop("acceptance")
+    steps["URS-TP201-013"].pop("acceptance_citation")
+    report = score(Submission.model_validate(sub), key, pages)
+    assert report["probes"]["metrics"]["fabricated"] == 0
+    assert report["gates"]["passed"]
 
 
 def test_findings_mislabelled_missed_and_false_positive(

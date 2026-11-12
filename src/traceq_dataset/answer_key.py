@@ -13,6 +13,8 @@ Files, one directory per Equipment (``answer_key/TP-201/``):
   expected Coverage with the decision-table reason;
 - ``defects.yaml``: the defect manifest, one entry per scenario with a finding;
 - ``ambiguous.yaml``: values whose expected answer is "ask for confirmation";
+- ``probes.yaml``: hallucination probes, facts the corpus does not hold, whose expected
+  answer is "not found", with the lures beside them;
 - ``documents.yaml``: documents that should exist, and why any is not in the corpus;
 - ``ocr.yaml``: every handwritten entry on a scan with its quad.
 
@@ -43,7 +45,14 @@ from traceq_dataset.render import design_field
 from traceq_dataset.schema import Anchor, DefectType, Equipment, Requirement, Scenario
 from traceq_dataset.validate import normalise, page_texts
 
-FILES = ("requirements.yaml", "defects.yaml", "ambiguous.yaml", "documents.yaml", "ocr.yaml")
+FILES = (
+    "requirements.yaml",
+    "defects.yaml",
+    "ambiguous.yaml",
+    "probes.yaml",
+    "documents.yaml",
+    "ocr.yaml",
+)
 
 Layer = str
 TAXONOMY: Mapping[DefectType, tuple[Layer, str]] = {
@@ -327,6 +336,35 @@ def ambiguous(corpus: Corpus) -> list[dict[str, Any]]:
     return out
 
 
+def probes(corpus: Corpus) -> list[dict[str, Any]]:
+    """Hallucination probes: the requirement, what the corpus does not hold (``absent``),
+    where the lures are, and for an ``acceptance`` probe the Acceptance Criteria a drafted
+    Test Step may carry without making one up."""
+    eq, texts = corpus.eq, {}
+    reqs = {r.id: r for r in eq.requirements}
+    urs = f"URS-{eq.tag.replace('-', '')}"
+    rev = max(d.rev for d in eq.documents if d.id == urs)
+    out = []
+    for n, p in enumerate(eq.probes, 1):
+        r = reqs[p.requirement]
+        placed = corpus.rendered[(urs, rev)].placed[r.id]
+        entry: dict[str, Any] = {
+            "id": f"P-{eq.tag.replace('-', '')}-{n:03d}",
+            "probe": p.id,
+            "absent": p.absent,
+            "requirement": r.id,
+            "source": {"doc": urs, "rev": rev, "page": placed.page},
+            "detail": p.detail,
+            "lures": [locate(corpus, a, texts) for a in p.lures],
+            "expected_answer": "not_found",
+        }
+        if p.absent == "acceptance":
+            # An empty AC ("to be set by a human") or the URS value copied from its sentence.
+            entry["accepted_acceptance"] = [None, _plain(r.spec)]
+        out.append(entry)
+    return out
+
+
 def documents(corpus: Corpus) -> list[dict[str, Any]]:
     eq = corpus.eq
     if not eq.required_documents:
@@ -379,6 +417,7 @@ def derive(corpus: Corpus) -> dict[str, list[dict[str, Any]]]:
         "requirements.yaml": requirements(corpus),
         "defects.yaml": defects(corpus),
         "ambiguous.yaml": ambiguous(corpus),
+        "probes.yaml": probes(corpus),
         "documents.yaml": documents(corpus),
         "ocr.yaml": ocr(corpus),
     }
