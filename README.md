@@ -4,6 +4,14 @@ Traceability-led workspace for pharmaceutical equipment qualification (GMP), wit
 
 Status: early. Work starts with the synthetic dataset that drives the demo and the evals.
 
+- [`GLOSSARY.md`](GLOSSARY.md): domain language
+- [`docs/design/synthetic-dataset.md`](docs/design/synthetic-dataset.md): dataset design
+- [`DATASHEET.md`](DATASHEET.md), [`CHANGELOG.md`](CHANGELOG.md): dataset documentation and versions
+
+## Licence
+
+Code: [Apache-2.0](LICENSE). Dataset and rendered documents: [CC BY 4.0](LICENSE-DATA).
+
 ## Development
 
 ```sh
