@@ -7,6 +7,8 @@
   param: punch_stations
   value: {type: range, min: 36, unit: stations}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 10, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 1, rpn: 2}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -34,6 +36,8 @@
   param: turret_speed
   value: {type: range, min: 20, max: 70, unit: rpm}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 11, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 2, rpn: 16}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -67,6 +71,8 @@
     page: 1
     text: Kapasitas produksi minimal 100.000 tablet/jam.
     value: {type: range, min: 100000, unit: tablets/h}
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 12, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 2, rpn: 16}
   evidence:
   - doc: SAT-TP201
     rev: 0
@@ -100,6 +106,8 @@
   param: main_compression_force
   value: {type: range, min: 100, unit: kN}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 13, text: Ya, critical: true, severity: 5,
+    occurrence: 2, detection: 2, rpn: 20}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -128,6 +136,8 @@
   param: precompression_force
   value: {type: range, min: 20, unit: kN}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 14, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 2, rpn: 12}
   evidence:
   - doc: SAT-TP201
     rev: 0
@@ -160,6 +170,8 @@
   param: tablet_diameter
   value: {type: range, max: 25, unit: mm}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 15, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 1, rpn: 2}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -187,6 +199,8 @@
   param: fill_depth
   value: {type: range, max: 18, unit: mm}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 16, text: Tidak, critical: false, severity: 3,
+    occurrence: 1, detection: 2, rpn: 6}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -216,6 +230,8 @@
     type: one_of
     allowed: [EU D]
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 17, text: Tidak, critical: false, severity: 2,
+    occurrence: 2, detection: 1, rpn: 4}
   evidence: []
   design_evidence:
   - doc: DS-TP201
@@ -236,6 +252,8 @@
     type: one_of
     allowed: [SS 316L]
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 18, text: Ya, critical: true, severity: 5,
+    occurrence: 2, detection: 3, rpn: 30}
   evidence: []
   design_evidence:
   - doc: DS-TP201
@@ -294,6 +312,8 @@
   param: contact_surface_roughness
   value: {type: range, max: 0.8, unit: µm}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 19, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 3, rpn: 18}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -323,6 +343,8 @@
     type: one_of
     allowed: [SS 304]
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 20, text: Tidak, critical: false, severity: 2,
+    occurrence: 2, detection: 2, rpn: 8}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -352,6 +374,8 @@
     type: one_of
     allowed: [EPDM, silicone]
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 21, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 3, rpn: 18}
   evidence: []
   design_evidence: []
   expected_coverage: gap
@@ -363,6 +387,8 @@
   param: food_grade_lubricant
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 22, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 3, rpn: 18}
   evidence: []
   design_evidence: []
   expected_coverage: gap
@@ -374,6 +400,8 @@
   param: automatic_weight_control
   value: {type: present}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 23, text: Ya, critical: true, severity: 5,
+    occurrence: 2, detection: 3, rpn: 30}
   evidence:
   - doc: FAT-TP201-C
     rev: 0
@@ -393,6 +421,13 @@
     text: 'Yes'
     value: {type: present, value: true}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 1
+    field: automatic_weight_control
+    text: Automatic tablet weight control
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-C-01: condition 2: protocol not approved by site before execution (CPOB 12.14)'
   also_valid: []
@@ -402,6 +437,8 @@
   param: automatic_rejection
   value: {type: present}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 24, text: Ya, critical: true, severity: 5,
+    occurrence: 2, detection: 4, rpn: 40}
   evidence:
   - doc: FAT-TP201-C
     rev: 0
@@ -421,6 +458,13 @@
     text: 'Yes'
     value: {type: present, value: true}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 1
+    field: automatic_rejection
+    text: Automatic rejection of out-of-limit tablets
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-C-02: condition 2: protocol not approved by site before execution (CPOB 12.14)'
   also_valid: []
@@ -430,6 +474,8 @@
   param: force_measurement_accuracy
   value: {type: range, max: 1, unit: '% FS'}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 25, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 4, rpn: 32}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -448,6 +494,13 @@
     text: 1 % FS
     value: {type: number, value: 1, unit: '% FS'}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 1
+    field: force_measurement_accuracy
+    text: Compression force measurement
+    value: {type: number, value: 1, unit: '% FS'}
+    meets_urs: true
   expected_coverage: partial
   reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
   also_valid: []
@@ -457,6 +510,8 @@
   param: feeder_paddle_speed
   value: {type: range, min: 10, max: 60, unit: rpm}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 26, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 2, rpn: 12}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -491,6 +546,13 @@
     text: 10–60 rpm
     value: {type: range, min: 10, max: 60, unit: rpm}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 1
+    field: feeder_paddle_speed
+    text: Feeder paddle speed control
+    value: {type: range, min: 10, max: 60, unit: rpm}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-M-09: condition 3: full URS range not tested; SAT-03: result does not meet the URS'
   also_valid: []
@@ -500,8 +562,17 @@
   param: guard_door_interlock
   value: {type: present}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 27, text: Ya, critical: true, severity: 5,
+    occurrence: 2, detection: 3, rpn: 30}
   evidence: []
-  design_evidence: []
+  design_evidence:
+  - doc: FDS-TP201
+    rev: 0
+    page: 1
+    field: guard_door_interlock
+    text: Guard door interlock
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: gap
   reason: no FAT/SAT step addresses it
   also_valid: []
@@ -511,6 +582,8 @@
   param: emergency_stop
   value: {type: present}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 28, text: Ya, critical: true, severity: 5,
+    occurrence: 1, detection: 2, rpn: 10}
   evidence:
   - doc: SAT-TP201
     rev: 0
@@ -534,6 +607,13 @@
     text: 'Yes'
     value: {type: present, value: true}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 1
+    field: emergency_stop
+    text: Emergency stop
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -543,6 +623,8 @@
   param: punch_overload_protection
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 29, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 2, rpn: 12}
   evidence:
   - doc: SAT-TP201
     rev: 0
@@ -566,6 +648,13 @@
     text: 'Yes'
     value: {type: present, value: true}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 1
+    field: punch_overload_protection
+    text: Punch overload protection
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -575,6 +664,8 @@
   param: hmi_access_levels
   value: {type: present}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 30, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 3, rpn: 24}
   evidence:
   - doc: SAT-TP201
     rev: 0
@@ -598,6 +689,13 @@
     text: 'Yes'
     value: {type: present, value: true}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 2
+    field: hmi_access_levels
+    text: User access levels
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -607,6 +705,8 @@
   param: hmi_audit_trail
   value: {type: present}
   critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 31, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 4, rpn: 32}
   evidence:
   - doc: FAT-TP201-C
     rev: 0
@@ -626,6 +726,13 @@
     text: 'Yes'
     value: {type: present, value: true}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 2
+    field: hmi_audit_trail
+    text: Audit trail
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: partial
   reason: 'FAT-C-03: condition 2: protocol not approved by site before execution (CPOB 12.14)'
   also_valid: []
@@ -635,6 +742,8 @@
   param: hmi_alarm_log
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 32, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 3, rpn: 18}
   evidence:
   - doc: SAT-TP201
     rev: 0
@@ -658,6 +767,13 @@
     text: 'Yes'
     value: {type: present, value: true}
     meets_urs: true
+  - doc: FDS-TP201
+    rev: 0
+    page: 2
+    field: hmi_alarm_log
+    text: Alarm log
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: covered_by_vendor
   reason: proved by SAT-TP201
   also_valid: []
@@ -667,8 +783,17 @@
   param: recipe_backup
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 33, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 3, rpn: 18}
   evidence: []
-  design_evidence: []
+  design_evidence:
+  - doc: FDS-TP201
+    rev: 0
+    page: 2
+    field: recipe_backup
+    text: Recipe backup and restore
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: gap
   reason: no FAT/SAT step addresses it
   also_valid: []
@@ -678,8 +803,17 @@
   param: time_synchronisation
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 34, text: Tidak, critical: false, severity: 3,
+    occurrence: 3, detection: 3, rpn: 27}
   evidence: []
-  design_evidence: []
+  design_evidence:
+  - doc: FDS-TP201
+    rev: 0
+    page: 2
+    field: time_synchronisation
+    text: Time synchronisation
+    value: {type: present, value: true}
+    meets_urs: true
   expected_coverage: gap
   reason: no FAT/SAT step addresses it
   also_valid: []
@@ -689,6 +823,8 @@
   param: power_supply_voltage
   value: {type: range, min: 380, max: 380, unit: V}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 35, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 1, rpn: 2}
   evidence: []
   design_evidence:
   - doc: DS-TP201
@@ -707,6 +843,8 @@
   param: compressed_air_pressure
   value: {type: range, min: 6, max: 7, unit: bar}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 36, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 2, rpn: 12}
   evidence: []
   design_evidence:
   - doc: DS-TP201
@@ -725,6 +863,8 @@
   param: dust_extraction_flow
   value: {type: range, min: 300, unit: m3/h}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 37, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 2, rpn: 12}
   evidence: []
   design_evidence:
   - doc: DS-TP201
@@ -743,6 +883,8 @@
   param: noise_level
   value: {type: range, max: 85, unit: dBA}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 38, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 1, rpn: 6}
   evidence: []
   design_evidence: []
   expected_coverage: site_only
@@ -754,6 +896,8 @@
   param: room_height_fit
   value: {type: range, max: 3000, unit: mm}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 39, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 1, rpn: 2}
   evidence: []
   design_evidence: []
   expected_coverage: site_only
@@ -765,6 +909,8 @@
   param: room_temperature
   value: {type: range, min: 18, max: 25, unit: °C}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 40, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 2, rpn: 4}
   evidence: []
   design_evidence: []
   expected_coverage: site_only
@@ -776,6 +922,8 @@
   param: changeover_time
   value: {type: range, max: 120, unit: min}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 41, text: Tidak, critical: false, severity: 2,
+    occurrence: 2, detection: 1, rpn: 4}
   evidence: []
   design_evidence: []
   expected_coverage: gap
@@ -787,6 +935,8 @@
   param: toolless_disassembly
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 42, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 2, rpn: 12}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -807,6 +957,8 @@
   param: manuals
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 43, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 1, rpn: 2}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -827,6 +979,8 @@
   param: material_certificates
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 44, text: Tidak, critical: false, severity: 3,
+    occurrence: 1, detection: 1, rpn: 3}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -847,6 +1001,8 @@
   param: force_sensor_calibration
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 45, text: Tidak, critical: false, severity: 3,
+    occurrence: 2, detection: 2, rpn: 12}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -867,6 +1023,8 @@
   param: machinery_safety_declaration
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 46, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 1, rpn: 2}
   evidence: []
   design_evidence: []
   expected_coverage: gap
@@ -878,6 +1036,8 @@
   param: spare_parts_and_drawings
   value: {type: present}
   critical: false
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 47, text: Tidak, critical: false, severity: 2,
+    occurrence: 1, detection: 1, rpn: 2}
   evidence:
   - doc: FAT-TP201-M
     rev: 0

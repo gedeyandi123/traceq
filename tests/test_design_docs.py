@@ -1,4 +1,5 @@
-"""Datasheet, material and calibration certificates, and DQ report of TP-201."""
+"""Design documents and certificates of TP-201: datasheet, functional spec, risk assessment,
+material and calibration certificates, and DQ report."""
 
 from __future__ import annotations
 
@@ -12,15 +13,18 @@ from traceq_dataset.corpus import Corpus, build_corpus
 from traceq_dataset.coverage import meets
 from traceq_dataset.render import (
     EVAL_T0,
+    RA_SHEET,
     Rendered,
     design_field,
     render_calibration_certificate,
     render_datasheet,
     render_dq,
+    render_functional_spec,
     render_material_certificate,
+    render_risk_assessment,
 )
 from traceq_dataset.schema import Equipment, RangeObs, RangeSpec
-from traceq_dataset.validate import missing_text, page_texts
+from traceq_dataset.validate import cell_texts, missing_text, page_texts
 from traceq_dataset.world import load
 
 TP201 = Path(__file__).parents[1] / "world" / "tp201.yaml"
@@ -116,8 +120,138 @@ def test_stopwatch_certificate_is_valid(eq: Equipment) -> None:
     assert kal.placed["valid_until"].text == "01-Feb-2027"
 
 
+def test_force_sensor_certificate_from_the_vendor(eq: Equipment) -> None:
+    """CAL-TP201-01: the vendor calibrates the press's two force channels before the FAT;
+    still valid at the SAT, and no main-channel error above FAT-M-08's 0.5% FS."""
+    cal = render_calibration_certificate(eq, "CAL-TP201-01", EVAL_T0)
+    assert missing_text(cal) == []
+    assert cal.placed["instrument"].text == "FMS-TP201"
+    text = page_texts(cal.pdf)[0]
+    assert "Pressora Maschinenbau GmbH" in text
+    assert "Main compression 100 100.42 +0.42 ± 0.3" in text
+    assert "Pre-compression 20 20.07 +0.07 ± 0.06" in text
+    fms = next(i for i in eq.instruments if i.id == "FMS-TP201")
+    cert, dates = fms.certificate, {p.doc_id: p for p in eq.protocols}
+    assert cert.calibrated_on < dates["FAT-TP201-M"].executed_on
+    assert cert.valid_until > dates["SAT-TP201"].executed_on
+    assert cert.results is not None
+    main = [p for p in cert.results.points if p.channel == "Main compression"]
+    assert max(abs(p.reading - p.nominal) for p in main) <= 0.5
+
+
 def test_calibration_readings_await_review(eq: Equipment) -> None:
-    assert {i.id for i in eq.unreviewed_results()} == {"TACH-07", "SW-03"}
+    assert {i.id for i in eq.unreviewed_results()} == {"TACH-07", "SW-03", "FMS-TP201"}
+
+
+# --- Functional design specification --------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def fds(eq: Equipment) -> Rendered:
+    return render_functional_spec(eq, "FDS-TP201", EVAL_T0)
+
+
+def test_fds_describes_every_control_and_data_integrity_requirement(
+    eq: Equipment, fds: Rendered
+) -> None:
+    """Gap requirements included (door interlock, recipe backup, time sync): designed, not
+    tested, so their Coverage stays `gap`."""
+    facts = [f for f in eq.designs if f.doc_id == "FDS-TP201"]
+    scopes = {r.id for r in eq.requirements if r.scope in ("control", "data_integrity")}
+    assert {f.requirement for f in facts} == scopes
+    assert set(fds.placed) == {design_field(eq, f) for f in facts}
+    assert missing_text(fds) == []
+    text = " ".join(page_texts(fds.pdf))
+    assert "URS-" not in text
+    assert "5.1 Guard door interlock" in text
+
+
+def test_fds_states_no_new_numbers(eq: Equipment) -> None:
+    """Every FDS fact meets the URS, and a numeric one repeats the datasheet's value."""
+    reqs = {r.id: r for r in eq.requirements}
+    ds = {f.requirement: f.observed for f in eq.designs if f.doc_id == "DS-TP201"}
+    for f in eq.designs:
+        if f.doc_id == "FDS-TP201":
+            assert meets(reqs[f.requirement].spec, f.observed), f.requirement
+            if f.observed.type != "present":
+                assert f.observed == ds[f.requirement]
+
+
+def test_fds_needs_descriptions(eq: Equipment) -> None:
+    def edit(d: dict) -> None:
+        for f in d["designs"]:
+            if f["doc_id"] == "FDS-TP201":
+                f["description"] = None
+
+    with pytest.raises(ValidationError, match="needs a label, section and description"):
+        _with(eq, edit)
+
+
+# --- Risk assessment ------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def ra(eq: Equipment) -> Rendered:
+    return render_risk_assessment(eq, "RA-TP201", EVAL_T0)
+
+
+def test_risk_assessment_marks_the_urs_critical_aspects(eq: Equipment, ra: Rendered) -> None:
+    assert ra.filename == "RA-TP201_rev0.xlsx"
+    assert missing_text(ra) == []
+    marked = {r.id for r in eq.requirements if ra.placed[f"{r.id}.critical"].text == "Ya"}
+    assert marked == {r.id for r in eq.requirements if r.critical}
+    assert len(marked) == 11
+
+
+def test_risk_assessment_is_values_not_formulas(ra: Rendered) -> None:
+    cells = cell_texts(ra.data)
+    assert not any(v.startswith("=") for v in cells.values())
+    rpn = ra.placed["URS-TP201-015.rpn"]
+    assert (rpn.sheet, cells[(RA_SHEET, rpn.cell or "")]) == (RA_SHEET, "40")
+    assert "URS-TP201 rev 1 (SKP)" in cells.values()
+
+
+def test_risk_assessment_bytes_are_deterministic(eq: Equipment, ra: Rendered) -> None:
+    assert render_risk_assessment(eq, "RA-TP201", EVAL_T0).data == ra.data
+    later = render_risk_assessment(eq, "RA-TP201", EVAL_T0.replace(year=2027))
+    assert later.data != ra.data
+
+
+def test_risk_scores_await_review(eq: Equipment) -> None:
+    assert eq.unreviewed_risks()
+
+
+def test_risk_assessment_must_agree_with_the_urs(eq: Equipment) -> None:
+    def edit(d: dict) -> None:
+        d["risk_assessment"]["rows"][0]["severity"] = 5  # URS-TP201-001 is not critical
+
+    with pytest.raises(ValidationError, match="URS-TP201-001 severity 5 disagrees"):
+        _with(eq, edit)
+
+
+def test_risk_assessment_covers_every_requirement(eq: Equipment) -> None:
+    def edit(d: dict) -> None:
+        d["risk_assessment"]["rows"] = d["risk_assessment"]["rows"][1:]
+
+    with pytest.raises(ValidationError, match="RA-TP201: no row for URS-TP201-001"):
+        _with(eq, edit)
+
+
+def test_requirements_carry_their_risk_row(corpus: Corpus) -> None:
+    reqs = derive(corpus)["requirements.yaml"]
+    risk = next(r for r in reqs if r["id"] == "URS-TP201-018")["risk"]
+    assert risk == {
+        "doc": "RA-TP201",
+        "rev": 0,
+        "sheet": RA_SHEET,
+        "row": 27,
+        "text": "Ya",
+        "critical": True,
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 3,
+        "rpn": 30,
+    }
 
 
 # --- DQ report ------------------------------------------------------------------------
@@ -194,7 +328,7 @@ def test_certificate_lab_must_exist(eq: Equipment) -> None:
     def edit(d: dict) -> None:
         d["instruments"][0]["certificate"]["lab"] = "lab-99"
 
-    with pytest.raises(ValidationError, match="TACH-07: unknown lab lab-99"):
+    with pytest.raises(ValidationError, match="TACH-07: unknown issuer lab-99"):
         _with(eq, edit)
 
 

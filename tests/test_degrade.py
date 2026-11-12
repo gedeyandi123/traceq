@@ -90,4 +90,5 @@ def test_only_paper_documents_are_scanned() -> None:
         ("MTC-TP201-01", "medium"),
         ("KAL-2025-0412", "light"),
         ("KAL-2026-0057", "light"),
+        ("CAL-TP201-01", "light"),
     }

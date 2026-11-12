@@ -8,14 +8,24 @@
   files:
   - {rev: 0, file: URS-TP201_rev0.pdf}
   - {rev: 1, file: URS-TP201_rev1.pdf}
-- {id: RA-TP201, type: risk_assessment, stage: design, status: planned}
+- id: RA-TP201
+  type: risk_assessment
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: RA-TP201_rev0.xlsx}
 - id: DS-TP201
   type: datasheet
   stage: design
   status: in_corpus
   files:
   - {rev: 0, file: DS-TP201_rev0.pdf}
-- {id: FDS-TP201, type: functional_spec, stage: design, status: planned}
+- id: FDS-TP201
+  type: functional_spec
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: FDS-TP201_rev0.pdf}
 - id: DQ-TP201
   type: dq_report
   stage: design
@@ -28,8 +38,13 @@
   status: in_corpus
   files:
   - {rev: 0, file: MTC-TP201-01_rev0.pdf}
-- {id: CAL-TP201-01, type: calibration_certificate, stage: FAT, status: planned, note: Compression force
-    sensors (URS-TP201-036).}
+- id: CAL-TP201-01
+  type: calibration_certificate
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: CAL-TP201-01_rev0.pdf}
+  note: Compression force sensors (URS-TP201-036).
 - id: FAT-TP201-M
   type: fat
   stage: FAT

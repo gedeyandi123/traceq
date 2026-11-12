@@ -19,8 +19,8 @@ Format: [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) (Gebru et al
 
 ## Collection process
 
-- World data for TP-201 and PW-001 is copied from cited public sources (regulation, pharmacopoeia, literature) with verbatim quotes, or recorded as a site decision with a written rationale. Quotes are checked automatically against the source page. Site decisions record who drafted them; those drafted by an LLM are signed off by the owner or a practitioner before freeze. Other Equipment may be LLM-drafted, then human-edited and frozen.
-- Documents are rendered deterministically (Typst) from world data and a T0 date; scans are produced by a controlled degrader with a seed.
+- World data for TP-201 and PW-001 is copied from cited public sources (regulation, pharmacopoeia, literature) with verbatim quotes, or recorded as a site decision with a written rationale. Quotes are checked automatically against the source page. Site decisions record who drafted them; those drafted by an LLM are signed off by the owner or a practitioner before freeze. Numbers no source fixes (calibration readings, risk-assessment scores) are drafted the same way and signed off before freeze. Other Equipment may be LLM-drafted, then human-edited and frozen.
+- Documents are rendered deterministically (Typst for PDF, openpyxl for the XLSX risk assessment) from world data and a T0 date; scans are produced by a controlled degrader with a seed.
 
 ## Preprocessing
 

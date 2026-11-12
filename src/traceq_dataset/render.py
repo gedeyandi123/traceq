@@ -12,27 +12,38 @@ recorded (:class:`Box`). Scanning them (rasterise, skew, noise, JPEG) is the deg
 job: a separate step that only transforms pixels and those boxes.
 
 Design facts (``Equipment.designs``) are placed where :func:`design_field` says, so the
-answer key can locate them on the datasheet and the material certificate.
+answer key can locate them on the datasheet, the functional spec and the material
+certificate.
+
+The risk assessment is a spreadsheet (XLSX, openpyxl), not a PDF: its placed strings carry
+a sheet and cell instead of a box, and its bytes are fixed by setting every zip and
+document-property date to the issue date.
 
 Usage::
 
     uv run python -m traceq_dataset.render world/tp201.yaml [--t0 YYYY-MM-DD] [--out dist]
 
-writes ``dist/t0-<T0>/<tag>/*.pdf`` and the corpus ``manifest.json``.
+writes ``dist/t0-<T0>/<tag>/*.pdf`` (and ``*.xlsx``) and the corpus ``manifest.json``.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import io
 import json
+import re
 import sys
+import zipfile
 import zlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import typst
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from traceq_dataset.coverage import meets
 from traceq_dataset.schema import (
@@ -59,6 +70,7 @@ EVAL_T0 = dt.date(2026, 6, 1)
 """Fixed T0 of the eval corpus (design section 4, "Dates")."""
 
 EN_DASH = "\N{EN DASH}"
+TIMES = "\N{MULTIPLICATION SIGN}"
 
 
 class RenderError(ValueError):
@@ -79,12 +91,15 @@ class Box:
 class Placed:
     """A string the renderer drew, and the page it is on (1-based).
 
-    ``box`` is set for handwritten entries: the OCR answer key needs where they are.
+    ``box`` is set for handwritten entries: the OCR answer key needs where they are. In a
+    spreadsheet, ``page`` is the sheet's position and ``sheet`` / ``cell`` name the cell.
     """
 
     page: int
     text: str
     box: Box | None = None
+    sheet: str | None = None
+    cell: str | None = None
 
     @property
     def handwritten(self) -> bool:
@@ -96,16 +111,24 @@ class Rendered:
     doc_id: str
     rev: int
     issued: dt.date
-    """Issue date, also the PDF metadata date."""
-    pdf: bytes
+    """Issue date, also the PDF (or XLSX) metadata date."""
+    data: bytes
     placed: Mapping[str, Placed]
     """Keyed by requirement id (URS), ``<step>.acceptance`` / ``<step>.observed`` (FAT,
     SAT), a handwritten field (SAT, e.g. ``serial``, ``SAT-01.observed.original``), a design
-    fact (:func:`design_field`) or a certificate field (``valid_until``)."""
+    fact (:func:`design_field`), a certificate field (``valid_until``) or a risk-assessment
+    cell (``URS-TP201-002.severity``)."""
+    format: Literal["pdf", "xlsx"] = "pdf"
+
+    @property
+    def pdf(self) -> bytes:
+        if self.format != "pdf":
+            raise RenderError(f"{self.filename} is not a PDF")
+        return self.data
 
     @property
     def filename(self) -> str:
-        return f"{self.doc_id}_rev{self.rev}.pdf"
+        return f"{self.doc_id}_rev{self.rev}.{self.format}"
 
 
 # --- Formatting ---------------------------------------------------------------------
@@ -217,7 +240,7 @@ def _compile(
         )
         for k, t in texts.items()
     }
-    return Rendered(doc_id=doc.id, rev=doc.rev, issued=issued, pdf=pdf, placed=placed)
+    return Rendered(doc_id=doc.id, rev=doc.rev, issued=issued, data=pdf, placed=placed)
 
 
 def _signature(name: str | None, date: dt.date | None, lang: str) -> dict[str, str]:
@@ -475,12 +498,12 @@ def fmt_design(obs: Observation, lang: str) -> str:
 
 def design_field(eq: Equipment, fact: DesignEvidence) -> str | None:
     """Key under which the renderer places a design fact; None if its document is not
-    rendered. A datasheet row is keyed by the requirement's parameter; a material
-    certificate row by its position (``item-2.material``)."""
+    rendered. A datasheet row or functional-spec function is keyed by the requirement's
+    parameter; a material certificate row by its position (``item-2.material``)."""
     doc = next((d for d in eq.documents if d.id == fact.doc_id), None)
     if doc is None:
         return None
-    if doc.type == "datasheet":
+    if doc.type in ("datasheet", "functional_spec"):
         return next(r.param for r in eq.requirements if r.id == fact.requirement)
     if doc.type == "material_certificate":
         rows = [f for f in eq.designs if f.doc_id == fact.doc_id]
@@ -596,7 +619,9 @@ def render_material_certificate(eq: Equipment, doc_id: str, t0: dt.date) -> Rend
 
 
 def render_calibration_certificate(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
-    """Calibration certificate of a site test instrument (S2: ``valid_until``)."""
+    """Calibration certificate of a measuring instrument (S2: ``valid_until``), issued by a
+    calibration lab or, for the press's own sensors, by the vendor. A system calibrated as one
+    item lists each measuring channel."""
     _require_filled(eq)
     doc = document(eq, doc_id, 0)
     lang, issued = doc.language, doc.issued_on.resolve(t0)
@@ -604,7 +629,8 @@ def render_calibration_certificate(eq: Equipment, doc_id: str, t0: dt.date) -> R
     cert = instrument.certificate
     if cert.lab is None or cert.results is None:
         raise RenderError(f"{doc_id}: certificate needs a lab and results")
-    lab = next(o for o in eq.labs if o.id == cert.lab)
+    by_vendor = cert.lab == eq.vendor.id
+    issuer = eq.vendor.name if by_vendor else next(o.name for o in eq.labs if o.id == cert.lab)
     people = _people(eq)
     texts = {
         "instrument": instrument.id,
@@ -617,13 +643,15 @@ def render_calibration_certificate(eq: Equipment, doc_id: str, t0: dt.date) -> R
     def num(value: float) -> str:
         return fmt_number(round(value, 6), lang)
 
+    channels = any(p.channel for p in cert.results.points)
     results = [
-        {
-            "nominal": num(p.nominal),
-            "reading": num(p.reading),
-            "error": ("+" if p.reading > p.nominal else "") + num(p.reading - p.nominal),
-            "uncertainty": f"± {num(p.uncertainty)}",
-        }
+        ([p.channel or ""] if channels else [])
+        + [
+            num(p.nominal),
+            num(p.reading),
+            ("+" if p.reading > p.nominal else "") + num(p.reading - p.nominal),
+            f"± {num(p.uncertainty)}",
+        ]
         for p in cert.results.points
     ]
     signatures = [
@@ -634,7 +662,7 @@ def render_calibration_certificate(eq: Equipment, doc_id: str, t0: dt.date) -> R
     data = {
         "doc_id": doc.id,
         "rev": doc.rev,
-        "lab": lab.name,
+        "lab": issuer,
         "customer": eq.site_name or "",
         "instrument": instrument.name,
         "asset": texts["instrument"],
@@ -642,8 +670,14 @@ def render_calibration_certificate(eq: Equipment, doc_id: str, t0: dt.date) -> R
         "calibrated_on": texts["calibrated_on"],
         "valid_until": texts["valid_until"],
         "issued_on": fmt_date(issued, lang),
-        "method": "Comparison with the laboratory's reference standard at the points below.",
-        "header": [
+        "method": (
+            "Comparison with the manufacturer's working reference standard, traceable to "
+            "national standards, at the points below."
+            if by_vendor
+            else "Comparison with the laboratory's reference standard at the points below."
+        ),
+        "header": (["Channel"] if channels else [])
+        + [
             f"Nominal ({unit})",
             f"Reading ({unit})",
             f"Error ({unit})",
@@ -655,7 +689,7 @@ def render_calibration_certificate(eq: Equipment, doc_id: str, t0: dt.date) -> R
             "factor k = 2. The results relate only to the instrument calibrated."
         ),
         "signatures": signatures,
-        "stamp": [lab.name.upper(), "CALIBRATED", fmt_date(issued, "en").upper()],
+        "stamp": [issuer.upper(), "CALIBRATED", fmt_date(issued, "en").upper()],
     }
     return _compile("calibration.typ", data, issued, texts, doc)
 
@@ -737,13 +771,244 @@ def render_dq(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
     return _compile("dq.typ", data, issued, {}, doc)
 
 
+def render_functional_spec(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Vendor functional design specification: one numbered function per design fact,
+    grouped by section, with no URS numbers (mapping is the Traceability AI's job). Clean."""
+    _require_filled(eq)
+    doc = document(eq, doc_id, 0)
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    texts: dict[str, str] = {}
+    sections: dict[str, list[dict]] = {}
+    for fact in eq.designs:
+        if fact.doc_id != doc_id:
+            continue
+        key = design_field(eq, fact)
+        assert key is not None and fact.section and fact.label and fact.description
+        texts[key] = fact.label
+        sections.setdefault(fact.section, []).append(
+            {"label": fact.label, "key": key, "description": fact.description}
+        )
+    people = _people(eq)
+    roles = (
+        ("Prepared by", doc.prepared_by),
+        ("Checked by", doc.checked_by),
+        ("Approved by", doc.approved_by),
+    )
+    employers = {eq.site: "Customer (site)", eq.vendor.id: eq.vendor.name}
+    data = {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "vendor": eq.vendor.name,
+        "issued_on": fmt_date(issued, lang),
+        "equipment": f"{eq.tag} {EN_DASH} {eq.name}",
+        "model": eq.model or "",
+        "serial": eq.serial_no or "",
+        "customer": eq.site_name or "",
+        "purpose": (
+            f"This document describes the functions, interlocks and data handling of the "
+            f"{eq.model or ''} {eq.name.lower()} control system as designed for the customer's "
+            "order. It is the basis of the control-system factory acceptance test."
+        ).replace("  ", " "),
+        "overview": (
+            "The press is controlled by a PLC with a touch-screen HMI on the operator panel. "
+            "Turret and feeder have separate frequency-controlled drives. The PLC processes "
+            "the compression force signals for weight control, rejection and overload "
+            "protection; safety functions act through a separate safety relay."
+        ),
+        "modes": [
+            {
+                "name": "Setup",
+                "text": "Turret jogged with hold-to-run buttons; production "
+                "functions and the reject gate are disabled.",
+            },
+            {
+                "name": "Production",
+                "text": "Recipe-controlled operation with weight control, "
+                "rejection and batch counters active.",
+            },
+            {
+                "name": "Cleaning",
+                "text": "All drives locked; product-contact parts can be removed for cleaning.",
+            },
+        ],
+        "sections": [{"title": t, "functions": fs} for t, fs in sections.items()],
+        "approvals": [
+            {
+                "role": role,
+                "company": employers[people[pid].employer] if pid else "",
+                **_signature(people[pid].name if pid else None, issued, lang),
+            }
+            for role, pid in roles
+        ],
+    }
+    return _compile("fds.typ", data, issued, texts, doc)
+
+
+RA_SHEET = "Penilaian Risiko"
+RA_COLUMNS = (
+    ("No", 5),
+    ("No. SKP", 15),
+    ("Persyaratan", 48),
+    ("Mode kegagalan", 34),
+    ("Dampak", 40),
+    ("S", 5),
+    ("O", 5),
+    ("D", 5),
+    ("RPN", 7),
+    ("Aspek kritis", 12),
+)
+RA_SCORES = ("severity", "occurrence", "detection", "rpn", "critical")
+"""Placed cells of each FMEA row: ``<requirement id>.<name>``."""
+
+
+def render_risk_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Site risk assessment as a spreadsheet: a short FMEA, one row per requirement of the
+    reviewed URS revision, marking the Critical Aspects (severity >= ``critical_from``).
+    Values, not formulas, so a reader needs no cached results. Clean."""
+    _require_filled(eq)
+    doc = document(eq, doc_id, 0)
+    ra = eq.risk_assessment
+    if ra is None or ra.doc_id != doc_id:
+        raise RenderError(f"{doc_id}: no risk_assessment with this doc_id")
+    urs = doc.reviews[0] if doc.reviews else None
+    if urs is None:
+        raise RenderError(f"{doc_id}: a risk assessment reviews one URS revision")
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    latest = max(d.rev for d in eq.documents if d.id == urs.doc)
+    people = _people(eq)
+
+    wb = Workbook()
+    ws = wb.active
+    assert ws is not None
+    ws.title = RA_SHEET
+    bold, thin = Font(bold=True), Side(style="thin")
+    grid = Border(left=thin, right=thin, top=thin, bottom=thin)
+    wrap = Alignment(wrap_text=True, vertical="top")
+    ws["A1"] = f"Penilaian Risiko (FMEA) {eq.tag} {EN_DASH} {eq.name}"
+    ws["A1"].font = Font(bold=True, size=13)
+    header = (
+        ("No. dokumen", doc.id),
+        ("Revisi", str(doc.rev)),
+        ("Tanggal terbit", fmt_date(issued, lang)),
+        ("Peralatan", f"{eq.tag} {EN_DASH} {eq.name}"),
+        ("Dokumen acuan", f"{urs.doc} rev {urs.rev} (SKP)"),
+    )
+    for i, (label, value) in enumerate(header, 3):
+        ws.cell(i, 1, label).font = bold
+        ws.cell(i, 3, value)
+        ws.merge_cells(start_row=i, start_column=1, end_row=i, end_column=2)
+    top = 3 + len(header) + 1
+    for col, (title, width) in enumerate(RA_COLUMNS, 1):
+        c = ws.cell(top, col, title)
+        c.font, c.border, c.alignment = bold, grid, wrap
+        c.fill = PatternFill("solid", fgColor="D9D9D9")
+        ws.column_dimensions[c.column_letter].width = width
+    ws.freeze_panes = ws.cell(top + 1, 1)
+
+    texts: dict[str, str] = {}
+    cells: dict[str, str] = {}
+    rows = {row.requirement: row for row in ra.rows}
+    for n, r in enumerate(eq.requirements, 1):
+        row = rows[r.id]
+        spec = r.superseded_spec if (urs.rev < latest and r.superseded_spec) else r.spec
+        critical = "Ya" if ra.critical(row) else "Tidak"
+        values = (
+            n,
+            r.id,
+            requirement_text(r, spec, lang),
+            row.failure_mode,
+            row.effect,
+            row.severity,
+            row.occurrence,
+            row.detection,
+            row.rpn,
+            critical,
+        )
+        y = top + n
+        for col, value in enumerate(values, 1):
+            c = ws.cell(y, col, value)
+            c.border, c.alignment = grid, wrap
+        scores = dict(
+            zip(
+                RA_SCORES,
+                (row.severity, row.occurrence, row.detection, row.rpn, critical),
+                strict=True,
+            )
+        )
+        for col, name in enumerate(RA_SCORES, 6):
+            key = f"{r.id}.{name}"
+            texts[key] = str(scores[name])
+            cells[key] = ws.cell(y, col).coordinate
+
+    y = top + len(eq.requirements) + 2
+    legend = (
+        "S = keparahan (severity), O = kemungkinan terjadi (occurrence), D = deteksi "
+        "(detection; 1 = hampir pasti terdeteksi, 5 = sulit terdeteksi). Skala 1"
+        f"{EN_DASH}5. RPN = S {TIMES} O {TIMES} D.",
+        f"Aspek kritis = Ya bila S ≥ {ra.critical_from}: kegagalan berdampak langsung pada "
+        "mutu produk, keselamatan, atau integritas data.",
+    )
+    for i, line in enumerate(legend):
+        ws.cell(y + i, 1, line)
+    y += len(legend) + 1
+    for col, title in enumerate(("Peran", "", "Nama", "Tanggal"), 1):
+        if title:
+            ws.cell(y, col, title).font = bold
+    for i, (role, pid) in enumerate(
+        (
+            ("Disusun oleh", doc.prepared_by),
+            ("Diperiksa oleh", doc.checked_by),
+            ("Disetujui oleh", doc.approved_by),
+        ),
+        1,
+    ):
+        ws.cell(y + i, 1, role)
+        ws.cell(y + i, 3, people[pid].name if pid else "")
+        ws.cell(y + i, 4, fmt_date(issued, lang) if pid else "")
+
+    author = people[doc.prepared_by].name
+    wb.properties.creator = wb.properties.lastModifiedBy = author
+    wb.properties.title = f"{doc.id} rev {doc.rev}"
+    buf = io.BytesIO()
+    wb.save(buf)
+    placed = {k: Placed(1, t, sheet=RA_SHEET, cell=cells[k]) for k, t in texts.items()}
+    return Rendered(
+        doc_id=doc.id,
+        rev=doc.rev,
+        issued=issued,
+        data=_fixed_dates(buf.getvalue(), issued),
+        placed=placed,
+        format="xlsx",
+    )
+
+
+_W3CDTF = re.compile(rb"(<dcterms:(created|modified) [^>]*>)[^<]*(</dcterms:)")
+
+
+def _fixed_dates(xlsx: bytes, issued: dt.date) -> bytes:
+    """Repack an XLSX with every zip entry and document-property date set to ``issued``:
+    openpyxl writes the current time to both, so the bytes would differ per run."""
+    stamp = issued.strftime("%Y-%m-%dT00:00:00Z").encode()
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(xlsx)) as src, zipfile.ZipFile(out, "w") as dst:
+        for info in src.infolist():
+            data = src.read(info.filename)
+            if info.filename == "docProps/core.xml":
+                data = _W3CDTF.sub(rb"\g<1>" + stamp + rb"\g<3>", data)
+            entry = zipfile.ZipInfo(info.filename, date_time=(*issued.timetuple()[:3], 0, 0, 0))
+            dst.writestr(entry, data, compress_type=zipfile.ZIP_DEFLATED)
+    return out.getvalue()
+
+
 RENDERERS = {
     "fat": render_fat,
     "sat": render_sat,
     "datasheet": render_datasheet,
+    "functional_spec": render_functional_spec,
     "material_certificate": render_material_certificate,
     "calibration_certificate": render_calibration_certificate,
     "dq_report": render_dq,
+    "risk_assessment": render_risk_assessment,
 }
 
 
@@ -773,10 +1038,10 @@ def main(argv: list[str]) -> int:
         out.mkdir(parents=True, exist_ok=True)
         for key, r in c.rendered.items():
             # A paper document is published only as its scan.
-            pdf = c.published(key)
-            note = f"scan, {c.scanned[key].level}" if key in c.scanned else "born-digital"
-            (out / r.filename).write_bytes(pdf)
-            print(f"{out / r.filename}  ({len(pdf):,} bytes, {note}, {len(r.placed)} placed)")
+            data = c.published(key)
+            note = f"scan, {c.scanned[key].level}" if key in c.scanned else r.format
+            (out / r.filename).write_bytes(data)
+            print(f"{out / r.filename}  ({len(data):,} bytes, {note}, {len(r.placed)} placed)")
     text = json.dumps(manifest(corpora), ensure_ascii=False, indent=2) + "\n"
     (root / "manifest.json").write_text(text, encoding="utf-8", newline="\n")
     print(root / "manifest.json")

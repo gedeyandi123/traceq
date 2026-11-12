@@ -325,3 +325,10 @@
   level: light
   skew: [-0.6249]
   entries: []
+- doc: CAL-TP201-01
+  rev: 0
+  file: CAL-TP201-01_rev0.pdf
+  dpi: 200
+  level: light
+  skew: [0.5897]
+  entries: []
