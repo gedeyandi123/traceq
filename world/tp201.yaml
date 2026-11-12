@@ -12,7 +12,7 @@
 
 tag: TP-201
 name: Rotary tablet press (single-sided)
-serial_no: RTP36-25-0417  # nameplate; S3 plants a different number in the SAT
+serial_no: RTP36-25-0417  # nameplate; S3 writes RTP36-25-0471 in the SAT
 site: site-01
 
 vendor:
@@ -627,13 +627,26 @@ tests:
   - {step: FAT-C-01, protocol: FAT-TP201-C, requirement: URS-TP201-014, observed: {type: present, value: true}, recorded_result: pass, description: "Simulate a tablet weight drift; confirm the force-based weight control corrects it."}
   - {step: FAT-C-02, protocol: FAT-TP201-C, requirement: URS-TP201-015, observed: {type: present, value: true}, recorded_result: pass, description: "Feed out-of-limit tablets; confirm they are rejected automatically."}
   - {step: FAT-C-03, protocol: FAT-TP201-C, requirement: URS-TP201-022, observed: {type: present, value: true}, recorded_result: pass, description: "Change a parameter and a recipe on the HMI; confirm both appear in the audit trail."}
-  - {step: SAT-01, protocol: SAT-TP201, requirement: URS-TP201-003, observed: {type: number, value: 122400, unit: tablets/h}, recorded_result: pass}
-  - {step: SAT-02, protocol: SAT-TP201, requirement: URS-TP201-005, observed: {type: number, value: 20.4, unit: kN}, recorded_result: pass}
-  - {step: SAT-03, protocol: SAT-TP201, requirement: URS-TP201-017, observed: {type: number, value: 1500, unit: rpm}, recorded_result: pass}  # S7: drive-motor speed, written "1.500 rpm"
-  - {step: SAT-04, protocol: SAT-TP201, requirement: URS-TP201-019, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: SAT-05, protocol: SAT-TP201, requirement: URS-TP201-020, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: SAT-06, protocol: SAT-TP201, requirement: URS-TP201-021, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: SAT-07, protocol: SAT-TP201, requirement: URS-TP201-023, observed: {type: present, value: true}, recorded_result: pass}
+  # SAT steps are printed on the vendor form; results are handwritten by site staff.
+  - step: SAT-01
+    protocol: SAT-TP201
+    requirement: URS-TP201-003
+    description: "Run placebo blend at production speed for 10 min; count the tablets and convert to tablets per hour. Check turret speed with the tachometer."
+    instruments: [TACH-07, SW-03]
+    observed: {type: number, value: 122400, unit: tablets/h}
+    correction: {original: {type: number, value: 121400, unit: tablets/h}}  # S1: one digit overwritten, no initials/date
+    recorded_result: pass
+  - {step: SAT-02, protocol: SAT-TP201, requirement: URS-TP201-005, observed: {type: number, value: 20.4, unit: kN}, recorded_result: pass, description: "Set pre-compression to maximum; read the force on the HMI."}
+  - {step: SAT-03, protocol: SAT-TP201, requirement: URS-TP201-017, observed: {type: number, value: 1500, unit: rpm}, recorded_result: pass, description: "Run the paddle feeder at its maximum setting; measure the speed with the tachometer.", instruments: [TACH-07]}  # S7: drive-motor speed, written "1.500 rpm"
+  - {step: SAT-04, protocol: SAT-TP201, requirement: URS-TP201-019, observed: {type: present, value: true}, recorded_result: pass, description: "Press each emergency stop while running; the press must stop."}
+  - {step: SAT-05, protocol: SAT-TP201, requirement: URS-TP201-020, observed: {type: present, value: true}, recorded_result: pass, description: "Simulate a punch overload; the press must stop."}
+  - {step: SAT-06, protocol: SAT-TP201, requirement: URS-TP201-021, observed: {type: present, value: true}, recorded_result: pass, description: "Log in as operator, supervisor and admin; confirm each sees only its own functions."}
+  - {step: SAT-07, protocol: SAT-TP201, requirement: URS-TP201-023, observed: {type: present, value: true}, recorded_result: pass, description: "Trigger an alarm and acknowledge it; confirm the alarm log shows time and user."}
+
+# Site test instruments. S2: TACH-07's calibration lapsed the day before the SAT (T0-14d).
+instruments:
+  - {id: TACH-07, name: Digital tachometer, serial_no: DT2236-58812, certificate: {id: KAL-2025-0412, calibrated_on: T0-380d, valid_until: T0-15d}}
+  - {id: SW-03, name: Stopwatch, serial_no: SW-11907, certificate: {id: KAL-2026-0057, calibrated_on: T0-120d, valid_until: T0+245d}}
 
 # Design and delivered-item facts.
 designs:
@@ -656,6 +669,9 @@ documents:
   - {id: FAT-TP201-M, rev: 0, type: fat, title: Mechanical, language: en, issued_on: T0-140d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
   # S4: no site check or approval before execution.
   - {id: FAT-TP201-C, rev: 0, type: fat, title: Control system, language: en, issued_on: T0-138d, prepared_by: p-ve, executed_by: p-ve, witnessed_by: p-wit}
+  # SAT: vendor form in English, filled in by hand at site (Indonesian number/date formats).
+  # S3: the serial number is written with two digits transposed.
+  - {id: SAT-TP201, rev: 0, type: sat, language: en, entry_language: id, serial_no: RTP36-25-0471, issued_on: T0-30d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
 
 scenarios:
   - id: S1
@@ -665,12 +681,11 @@ scenarios:
   - id: S2
     summary: The tachometer calibration certificate expired on the SAT date.
     reference: CPOB Ch. 12
-    targets: [SAT-TP201, SAT-01, SAT-03]
-    note: Instruments and certificates are modelled with the document catalogue.
+    targets: [SAT-TP201, SAT-01, SAT-03, TACH-07]
   - id: S3
     summary: The SAT serial number differs from the nameplate and datasheet.
     targets: [SAT-TP201, DS-TP201]
-    note: Serial numbers are modelled with the document catalogue.
+    note: SAT-TP201 has RTP36-25-0471; the nameplate (Equipment.serial_no) has RTP36-25-0417.
   - id: S4
     summary: The control-system FAT protocol was executed without site approval.
     reference: CPOB 12.14

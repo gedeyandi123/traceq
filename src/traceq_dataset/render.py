@@ -2,8 +2,14 @@
 
 Python formats every string (numbers and dates in the document language), so the
 expected text is known exactly; the Typst templates in ``templates/`` only lay it out.
-Output is deterministic for a given T0: no system fonts (Typst's bundled fonts only)
-and PDF metadata dates fixed to the document's issue date.
+Output is deterministic for a given T0: no system fonts (Typst's bundled fonts plus the
+OFL handwriting font in ``fonts/``) and PDF metadata dates fixed to the document's issue
+date.
+
+Paper documents (the SAT) are rendered born-digital with their handwritten entries drawn
+in a handwriting font, and each entry's bounding box recorded (:class:`Box`). Scanning
+them (rasterise, skew, noise, JPEG) is the degrader's job: a separate step that only
+transforms pixels and those boxes.
 
 Usage::
 
@@ -23,6 +29,7 @@ from pathlib import Path
 import typst
 
 from traceq_dataset.schema import (
+    Correction,
     Document,
     Equipment,
     NumberObs,
@@ -38,6 +45,7 @@ from traceq_dataset.schema import (
 )
 
 TEMPLATES = Path(__file__).parent / "templates"
+FONTS = Path(__file__).parent / "fonts"
 EVAL_T0 = dt.date(2026, 6, 1)
 """Fixed T0 of the eval corpus (design section 4, "Dates")."""
 
@@ -49,11 +57,29 @@ class RenderError(ValueError):
 
 
 @dataclass(frozen=True)
+class Box:
+    """Bounding box on the page in pt, origin top-left (Typst's coordinates)."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+@dataclass(frozen=True)
 class Placed:
-    """A string the renderer drew, and the page it is on (1-based)."""
+    """A string the renderer drew, and the page it is on (1-based).
+
+    ``box`` is set for handwritten entries: the OCR answer key needs where they are.
+    """
 
     page: int
     text: str
+    box: Box | None = None
+
+    @property
+    def handwritten(self) -> bool:
+        return self.box is not None
 
 
 @dataclass(frozen=True)
@@ -62,7 +88,8 @@ class Rendered:
     rev: int
     pdf: bytes
     placed: Mapping[str, Placed]
-    """Keyed by requirement id (URS) or ``<step>.acceptance`` / ``<step>.observed`` (FAT)."""
+    """Keyed by requirement id (URS), ``<step>.acceptance`` / ``<step>.observed`` (FAT,
+    SAT), or a handwritten field (SAT, e.g. ``serial``, ``SAT-01.observed.original``)."""
 
     @property
     def filename(self) -> str:
@@ -156,19 +183,28 @@ def _compile(
     template: str, data: dict, issued: dt.date, texts: Mapping[str, str], doc: Document
 ) -> Rendered:
     inputs = {"data": json.dumps(data, ensure_ascii=False)}
-    common = {"root": TEMPLATES, "ignore_system_fonts": True, "sys_inputs": inputs}
+    common = {
+        "root": TEMPLATES,
+        "font_paths": [FONTS],
+        "ignore_system_fonts": True,
+        "sys_inputs": inputs,
+    }
     path = TEMPLATES / template
     timestamp = int(dt.datetime.combine(issued, dt.time(), dt.UTC).timestamp())
     pdf, warnings = typst.compile_with_warnings(path, timestamp=timestamp, **common)
     if warnings:
         raise RenderError(f"{template}: Typst warnings: {warnings}")
-    pages = {
-        p["key"]: p["page"]
-        for p in json.loads(typst.query(path, "<placed>", field="value", **common))
+    marks = {
+        m["key"]: m for m in json.loads(typst.query(path, "<placed>", field="value", **common))
     }
-    if set(pages) != set(texts):
-        raise RenderError(f"{doc.id}: placed keys differ: {sorted(set(pages) ^ set(texts))}")
-    placed = {k: Placed(pages[k], t) for k, t in texts.items()}
+    if set(marks) != set(texts):
+        raise RenderError(f"{doc.id}: placed keys differ: {sorted(set(marks) ^ set(texts))}")
+    placed = {
+        k: Placed(
+            marks[k]["page"], t, Box(*(marks[k][f] for f in "xywh")) if "w" in marks[k] else None
+        )
+        for k, t in texts.items()
+    }
     return Rendered(doc_id=doc.id, rev=doc.rev, pdf=pdf, placed=placed)
 
 
@@ -301,10 +337,125 @@ def render_fat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
     return _compile("fat.typ", data, issued, texts, doc)
 
 
+def render_sat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """SAT protocol and report: a printed English vendor form, filled in by hand at site.
+
+    Handwritten entries use the document's ``entry_language`` for numbers and dates
+    (``1.500 rpm``, scenario S7) and carry a bounding box. A :class:`Correction` draws the
+    original value with the final one written over it (S1); the instrument table shows each
+    calibration due date (S2); the serial number is the one written on this document (S3).
+    """
+    _require_filled(eq)
+    doc = document(eq, doc_id, 0)
+    if doc.type != "sat" or doc.entry_language is None:
+        raise RenderError(f"{doc_id} is a {doc.type}, not a SAT")
+    lang, hand = doc.language, doc.entry_language
+    protocol = next(p for p in eq.protocols if p.doc_id == doc_id)
+    reqs = {r.id: r for r in eq.requirements}
+    people = {p.id: p for p in eq.people}
+    instruments = {i.id: i for i in eq.instruments}
+    employers = {eq.site: "Customer (site)", eq.vendor.id: eq.vendor.name}
+    issued = doc.issued_on.resolve(t0)
+    approved = protocol.site_approved_on.resolve(t0) if protocol.site_approved_on else None
+    executed = protocol.executed_on.resolve(t0)
+    texts: dict[str, str] = {}
+
+    def put(key: str, text: str) -> str:
+        texts[key] = text
+        return text
+
+    def row(role: str, key: str, pid: str | None, date: dt.date | None) -> dict[str, str]:
+        empty = {"name": "", "company": "", "signature": "", "date": ""}
+        if pid is None:
+            return {"role": role, "key": key, **empty}
+        person = people[pid]
+        return {
+            "role": role,
+            "key": key,
+            "name": put(f"{key}.name", person.name),
+            "company": employers[person.employer],
+            "signature": person.name.split()[-1],
+            "date": put(f"{key}.date", fmt_date(date, hand)) if date else "",
+        }
+
+    steps: list[dict] = []
+    used: list[str] = []
+    for t in eq.tests:
+        if t.protocol != doc_id:
+            continue
+        if not t.description:
+            raise RenderError(f"{t.step}: needs a description to be rendered")
+        used += [i for i in t.instruments if i not in used]
+        ac = fmt_spec(t.acceptance or reqs[t.requirement].spec, lang)
+        step = {
+            "step": t.step,
+            "description": t.description,
+            "acceptance": put(f"{t.step}.acceptance", ac),
+            "instruments": list(t.instruments),
+            "observed": put(f"{t.step}.observed", fmt_observation(t.observed, hand)),
+            "result": put(f"{t.step}.result", _result(t.recorded_result, hand)),
+        }
+        if t.instruments:
+            put(f"{t.step}.instruments", " ".join(t.instruments))
+        if isinstance(t.correction, Correction):
+            original = fmt_observation(t.correction.original, hand)
+            step["original"] = put(f"{t.step}.observed.original", original)
+        steps.append(step)
+
+    def instrument(i: str) -> dict[str, str]:
+        cert = instruments[i].certificate
+        due = fmt_date(cert.valid_until.resolve(t0), hand)
+        key = f"instrument.{i}"
+        return {
+            "key": key,
+            "id": put(f"{key}.id", i),
+            "name": instruments[i].name,
+            "serial": put(f"{key}.serial", instruments[i].serial_no),
+            "certificate": put(f"{key}.certificate", cert.id),
+            "due": put(f"{key}.due", due),
+        }
+
+    data = {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "vendor": eq.vendor.name,
+        "issued_on": fmt_date(issued, lang),
+        "equipment": f"{eq.tag} {EN_DASH} {eq.name}",
+        "serial": put("serial", doc.serial_no or eq.serial_no or ""),
+        "purpose": (
+            "This document defines and records the site acceptance tests of the "
+            f"{eq.name.lower()} after delivery and installation at the customer's site."
+        ),
+        "approvals": [
+            row("Prepared by", "approval.prepared_by", doc.prepared_by, issued),
+            row("Checked by", "approval.checked_by", doc.checked_by, approved),
+            row("Approved by", "approval.approved_by", doc.approved_by, approved),
+        ],
+        "instruments": [instrument(i) for i in used],
+        "steps": steps,
+        "deviations": put("deviations", "Tidak ada" if hand == "id" else "None"),
+        "execution": [
+            row("Executed by", "execution.executed_by", doc.executed_by, executed),
+            row("Witnessed by", "execution.witnessed_by", doc.witnessed_by, executed),
+        ],
+        "stamp": [eq.vendor.name.upper(), "SITE SERVICE", fmt_date(executed, "en").upper()],
+    }
+    return _compile("sat.typ", data, issued, texts, doc)
+
+
+def _result(result: str, lang: str) -> str:
+    if lang == "id":
+        return "Lulus" if result == "pass" else "Gagal"
+    return result.capitalize()
+
+
 def render_all(eq: Equipment, t0: dt.date) -> list[Rendered]:
     out = []
     for d in eq.documents:
-        out.append(render_urs(eq, d.rev, t0) if d.type == "urs" else render_fat(eq, d.id, t0))
+        if d.type == "urs":
+            out.append(render_urs(eq, d.rev, t0))
+        else:
+            out.append((render_fat if d.type == "fat" else render_sat)(eq, d.id, t0))
     return out
 
 

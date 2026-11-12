@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ from traceq_dataset.render import (
     fmt_spec,
     render_all,
     render_fat,
+    render_sat,
     render_urs,
 )
 from traceq_dataset.schema import Equipment, PendingSpec, PresentObs, RangeObs, RangeSpec
@@ -168,6 +170,7 @@ def test_every_document_validates(eq: Equipment) -> None:
         "URS-TP201_rev1.pdf",
         "FAT-TP201-M_rev0.pdf",
         "FAT-TP201-C_rev0.pdf",
+        "SAT-TP201_rev0.pdf",
     }
     assert [p for r in rendered for p in missing_text(r)] == []
 
@@ -210,4 +213,88 @@ def test_fat_approval_must_match_protocol(eq: Equipment) -> None:
         if d["id"] == "FAT-TP201-C":
             d["approved_by"] = "p-qa"
     with pytest.raises(ValidationError, match="site approval"):
+        Equipment.model_validate(data)
+
+
+# --- SAT ------------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def sat(eq: Equipment) -> Rendered:
+    return render_sat(eq, "SAT-TP201", EVAL_T0)
+
+
+def test_sat_validates_with_boxes(eq: Equipment, sat: Rendered) -> None:
+    assert missing_text(sat) == []
+    assert render_sat(eq, "SAT-TP201", EVAL_T0).pdf == sat.pdf
+    printed = {k for k, p in sat.placed.items() if not p.handwritten}
+    assert printed == {f"SAT-0{i}.acceptance" for i in range(1, 8)}
+
+
+def test_validator_catches_a_moved_box(sat: Rendered) -> None:
+    placed = dict(sat.placed)
+    p = placed["serial"]
+    assert p.box is not None
+    placed["serial"] = replace(p, box=replace(p.box, y=p.box.y + 40))
+    assert missing_text(replace(sat, placed=placed)) == [
+        "SAT-TP201_rev0.pdf serial: text not in its box on page 1"
+    ]
+
+
+def test_s1_overwrite_without_initials(sat: Rendered) -> None:
+    final, original = sat.placed["SAT-01.observed"], sat.placed["SAT-01.observed.original"]
+    assert (original.text, final.text) == ("121.400 tablets/h", "122.400 tablets/h")
+    assert original.box and final.box
+    assert (original.page, original.box.x, original.box.y) == (
+        final.page,
+        final.box.x,
+        final.box.y,
+    )
+
+
+def test_s2_tachometer_expired_on_sat_date(eq: Equipment, sat: Rendered) -> None:
+    executed = next(p for p in eq.protocols if p.doc_id == "SAT-TP201").executed_on
+    tach = next(i for i in eq.instruments if i.id == "TACH-07")
+    assert tach.certificate.valid_until < executed
+    assert sat.placed["instrument.TACH-07.due"].text == "17/05/2026"
+    assert sat.placed["execution.executed_by.date"].text == "18/05/2026"
+    assert "TACH-07" in sat.placed["SAT-01.instruments"].text
+    assert sat.placed["SAT-03.instruments"].text == "TACH-07"
+
+
+def test_s3_serial_differs_from_nameplate(eq: Equipment, sat: Rendered) -> None:
+    assert sat.placed["serial"].text == "RTP36-25-0471"
+    assert eq.serial_no == "RTP36-25-0417"
+    fat = " ".join(page_texts(render_fat(eq, "FAT-TP201-M", EVAL_T0).pdf))
+    assert eq.serial_no in fat
+
+
+def test_s7_entries_use_indonesian_numbers(sat: Rendered) -> None:
+    assert sat.placed["SAT-03.observed"].text == "1.500 rpm"
+    assert sat.placed["SAT-03.acceptance"].text == "10–60 rpm"
+    assert sat.placed["SAT-02.observed"].text == "20,4 kN"
+    assert sat.placed["SAT-01.acceptance"].text == "≥ 120,000 tablets/h"
+
+
+def test_sat_needs_entry_language(eq: Equipment) -> None:
+    data = eq.model_dump(mode="json")
+    for d in data["documents"]:
+        if d["id"] == "SAT-TP201":
+            d["entry_language"] = None
+    with pytest.raises(ValidationError, match="entry_language is required for SAT"):
+        Equipment.model_validate(data)
+
+
+def test_unknown_instrument(eq: Equipment) -> None:
+    data = eq.model_dump(mode="json")
+    data["tests"][-1]["instruments"] = ["TACH-99"]
+    with pytest.raises(ValidationError, match="unknown instrument TACH-99"):
+        Equipment.model_validate(data)
+
+
+def test_correction_keeps_unit(eq: Equipment) -> None:
+    data = eq.model_dump(mode="json")
+    sat01 = next(t for t in data["tests"] if t["step"] == "SAT-01")
+    sat01["correction"]["original"]["unit"] = "tablets/min"
+    with pytest.raises(ValidationError, match="correction must keep"):
         Equipment.model_validate(data)
