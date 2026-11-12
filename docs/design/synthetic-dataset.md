@@ -64,7 +64,7 @@ CPOB (PerBPOM 7/2024) is the primary reference for every defect type and Coverag
 
 Dates are stored as offsets from T0 (`T0-400d`). Two corpus instances are rendered from the same data and seed:
 
-- **Eval corpus:** fixed T0, frozen. Eval scores are comparable across runs.
+- **Eval corpus:** fixed T0 (2026-06-01, `render.EVAL_T0`), frozen. Eval scores are comparable across runs.
 - **Demo corpus:** re-rendered on every demo reset with T0 = reset day, so documents and the database agree. The registry always has overdue and due-soon items without editing data.
 
 Registry state and history are seeded from world data; only the TP-201 package is extracted live in the demo. A virtual clock was rejected because the Audit Trail must record real time.
@@ -112,15 +112,15 @@ The answer key lives beside the world data and is never sent to an LLM.
 ### Requirements and Coverage
 
 ```yaml
-- id: URS-TP201-014
-  text: "Kecepatan turret dapat diatur pada rentang 10–80 rpm"
-  source: {doc: URS-TP201, rev: 1, page: 4, section: "4.2"}
+- id: URS-TP201-002
+  text: "Kecepatan turret dapat diatur pada rentang 20–70 rpm."
+  source: {doc: URS-TP201, rev: 1, page: 1, section: "1. Kinerja"}
   param: turret_speed
-  value: {min: 10, max: 80, unit: rpm}
+  value: {min: 20, max: 70, unit: rpm}
   critical: true
   evidence:
-    - {doc: FAT-TP201, section: "7.3", step: "FAT-7.3.2", result: passed, range_tested: {min: 10, max: 80}}
-  expected_coverage: covered_by_vendor
+    - {doc: FAT-TP201-M, section: "3", step: "FAT-M-02", result: pass, range_tested: {min: 20, max: 60}}
+  expected_coverage: partial  # FAT tested 20–60 only (condition 3)
   also_valid: []
 ```
 
