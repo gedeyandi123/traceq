@@ -19,7 +19,7 @@ Format: [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) (Gebru et al
 
 ## Collection process
 
-- World data is hand-written from public regulatory and pharmacopoeial sources for TP-201 and PW-001; other Equipment may be LLM-drafted, then human-edited and frozen. LLMs never produce numbers or Acceptance Criteria.
+- World data for TP-201 and PW-001 is copied from cited public sources (regulation, pharmacopoeia, literature) with verbatim quotes, or recorded as a site decision with a written rationale. Quotes are checked automatically against the source page; a human checks a sample of critical values. Other Equipment may be LLM-drafted, then human-edited and frozen. LLMs never produce numbers or Acceptance Criteria from memory.
 - Documents are rendered deterministically from world data and a seed; scans are produced by a controlled degrader.
 
 ## Preprocessing

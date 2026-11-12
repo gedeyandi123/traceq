@@ -1,17 +1,24 @@
 """World data schema (design section 4 and 6).
 
-The world is hand-written YAML validated by these models. Every Acceptance Criterion
-and technical limit carries a :class:`Source` (design principle 5).
+The world is YAML validated by these models. Every Acceptance Criterion and technical
+limit carries a :class:`Source` (design principle 5). Values are copied from a cited
+public source with a verbatim quote, or recorded as a site decision with a written
+rationale (principle 7). A skeleton may hold ``pending`` values and sources; a frozen
+dataset may not (:meth:`Equipment.pending`).
 """
 
 from __future__ import annotations
 
+import datetime as dt
+from collections import Counter
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from traceq_dataset.dates import Offset
+
+QUOTE_MAX = 200  # design section 9, "Citations"
 
 
 class Model(BaseModel):
@@ -22,17 +29,51 @@ class Model(BaseModel):
 
 
 class SourceKind(StrEnum):
-    REGULATION = "regulation"  # CPOB / PerBPOM 7/2024, EU GMP, WHO, PIC/S
+    REGULATION = "regulation"  # CPOB / PerBPOM 7/2024, EU GMP, WHO, PIC/S, Permenaker
     PHARMACOPOEIA = "pharmacopoeia"  # Farmakope Indonesia, USP
-    LITERATURE = "literature"  # published papers, textbooks
-    VENDOR_SPEC = "vendor_spec"  # the fictional vendor's own published spec
+    LITERATURE = "literature"  # published papers, textbooks, trade press without brands
+    VENDOR_SPEC = "vendor_spec"  # the fictional vendor's own spec, derived with rationale
     SITE_DECISION = "site_decision"  # a fictional plant choice, with rationale
+    PENDING = "pending"  # skeleton only: not filled yet
+
+
+QUOTED_KINDS = frozenset({SourceKind.REGULATION, SourceKind.PHARMACOPOEIA, SourceKind.LITERATURE})
+"""Kinds whose value must appear in a verbatim quote from a public URL."""
 
 
 class Source(Model):
+    """Where a value comes from.
+
+    Quoted kinds need ``url``, ``quote`` and ``accessed``; the quote is checked against
+    the live page by ``scripts/verify_quotes.py``. Site decisions and fictional vendor
+    specs need a ``rationale`` and may add a quote showing the value is realistic.
+    """
+
     kind: SourceKind
-    ref: str = Field(min_length=3, description="Citation, e.g. 'CPOB 12.29b' or 'VMP §5.2'.")
+    ref: str = Field(
+        "", description="Citation, e.g. 'PerBPOM 7/2024 Ch. 12 §12.14' or a DOI with section."
+    )
+    url: HttpUrl | None = None
+    quote: str | None = Field(None, max_length=QUOTE_MAX)
+    accessed: dt.date | None = None
+    rationale: str | None = None
     note: str | None = None
+
+    @model_validator(mode="after")
+    def _complete(self) -> Source:
+        if self.kind is SourceKind.PENDING:
+            return self
+        if len(self.ref) < 3:
+            raise ValueError("ref needs a citation")
+        if self.kind in QUOTED_KINDS:
+            missing = [f for f in ("url", "quote", "accessed") if getattr(self, f) is None]
+            if missing:
+                raise ValueError(f"{self.kind} source needs {', '.join(missing)}")
+        elif not self.rationale:
+            raise ValueError(f"{self.kind} source needs a rationale")
+        if (self.url is None) != (self.quote is None):
+            raise ValueError("url and quote go together")
+        return self
 
 
 class RangeSpec(Model):
@@ -65,7 +106,15 @@ class PresentSpec(Model):
     type: Literal["present"] = "present"
 
 
-Spec = Annotated[RangeSpec | OneOfSpec | PresentSpec, Field(discriminator="type")]
+class PendingSpec(Model):
+    """Skeleton only: the value is not filled yet. ``expected`` is the spec type it becomes."""
+
+    type: Literal["pending"] = "pending"
+    expected: Literal["range", "one_of", "present"]
+    unit: str | None = None
+
+
+Spec = Annotated[RangeSpec | OneOfSpec | PresentSpec | PendingSpec, Field(discriminator="type")]
 
 
 class NumberObs(Model):
@@ -93,7 +142,17 @@ class PresentObs(Model):
     value: bool
 
 
-Observation = Annotated[NumberObs | RangeObs | TextObs | PresentObs, Field(discriminator="type")]
+class PendingObs(Model):
+    """Skeleton only: the observed value follows once the URS value is filled."""
+
+    type: Literal["pending"] = "pending"
+    expected: Literal["number", "range", "text", "present"]
+    unit: str | None = None
+
+
+Observation = Annotated[
+    NumberObs | RangeObs | TextObs | PresentObs | PendingObs, Field(discriminator="type")
+]
 
 
 # --- Parties ------------------------------------------------------------------------
@@ -141,7 +200,10 @@ class CoverageClass(StrEnum):
 
 class Requirement(Model):
     id: str = Field(pattern=r"^URS-[A-Z0-9]+-\d{3}$")
-    text: str
+    section: str = Field("", description="URS section heading, e.g. '4. Kinerja'.")
+    text: str = Field(
+        description="Requirement sentence; '{min}', '{max}', '{allowed}' are filled from spec."
+    )
     param: str
     spec: Spec
     source: Source
@@ -152,6 +214,32 @@ class Requirement(Model):
         True, description="Could transport/installation change it (CPOB 12.24)?"
     )
     also_valid: tuple[CoverageClass, ...] = ()
+    intended_coverage: CoverageClass = Field(
+        description="Design intent. Once nothing is pending, the decision table must agree."
+    )
+    superseded_spec: Spec | None = Field(
+        None, description="Value in the superseded URS revision (scenario: rev 0 -> rev 1)."
+    )
+
+    @model_validator(mode="after")
+    def _value_in_quote(self) -> Requirement:
+        """A quoted source must contain the numbers it is cited for (design section 9)."""
+        if self.source.kind in QUOTED_KINDS and isinstance(self.spec, RangeSpec):
+            quote = self.source.quote or ""
+            for bound in (self.spec.min, self.spec.max):
+                if bound is not None and not any(f in quote for f in number_forms(bound)):
+                    raise ValueError(f"{self.id}: value {bound:g} not found in source quote")
+        return self
+
+
+def number_forms(value: float) -> set[str]:
+    """Ways a number may be written in an English or Indonesian source."""
+    text = f"{value:g}"
+    forms = {text, text.replace(".", ",")}
+    if value == int(value) and abs(value) >= 1000:
+        n = int(value)
+        forms |= {f"{n:,}", f"{n:,}".replace(",", "."), f"{n:,}".replace(",", " ")}
+    return forms
 
 
 class Stage(StrEnum):
@@ -187,3 +275,92 @@ class DesignEvidence(Model):
     doc_id: str
     requirement: str
     observed: Observation
+
+
+# --- Equipment (one world-data file) ------------------------------------------------
+
+
+class Scenario(Model):
+    """A planted defect or test situation (design section 7, v0 scenarios)."""
+
+    id: str = Field(pattern=r"^S\d+$")
+    summary: str
+    reference: str = Field("", description="Rule it breaks, e.g. 'CPOB 10.8'.")
+    targets: tuple[str, ...] = Field(
+        description="Requirement ids, protocol doc ids or test steps it is planted in."
+    )
+    note: str | None = None
+
+
+class Equipment(Model):
+    """All world data for one Equipment item: the content of one ``world/*.yaml`` file."""
+
+    tag: str = Field(pattern=r"^[A-Z]+-\d{3}$")
+    name: str
+    site: str
+    vendor: Vendor
+    people: tuple[Person, ...]
+    requirements: tuple[Requirement, ...] = Field(min_length=1)
+    protocols: tuple[VendorProtocol, ...] = ()
+    tests: tuple[TestEvidence, ...] = ()
+    designs: tuple[DesignEvidence, ...] = ()
+    scenarios: tuple[Scenario, ...] = ()
+
+    @model_validator(mode="after")
+    def _references(self) -> Equipment:
+        errors: list[str] = []
+        prefix = f"URS-{self.tag.replace('-', '')}-"
+
+        def dupes(ids: list[str], what: str) -> None:
+            errors.extend(f"duplicate {what} {i}" for i, n in Counter(ids).items() if n > 1)
+
+        req_ids = [r.id for r in self.requirements]
+        dupes(req_ids, "requirement")
+        dupes([p.id for p in self.people], "person")
+        dupes([p.doc_id for p in self.protocols], "protocol")
+        dupes([t.step for t in self.tests], "test step")
+        dupes([s.id for s in self.scenarios], "scenario")
+        errors += [f"{r} does not start with {prefix}" for r in req_ids if not r.startswith(prefix)]
+
+        reqs, protocols = set(req_ids), {p.doc_id for p in self.protocols}
+        employers = {self.site, self.vendor.id}
+        errors += [
+            f"{p.id}: unknown employer {p.employer}"
+            for p in self.people
+            if p.employer not in employers
+        ]
+        errors += [
+            f"{p.doc_id}: vendor {p.vendor} is not {self.vendor.id}"
+            for p in self.protocols
+            if p.vendor != self.vendor.id
+        ]
+        for t in self.tests:
+            if t.requirement not in reqs:
+                errors.append(f"{t.step}: unknown requirement {t.requirement}")
+            if t.protocol not in protocols:
+                errors.append(f"{t.step}: unknown protocol {t.protocol}")
+        errors += [
+            f"{d.doc_id}: unknown requirement {d.requirement}"
+            for d in self.designs
+            if d.requirement not in reqs
+        ]
+        known = reqs | protocols | {t.step for t in self.tests} | {d.doc_id for d in self.designs}
+        for s in self.scenarios:
+            errors += [f"{s.id}: unknown target {x}" for x in s.targets if x not in known]
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self
+
+    def pending(self) -> list[str]:
+        """Paths still to be filled. A frozen dataset has none."""
+        out: list[str] = []
+        for r in self.requirements:
+            if isinstance(r.spec, PendingSpec):
+                out.append(f"{r.id}.spec")
+            if isinstance(r.superseded_spec, PendingSpec):
+                out.append(f"{r.id}.superseded_spec")
+            if r.source.kind is SourceKind.PENDING:
+                out.append(f"{r.id}.source")
+        out += [f"{t.step}.observed" for t in self.tests if isinstance(t.observed, PendingObs)]
+        out += [f"{d.doc_id}.observed" for d in self.designs if isinstance(d.observed, PendingObs)]
+        return out

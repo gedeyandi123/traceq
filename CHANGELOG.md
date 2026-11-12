@@ -14,3 +14,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 - Dataset design, glossary, datasheet skeleton, and licences (code Apache-2.0, data CC BY 4.0).
 - `traceq_dataset` package: world-data schema (Pydantic), T0 date offsets, and the `covered_by_vendor` decision table with tests.
+- TP-201 world-data skeleton (`world/tp201.yaml`): 38 URS requirements with intended Coverage, FAT/SAT protocols and steps, and the eight v0 scenarios. Values and sources are still `pending`.
+- Schema: two-tier `Source` (quoted: `url`, `quote`, `accessed`; site decision: `rationale`), value-in-quote check, `pending` placeholders, and the `Equipment` model with cross-reference checks.
+- `python -m traceq_dataset.world` progress report and `scripts/verify_quotes.py` (local quote check).
+
+### Changed
+
+- Principles 5 and 7: values may be copied by an LLM from a cited source, never produced from memory; real vendor brochures are not cited.

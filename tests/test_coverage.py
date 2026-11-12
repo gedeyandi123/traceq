@@ -75,9 +75,10 @@ def _req(**overrides: Any) -> Requirement:
         "text": "speed adjustable",
         "param": "speed",
         "spec": {"type": "range", "min": 10, "max": 80, "unit": "rpm"},
-        "source": {"kind": "site_decision", "ref": "test fixture"},
+        "source": {"kind": "site_decision", "ref": "test fixture", "rationale": "fixture"},
         "scope": "control",
         "transport_sensitive": False,
+        "intended_coverage": "gap",
     }
     data.update(overrides)
     return Requirement.model_validate(data)
