@@ -1,9 +1,12 @@
-# TP-201 world data: SKELETON (dataset v0).
+# TP-201 world data (dataset v0): values filled; judged values await human review.
 #
-# Structure, intent and scenario mapping are drafted; every number, Acceptance
-# Criterion and source is `pending` until copied from a cited public source or
-# recorded as a site decision with rationale (design principles 5 and 7).
-# Check progress: uv run python -m traceq_dataset.world world/tp201.yaml
+# Two kinds of source (design principles 5 and 7):
+# - quoted: regulation or literature, copied with url + verbatim quote; the value must
+#   appear in the quote (schema) and the quote on the live page (scripts/verify_quotes.py);
+# - site_decision: the plant's own choice with a rationale, optionally a quote showing it
+#   is realistic. These were drafted by an LLM (drafted_by: llm) and block freeze until a
+#   human sets reviewed_by.
+# Check: uv run python -m traceq_dataset.world world/tp201.yaml
 #
 # Names of the plant, vendor and people are provisional: trademark check before freeze.
 
@@ -38,8 +41,15 @@ requirements:
     section: "1. Kinerja"
     text: "Mesin memiliki {min} stasiun punch."
     param: punch_stations
-    spec: {type: pending, expected: range, unit: stations}
-    source: {kind: pending}
+    spec: {type: range, min: 36, unit: stations}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see Bak et al. 2025, Pharmaceutics 17(5):659, doi:10.3390/pharmaceutics17050659 §2"
+      rationale: "Station count of a conventional production press, as in the cited industrial study; sets output with the turret speed."
+      url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC12114868/fullTextXML
+      quote: "A conventional rotary tablet press equipped with 36 punch stations was utilized."
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -47,8 +57,15 @@ requirements:
     section: "1. Kinerja"
     text: "Kecepatan turret dapat diatur pada rentang {min}–{max} rpm."
     param: turret_speed
-    spec: {type: pending, expected: range, unit: rpm}
-    source: {kind: pending}
+    spec: {type: range, min: 20, max: 70, unit: rpm}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see Wünsch et al. 2020, Pharmaceutics 12(4):310, doi:10.3390/pharmaceutics12040310 §2.3"
+      rationale: "Speed range the plant needs for its blends; matches the range simulated in the cited scale-up study."
+      url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7238235/fullTextXML
+      quote: "compaction stresses of approx. 50, 150, and 300 MPa were applied and turret speeds in the range of 20 to 70 rpm were simulated"
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     critical: true
     transport_sensitive: false
@@ -57,35 +74,57 @@ requirements:
     section: "1. Kinerja"
     text: "Kapasitas produksi minimal {min} tablet/jam."
     param: output_rate
-    spec: {type: pending, expected: range, unit: tablets/h}
-    superseded_spec: {type: pending, expected: range, unit: tablets/h}  # S8: rev 0 value
-    source: {kind: pending}
+    spec: {type: range, min: 120000, unit: tablets/h}
+    superseded_spec: {type: range, min: 100000, unit: tablets/h}  # S8: rev 0 value
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see Mohylyuk, Bandere 2023, Pharmaceutics 15(4):1236, doi:10.3390/pharmaceutics15041236 §3"
+      rationale: "36 stations x 70 rpm x 60 = 151,200 tablets/h theoretical; the plant needs 120,000 (about 80% of theoretical, the same margin the cited study runs at). Rev 0 asked for 100,000 before the volume forecast was raised."
+      url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC10144080/fullTextXML
+      quote: "the tableting process was conducted at 80 rpm (80% of maximum speed), which is equivalent to 62,400 tab/h"
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     critical: true
     intended_coverage: covered_by_vendor
   - id: URS-TP201-004
     section: "1. Kinerja"
-    text: "Gaya tekan utama maksimal {max} kN."
+    text: "Gaya tekan utama yang dapat dicapai minimal {min} kN."
     param: main_compression_force
-    spec: {type: pending, expected: range, unit: kN}
-    source: {kind: pending}
+    spec: {type: range, min: 100, unit: kN}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see Wünsch et al. 2020, Pharmaceutics 12(4):310, doi:10.3390/pharmaceutics12040310 §2.3"
+      rationale: "A 25 mm round tablet (URS-TP201-006) at 200 MPa needs about 98 kN; stresses up to 300 MPa are used in the cited study, so the press must reach at least 100 kN."
+      url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7238235/fullTextXML
+      quote: "compaction stresses of approx. 50, 150, and 300 MPa were applied and turret speeds in the range of 20 to 70 rpm were simulated"
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     critical: true
     intended_coverage: partial  # S5: FAT value outside AC recorded "pass"
   - id: URS-TP201-005
     section: "1. Kinerja"
-    text: "Gaya pra-kompresi maksimal {max} kN."
+    text: "Gaya pra-kompresi yang dapat dicapai minimal {min} kN."
     param: precompression_force
-    spec: {type: pending, expected: range, unit: kN}
-    source: {kind: pending}
+    spec: {type: range, min: 20, unit: kN}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Pre-compression capability of 20% of the 100 kN main compression requirement (URS-TP201-004)."
+      drafted_by: llm
     scope: mechanical
     intended_coverage: covered_by_vendor
   - id: URS-TP201-006
     section: "1. Kinerja"
     text: "Diameter tablet maksimal {max} mm."
     param: tablet_diameter
-    spec: {type: pending, expected: range, unit: mm}
-    source: {kind: pending}
+    spec: {type: range, max: 25, unit: mm}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Largest round tablet in the plant's portfolio and pipeline; EU D tooling (URS-TP201-008) is chosen for this size."
+      drafted_by: llm
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -93,8 +132,15 @@ requirements:
     section: "1. Kinerja"
     text: "Kedalaman pengisian maksimal {max} mm."
     param: fill_depth
-    spec: {type: pending, expected: range, unit: mm}
-    source: {kind: pending}
+    spec: {type: range, max: 18, unit: mm}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see Schomberg, Kwade, Finke 2020, Pharmaceutics 12(3):248, doi:10.3390/pharmaceutics12030248 §2.2"
+      rationale: "Fill depth for the heaviest product with margin; the cited die-filling study used fill depths up to 16 mm."
+      url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7150958/fullTextXML
+      quote: "three fill cams with fill depth of 10, 14 and 16 mm were used"
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -102,8 +148,15 @@ requirements:
     section: "1. Kinerja"
     text: "Mesin menggunakan tooling tipe {allowed}."
     param: tooling_type
-    spec: {type: pending, expected: one_of}
-    source: {kind: pending}
+    spec: {type: one_of, allowed: [EU D]}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see Schomberg, Kwade, Finke 2020, Pharmaceutics 12(3):248, doi:10.3390/pharmaceutics12030248 §2.2"
+      rationale: "The plant's punch inventory is EU D; the URS keeps it so tooling can be reused and 25 mm tablets fit."
+      url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7150958/fullTextXML
+      quote: "The press was equipped with four flat-faced round Euro-D punches with a diameter of 9 mm."
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     transport_sensitive: false
     intended_coverage: conflict  # datasheet states another tooling type
@@ -114,7 +167,14 @@ requirements:
     text: "Semua bagian yang kontak dengan produk terbuat dari {allowed}."
     param: product_contact_material
     spec: {type: one_of, allowed: [SS 316L]}  # decision log Q29 (S6); source still pending
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see PerBPOM 7/2024 Bab 4 §4.7"
+      rationale: "316L is the plant standard for product contact (low carbon, better corrosion resistance under wet cleaning); CPOB 4.7 requires non-reactive contact parts."
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Bagian alat produksi yang bersentuhan dengan produk tidak boleh bersifat reaktif, aditif atau absorbtif yang dapat memengaruhi mutu dan berakibat buruk pada produk."
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     critical: true
     transport_sensitive: false
@@ -123,8 +183,13 @@ requirements:
     section: "2. Material dan konstruksi"
     text: "Kekasaran permukaan bagian kontak produk Ra maksimal {max} µm."
     param: contact_surface_roughness
-    spec: {type: pending, expected: range, unit: µm}
-    source: {kind: pending}
+    spec: {type: range, max: 0.8, unit: µm}
+    source:
+      kind: literature
+      ref: "ECA Academy GMP News, 'Requirements for Plastics in Pharmaceutical Equipment Engineering'"
+      url: https://www.gmp-compliance.org/gmp-news/requirements-for-plastics-in-pharmaceutical-equipment-engineering
+      quote: "a surface roughness value of Ra ≤ 0.8 µm is common"
+      accessed: 2026-11-12
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -132,8 +197,12 @@ requirements:
     section: "2. Material dan konstruksi"
     text: "Bagian yang tidak kontak dengan produk terbuat dari {allowed}."
     param: non_contact_material
-    spec: {type: pending, expected: one_of}
-    source: {kind: pending}
+    spec: {type: one_of, allowed: [SS 304]}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Frame and covers only need corrosion resistance for routine cleaning; 304 is the plant standard."
+      drafted_by: llm
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -141,8 +210,12 @@ requirements:
     section: "2. Material dan konstruksi"
     text: "Gasket dan seal yang kontak dengan produk terbuat dari {allowed}."
     param: seal_material
-    spec: {type: pending, expected: one_of}
-    source: {kind: pending}
+    spec: {type: one_of, allowed: [EPDM, silicone]}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Plant standard elastomers for product contact, compatible with its cleaning agents; each needs a food-contact compliance statement."
+      drafted_by: llm
     scope: mechanical
     transport_sensitive: false
     intended_coverage: gap
@@ -151,7 +224,12 @@ requirements:
     text: "Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade."
     param: food_grade_lubricant
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Bab 4 §4.3"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "misalnya pelumas atau pendingin tidak boleh bersentuhan dengan bahan yang sedang diolah"
+      accessed: 2026-11-12
     scope: mechanical
     transport_sensitive: false
     intended_coverage: gap
@@ -162,7 +240,11 @@ requirements:
     text: "Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan."
     param: automatic_weight_control
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Weight control by compression force keeps tablet weight within limits between manual IPC checks; required on all new presses."
+      drafted_by: llm
     scope: control
     critical: true
     intended_coverage: partial  # tested only in the unapproved control FAT (S4)
@@ -171,7 +253,14 @@ requirements:
     text: "Tablet di luar batas berat ditolak otomatis."
     param: automatic_rejection
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see PerBPOM 7/2024 Bab 5 §5.95"
+      rationale: "Out-of-limit tablets must be separated automatically; CPOB 5.95 requires rejected tablets to be held in clearly marked containers."
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Tablet yang ditolak atau yang disingkirkan seharusnya ditempatkan dalam wadah yang ditandai dengan jelas"
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: control
     critical: true
     intended_coverage: partial  # S4
@@ -179,8 +268,12 @@ requirements:
     section: "3. Kontrol dan keselamatan"
     text: "Akurasi pengukuran gaya tekan maksimal ±{max}% dari skala penuh."
     param: force_measurement_accuracy
-    spec: {type: pending, expected: range, unit: "% FS"}
-    source: {kind: pending}
+    spec: {type: range, max: 1, unit: "% FS"}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "The force signal drives weight control and rejection; ±1% of full scale keeps the 100 kN channel within ±1 kN. No brand-free source found."
+      drafted_by: llm
     scope: control
     critical: true
     intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
@@ -188,8 +281,15 @@ requirements:
     section: "3. Kontrol dan keselamatan"
     text: "Kecepatan paddle feeder dapat diatur pada rentang {min}–{max} rpm."
     param: feeder_paddle_speed
-    spec: {type: pending, expected: range, unit: rpm}
-    source: {kind: pending}
+    spec: {type: range, min: 10, max: 60, unit: rpm}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see Schomberg, Kwade, Finke 2020, Pharmaceutics 12(3):248, doi:10.3390/pharmaceutics12030248 §2.2"
+      rationale: "Paddle range for the plant's poorly and freely flowing blends. The cited study ran paddle speeds of 5 to 60 rpm (its Table 3), spanning that press's minimum and maximum."
+      url: https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7150958/fullTextXML
+      quote: "three turret speeds as well as four paddle speeds were used, including the machine-specific minimum and maximum as well as intermediates"
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: control
     transport_sensitive: false
     intended_coverage: partial  # FAT range too narrow; SAT single reading is ambiguous (S7)
@@ -198,7 +298,11 @@ requirements:
     text: "Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka."
     param: guard_door_interlock
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Operator safety: opening a guard door must stop the turret (plant machinery safety standard)."
+      drafted_by: llm
     scope: control
     critical: true
     intended_coverage: gap
@@ -207,7 +311,11 @@ requirements:
     text: "Tombol emergency stop tersedia dan berfungsi."
     param: emergency_stop
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Operator safety: an emergency stop at the operator position (plant machinery safety standard)."
+      drafted_by: llm
     scope: control
     critical: true
     intended_coverage: covered_by_vendor
@@ -216,7 +324,11 @@ requirements:
     text: "Mesin berhenti otomatis saat terjadi overload pada punch."
     param: punch_overload_protection
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Protects punches and dies from damage that could release metal particles into product."
+      drafted_by: llm
     scope: control
     intended_coverage: covered_by_vendor
 
@@ -226,7 +338,12 @@ requirements:
     text: "HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin)."
     param: hmi_access_levels
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Aneks 7 §12.1"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Kontrol fisik dan/atau logical controls seharusnya tersedia untuk membatasi akses terhadap sistem komputerisasi kepada personel yang berwenang."
+      accessed: 2026-11-12
     scope: data_integrity
     critical: true
     intended_coverage: covered_by_vendor
@@ -235,7 +352,12 @@ requirements:
     text: "HMI merekam audit trail untuk setiap perubahan parameter dan resep."
     param: hmi_audit_trail
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Aneks 7 §9"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Perubahan atau penghapusan data terkait CPOB seharusnya didokumentasikan."
+      accessed: 2026-11-12
     scope: data_integrity
     critical: true
     intended_coverage: partial  # S4
@@ -244,7 +366,14 @@ requirements:
     text: "HMI menyimpan log alarm beserta waktu dan pengguna."
     param: hmi_alarm_log
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see PerBPOM 7/2024 Aneks 7 §12.4"
+      rationale: "Alarms are GMP-relevant events; logging who acknowledged them and when follows the record-keeping rule of Aneks 7 §12.4."
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Sistem manajemen data dan dokumen seharusnya dirancang untuk mencatat identitas operator yang masuk, mengubah, mengonfirmasikan atau menghapus data termasuk tanggal dan waktu."
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: data_integrity
     intended_coverage: covered_by_vendor
   - id: URS-TP201-024
@@ -252,7 +381,12 @@ requirements:
     text: "Resep produk dapat di-backup dan dipulihkan."
     param: recipe_backup
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Aneks 7 §7.2"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Back-up data yang relevan seharusnya dilakukan secara teratur. Integritas dan akurasi data back-up dan kemampuan untuk mengembalikan data seharusnya diperiksa selama validasi"
+      accessed: 2026-11-12
     scope: data_integrity
     intended_coverage: gap
   - id: URS-TP201-025
@@ -260,7 +394,12 @@ requirements:
     text: "Jam sistem HMI disinkronkan dengan sumber waktu pabrik."
     param: time_synchronisation
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PIC/S PI 041-1 (2021) §9.5"
+      url: https://picscheme.org/docview/4234
+      quote: "The operating system clock should be synchronized with the clock of connected systems and access to all clocks restricted to authorised personnel."
+      accessed: 2026-11-12
     scope: data_integrity
     intended_coverage: gap
 
@@ -269,8 +408,12 @@ requirements:
     section: "5. Utilitas dan lingkungan"
     text: "Mesin beroperasi dengan suplai listrik {min} V, 3 fase."
     param: power_supply_voltage
-    spec: {type: pending, expected: range, unit: V}
-    source: {kind: pending}
+    spec: {type: range, min: 380, max: 380, unit: V}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "The plant's low-voltage supply is 220/380 V, 3 phase, 50 Hz."
+      drafted_by: llm
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -278,8 +421,12 @@ requirements:
     section: "5. Utilitas dan lingkungan"
     text: "Mesin beroperasi dengan udara tekan {min}–{max} bar."
     param: compressed_air_pressure
-    spec: {type: pending, expected: range, unit: bar}
-    source: {kind: pending}
+    spec: {type: range, min: 6, max: 7, unit: bar}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Compressed-air header pressure at the compression-room drop point."
+      drafted_by: llm
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -287,8 +434,15 @@ requirements:
     section: "5. Utilitas dan lingkungan"
     text: "Sambungan dust extraction kompatibel dengan sistem pabrik minimal {min} m³/jam."
     param: dust_extraction_flow
-    spec: {type: pending, expected: range, unit: m3/h}
-    source: {kind: pending}
+    spec: {type: range, min: 300, unit: m3/h}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see PerBPOM 7/2024 Bab 5 §5.91"
+      rationale: "Spare capacity of the compression-room dust collector branch; CPOB 5.91 requires effective dust control on tablet presses."
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Mesin pencetak tablet seharusnya dilengkapi dengan fasilitas pengendali debu yang efektif"
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -296,8 +450,14 @@ requirements:
     section: "5. Utilitas dan lingkungan"
     text: "Tingkat kebisingan di posisi operator maksimal {max} dBA."
     param: noise_level
-    spec: {type: pending, expected: range, unit: dBA}
-    source: {kind: pending}
+    spec: {type: range, max: 85, unit: dBA}
+    source:
+      kind: literature
+      ref: "Swandito, Rusba, Antika 2025, IDENTIFIKASI 11(4), citing Permenaker 5/2018"
+      url: https://jurnal.d4k3.uniba-bpn.ac.id/index.php/identifikasi/article/download/748/444/3262
+      quote: "batas ambang kebisingan yang diizinkan adalah 85 dBA untuk durasi paparan selama 8 jam kerja"
+      accessed: 2026-11-12
+      note: "The Permenaker 5/2018 noise table is a scanned image in the official gazette, so a citing journal is quoted."
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -305,8 +465,12 @@ requirements:
     section: "5. Utilitas dan lingkungan"
     text: "Dimensi mesin muat di ruang cetak dengan tinggi plafon {max} mm."
     param: room_height_fit
-    spec: {type: pending, expected: range, unit: mm}
-    source: {kind: pending}
+    spec: {type: range, max: 3000, unit: mm}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Clear ceiling height of the compression room."
+      drafted_by: llm
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -314,8 +478,12 @@ requirements:
     section: "5. Utilitas dan lingkungan"
     text: "Mesin beroperasi normal pada suhu ruang {min}–{max} °C."
     param: room_temperature
-    spec: {type: pending, expected: range, unit: °C}
-    source: {kind: pending}
+    spec: {type: range, min: 18, max: 25, unit: °C}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Compression-room HVAC design range."
+      drafted_by: llm
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -325,8 +493,12 @@ requirements:
     section: "6. Pembersihan"
     text: "Waktu changeover dan pembersihan antar produk maksimal {max} menit."
     param: changeover_time
-    spec: {type: pending, expected: range, unit: min}
-    source: {kind: pending}
+    spec: {type: range, max: 120, unit: min}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Production planning allows a two-hour block per product changeover."
+      drafted_by: llm
     scope: mechanical
     transport_sensitive: false
     intended_coverage: gap
@@ -335,7 +507,12 @@ requirements:
     text: "Bagian kontak produk dapat dilepas untuk dibersihkan tanpa alat khusus."
     param: toolless_disassembly
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Bab 4 §4.5"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Peralatan manufaktur seharusnya didesain sedemikian rupa agar mudah dibersihkan."
+      accessed: 2026-11-12
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -346,7 +523,12 @@ requirements:
     text: "Manual operasi dan perawatan tersedia dalam bahasa Indonesia atau Inggris."
     param: manuals
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Bab 12 §12.27c"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "pengumpulan dan pemeriksaan dokumen instruksi kerja dan instruksi pengoperasian serta instruksi perawatan peralatan"
+      accessed: 2026-11-12
     scope: documentation
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -355,7 +537,14 @@ requirements:
     text: "Sertifikat material 3.1 tersedia untuk semua bagian kontak produk."
     param: material_certificates
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision; see PerBPOM 7/2024 Bab 4 §4.7"
+      rationale: "Type 3.1 material certificates are the plant's accepted Evidence that contact parts meet CPOB 4.7."
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Bagian alat produksi yang bersentuhan dengan produk tidak boleh bersifat reaktif, aditif atau absorbtif yang dapat memengaruhi mutu dan berakibat buruk pada produk."
+      accessed: 2026-11-12
+      drafted_by: llm
     scope: documentation
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -364,7 +553,12 @@ requirements:
     text: "Sertifikat kalibrasi sensor gaya tekan tersedia dan masih berlaku."
     param: force_sensor_calibration
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Bab 4 §4.10"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Peralatan untuk mengukur, menimbang, mencatat dan mengendalikan seharusnya dikalibrasi dan diperiksa pada interval waktu tertentu"
+      accessed: 2026-11-12
     scope: documentation
     intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
   - id: URS-TP201-037
@@ -372,7 +566,11 @@ requirements:
     text: "Deklarasi kesesuaian keselamatan mesin tersedia."
     param: machinery_safety_declaration
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: site_decision
+      ref: "VMP TP-201, site decision"
+      rationale: "Corporate purchasing standard: imported machines come with a machinery safety declaration of conformity."
+      drafted_by: llm
     scope: documentation
     transport_sensitive: false
     intended_coverage: gap
@@ -381,7 +579,12 @@ requirements:
     text: "Daftar suku cadang dan gambar teknis as-built tersedia."
     param: spare_parts_and_drawings
     spec: {type: present}
-    source: {kind: pending}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Bab 12 §12.27a"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "verifikasi kebenaran instalasi komponen, instrumentasi, peralatan, pemipaan, dan peralatan penunjang sesuai dengan gambar teknis dan spesifikasi"
+      accessed: 2026-11-12
     scope: documentation
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -389,15 +592,15 @@ requirements:
 # Executed FAT/SAT steps. Observed values follow the URS values once filled;
 # recorded_result is the design intent (S5 records "pass" on an out-of-limit value).
 tests:
-  - {step: FAT-M-01, protocol: FAT-TP201-M, requirement: URS-TP201-001, observed: {type: pending, expected: number, unit: stations}, recorded_result: pass}
-  - {step: FAT-M-02, protocol: FAT-TP201-M, requirement: URS-TP201-002, observed: {type: pending, expected: range, unit: rpm}, recorded_result: pass}
-  - {step: FAT-M-03, protocol: FAT-TP201-M, requirement: URS-TP201-004, observed: {type: pending, expected: number, unit: kN}, recorded_result: pass}
-  - {step: FAT-M-04, protocol: FAT-TP201-M, requirement: URS-TP201-006, observed: {type: pending, expected: number, unit: mm}, recorded_result: pass}
-  - {step: FAT-M-05, protocol: FAT-TP201-M, requirement: URS-TP201-007, observed: {type: pending, expected: number, unit: mm}, recorded_result: pass}
-  - {step: FAT-M-06, protocol: FAT-TP201-M, requirement: URS-TP201-010, observed: {type: pending, expected: number, unit: µm}, recorded_result: pass}
-  - {step: FAT-M-07, protocol: FAT-TP201-M, requirement: URS-TP201-011, observed: {type: pending, expected: text}, recorded_result: pass}
-  - {step: FAT-M-08, protocol: FAT-TP201-M, requirement: URS-TP201-016, observed: {type: pending, expected: number, unit: "% FS"}, recorded_result: pass}
-  - {step: FAT-M-09, protocol: FAT-TP201-M, requirement: URS-TP201-017, observed: {type: pending, expected: range, unit: rpm}, recorded_result: pass}
+  - {step: FAT-M-01, protocol: FAT-TP201-M, requirement: URS-TP201-001, observed: {type: number, value: 36, unit: stations}, recorded_result: pass}
+  - {step: FAT-M-02, protocol: FAT-TP201-M, requirement: URS-TP201-002, observed: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass}
+  - {step: FAT-M-03, protocol: FAT-TP201-M, requirement: URS-TP201-004, observed: {type: number, value: 96, unit: kN}, recorded_result: pass}  # S5: below the 100 kN AC, recorded pass
+  - {step: FAT-M-04, protocol: FAT-TP201-M, requirement: URS-TP201-006, observed: {type: number, value: 25, unit: mm}, recorded_result: pass}
+  - {step: FAT-M-05, protocol: FAT-TP201-M, requirement: URS-TP201-007, observed: {type: number, value: 18, unit: mm}, recorded_result: pass}
+  - {step: FAT-M-06, protocol: FAT-TP201-M, requirement: URS-TP201-010, observed: {type: number, value: 0.6, unit: µm}, recorded_result: pass}
+  - {step: FAT-M-07, protocol: FAT-TP201-M, requirement: URS-TP201-011, observed: {type: text, value: SS 304}, recorded_result: pass}
+  - {step: FAT-M-08, protocol: FAT-TP201-M, requirement: URS-TP201-016, observed: {type: number, value: 0.5, unit: "% FS"}, recorded_result: pass}
+  - {step: FAT-M-09, protocol: FAT-TP201-M, requirement: URS-TP201-017, observed: {type: range, min: 20, max: 60, unit: rpm}, recorded_result: pass}
   - {step: FAT-M-10, protocol: FAT-TP201-M, requirement: URS-TP201-033, observed: {type: present, value: true}, recorded_result: pass}
   - {step: FAT-M-11, protocol: FAT-TP201-M, requirement: URS-TP201-034, observed: {type: present, value: true}, recorded_result: pass}
   - {step: FAT-M-12, protocol: FAT-TP201-M, requirement: URS-TP201-035, observed: {type: present, value: true}, recorded_result: pass}
@@ -406,9 +609,9 @@ tests:
   - {step: FAT-C-01, protocol: FAT-TP201-C, requirement: URS-TP201-014, observed: {type: present, value: true}, recorded_result: pass}
   - {step: FAT-C-02, protocol: FAT-TP201-C, requirement: URS-TP201-015, observed: {type: present, value: true}, recorded_result: pass}
   - {step: FAT-C-03, protocol: FAT-TP201-C, requirement: URS-TP201-022, observed: {type: present, value: true}, recorded_result: pass}
-  - {step: SAT-01, protocol: SAT-TP201, requirement: URS-TP201-003, observed: {type: pending, expected: number, unit: tablets/h}, recorded_result: pass}
-  - {step: SAT-02, protocol: SAT-TP201, requirement: URS-TP201-005, observed: {type: pending, expected: number, unit: kN}, recorded_result: pass}
-  - {step: SAT-03, protocol: SAT-TP201, requirement: URS-TP201-017, observed: {type: pending, expected: number, unit: rpm}, recorded_result: pass}
+  - {step: SAT-01, protocol: SAT-TP201, requirement: URS-TP201-003, observed: {type: number, value: 122400, unit: tablets/h}, recorded_result: pass}
+  - {step: SAT-02, protocol: SAT-TP201, requirement: URS-TP201-005, observed: {type: number, value: 20.4, unit: kN}, recorded_result: pass}
+  - {step: SAT-03, protocol: SAT-TP201, requirement: URS-TP201-017, observed: {type: number, value: 1500, unit: rpm}, recorded_result: pass}  # S7: drive-motor speed, written "1.500 rpm"
   - {step: SAT-04, protocol: SAT-TP201, requirement: URS-TP201-019, observed: {type: present, value: true}, recorded_result: pass}
   - {step: SAT-05, protocol: SAT-TP201, requirement: URS-TP201-020, observed: {type: present, value: true}, recorded_result: pass}
   - {step: SAT-06, protocol: SAT-TP201, requirement: URS-TP201-021, observed: {type: present, value: true}, recorded_result: pass}
@@ -416,7 +619,7 @@ tests:
 
 # Design and delivered-item facts.
 designs:
-  - {doc_id: DS-TP201, requirement: URS-TP201-008, observed: {type: pending, expected: text}}
+  - {doc_id: DS-TP201, requirement: URS-TP201-008, observed: {type: text, value: EU B}}
   - {doc_id: MTC-TP201-01, requirement: URS-TP201-009, observed: {type: text, value: SS 304}}  # S6, decision log Q29
 
 scenarios:

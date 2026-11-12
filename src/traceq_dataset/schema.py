@@ -47,6 +47,10 @@ class Source(Model):
     Quoted kinds need ``url``, ``quote`` and ``accessed``; the quote is checked against
     the live page by ``scripts/verify_quotes.py``. Site decisions and fictional vendor
     specs need a ``rationale`` and may add a quote showing the value is realistic.
+
+    A quote proves only that the text exists at the URL. A site decision's value is a
+    judgement, so it records who drafted it and stays unreviewed (blocking freeze, see
+    :meth:`Equipment.unreviewed`) until a human signs it off.
     """
 
     kind: SourceKind
@@ -58,6 +62,12 @@ class Source(Model):
     accessed: dt.date | None = None
     rationale: str | None = None
     note: str | None = None
+    drafted_by: Literal["llm", "human"] | None = Field(
+        None, description="Who chose a judged value (site decision / vendor spec)."
+    )
+    reviewed_by: Literal["owner", "practitioner"] | None = Field(
+        None, description="Human sign-off of a judged value; required before freeze."
+    )
 
     @model_validator(mode="after")
     def _complete(self) -> Source:
@@ -69,11 +79,21 @@ class Source(Model):
             missing = [f for f in ("url", "quote", "accessed") if getattr(self, f) is None]
             if missing:
                 raise ValueError(f"{self.kind} source needs {', '.join(missing)}")
-        elif not self.rationale:
-            raise ValueError(f"{self.kind} source needs a rationale")
+            if self.drafted_by or self.reviewed_by:
+                raise ValueError(f"{self.kind} values are copied, not drafted or reviewed")
+        else:
+            if not self.rationale:
+                raise ValueError(f"{self.kind} source needs a rationale")
+            if self.drafted_by is None:
+                raise ValueError(f"{self.kind} source needs drafted_by")
         if (self.url is None) != (self.quote is None):
             raise ValueError("url and quote go together")
         return self
+
+    @property
+    def judged(self) -> bool:
+        """A value chosen by someone, not copied from a quote."""
+        return self.kind in {SourceKind.SITE_DECISION, SourceKind.VENDOR_SPEC}
 
 
 class RangeSpec(Model):
@@ -364,3 +384,7 @@ class Equipment(Model):
         out += [f"{t.step}.observed" for t in self.tests if isinstance(t.observed, PendingObs)]
         out += [f"{d.doc_id}.observed" for d in self.designs if isinstance(d.observed, PendingObs)]
         return out
+
+    def unreviewed(self) -> list[Requirement]:
+        """Judged values without human sign-off. A frozen dataset has none."""
+        return [r for r in self.requirements if r.source.judged and r.source.reviewed_by is None]

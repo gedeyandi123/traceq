@@ -21,11 +21,11 @@ One dataset serves four consumers. A document or defect that none of them needs 
 4. **Reproducible.** Generation is deterministic from a seed. Binary output is never committed (section 8).
 5. **Every value has a public source.** Each Acceptance Criterion and technical limit in the world data records its source in one of two tiers:
    - **Quoted:** regulation (CPOB / PerBPOM 7/2024, WHO TRS 1033 Annex 3, Permenaker), pharmacopoeia (Farmakope Indonesia), or literature (peer-reviewed papers, textbooks, brand-free trade press). The source stores `url`, a verbatim `quote` (≤ 200 characters) containing the value, and the `accessed` date.
-   - **Site decision:** a URS value is the plant's own need, not a copy of a brochure. It stores a written `rationale` and, where one exists, a quote from literature showing the value is realistic. Site decisions without such a quote are listed for the design-partner review.
+   - **Site decision:** a URS value is the plant's own need, not a copy of a brochure. It stores a written `rationale`, who drafted it (`drafted_by`), and, where one exists, a quote from literature showing the value is realistic. A quote from a single study (e.g. the station count of the press it used) shows a value is realistic, not that a plant needs it, so such values are site decisions with a supporting quote, not quoted values.
 
    Real vendor brochures are not cited: the denylist keeps real vendor names out of the repository (principle 6), and literature plus practitioner review give the same evidence of realism.
 6. **Everything is fictional:** plant, vendors, people, serial numbers. Vendor names are checked against registered trademarks before they are frozen, and a denylist check in CI blocks real equipment vendor names.
-7. **LLMs never produce numbers or Acceptance Criteria from memory.** For TP-201 and PW-001, every value is copied from a cited source (principle 5). An LLM may do the copying; the schema checks that each quoted value appears in its quote, `scripts/verify_quotes.py` checks each quote against the live page, and a human checks a sample of critical values before the data is frozen. Other Equipment may be drafted with an LLM, then edited and frozen.
+7. **No LLM-chosen number is frozen without human review.** For TP-201 and PW-001, a quoted value is copied from a cited source (principle 5): an LLM may do the copying, the schema checks that the value appears in its quote, and `scripts/verify_quotes.py` checks the quote against the live page. A site decision is a judgement; when an LLM drafts it (`drafted_by: llm`) it blocks freeze until a human signs it off (`reviewed_by: owner | practitioner`). Human review therefore goes to judged values, not to quotes the machine already checked. Other Equipment may be drafted with an LLM, then edited and frozen.
 
 ## 3. Regulatory references
 
@@ -227,6 +227,8 @@ World data is filled in stages. A skeleton holds `pending` values and sources (`
 - Each requirement states its `intended_coverage`. Once its values are filled, the decision table must reproduce it; a test checks every filled requirement, so a value that silently changes a Coverage class fails CI.
 - `uv run python -m traceq_dataset.world world/tp201.yaml` prints the pending list and the Coverage distribution against the target.
 - `uv run python scripts/verify_quotes.py world/tp201.yaml` downloads each cited page and checks the quote (local only; CI has no network access).
+- A file is frozen-ready only when nothing is pending, the decision table agrees, and every judged value has `reviewed_by`. The progress report lists judged values awaiting review and marks those without a supporting quote; those go to the design-partner review.
+- The measure of sourcing quality is not the share of quoted values but that no number is frozen unless it is machine-checked against a quote or signed off by a human. Plant utilities and room data (voltage, air, temperature, ceiling height) can only come from a plant, so they are always judged values.
 
 ## 8. Generator pipeline
 
