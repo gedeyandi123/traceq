@@ -25,6 +25,8 @@ Render: `uv run python -m traceq_dataset.render world/tp201.yaml [--t0 YYYY-MM-D
 
 Answer key: `uv run python -m traceq_dataset.answer_key world/tp201.yaml [--check]` derives `answer_key/TP-201/*.yaml` from world data and the eval corpus. Never edit it by hand; regenerate it after changing world data or the renderer (`--check` and the tests fail on a stale key).
 
+Eval: `uv run python -m traceq_eval world/tp201.yaml submission.json [--out report]` scores a recorded system output against the answer key and writes `report.json` and `report.md`; it exits 1 when a gate fails (design section 9, "Scorer").
+
 Hooks: ruff, gitleaks, and a denylist check. The denylist blocks real equipment vendor names (`denylist/public.txt`) and private terms kept in a gitignored `.denylist.local` file (CI reads them from the `DENYLIST` secret).
 
 Workflow: short branches (`feat/`, `fix/`, `docs/`, `chore/`), [Conventional Commits](https://www.conventionalcommits.org/), squash-merge via PR.

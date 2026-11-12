@@ -314,6 +314,16 @@ The judge is a single model (Claude Haiku) for both modes, binary with a written
 
 The CI gate scores recorded outputs (replay). A full live eval (Batch API) is required when the prompt, model, pipeline, or dataset (MAJOR/MINOR) changes. A new baseline lands through a PR that updates the baseline file and links the eval run. Eval size is about 150 cases.
 
+### Scorer (v0)
+
+`traceq_eval` scores one submission per Equipment against its answer key, deterministically: `uv run python -m traceq_eval world/tp201.yaml submission.json [--out report]`. Exit code 1 means a gate failed; 2 means the submission is invalid.
+
+- **Submission** (JSON, strict schema in `traceq_eval.submission`): per requirement its value, Coverage class, citations and the vendor steps offered as Evidence; Pre-review findings, each with citations; documents that should exist but are missing (type and stage); drafted Test Steps with an Acceptance Criterion and its citation, or `null` for "to be set by a human". Values use the answer key's shapes. `traceq_eval.oracle.perfect` builds the perfect submission from a key.
+- **Citations** are checked against the printed text of the page (a scan: the born-digital render behind it; a spreadsheet: page *n* is sheet *n*). A quote that is not found (ratio < 0.9), or cites a document or page that does not exist, is fabricated. A quote that is found but does not hold the claimed value is unsupported: a ratchet metric, not a gate.
+- **Metrics per answer-key file:** `requirements`: Coverage accuracy (`also_valid` counts) and per-class F1, value accuracy, rev 0 values of superseded requirements, URS citation rate, Evidence precision and recall. `defects`: a finding matches a defect when it has the defect's type and quotes one of its locations (same page, location text inside the quote, since one SAT page carries four defects); recall per layer and severity, precision, mislabelled findings, false positives on clean documents. `ambiguous`: asked for confirmation, or a value silently claimed from it. `documents`: missing-document precision and recall by type and stage. `ocr` is not scored yet.
+- **Drafted Test Steps:** criterion 1 passes when the step traces to a requirement that is not `covered_by_vendor`; criterion 2 when the AC is empty or its citation is verified with the AC value in the quote, otherwise the AC is fabricated. Criterion 6 waits for the SOP in world data. Criteria 3–5 go through a `Judge` interface that sees the step and the URS sentence, never the answer key; v0 reports them as not scored.
+- **Report:** `report.json` (every item, for the baseline and ratchet) and `report.md` (gates, metrics, Coverage confusion matrix), with dataset version, T0, seed, the answer key's SHA-256 and the submission's model, prompt and run id.
+
 ## 10. Governance
 
 - **Versioning:** SemVer in [`CHANGELOG.md`](../../CHANGELOG.md). MAJOR = answer-key semantics or schema change; MINOR = new Equipment or documents, or weight changes after discovery; PATCH = fixes. Every eval run records the dataset version.
