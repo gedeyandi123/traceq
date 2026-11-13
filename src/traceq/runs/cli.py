@@ -3,7 +3,7 @@
 Usage::
 
     traceq run CORPUS_DIR [--equipment TAG] [--out runs] [--recordings recordings]
-        [--model claude-haiku-5-5] [--live] [--max-usd 1]
+        [--model claude-haiku-5-5] [--live] [--max-usd 1] [--no-vendor-reuse]
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
 
 Without ``--live`` every LLM call is replayed from ``--recordings`` and nothing is sent.
@@ -11,6 +11,10 @@ With ``--live``, calls not yet recorded go to Mode Cloud through the Batch API a
 recorded; the run refuses before sending when their estimated cost would pass
 ``--max-usd``. Exit code 0 on success, 2 when a recording is missing, the budget refuses,
 a scan is neither cached nor readable (OCR model not installed) or the corpus is unusable.
+
+``--no-vendor-reuse`` drafts a Test Step for every requirement, also those the vendor
+covered, for the "could be saved by reuse" framing. Eval runs keep the default
+(``vendor_reuse`` true), which scorer criterion 1 assumes.
 
 ``traceq serve`` starts the read-only API over the run folders in ``--runs``; ``--corpus``
 is the released corpus they read, so a citation opens its page.
@@ -39,6 +43,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--model", default=DEFAULT_MODEL)
     p.add_argument("--live", action="store_true", help="send unrecorded calls to the API")
     p.add_argument("--max-usd", type=float, default=1.0)
+    p.add_argument(
+        "--no-vendor-reuse",
+        dest="vendor_reuse",
+        action="store_false",
+        help="draft a Test Step for every requirement, also those the vendor covered",
+    )
     s = commands.add_parser("serve", help="serve run folders read-only")
     s.add_argument("--runs", type=Path, default=Path("runs"))
     s.add_argument("--corpus", type=Path, help="released corpus directory holding manifest.json")
@@ -70,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
             equipment=args.equipment,
             live=live,
             max_usd=args.max_usd,
+            vendor_reuse=args.vendor_reuse,
         )
     except (
         MissingRecording,
