@@ -160,7 +160,7 @@ def run(
         folder / "findings.json",
         findings(
             reviewed, model=model, prompt=prompt_hashes["ai_review"], created=metadata["created"]
-        ),
+        ).model_dump(mode="json"),
     )
     _write_json(
         folder / "drafts.json",
