@@ -5,7 +5,8 @@
 3. Citation check: a requirement or value whose quote is not on the cited page, or does not
    state the value, is dropped and listed in ``dropped`` for the run metadata.
 4. Evidence and Coverage (``traceability.evidence``): facts from the vendor documents, the
-   links the LLM proposes, and the decision table.
+   Vendor Assessment (``traceability.assessment``), the links the LLM proposes, and the
+   decision table.
 
 Only the current URS revision is read, so a value a later revision superseded (S8) is never
 claimed: a quote of the old value is not on the current page.
@@ -22,12 +23,13 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from traceq.ai import LLM, Request
 from traceq.ai.port import sha256
 from traceq.documents import Corpus, CorpusDocument
+from traceq.traceability.assessment import Assessment, read_vendor_assessment
 from traceq.traceability.citations import Citation, verified
 from traceq.traceability.evidence import Dropped, Linked, VendorFacts, link, read_vendor_facts
 from traceq.traceability.prompts import EXTRACT, SEGMENT
 from traceq.traceability.values import Number, OneOf, Present, Range, Text, Value
 
-PIPELINE_VERSION = "0.2.0"
+PIPELINE_VERSION = "0.3.0"
 """Part of every recording key: bump it when a change outside the prompts alters requests."""
 
 
@@ -52,6 +54,8 @@ class Traceability:
     values: dict[str, ValueClaim] = field(default_factory=dict[str, ValueClaim])
     dropped: list[Dropped] = field(default_factory=list[Dropped])
     vendor: VendorFacts = field(default_factory=VendorFacts)
+    assessment: Assessment | None = None
+    """The verified Vendor Assessment; ``None`` when the corpus holds none."""
     linked: dict[str, Linked] = field(default_factory=dict[str, Linked])
 
 
@@ -162,10 +166,11 @@ def trace(corpus: Corpus, llm: LLM) -> Traceability:
                 out.dropped.append(Dropped("value", r.id, "quote not on page or value not in it"))
 
     out.vendor = read_vendor_facts(corpus, llm, out.dropped)
+    out.assessment = read_vendor_assessment(corpus, llm, out.dropped)
     requirements = [(r.id, r.text, _claimed(out, r.id)) for r in out.requirements]
     if requirements:
         key = sha256(",".join(sorted(d.sha256 for d in urs)))
-        out.linked = link(requirements, out.vendor, key, llm, out.dropped)
+        out.linked = link(requirements, out.vendor, key, llm, out.dropped, out.assessment)
     return out
 
 

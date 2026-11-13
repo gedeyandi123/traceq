@@ -37,7 +37,8 @@ Date = dt.date | Ambiguous[dt.date] | None
 
 @dataclass(frozen=True)
 class VendorAssessment:
-    """The site's Vendor Assessment: the scope of activities whose results it relies on."""
+    """The site's Vendor Assessment: the areas of vendor activity whose results it relies on,
+    as printed (``traceability.assessment``)."""
 
     scope: frozenset[str]
 
@@ -78,7 +79,7 @@ class RequirementFacts:
     site_only: bool
     transport_sensitive: bool
     scope: str | None = None
-    """The activity the requirement belongs to, matched against the Vendor Assessment."""
+    """The Vendor Assessment area the requirement belongs to, ``None`` when none is named."""
 
 
 @dataclass(frozen=True)
@@ -204,6 +205,8 @@ def step_failure(
         return "result does not meet the URS"
     if assessment is None:
         return "condition 1: no Vendor Assessment"
+    if req.scope is None:
+        return "condition 1: no assessed area named"
     if req.scope not in assessment.scope:
         return f"condition 1: scope {req.scope!r} not in vendor assessment"
     approved = _approved_before_execution(step.protocol)
