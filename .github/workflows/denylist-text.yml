@@ -1,0 +1,50 @@
+name: denylist-text
+
+# Scans the public text that never reaches pre-commit: PR and issue titles, bodies and comments,
+# and a PR's commit messages. Private terms come from the DENYLIST secret and are never printed.
+# On a PR this runs beside `checks`; on an issue or comment a failure is an alert to edit the text.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  text:
+    name: denylist-text
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: collect text
+        env:
+          TITLE: ${{ github.event.pull_request.title || github.event.issue.title }}
+          BODY: ${{ github.event.pull_request.body || github.event.issue.body }}
+          COMMENT: ${{ github.event.comment.body }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/text"
+          printf '%s\n' "$TITLE" > "$RUNNER_TEMP/text/title.txt"
+          printf '%s\n' "$BODY" > "$RUNNER_TEMP/text/body.txt"
+          printf '%s\n' "$COMMENT" > "$RUNNER_TEMP/text/comment.txt"
+          if [ -n "$BASE" ]; then
+            git log --format='%B' "$BASE..$HEAD" > "$RUNNER_TEMP/text/commits.txt"
+          fi
+
+      - name: denylist
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+        run: python scripts/check_denylist.py "$RUNNER_TEMP"/text/*.txt

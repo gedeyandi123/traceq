@@ -44,6 +44,7 @@ from typing import Literal
 import typst
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.worksheet.worksheet import Worksheet
 
 from traceq_dataset.coverage import meets
 from traceq_dataset.schema import (
@@ -880,7 +881,7 @@ def render_risk_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
 
     wb = Workbook()
     ws = wb.active
-    assert ws is not None
+    assert isinstance(ws, Worksheet)
     ws.title = RA_SHEET
     bold, thin = Font(bold=True), Side(style="thin")
     grid = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -904,7 +905,7 @@ def render_risk_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
         c.font, c.border, c.alignment = bold, grid, wrap
         c.fill = PatternFill("solid", fgColor="D9D9D9")
         ws.column_dimensions[c.column_letter].width = width
-    ws.freeze_panes = ws.cell(top + 1, 1)
+    ws.freeze_panes = ws.cell(top + 1, 1).coordinate
 
     texts: dict[str, str] = {}
     cells: dict[str, str] = {}

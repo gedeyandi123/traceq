@@ -20,7 +20,7 @@ from traceq_eval.judge import Criterion, JudgeVerdict, UrsRequirement
 from traceq_eval.oracle import perfect
 from traceq_eval.report import markdown
 from traceq_eval.score import CRITERIA, score
-from traceq_eval.submission import Submission, TestStep
+from traceq_eval.submission import Submission, System, TestStep
 
 ROOT = Path(__file__).parents[1]
 TP201 = ROOT / "world" / "tp201.yaml"
@@ -146,7 +146,7 @@ def test_perfect_submission_scores_one_everywhere(key: dict, pages: PageTexts) -
 
 def test_empty_submission_passes_gates_but_scores_zero(key: dict, pages: PageTexts) -> None:
     """Fabricating nothing is not a result: the ratchet, not the floor, catches it."""
-    report = score(Submission(equipment="TP-201", system={"name": "empty"}), key, pages)
+    report = score(Submission(equipment="TP-201", system=System(name="empty")), key, pages)
     assert report["gates"]["passed"]
     m = _metrics(report)
     assert m["requirements"]["coverage_accuracy"] == 0.0
@@ -165,7 +165,7 @@ def test_empty_submission_passes_gates_but_scores_zero(key: dict, pages: PageTex
 
 def test_wrong_equipment_is_refused(key: dict, pages: PageTexts) -> None:
     with pytest.raises(ValueError, match="TP-202"):
-        score(Submission(equipment="TP-202", system={"name": "x"}), key, pages)
+        score(Submission(equipment="TP-202", system=System(name="x")), key, pages)
 
 
 # --- Broken submissions --------------------------------------------------------------------
@@ -502,6 +502,6 @@ def test_cli_writes_report_and_exit_codes(
 
 
 def test_markdown_without_metadata(key: dict, pages: PageTexts) -> None:
-    md = markdown(score(Submission(equipment="TP-201", system={"name": "empty"}), key, pages))
+    md = markdown(score(Submission(equipment="TP-201", system=System(name="empty")), key, pages))
     assert md.startswith("# Eval report: TP-201")
     assert "Coverage confusion" in md

@@ -83,22 +83,27 @@ class Scanned:
         return f"{self.doc_id}_rev{self.rev}.pdf"
 
 
-def rotate_quad(box: Box, angle: float, width: float, height: float) -> tuple[Point, ...]:
+def rotate_quad(
+    box: Box, angle: float, width: float, height: float
+) -> tuple[Point, Point, Point, Point]:
     """Corners of ``box`` after the page rotates ``angle`` degrees counter-clockwise about
     its centre (as :meth:`PIL.Image.Image.rotate` does, y pointing down)."""
     cx, cy = width / 2, height / 2
     c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
     corners = ((box.x, box.y), (box.x + box.w, box.y), (box.x + box.w, box.y + box.h))
     corners += ((box.x, box.y + box.h),)
-    return tuple(
+    p0, p1, p2, p3 = (
         (cx + (x - cx) * c + (y - cy) * s, cy - (x - cx) * s + (y - cy) * c) for x, y in corners
     )
+    return p0, p1, p2, p3
 
 
 def _scan_page(
     page: pdfium.PdfPage, level: Level, angle: float, rng: np.random.Generator
 ) -> Image.Image:
-    image = page.render(scale=level.dpi / 72).to_pil().convert("RGB")
+    # pypdfium2's stub types `scale` as int; the library takes a float (dpi / 72).
+    bitmap = page.render(scale=level.dpi / 72)  # pyright: ignore[reportArgumentType]
+    image = bitmap.to_pil().convert("RGB")
     image = image.rotate(angle, resample=Image.Resampling.BICUBIC, fillcolor=(255, 255, 255))
     image = image.filter(ImageFilter.GaussianBlur(level.blur))
     pixels = np.asarray(image, dtype=np.float32) * np.array(PAPER, dtype=np.float32)
