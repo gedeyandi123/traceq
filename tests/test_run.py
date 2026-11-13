@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +13,7 @@ import pytest
 
 from traceq.ai import BudgetExceeded, PriceTable, Request, Response
 from traceq.ai.cost import Price
+from traceq.documents import OcrUnavailable, pdf
 from traceq.runs import cli
 from traceq.runs.run import RunOutput, run
 from traceq_dataset import render
@@ -20,6 +21,7 @@ from traceq_dataset.answer_key import load_key
 from traceq_dataset.corpus import build_corpus
 from traceq_dataset.world import load
 from traceq_eval.citations import PageTexts
+from traceq_eval.ocr import score_ocr
 from traceq_eval.score import score
 from traceq_eval.submission import Submission
 
@@ -190,9 +192,27 @@ def corpus_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return next(out.glob("t0-*"))
 
 
+Seed = Callable[[Path, Path], None]
+
+
 @pytest.fixture(scope="module")
-def recorded(corpus_dir: Path, tmp_path_factory: pytest.TempPathFactory) -> RunOutput:
+def seeded(corpus_dir: Path, seed_scans: Seed) -> Callable[[Path], Path]:
+    """A recordings directory whose ingest cache holds the recorded OCR output of the
+    scans, so no test here needs the OCR model."""
+
+    def seed(recordings: Path) -> Path:
+        seed_scans(corpus_dir, recordings / "ingest")
+        return recordings
+
+    return seed
+
+
+@pytest.fixture(scope="module")
+def recorded(
+    corpus_dir: Path, seeded: Callable[[Path], Path], tmp_path_factory: pytest.TempPathFactory
+) -> RunOutput:
     tmp = tmp_path_factory.mktemp("live")
+    seeded(tmp / "recordings")
     return run(
         corpus_dir, tmp / "runs", tmp / "recordings", MODEL, live=ScriptedLLM(), prices=PRICES
     )
@@ -273,8 +293,8 @@ def test_each_requirement_cites_its_evidence(recorded: RunOutput) -> None:
     tooling = _req(sub, "URS-TP201-008")
     assert tooling["coverage"] == "conflict"
     assert any("EU B" in c["quote"] for c in tooling["citations"])
-    # Scans are not read in this slice: no Evidence from the SAT or the material certificate.
-    assert [d["doc_id"] for d in matrix["not_read"]] == ["SAT-TP201", "MTC-TP201-01"]
+    # Scans are read through OCR: every vendor record is read.
+    assert matrix["not_read"] == []
 
 
 def test_an_unverifiable_claim_never_reaches_the_submission(recorded: RunOutput) -> None:
@@ -304,8 +324,9 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
     assert set(meta["prompts"]) == {"segment", "extract", "facts", "link"}
     assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in meta["prompts"].values())
     # One segmentation call per URS page, one extraction and one link per requirement, one
-    # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1) and DS-TP201 (1).
-    calls = 2 + 38 + 38 + 4
+    # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1), SAT-TP201 (2, a scan),
+    # DS-TP201 (1) and MTC-TP201-01 (1, a scan).
+    calls = 2 + 38 + 38 + 7
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls
     expected = (meta["tokens"]["input"] * 1.0 + meta["tokens"]["output"] * 2.0) / 1e6 * 0.5
@@ -315,13 +336,52 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         ("URS-TP201", 1),
         ("FAT-TP201-M", 0),
         ("FAT-TP201-C", 0),
+        ("SAT-TP201", 0),
         ("DS-TP201", 0),
+        ("MTC-TP201-01", 0),
     ]
 
 
+def test_run_metadata_logs_ingest_time_and_peak_ram(recorded: RunOutput) -> None:
+    meta = json.loads((recorded.folder / "run.json").read_text(encoding="utf-8"))
+    ingest = {(d["doc_id"], d["rev"]): d for d in meta["ingest"]}
+    sat = ingest[("SAT-TP201", 0)]
+    assert sat["engine"] == "PP-OCRv6 small via RapidOCR 3.10.0"
+    assert sat["pages"] == 2 and len(sat["seconds_per_page"]) == 2
+    assert all(s > 0 for s in sat["seconds_per_page"])
+    assert sat["peak_ram_bytes"] > 0
+    assert sat["cached"]
+    assert {d["format"] for d in meta["ingest"]} == {"born_digital", "scan"}
+    assert all(len(d["seconds_per_page"]) == d["pages"] for d in meta["ingest"])
+
+
+def test_submission_carries_the_scan_entries_for_the_ocr_scorer(recorded: RunOutput) -> None:
+    sub = Submission.model_validate_json(
+        (recorded.folder / "submission.json").read_text(encoding="utf-8")
+    )
+    report = score_ocr(sub, load_key(KEY))
+    assert {e.doc for e in sub.ocr} == {
+        "SAT-TP201",
+        "MTC-TP201-01",
+        "KAL-2025-0412",
+        "KAL-2026-0057",
+        "CAL-TP201-01",
+    }
+    assert all(e.quad is not None for e in sub.ocr)
+    assert report["metrics"]["entry_recall"] == 1.0
+    assert report["metrics"]["exact_match_rate"] == round(35 / 36, 4)
+
+
+@pytest.mark.usefixtures("no_ocr_model")
 def test_replay_reproduces_the_run_without_sending(
-    recorded: RunOutput, corpus_dir: Path, tmp_path: Path
+    recorded: RunOutput, corpus_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """As in CI: neither Docling nor the OCR model runs; ingest comes from the cache."""
+
+    def no_docling() -> None:
+        raise AssertionError("Docling ran on a replay")
+
+    monkeypatch.setattr(pdf, "_converter", no_docling)
     recordings = recorded.folder.parents[1] / "recordings"
     argv = ["run", str(corpus_dir), "--out", str(tmp_path), "--recordings", str(recordings)]
     assert cli.main([*argv, "--model", MODEL]) == 0
@@ -331,18 +391,38 @@ def test_replay_reproduces_the_run_without_sending(
         replayed["requirements"]
         == recorded.submission.model_dump(mode="json", exclude_none=True)["requirements"]
     )
+    assert replayed["ocr"] == recorded.submission.model_dump(mode="json")["ocr"]
     meta = json.loads((folder / "run.json").read_text(encoding="utf-8"))
     assert meta["calls"]["live"] == 0
     assert meta["tokens"] == recorded.metadata["tokens"]
+    assert all(d["cached"] for d in meta["ingest"])
 
 
-def test_replay_fails_on_a_missing_recording(corpus_dir: Path, tmp_path: Path) -> None:
+def test_replay_fails_on_a_missing_recording(
+    corpus_dir: Path, tmp_path: Path, seeded: Callable[[Path], Path]
+) -> None:
+    recordings = seeded(tmp_path / "none")
     argv = ["run", str(corpus_dir), "--out", str(tmp_path / "runs")]
-    assert cli.main([*argv, "--recordings", str(tmp_path / "none"), "--model", MODEL]) == 2
+    assert cli.main([*argv, "--recordings", str(recordings), "--model", MODEL]) == 2
     assert not (tmp_path / "runs").exists()
 
 
-def test_live_run_over_budget_refuses_before_sending(corpus_dir: Path, tmp_path: Path) -> None:
+@pytest.mark.usefixtures("no_ocr_model")
+def test_a_scan_neither_cached_nor_readable_fails_before_any_call(
+    corpus_dir: Path, tmp_path: Path
+) -> None:
+    llm = ScriptedLLM()
+    with pytest.raises(OcrUnavailable):
+        run(corpus_dir, tmp_path / "runs", tmp_path / "rec", MODEL, live=llm, prices=PRICES)
+    assert llm.sent == []
+    argv = ["run", str(corpus_dir), "--out", str(tmp_path / "runs"), "--model", MODEL]
+    assert cli.main([*argv, "--recordings", str(tmp_path / "rec")]) == 2
+
+
+def test_live_run_over_budget_refuses_before_sending(
+    corpus_dir: Path, tmp_path: Path, seeded: Callable[[Path], Path]
+) -> None:
+    seeded(tmp_path / "rec")
     llm = ScriptedLLM()
     with pytest.raises(BudgetExceeded):
         run(
@@ -355,10 +435,13 @@ def test_live_run_over_budget_refuses_before_sending(corpus_dir: Path, tmp_path:
             prices=PRICES,
         )
     assert llm.sent == []
-    assert not (tmp_path / "rec").exists()
+    assert not list((tmp_path / "rec").glob("*.json"))  # no LLM recording; ingest is cached
 
 
-def test_live_run_with_an_unpriced_model_refuses(corpus_dir: Path, tmp_path: Path) -> None:
+def test_live_run_with_an_unpriced_model_refuses(
+    corpus_dir: Path, tmp_path: Path, seeded: Callable[[Path], Path]
+) -> None:
+    seeded(tmp_path / "rec")
     llm = ScriptedLLM()
     with pytest.raises(BudgetExceeded, match="no price"):
         run(corpus_dir, tmp_path / "runs", tmp_path / "rec", MODEL, live=llm)
