@@ -5,11 +5,13 @@ that what it writes validates against the scorer's schema. Requirements carry th
 Coverage class, the vendor steps offered as Evidence and the citations of the URS sentence,
 the Evidence and the design facts compared with the URS. A value that reads two ways is an
 ``ambiguous_value`` finding: ask for confirmation. Pre-review adds its Check Findings and the
-documents the VMP requires that the corpus lacks. ``ocr`` holds every entry the OCR model
-read on a scan, with its quad. ``test_steps`` are the drafted IQ/OQ Test Steps: an AC only
-when copied from a verified citation, otherwise none, "to be set by a human" (the flag and
-the AI Finding fields are in ``drafts.json``). AI Findings come with a later ticket. The
-Coverage reason is in ``matrix.json``: the submission schema has no field for it.
+documents the VMP requires that the corpus lacks, then its AI Findings: the schema has no
+layer field, so the layer follows from the finding type, as the scorer reports it (the
+layer, model and prompt of each finding are in ``findings.json``). ``ocr`` holds every
+entry the OCR model read on a scan, with its quad. ``test_steps`` are the drafted IQ/OQ
+Test Steps: an AC only when copied from a verified citation, otherwise none, "to be set by
+a human" (the flag and the AI Finding fields are in ``drafts.json``). The Coverage reason
+is in ``matrix.json``: the submission schema has no field for it.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from pydantic import BaseModel, ConfigDict
 from traceq.documents import CorpusDocument, Page
 from traceq.documents.pages import Quad
 from traceq.protocols import Drafts
-from traceq.review import Review
+from traceq.review import AiType, Review
 from traceq.review.rules import CheckType
 from traceq.traceability import Ambiguous, Citation, Linked, Traceability, Value
 from traceq.traceability.coverage import CoverageClass
@@ -57,7 +59,7 @@ class RequirementAnswer(_Model):
 
 
 class Finding(_Model):
-    type: Literal["ambiguous_value"] | CheckType
+    type: Literal["ambiguous_value"] | CheckType | AiType
     detail: str
     citations: tuple[CitationOut, ...]
 
@@ -179,7 +181,7 @@ def build(
         findings=(
             *(
                 Finding(type=f.type, detail=f.detail, citations=tuple(map(_cite, f.citations)))
-                for f in review.findings
+                for f in (*review.findings, *review.ai_findings)
             ),
             *_ambiguous(t),
         ),
