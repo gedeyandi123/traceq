@@ -43,6 +43,14 @@ The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec an
 | `reviewer` | Both code-review axes and the plan doubt review | inherit (Opus) / `medium` | read-only |
 | `explorer` | A lookup: where is X, which files mention Y | Haiku / `low`, no CLAUDE.md | Read, Glob, Grep |
 
+How implement-spec's roles map here:
+
+- **Exploration subagent (step 2):** `explorer` for codebase lookups. It cannot write, so the main session saves its notes in the session scratchpad, never in the repo. External docs go through the `research` or `claude-api` skill in the main session.
+- **Implementer subagents (step 4):** `implementer` or `implementer-light`, at most **two at a time**. The delegation message holds only pointers: ticket number, spec issue, integration branch, and the commit co-author line (subagents do not receive it otherwise).
+- **Merger subagent (step 5):** none. The main session merges the ticket PR into the integration branch (`gh pr merge <n> --squash`), then comments on the ticket and closes it, so native blocking edges unblock the next tickets. GitHub closes issues only from PRs into the default branch. On a merge conflict, a fresh implementer resolves it.
+- **Integration PR (steps 3 and 8):** a draft PR into `main` that closes the spec issue, listing every ticket. The owner merges it.
+- **Cleanup (step 9):** `git worktree prune` and delete leftover local `worktree-agent-*` and ticket branches.
+
 Never use the general-purpose agent for these jobs, and prefer `explorer` over the built-in Explore (which runs on Opus) for lookups. A subagent cannot spawn further subagents unless its tools include Agent; none of these do.
 
 The session's own effort changes only by the owner typing `/effort`. The agent says "switch to `/effort high`" before a decision on gates, scoring rules or ADRs, or after two failed attempts at the same bug, and "back to `/effort medium`" when that is done. `xhigh` and `max` are not used routinely. If Sonnet tickets keep failing CI or need rework, move that kind of ticket back to Opus.

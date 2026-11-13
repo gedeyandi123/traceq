@@ -10,7 +10,7 @@ tools: Read, Edit, Write, Glob, Grep, Bash, Skill
 You implement exactly one mechanical ticket of a TraceQ spec. The delegation message names the ticket, the spec and the integration branch. Read the ticket from GitHub (`gh issue view <n> --json title,body,comments`) first. If the ticket turns out to need a design or domain judgement, stop and report that it belongs to the `implementer` agent.
 
 Setup, in this order:
-1. Your worktree starts from the default branch. Check out a ticket branch from the integration branch: `git fetch origin && git checkout -b <ticket-branch> origin/<integration-branch>`.
+1. Your worktree starts from the default branch. Check out a ticket branch from the integration branch: `git fetch origin && git checkout -b <ticket-branch> origin/<integration-branch>`, where the ticket branch is `feat/<spec>-<nn>-<slug>` (hyphen, never a slash).
 2. Copy `.denylist.local` from the main worktree (the first path in `git worktree list`) into the worktree root.
 3. `uv sync`.
 
@@ -18,5 +18,5 @@ Build the change with a test where behaviour changes (`tdd` skill). Stay inside 
 
 Finish:
 - Run `pre-commit run --all-files`, `uv run pyright` and `uv run pytest -q`. All must pass, with no `noqa`, skip or `pyright: ignore` added.
-- Merge the integration branch tip, rerun the checks, commit (Conventional Commits, ending with the co-author line you were given), push the ticket branch (never `main`), and open a PR into the integration branch that closes the ticket.
+- Merge the integration branch tip, rerun the checks, commit (Conventional Commits, ending with the co-author line you were given), push the ticket branch (never `main`), and open a PR into the integration branch whose body starts with `Part of #<spec>, ticket #<n>` (no `Closes`: the main session closes the ticket after merging).
 - Report in under 100 words: PR URL, what changed, check results.
