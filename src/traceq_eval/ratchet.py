@@ -10,8 +10,9 @@ and the value of every ratcheted metric.
 Comparison rules:
 
 - **Direction** per metric (``RATCHETED``): rates of things found go up, rates and counts of
-  things made up or got wrong go down. Sizes, counts that only describe the submission, and
-  severity agreement (severity awaits the practitioner) are reported, not ratcheted.
+  things made up or got wrong go down (OCR character error rate included). Sizes, counts
+  that only describe the submission, and severity agreement (severity awaits the
+  practitioner) are reported, not ratcheted.
 - **Tolerance 0.** The CI gate replays recorded outputs and the scorer is deterministic, so
   any change is a real one; a trade-off (recall up, precision down) is accepted by a PR
   that updates the baseline, not by a margin.
@@ -79,6 +80,12 @@ RATCHETED: tuple[tuple[str, Direction], ...] = (
     ("documents.flagged_but_in_corpus", DOWN),
     ("test_steps.site_test_recall", UP),
     ("test_steps.criteria_pass_rate.*", UP),
+    ("ocr.entry_recall", UP),
+    ("ocr.localisation_rate", UP),
+    ("ocr.exact_match_rate", UP),
+    ("ocr.cer", DOWN),
+    ("ocr.cer_by_kind.*", DOWN),
+    ("ocr.cer_by_level.*", DOWN),
 )
 """Ratcheted metrics. ``section.name`` reads ``report[section]["metrics"][name]`` (or
 ``report[section][name]`` for ``fabrication`` and ``citations``); ``.*`` expands a dict

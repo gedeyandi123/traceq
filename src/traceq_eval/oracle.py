@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from traceq_eval.citations import MAX_QUOTE
+from traceq_eval.ocr import expected_entries
 from traceq_eval.score import NEEDS_SITE_TEST, Key
 from traceq_eval.submission import Submission
 
@@ -68,6 +69,10 @@ def perfect(key: Key, equipment: str) -> Submission:
             "findings": findings,
             "missing_documents": missing,
             "test_steps": steps,
+            "ocr": [
+                {k: e[k] for k in ("doc", "rev", "page", "text", "quad")}
+                for e in expected_entries(key)
+            ],
         }
     )
 

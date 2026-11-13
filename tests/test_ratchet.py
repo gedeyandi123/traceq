@@ -99,6 +99,9 @@ def test_empty_run_fails_against_perfect_baseline(run, best: dict) -> None:
     assert rows["fabrication.rate"]["status"] == "lost"
     assert rows["probes.fabrication_rate"]["status"] == "same"  # "not found" stays right
     assert "defects.recall" in result["failing"]
+    assert (rows["ocr.cer"]["status"], rows["ocr.cer"]["delta"]) == ("regressed", 1.0)
+    assert rows["ocr.cer_by_level.light"]["status"] == "n/a"  # no handwriting on light scans
+    assert rows["ocr.entry_recall"]["status"] == "regressed"
 
 
 def test_probe_lure_regresses_probe_fabrication_rate(run, best: dict) -> None:

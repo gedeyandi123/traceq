@@ -2,9 +2,10 @@
 
 A submission says, for each requirement, its value, its Coverage class and where that comes
 from; it lists the defects found by Pre-review, the documents that should exist but do not,
-and the drafted IQ/OQ Test Steps. Every claim about the corpus carries a citation: document,
-revision, page and a verbatim quote (design section 9, "Citations"). Values use the same
-normalised shapes as the answer key.
+the drafted IQ/OQ Test Steps, and what it read in each handwritten entry on a scan
+(``ocr``). Every claim about the corpus carries a citation: document, revision, page and a
+verbatim quote (design section 9, "Citations"). Values use the same normalised shapes as
+the answer key.
 
 The schema is strict (unknown fields fail) so a system cannot drift from it silently. Limits
 the scorer judges, such as the 200-character quote, are not schema errors: a long quote is
@@ -134,6 +135,21 @@ class TestStep(Model):
     witness: bool | None = None
 
 
+Point = tuple[float, float]
+
+
+class OcrEntry(Model):
+    """One handwritten entry read from a scan. ``quad``: four corners in pt, top-left origin,
+    clockwise from top-left, as in the answer key (pixels = pt * dpi / 72); optional, since
+    entries are matched by text when the quad does not overlap one in the key."""
+
+    doc: str
+    rev: int = Field(ge=0)
+    page: int = Field(ge=1)
+    text: str
+    quad: tuple[Point, Point, Point, Point] | None = None
+
+
 class System(Model):
     name: str
     model: str | None = None
@@ -149,6 +165,7 @@ class Submission(Model):
     findings: tuple[Finding, ...] = ()
     missing_documents: tuple[MissingDocument, ...] = ()
     test_steps: tuple[TestStep, ...] = ()
+    ocr: tuple[OcrEntry, ...] = ()
 
     @model_validator(mode="after")
     def _unique(self) -> Submission:
