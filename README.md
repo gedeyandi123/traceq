@@ -29,6 +29,8 @@ Answer key: `uv run python -m traceq_dataset.answer_key world/tp201.yaml [--chec
 
 Eval: `uv run python -m traceq_eval world/tp201.yaml submission.json [--out report]` scores a recorded system output against the answer key and writes `report.json` and `report.md`; it exits 1 when a gate fails. `--baseline baselines/TP-201.json` adds the ratchet against the accepted baseline and `--write-baseline` writes a candidate (design section 9, "Gates", "Running" and "Scorer").
 
+Run: `uv run traceq run dist/t0-2026-06-01 [--equipment TP-201] [--out runs] [--recordings recordings]` writes `runs/<run id>/submission.json` and `run.json` (model, prompt hashes, tokens, cost in USD). It replays recorded LLM calls and sends nothing; `--live` sends unrecorded calls to Claude through the Batch API (`ANTHROPIC_API_KEY`) and records them, refusing before sending when the estimate passes `--max-usd` (default 1). Module boundaries are checked by import-linter (`uv run lint-imports`, also run by the tests).
+
 Hooks: ruff, gitleaks, and a denylist check. The denylist blocks real equipment vendor names (`denylist/public.txt`) and private terms kept in a gitignored `.denylist.local` file (CI reads them from the `DENYLIST` secret).
 
 Workflow: short branches (`feat/`, `fix/`, `docs/`, `chore/`, `test/`, `refactor/`), [Conventional Commits](https://www.conventionalcommits.org/), squash-merge via PR. A spec is built on an integration branch that reaches `main` in one PR ([`CLAUDE.md`](CLAUDE.md)).
