@@ -200,7 +200,8 @@ def step_failure(
     if req.value is None:
         return "URS value not verified"
     if isinstance(step.observed, Ambiguous):
-        return "result ambiguous, ask for confirmation"
+        # Not proof until a human confirms which reading was meant (#53).
+        return "value awaits confirmation"
     if not _proves(req.value, step):
         return "result does not meet the URS"
     if assessment is None:
