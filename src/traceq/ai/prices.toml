@@ -1,0 +1,15 @@
+# USD per million tokens, first-party API list prices for prompts up to 100K tokens.
+# Live runs go through the Batch API; `batch_discount` is the share of the list price paid.
+batch_discount = 0.5
+
+[models.claude-haiku-5-5]
+input_per_mtok = 0.10
+output_per_mtok = 0.50
+
+[models.claude-sonnet-5-5]
+input_per_mtok = 2.00
+output_per_mtok = 10.00
+
+[models.claude-opus-5-5]
+input_per_mtok = 4.00
+output_per_mtok = 20.00

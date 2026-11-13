@@ -6,6 +6,7 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.13"
 dependencies = [
+    "anthropic>=2.8.0",
     "numpy>=2.5.4",
     "openpyxl>=3.1.5",
     "pillow>=13.0.0",
@@ -18,6 +19,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.16",
     "pyright>=1.1.414",
     "pytest>=8.4",
 ]
@@ -27,7 +29,10 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/traceq_dataset", "src/traceq_eval"]
+packages = ["src/traceq_dataset", "src/traceq_eval", "src/traceq"]
+
+[project.scripts]
+traceq = "traceq.runs.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -39,7 +44,7 @@ addopts = ["--strict-markers"]
 include = ["src", "scripts", "tests"]
 pythonVersion = "3.13"
 typeCheckingMode = "standard"
-strict = []
+strict = ["src/traceq"]
 
 [tool.ruff]
 target-version = "py313"
@@ -49,3 +54,18 @@ line-length = 100
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 # Rendered documents write ranges with an en dash (20–60 rpm), as in the design doc.
 allowed-confusables = ["–"]
+
+# ADR 0008: module boundaries of the TraceQ system, checked by tests/test_boundaries.py.
+[tool.importlinter]
+root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
+
+[[tool.importlinter.contracts]]
+name = "TraceQ modules are layered: runs > traceability > documents, ai"
+type = "layers"
+layers = ["traceq.runs", "traceq.traceability", "traceq.documents | traceq.ai"]
+
+[[tool.importlinter.contracts]]
+name = "The system never imports the dataset or the scorer"
+type = "forbidden"
+source_modules = ["traceq"]
+forbidden_modules = ["traceq_dataset", "traceq_eval"]

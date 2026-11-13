@@ -28,3 +28,6 @@ Thumbs.db
 
 # gitleaks binary downloaded in CI
 /gitleaks
+
+# Run folders written by `traceq run` (recordings are committed; runs are not)
+/runs/
