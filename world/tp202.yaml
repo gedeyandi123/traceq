@@ -1,0 +1,320 @@
+# TP-202 world data: the held-out slice (design sections 5 and 9, spec #29).
+#
+# Held out: prompts are never developed or debugged on TP-202 output, and its answer key
+# changes only after the prompt is frozen (design section 10). A different vendor and
+# layout from TP-201: the URS is prose with unnumbered tables (no requirement numbers are
+# printed), the FAT is a test-record document with an as-built data table. URS and FAT
+# only, no scan; the rest of the TP-202 package follows in v2.
+#
+# All requirement values are site decisions drafted by an LLM; they block freeze until a
+# human sets reviewed_by.
+# Check: uv run python -m traceq_dataset.world world/tp202.yaml
+
+tag: TP-202
+name: Rotary tablet press (double-sided)
+serial_no: TRXD-24-0932
+model: TRX-D 41
+site: site-01
+site_name: PT Arunika Farma Lestari
+
+# Design section 6: assessed with limited scope (mechanical yes, control system/software no).
+vendor:
+  id: vendor-tp202
+  name: Rotaforma Macchine S.r.l.
+  assessment:
+    assessed_on: T0-250d
+    scope: [mechanical, documentation]
+
+people:
+  - {id: p-qe, name: Rina Wulandari, persona: qualification_engineer, employer: site-01}
+  - {id: p-qs, name: Bayu Pratama, persona: qualification_supervisor, employer: site-01}
+  - {id: p-qa, name: Dewi Anggraini, persona: qa_approver, employer: site-01}
+  - {id: p-wit, name: Agus Setiawan, persona: witness, employer: site-01}
+  - {id: p-ve, name: Luca Bertoni, persona: vendor_engineer, employer: vendor-tp202}
+
+protocols:
+  - {doc_id: FAT-TP202, stage: FAT, vendor: vendor-tp202, site_approved_on: T0-95d, executed_on: T0-80d}
+
+# Opening sentences of the prose URS: they state no requirement, so segmentation leaves
+# them out.
+urs_intros:
+  "Kinerja mesin": "Mesin akan digunakan untuk produksi tablet lepas cepat dengan volume tinggi di ruang cetak tablet."
+  "Material dan permukaan": "Bagian ini berlaku untuk semua komponen yang bersentuhan langsung dengan serbuk atau tablet."
+  "Sistem kendali dan data": "Mesin dikendalikan melalui PLC dengan panel HMI layar sentuh di sisi operator."
+  "Keselamatan dan lingkungan kerja": "Mesin dipasang di ruang cetak tablet bersama dua mesin lain dan dioperasikan oleh satu operator per shift."
+  "Utilitas": "Utilitas disediakan oleh site sampai titik sambung di samping mesin."
+
+requirements:
+  # --- Kinerja mesin (table) ------------------------------------------------------
+  - id: URS-TP202-001
+    section: Kinerja mesin
+    table_label: Jumlah stasiun punch
+    text: "Minimal {min} stasiun punch."
+    param: punch_stations
+    spec: {type: range, min: 45, unit: stations}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "Station count of a double-sided production press sized for the plant's volume; with 80 rpm it sets the theoretical output (45 x 2 x 80 x 60 = 432,000 tablets/h)."
+      drafted_by: llm
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: conflict  # S3: the as-built data give 41 stations
+  - id: URS-TP202-002
+    section: Kinerja mesin
+    table_label: Kecepatan turret
+    text: "Dapat diatur pada rentang {min}–{max} rpm."
+    param: turret_speed
+    spec: {type: range, min: 10, max: 80, unit: rpm}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "Low speeds for set-up and difficult blends, 80 rpm for production; the FAT runs the full range."
+      drafted_by: llm
+    scope: mechanical
+    critical: true
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP202-003
+    section: Kinerja mesin
+    table_label: Kapasitas produksi
+    text: "Minimal {min} tablet/jam pada kecepatan turret maksimum."
+    param: output_rate
+    spec: {type: range, min: 300000, unit: tablets/h}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "About 70% of the theoretical output of 45 stations, double-sided, at 80 rpm (432,000 tablets/h), the margin the plant needs for its forecast."
+      drafted_by: llm
+    scope: mechanical
+    critical: true
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP202-004
+    section: Kinerja mesin
+    table_label: Gaya tekan utama
+    text: "Minimal {min} kN."
+    param: main_compression_force
+    spec: {type: range, min: 80, unit: kN}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "Largest product of this press is a 16 mm round tablet compressed at up to 400 MPa, about 80 kN."
+      drafted_by: llm
+    scope: mechanical
+    critical: true
+    transport_sensitive: false
+    intended_coverage: partial  # S1: FAT result below the requirement, recorded FAIL, no Deviation
+  - id: URS-TP202-005
+    section: Kinerja mesin
+    table_label: Gaya pra-kompresi
+    text: "Minimal {min} kN."
+    param: precompression_force
+    spec: {type: range, min: 20, unit: kN}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "A quarter of the main compression requirement, enough to de-aerate the plant's blends."
+      drafted_by: llm
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+
+  # --- Material dan permukaan (table) -------------------------------------------------
+  - id: URS-TP202-006
+    section: Material dan permukaan
+    table_label: Material bagian kontak produk
+    text: "Baja tahan karat {allowed}."
+    param: product_contact_material
+    spec: {type: one_of, allowed: [SS 316L]}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision; see PerBPOM 7/2024 Bab 4 §4.7"
+      rationale: "316L is the plant standard for product contact; CPOB 4.7 requires non-reactive contact parts."
+      drafted_by: llm
+    scope: mechanical
+    critical: true
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-TP202-007
+    section: Material dan permukaan
+    table_label: Kekasaran permukaan bagian kontak produk
+    text: "Ra maksimal {max} µm."
+    param: surface_roughness
+    spec: {type: range, max: 0.8, unit: µm}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "Plant standard for cleanable product-contact surfaces, the same as for its other tablet press."
+      drafted_by: llm
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+
+  # --- Sistem kendali dan data (prose) ------------------------------------------------
+  - id: URS-TP202-008
+    section: Sistem kendali dan data
+    text: "Mesin dilengkapi kontrol bobot tablet otomatis berdasarkan gaya tekan."
+    param: weight_control
+    spec: {type: present}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "In-process weight control keeps tablet weight within limits at production speed."
+      drafted_by: llm
+    scope: control
+    transport_sensitive: false
+    intended_coverage: partial  # tested at FAT, but control is outside the vendor assessment (condition 1)
+  - id: URS-TP202-009
+    section: Sistem kendali dan data
+    text: "Data batch dan resep dicadangkan otomatis ke server site setiap hari."
+    param: data_backup
+    spec: {type: present}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision; see PerBPOM 7/2024 Aneks 7"
+      rationale: "Computerised-system records need a regular backup (CPOB Annex 7)."
+      drafted_by: llm
+    scope: control
+    intended_coverage: gap  # P1: no test record covers it
+
+  # --- Keselamatan dan lingkungan kerja (prose) ---------------------------------------
+  - id: URS-TP202-010
+    section: Keselamatan dan lingkungan kerja
+    text: "Tingkat kebisingan pada jarak 1 m dari mesin tidak lebih dari {max} dB(A)."
+    param: noise_level
+    spec: {type: range, max: 80, unit: dB(A)}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "Keeps the room below the level at which hearing protection becomes mandatory with three machines running."
+      drafted_by: llm
+    scope: mechanical
+    intended_coverage: gap  # S2: the measurement is in an attachment that is not there
+  - id: URS-TP202-011
+    section: Keselamatan dan lingkungan kerja
+    text: "Pintu pelindung dilengkapi interlock yang menghentikan mesin ketika pintu dibuka."
+    param: guard_door_interlock
+    spec: {type: present}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "Operator safety: no access to moving punches while the turret runs."
+      drafted_by: llm
+    scope: mechanical
+    intended_coverage: gap  # P2: no stopping time or distance anywhere
+  - id: URS-TP202-012
+    section: Keselamatan dan lingkungan kerja
+    text: "Tombol henti darurat tersedia di panel operator dan di sisi belakang mesin."
+    param: emergency_stop
+    spec: {type: present}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "An emergency stop within reach from both working positions."
+      drafted_by: llm
+    scope: mechanical
+    intended_coverage: partial  # transport-sensitive wiring, not retested at SAT (condition 4)
+
+  # --- Utilitas (prose) ---------------------------------------------------------------
+  - id: URS-TP202-013
+    section: Utilitas
+    text: "Mesin beroperasi dengan udara tekan site pada tekanan {min}–{max} bar."
+    param: compressed_air
+    spec: {type: range, min: 6, max: 7, unit: bar}
+    source:
+      kind: site_decision
+      ref: "VMP TP-202, site decision"
+      rationale: "Pressure range of the plant's compressed-air ring main at the press location."
+      drafted_by: llm
+    scope: utilities
+    site_only: true
+    intended_coverage: site_only
+
+tests:
+  - {step: TC-01, protocol: FAT-TP202, requirement: URS-TP202-002, observed: {type: range, min: 10, max: 80, unit: rpm}, recorded_result: pass, description: "Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed."}
+  - {step: TC-02, protocol: FAT-TP202, requirement: URS-TP202-003, observed: {type: number, value: 312000, unit: tablets/h}, recorded_result: pass, description: "Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour."}
+  - {step: TC-03, protocol: FAT-TP202, requirement: URS-TP202-004, observed: {type: number, value: 76, unit: kN}, recorded_result: fail, description: "Apply main compression with the test tooling; record the highest force reached."}  # S1
+  - {step: TC-04, protocol: FAT-TP202, requirement: URS-TP202-005, observed: {type: number, value: 22, unit: kN}, recorded_result: pass, description: "Set pre-compression to maximum; record the force shown by the force channel."}
+  - {step: TC-05, protocol: FAT-TP202, requirement: URS-TP202-006, observed: {type: text, value: SS 316L}, recorded_result: pass, description: "Check the material certificates of the product-contact parts against the parts list."}
+  - {step: TC-06, protocol: FAT-TP202, requirement: URS-TP202-007, observed: {type: number, value: 0.5, unit: µm}, recorded_result: pass, description: "Measure surface roughness Ra on the die table and feeder."}
+  - {step: TC-07, protocol: FAT-TP202, requirement: URS-TP202-008, observed: {type: present, value: true}, recorded_result: pass, description: "Load the product recipe on the HMI, simulate a weight drift and confirm that the force-based weight control corrects it."}  # P1 lure
+  - {step: TC-08, protocol: FAT-TP202, requirement: URS-TP202-012, observed: {type: present, value: true}, recorded_result: pass, description: "Press each emergency stop button while the turret is running; the machine must stop."}  # P2 lure
+
+# As-built machine data printed in the FAT record (a delivered-item fact, like a datasheet row).
+designs:
+  - {doc_id: FAT-TP202, requirement: URS-TP202-001, label: Number of punch stations, observed: {type: number, value: 41, unit: stations}}  # S3
+
+documents:
+  - {id: URS-TP202, rev: 0, type: urs, layout: prose, language: id, issued_on: T0-320d, prepared_by: p-qe, checked_by: p-qs, approved_by: p-qa}
+  # Approved by the site before execution. S2: the attachment it lists is not bound in.
+  - id: FAT-TP202
+    rev: 0
+    type: fat
+    layout: record
+    title: Mechanical and control functions
+    language: en
+    issued_on: T0-105d
+    prepared_by: p-ve
+    checked_by: p-qs
+    approved_by: p-qa
+    executed_by: p-ve
+    witnessed_by: p-wit
+    attachments: ["Noise level measurement at 1 m from the machine"]
+
+# What a new tablet press needs (as for TP-201); the slice renders only the URS and the FAT,
+# and IQ/OQ are what TraceQ drafts. No VMP or SOP is rendered for TP-202.
+required_documents:
+  - {id: URS-TP202, type: urs, stage: design}
+  - {id: FAT-TP202, type: fat, stage: FAT}
+  - {id: IQ-TP202, type: iq_protocol, stage: IQ, missing: expected_gap}
+  - {id: OQ-TP202, type: oq_protocol, stage: OQ, missing: expected_gap}
+
+# Three planted defects, one behind each of a `partial`, a `gap` and a `conflict`.
+scenarios:
+  - id: S1
+    summary: A failed FAT result is not raised as a Deviation.
+    targets: [TC-03, URS-TP202-004]
+    finding:
+      type: failed_result_no_deviation
+      severity: major
+      detail: "TC-03 records 76 kN against a requirement of at least 80 kN and is marked FAIL, but section D says no deviations were raised; the failure needs a Deviation and its assessment before the FAT is relied on."
+      at:
+        - {doc: FAT-TP202, field: TC-03.observed}
+        - {doc: FAT-TP202, field: TC-03.result}
+        - {doc: FAT-TP202, field: deviations}
+  - id: S2
+    summary: The FAT lists an attachment that is not in the record.
+    targets: [FAT-TP202, URS-TP202-010]
+    finding:
+      type: missing_attachment
+      severity: major
+      detail: "Section E lists Attachment 1, a noise level measurement, but the record has no attachment and no test record for noise; the URS noise limit of 80 dB(A) has no Evidence."
+      at:
+        - {doc: FAT-TP202, field: attachment.1}
+  - id: S3
+    summary: The as-built machine has fewer punch stations than the URS requires.
+    targets: [FAT-TP202, URS-TP202-001]
+    finding:
+      type: design_conflict
+      severity: major
+      detail: "The as-built machine data in FAT-TP202 give 41 punch stations; the URS requires at least 45."
+      at:
+        - {doc: URS-TP202, field: URS-TP202-001}
+        - {doc: FAT-TP202, field: as_built.punch_stations}
+
+# Two hallucination probes, 10% of the 20 answer-key items (13 requirements, 3 defects,
+# 4 documents).
+probes:
+  - id: P1
+    requirement: URS-TP202-009
+    absent: evidence
+    detail: "No test record covers the daily backup of batch data and recipes; TC-07 loads a recipe for the weight-control test only."
+    lures:
+      - {doc: FAT-TP202, text: Load the product recipe on the HMI}
+  - id: P2
+    requirement: URS-TP202-011
+    absent: acceptance
+    detail: "No document gives a stopping time or distance for the guard door interlock; the URS only says opening the door stops the machine. An OQ Acceptance Criterion beyond that is to be set by a human."
+    lures:
+      - {doc: FAT-TP202, text: Press each emergency stop button while the turret is running}

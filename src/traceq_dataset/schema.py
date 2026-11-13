@@ -249,6 +249,12 @@ class Requirement(Model):
     superseded_spec: Spec | None = Field(
         None, description="Value in the superseded URS revision (scenario: rev 0 -> rev 1)."
     )
+    table_label: str | None = Field(
+        None,
+        description="Prose URS only: the requirement is a row of its section's unnumbered "
+        "table, with this label in the first column; without one it is a sentence of the "
+        "section's paragraph.",
+    )
 
     @model_validator(mode="after")
     def _value_in_quote(self) -> Requirement:
@@ -444,6 +450,17 @@ class Document(Model):
     executed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     witnessed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     change_note: str = Field("", description="Revision history entry; empty for rev 0.")
+    layout: Literal["standard", "prose", "record"] = Field(
+        "standard",
+        description="standard: the TP-201 layouts; prose: a URS written as paragraphs and "
+        "unnumbered tables, with no requirement numbers; record: a FAT laid out as one "
+        "test record per step, with an as-built data table (design section 5, TP-202).",
+    )
+    attachments: tuple[str, ...] = Field(
+        (),
+        description="FAT only: attachments the document lists. None is bound into the "
+        "rendered file, so each one is a referenced attachment that is missing.",
+    )
     reviews: tuple[DocRef, ...] = Field(
         (),
         description="Documents a DQ report or risk assessment reviews, e.g. the URS and the "
@@ -456,6 +473,8 @@ class Document(Model):
     GOVERNING_TYPES: ClassVar = frozenset({"vmp", "sop"})
     """Site-wide documents (design section 4): they govern every Equipment, so they are
     not in an Equipment's ``required_documents``."""
+    LAYOUTS: ClassVar = {"prose": "urs", "record": "fat"}
+    """Document type each non-standard layout is for."""
 
 
 # --- Risk assessment ----------------------------------------------------------------
@@ -663,6 +682,11 @@ class Equipment(Model):
     documents: tuple[Document, ...] = ()
     required_documents: tuple[RequiredDocument, ...] = ()
     site_rules: SiteRules | None = Field(None, description="Rendered by the SOP.")
+    urs_intros: dict[str, str] = Field(
+        default_factory=dict,
+        description="Prose URS only: the opening sentence of a section, keyed by section. "
+        "It states no requirement, so segmentation must leave it out.",
+    )
 
     @model_validator(mode="after")
     def _references(self) -> Equipment:
@@ -745,6 +769,12 @@ class Equipment(Model):
         ]
         if d.rev > 0 and not d.change_note:
             errors.append(f"{name}: needs a change_note")
+        if d.layout in Document.LAYOUTS and d.type != Document.LAYOUTS[d.layout]:
+            errors.append(f"{name}: layout {d.layout} is for a {Document.LAYOUTS[d.layout]}")
+        if d.attachments and d.type != "fat":
+            errors.append(f"{name}: only a FAT lists attachments")
+        if d.type == "urs":
+            errors += self._urs_layout_errors(d, name)
         if d.type in ("fat", "sat"):
             return errors + self._protocol_document_errors(d, name)
         if d.entry_language is not None:
@@ -806,6 +836,27 @@ class Equipment(Model):
                 errors.append(f"{name}: issued before calibration")
         return errors
 
+    def _urs_layout_errors(self, d: Document, name: str) -> list[str]:
+        """A prose URS prints no Kritis column for its sentences, so a critical requirement
+        goes in a table; table labels and intros belong to a prose URS only."""
+        if d.layout != "prose":
+            errors = [
+                f"{name}: table_label {r.id} needs a prose URS"
+                for r in self.requirements
+                if r.table_label is not None
+            ]
+            return errors + ([f"{name}: urs_intros need a prose URS"] if self.urs_intros else [])
+        sections = {r.section for r in self.requirements}
+        return [
+            f"{name}: {r.id} is critical, so it needs a table_label"
+            for r in self.requirements
+            if r.critical and r.table_label is None
+        ] + [
+            f"{name}: urs_intros names unknown section {s!r}"
+            for s in self.urs_intros
+            if s not in sections
+        ]
+
     def _risk_errors(self) -> list[str]:
         """One FMEA row per requirement; its criticality agrees with the URS."""
         ra = self.risk_assessment
@@ -843,6 +894,13 @@ class Equipment(Model):
         ]
         if (d.approved_by is None) != (protocol.site_approved_on is None):
             errors.append(f"{name}: approved_by must match the protocol's site approval")
+        for e in self.designs:
+            if e.doc_id != d.id:
+                continue
+            if d.layout != "record":
+                errors.append(f"{name}: only a record-layout FAT holds as-built data")
+            elif e.label is None:
+                errors.append(f"{name}: as-built {e.requirement} needs a label")
         return errors
 
     def _probe_errors(self) -> list[str]:

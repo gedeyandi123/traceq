@@ -1,0 +1,26 @@
+# TP-202 answer key: probes.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: P-TP202-001
+  probe: P1
+  absent: evidence
+  requirement: URS-TP202-009
+  source: {doc: URS-TP202, rev: 0, page: 1}
+  detail: No test record covers the daily backup of batch data and recipes; TC-07 loads a recipe for the
+    weight-control test only.
+  lures:
+  - {doc: FAT-TP202, rev: 0, page: 2, text: Load the product recipe on the HMI}
+  expected_answer: not_found
+- id: P-TP202-002
+  probe: P2
+  absent: acceptance
+  requirement: URS-TP202-011
+  source: {doc: URS-TP202, rev: 0, page: 1}
+  detail: No document gives a stopping time or distance for the guard door interlock; the URS only says
+    opening the door stops the machine. An OQ Acceptance Criterion beyond that is to be set by a human.
+  lures:
+  - {doc: FAT-TP202, rev: 0, page: 2, text: Press each emergency stop button while the turret is running}
+  expected_answer: not_found
+  accepted_acceptance:
+  - null
+  - {type: present}
