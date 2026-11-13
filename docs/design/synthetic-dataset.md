@@ -107,7 +107,7 @@ Specification values come from Farmakope Indonesia VI and supplements (verified 
 
 ## 6. Answer key
 
-The answer key lives beside the world data and is never sent to an LLM. It is derived, never written by hand (`uv run python -m traceq_dataset.answer_key world/tp201.yaml`): world data supplies the facts, and the rendered corpus supplies where they ended up (page, printed text, and on a scan the quad of each handwritten entry). The committed key is for the eval corpus (T0 2026-06-01, seed 0), one directory per Equipment:
+The answer key lives beside the world data and is never sent to an LLM. The system under test never reads it, world data or baselines either, and its prompt examples never come from TP-201: a pipeline tuned on the answers would score well and prove nothing (`tests/test_isolation.py` fails if a system package imports the dataset or scorer packages or names those files). It is derived, never written by hand (`uv run python -m traceq_dataset.answer_key world/tp201.yaml`): world data supplies the facts, and the rendered corpus supplies where they ended up (page, printed text, and on a scan the quad of each handwritten entry). The committed key is for the eval corpus (T0 2026-06-01, seed 0), one directory per Equipment:
 
 | File | Contents |
 |---|---|
@@ -315,7 +315,9 @@ world/*.yaml ──Pydantic──▶ renderer ──▶ degrader (scans) ──�
 
 ### Split
 
-Held out: TP-202 in full (different vendor and layout). A `generate --variant <seed>` command for random new Equipment follows in v2.
+Held out: TP-202 in full (different vendor and layout). A `generate --variant <seed>` command for random new Equipment follows in v2. Because TP-201 is the development set (prompts are built against it), a small held-out slice of TP-202 is rendered before the first Claude Haiku run, so the first published score is not only a development-set score; the full TP-202 package follows in v2.
+
+The sets are small (TP-201: 38 requirements, 7 defects, 6 probes, 37 handwritten entries), so one item moves defect recall by 14 points. Every reported rate carries its count (k/n) and its split (dev or held-out); a difference of one item is not evidence for choosing a model or for a portfolio claim.
 
 ### Citations
 
@@ -347,7 +349,7 @@ The judge is a single model (Claude Haiku) for both modes, binary with a written
 
 ### Running
 
-The CI gate scores recorded outputs (replay). A full live eval (Batch API) is required when the prompt, model, pipeline, or dataset (MAJOR/MINOR) changes. A new baseline lands through a PR that updates the baseline file and links the eval run. Eval size is about 150 cases.
+The CI gate scores recorded outputs (replay). A full live eval (Batch API) is required when the prompt, model, pipeline, or dataset (MAJOR/MINOR) changes. Tolerance 0 applies to replay; how much a live re-run of an unchanged prompt varies is measured on the first Haiku run (the same prompt run three times, counting items that change) before the rule for comparing live runs is set. A new baseline lands through a PR that updates the baseline file and links the eval run. Eval size is about 150 cases.
 
 The baseline file is `baselines/<Equipment>.json`, one per Equipment: the dataset version, T0, seed and answer key SHA-256 it was scored against, the scorer version, the submission's name, model, prompt and run id, and the value of every ratcheted metric. `--write-baseline` writes it from a run that passes every gate; `--baseline` compares a run with it. A different answer key, T0, seed, or dataset MAJOR/MINOR version makes the run not comparable, which fails the ratchet until a full live eval sets a new baseline; a different dataset PATCH or scorer version is a warning only. No baseline is committed before the first Claude Haiku run.
 
@@ -374,9 +376,9 @@ The baseline file is `baselines/<Equipment>.json`, one per Equipment: the datase
 
 | Version | Weeks | Contents | Unlocks |
 |---|---|---|---|
-| v0 | 1–2 | TP-201 package, 35–40 requirements, 8 planted scenarios | Thin end-to-end slice (weeks 3–4) |
+| v0 | 1–2 | TP-201 package, 35–40 requirements, 8 planted scenarios; a small TP-202 held-out slice before the first Haiku run | Thin end-to-end slice (weeks 3–4) |
 | v1 | 3–5 | HSMG-101, FBD-101, CP-301: history, ~25-row registry, missing documents, Change Control | Registry, Requalification, missing-document recall |
-| v2 | 5–6 | PW-001 phased PQ; TP-202 held out; `generate --variant` | Held-out eval, Mode Cloud vs Mode Pabrik |
+| v2 | 5–6 | PW-001 phased PQ; the full TP-202 held-out package; `generate --variant` | Held-out eval, Mode Cloud vs Mode Pabrik |
 
 ## 12. Discovery parameters [D]
 

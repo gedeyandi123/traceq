@@ -5,6 +5,8 @@ Traceability-led workspace for pharmaceutical equipment qualification (GMP), wit
 Status: the synthetic dataset v0 (TP-201 package and its answer key) and the eval scorer are in place; the TraceQ system itself is next, starting with a thin slice that turns the TP-201 package into a scored submission. The dataset is not frozen yet: judged values await practitioner review.
 
 - [`GLOSSARY.md`](GLOSSARY.md): domain language
+- [`docs/adr/`](docs/adr/): architecture decisions
+- [`CLAUDE.md`](CLAUDE.md): development protocol for coding agents
 - [`docs/design/synthetic-dataset.md`](docs/design/synthetic-dataset.md): dataset design
 - [`DATASHEET.md`](DATASHEET.md), [`CHANGELOG.md`](CHANGELOG.md): dataset documentation and versions
 
@@ -19,7 +21,7 @@ pip install pre-commit
 pre-commit install
 ```
 
-Tests: `uv sync && uv run pytest`.
+Tests: `uv sync && uv run pytest`. Types: `uv run pyright`.
 
 Render: `uv run python -m traceq_dataset.render world/tp201.yaml [--t0 YYYY-MM-DD] [--seed N] [--out dist]`. Paper documents (`scan:` in world data) are written only as their scan. Output goes to `dist/` (gitignored) with the corpus `manifest.json`; the corpus is published as a Release asset, never committed.
 
@@ -29,4 +31,4 @@ Eval: `uv run python -m traceq_eval world/tp201.yaml submission.json [--out repo
 
 Hooks: ruff, gitleaks, and a denylist check. The denylist blocks real equipment vendor names (`denylist/public.txt`) and private terms kept in a gitignored `.denylist.local` file (CI reads them from the `DENYLIST` secret).
 
-Workflow: short branches (`feat/`, `fix/`, `docs/`, `chore/`), [Conventional Commits](https://www.conventionalcommits.org/), squash-merge via PR.
+Workflow: short branches (`feat/`, `fix/`, `docs/`, `chore/`, `test/`, `refactor/`), [Conventional Commits](https://www.conventionalcommits.org/), squash-merge via PR. A spec is built on an integration branch that reaches `main` in one PR ([`CLAUDE.md`](CLAUDE.md)).
