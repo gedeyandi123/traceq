@@ -1,6 +1,8 @@
 """URS to requirements with values: the LLM reads and cites, code decides what is kept.
 
-1. Segmentation: one call per page of the current URS revision lists its requirements.
+1. Segmentation: one call per page of the current URS revision lists its requirements. A
+   requirement whose number the page does not print (a URS in prose or unnumbered tables)
+   gets a system id from its document, page and place on the page (``system_id``).
 2. Extraction: one call per requirement reads its required value with a quote.
 3. Citation check: a requirement or value whose quote is not on the cited page, or does not
    state the value, is dropped and listed in ``dropped`` for the run metadata.
@@ -64,7 +66,7 @@ class _Answer(BaseModel):
 
 
 class _Segment(_Answer):
-    id: str
+    id: str | None
     text: str
     quote: str
 
@@ -82,6 +84,12 @@ class _Extracted(_Answer):
     allowed: list[str]
     text: str | None
     quote: str
+
+
+def system_id(doc_id: str, page: int, n: int) -> str:
+    """The id of the ``n``-th unnumbered requirement the model lists on ``page``: the same
+    answer always gives the same id, and a printed id never looks like it."""
+    return f"{doc_id}-p{page}-{n:02d}"
 
 
 def _page_prompt(doc: CorpusDocument, page: int, text: str) -> str:
@@ -128,14 +136,19 @@ def trace(corpus: Corpus, llm: LLM) -> Traceability:
             except ValidationError:
                 out.dropped.append(Dropped("requirement", f"{doc.doc_id} p{n}", "bad answer"))
                 continue
+            unnumbered = 0
             for s in segments:
+                rid = (s.id or "").strip()
+                if not rid:
+                    unnumbered += 1
+                    rid = system_id(doc.doc_id, n, unnumbered)
                 c = Citation(doc.doc_id, doc.rev, n, s.quote)
-                if any(r.id == s.id for r in [*out.requirements, *found]):
-                    out.dropped.append(Dropped("requirement", s.id, "duplicate id"))
+                if any(r.id == rid for r in [*out.requirements, *found]):
+                    out.dropped.append(Dropped("requirement", rid, "duplicate id"))
                 elif not verified(c, pages):
-                    out.dropped.append(Dropped("requirement", s.id, "quote not on page"))
+                    out.dropped.append(Dropped("requirement", rid, "quote not on page"))
                 else:
-                    found.append(Requirement(s.id, s.text, c))
+                    found.append(Requirement(rid, s.text, c))
         out.requirements += found
 
         extract_answers = llm.complete(
