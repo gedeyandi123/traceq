@@ -131,6 +131,7 @@ def test_perfect_submission_scores_one_everywhere(key: dict, pages: PageTexts) -
     ):
         assert m["requirements"][name] == 1.0, name
     assert m["requirements"]["superseded_values"] == 0
+    assert "segmentation_recall" not in m["requirements"]  # TP-201 prints its ids
     assert (m["defects"]["recall"], m["defects"]["precision"]) == (1.0, 1.0)
     assert m["defects"]["severity_agreement"] == 1.0
     assert m["ambiguous"]["asked_rate"] == 1.0

@@ -62,6 +62,8 @@ RATCHETED: tuple[tuple[str, Direction], ...] = (
     ("requirements.evidence_precision", UP),
     ("requirements.evidence_recall", UP),
     ("requirements.unknown_requirements", DOWN),
+    ("requirements.segmentation_recall", UP),
+    ("requirements.segmentation_precision", UP),
     ("defects.recall", UP),
     ("defects.precision", UP),
     ("defects.f1", UP),
