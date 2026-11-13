@@ -6,7 +6,9 @@ Terms come from three places, matched case-insensitively on word boundaries:
 - ``.denylist.local``: private terms, one per line (gitignored, never committed).
 - ``DENYLIST`` env var: private terms, newline- or comma-separated (CI secret).
 
-Private terms are never printed, so CI logs stay clean.
+Private terms are never printed, so CI logs stay clean. Without any private term the check
+fails (exit 2) instead of passing silently: a git worktree does not carry the gitignored
+``.denylist.local``, so copy it in before committing there.
 """
 
 from __future__ import annotations
@@ -48,11 +50,6 @@ def load_terms() -> list[tuple[re.Pattern[str], str]]:
     private += _read_terms(os.environ.get("DENYLIST", ""), commas=True)
     for i, term in enumerate(dict.fromkeys(private), start=1):
         pairs.append((_compile(term), f"private term #{i}"))
-    if not private:
-        print(
-            "warning: no private denylist (.denylist.local or DENYLIST)",
-            file=sys.stderr,
-        )
     return pairs
 
 
@@ -81,7 +78,15 @@ def scan(paths: list[str], terms: list[tuple[re.Pattern[str], str]]) -> int:
 
 
 def main(argv: list[str]) -> int:
-    hits = scan(argv, load_terms())
+    terms = load_terms()
+    if not any(label.startswith("private") for _, label in terms):
+        print(
+            "denylist: no private terms (.denylist.local or DENYLIST); refusing to pass. "
+            "In a git worktree, copy .denylist.local from the main checkout.",
+            file=sys.stderr,
+        )
+        return 2
+    hits = scan(argv, terms)
     if hits:
         print(f"denylist: {hits} hit(s)", file=sys.stderr)
         return 1

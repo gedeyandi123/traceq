@@ -37,8 +37,9 @@ jobs:
           pip install pre-commit==4.7.0
           pre-commit run --all-files --show-diff-on-failure
 
-      - name: tests
+      - name: typecheck and tests
         run: |
           pip install uv==0.11.23
           uv sync --locked
+          uv run pyright
           uv run pytest -q

@@ -83,7 +83,9 @@ def main(argv: list[str]) -> int:
     if readings:
         print(f"awaiting human review: {len(readings)} calibration result table(s)")
         for i in readings:
-            print(f"    {i.certificate.id} ({i.id}) [{i.certificate.results.drafted_by}]")
+            results = i.certificate.results
+            assert results is not None
+            print(f"    {i.certificate.id} ({i.id}) [{results.drafted_by}]")
     if risks:
         ra = eq.risk_assessment
         assert ra is not None

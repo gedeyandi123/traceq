@@ -70,6 +70,7 @@ def test_scan_is_deterministic_per_seed(sat: Rendered, scan: Scanned) -> None:
     assert degrade(sat, "medium").pdf == scan.pdf
     assert degrade(sat, "medium", seed=1).pdf != scan.pdf
     meta = PdfReader(io.BytesIO(scan.pdf)).metadata
+    assert meta is not None
     assert meta["/CreationDate"] == f"D:{sat.issued:%Y%m%d}000000Z"
 
 

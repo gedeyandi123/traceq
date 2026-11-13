@@ -68,7 +68,9 @@ def scan_problems(scanned: Scanned) -> list[str]:
         if p.extract_text().strip()
     ]
     pdf, scale = pdfium.PdfDocument(scanned.pdf), scanned.dpi / 72
-    pages = [pdf[i].render(scale=scale).to_pil().convert("L") for i in range(len(pdf))]
+    # pypdfium2's stub types `scale` as int; the library takes a float (dpi / 72).
+    bitmaps = [pdf[i].render(scale=scale) for i in range(len(pdf))]  # pyright: ignore[reportArgumentType]
+    pages = [b.to_pil().convert("L") for b in bitmaps]
     for key, placed in scanned.placed.items():
         if placed.quad is None:
             continue
@@ -245,7 +247,7 @@ class _KeyCheck:
                 self.out.append(f"{req} risk: no {name} cell on sheet {risk['sheet']!r}")
             elif coordinate_from_string(placed.cell)[1] != risk["row"]:
                 self.out.append(f"{req} risk: {name} is not on row {risk['row']}")
-            elif cells.get((placed.sheet, placed.cell)) != str(value):
+            elif cells.get((risk["sheet"], placed.cell)) != str(value):
                 self.out.append(f"{req} risk: {name} is not {value!r} in {placed.cell}")
         if (risk["text"] == "Ya") != risk["critical"]:
             self.out.append(f"{req} risk: critical {risk['critical']} but marked {risk['text']!r}")

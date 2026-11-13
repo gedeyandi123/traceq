@@ -181,7 +181,7 @@ def score_requirements(sub: Submission, key: Key, ledger: Ledger) -> dict[str, A
         a = answers.get(r["id"])
         expected, valid = r["expected_coverage"], {r["expected_coverage"], *r["also_valid"]}
         got = str(a.coverage) if a and a.coverage else None
-        graded = got if got in valid else expected
+        graded: str = got if got is not None and got in valid else expected
         confusion[graded][got or "missing"] += 1
         if got == "covered_by_vendor" and expected in UNSAFE_IF_COVERED and got not in valid:
             unsafe.append({"requirement": r["id"], "expected": expected, "got": got})

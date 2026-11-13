@@ -70,6 +70,7 @@ def test_every_requirement_on_its_page(eq: Equipment, rev1: Rendered) -> None:
 def test_deterministic_with_fixed_metadata_date(eq: Equipment, rev1: Rendered) -> None:
     assert render_urs(eq, 1, EVAL_T0).pdf == rev1.pdf
     meta = PdfReader(io.BytesIO(rev1.pdf)).metadata
+    assert meta is not None
     issued = next(d for d in eq.documents if d.rev == 1).issued_on.resolve(EVAL_T0)
     assert meta["/CreationDate"] == f"D:{issued:%Y%m%d}000000Z"
 
