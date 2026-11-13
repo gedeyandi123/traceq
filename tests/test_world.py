@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from traceq_dataset.coverage import PendingError, classify
+from traceq_dataset.render import awaiting_confirmation
 from traceq_dataset.schema import (
     Equipment,
     Requirement,
@@ -204,10 +205,12 @@ def test_tp201_filled_requirements_agree_with_intent(tp201: Equipment) -> None:
     """Every requirement whose values are filled must classify as intended."""
     protocols = {p.doc_id: p for p in tp201.protocols}
     vendors = {tp201.vendor.id: tp201.vendor}
+    awaiting = awaiting_confirmation(tp201)
+    assert awaiting == {"SAT-01", "SAT-03"}  # 122.400 tablets/h and 1.500 rpm (S7)
     checked = 0
     for r in tp201.requirements:
         try:
-            got = classify(r, tp201.tests, tp201.designs, protocols, vendors)
+            got = classify(r, tp201.tests, tp201.designs, protocols, vendors, awaiting)
         except PendingError:
             continue
         checked += 1

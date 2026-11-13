@@ -82,7 +82,8 @@
     observed: 122.400 tablets/h
     value: {type: number, value: 122400, unit: tablets/h}
     recorded_result: pass
-    qualifies: true
+    qualifies: false
+    failure: value awaits confirmation
     corrected_from: {type: number, value: 121400, unit: tablets/h}
     quad:
     - [414.28, 626.46]
@@ -97,8 +98,8 @@
     text: 151,200 tablets/h
     value: {type: number, value: 151200, unit: tablets/h}
     meets_urs: true
-  expected_coverage: covered_by_vendor
-  reason: proved by SAT-TP201
+  expected_coverage: partial
+  reason: 'SAT-01: value awaits confirmation'
   also_valid: []
 - id: URS-TP201-004
   text: Gaya tekan utama yang dapat dicapai minimal 100 kN.
@@ -532,7 +533,7 @@
     value: {type: number, value: 1500, unit: rpm}
     recorded_result: pass
     qualifies: false
-    failure: result does not meet the URS
+    failure: value awaits confirmation
     quad:
     - [415.47, 708.66]
     - [465.31, 707.94]
@@ -554,7 +555,7 @@
     value: {type: range, min: 10, max: 60, unit: rpm}
     meets_urs: true
   expected_coverage: partial
-  reason: 'FAT-M-09: condition 3: full URS range not tested; SAT-03: result does not meet the URS'
+  reason: 'FAT-M-09: condition 3: full URS range not tested; SAT-03: value awaits confirmation'
   also_valid: []
 - id: URS-TP201-018
   text: Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.
