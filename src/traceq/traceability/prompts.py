@@ -84,4 +84,139 @@ EXTRACT = Prompt(
     max_tokens=4000,
 )
 
-PROMPTS = (SEGMENT, EXTRACT)
+_VALUE = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["kind", "min", "max", "number", "unit", "text", "present"],
+    "properties": {
+        "kind": {"type": "string", "enum": ["range", "number", "text", "present", "none"]},
+        "min": {"type": ["number", "null"]},
+        "max": {"type": ["number", "null"]},
+        "number": {"type": ["number", "null"]},
+        "unit": {"type": ["string", "null"]},
+        "text": {"type": ["string", "null"]},
+        "present": {"type": ["boolean", "null"]},
+    },
+}
+_DATE = {
+    "type": ["object", "null"],
+    "additionalProperties": False,
+    "required": ["date", "quote"],
+    "properties": {"date": {"type": "string"}, "quote": {"type": "string"}},
+}
+_VALUE_RULES = (
+    "value: the value as normalised data.\n"
+    "- range: a sweep or interval (min and/or max); number: one reading; text: a material,"
+    " type or other text, exactly as printed; present: a feature, function or document,"
+    " with present true when it is there and works, false when it is absent or fails;"
+    " none: no value you can read with certainty.\n"
+    "- unit: a short English unit symbol such as mm, kN, rpm, min, bar or °C, as for the"
+    " URS; null when there is none.\n"
+)
+
+FACTS = Prompt(
+    name="facts",
+    system=(
+        "You read one page of a vendor document for pharmaceutical equipment: a FAT or SAT"
+        " protocol and report, a datasheet or a certificate. Report only what the page"
+        " prints.\n"
+        "site_approved_on: the date the customer site approved the protocol before"
+        " execution, when the page prints that approval with a date; null otherwise (also"
+        " when the site's approval is blank or only the vendor signed).\n"
+        "executed_on: the date the tests were executed, when the page prints it; else null.\n"
+        "For both: date exactly as printed, and a quote that holds it.\n"
+        "steps: every test step on the page. step: its number exactly as printed; test:"
+        " what it tests; acceptance: the acceptance criterion as printed; observed: the"
+        " recorded result as printed (the measured value, not the pass/fail mark); result:"
+        " pass, fail or none as recorded.\n"
+        "rows: every design or certified value on a datasheet or certificate. name: the row"
+        " label as printed; printed: the value as printed.\n"
+        + _VALUE_RULES
+        + "quote: a verbatim excerpt of the page, at most 200 characters, holding the step"
+        " number and its observed result, or the row label and its value. Copy characters"
+        " exactly; never paraphrase or translate. If the page has none, return empty lists."
+    ),
+    schema={
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["site_approved_on", "executed_on", "steps", "rows"],
+        "properties": {
+            "site_approved_on": _DATE,
+            "executed_on": _DATE,
+            "steps": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": [
+                        "step",
+                        "test",
+                        "acceptance",
+                        "observed",
+                        "result",
+                        "value",
+                        "quote",
+                    ],
+                    "properties": {
+                        "step": {"type": "string"},
+                        "test": {"type": "string"},
+                        "acceptance": {"type": "string"},
+                        "observed": {"type": "string"},
+                        "result": {"type": "string", "enum": ["pass", "fail", "none"]},
+                        "value": _VALUE,
+                        "quote": {"type": "string"},
+                    },
+                },
+            },
+            "rows": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["name", "printed", "value", "quote"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "printed": {"type": "string"},
+                        "value": _VALUE,
+                        "quote": {"type": "string"},
+                    },
+                },
+            },
+        },
+    },
+    max_tokens=16000,
+)
+
+LINK = Prompt(
+    name="link",
+    system=(
+        "You trace one URS requirement for pharmaceutical equipment to vendor Evidence. You"
+        " get the requirement and lists of vendor test steps and design values, each with an"
+        " id.\n"
+        "steps: ids of the test steps whose result tests what the requirement asks. A step"
+        " that checks something else (another part, a document about a different property)"
+        " is not Evidence.\n"
+        "rows: ids of the design or certified values that state what the requirement asks"
+        " about (the same parameter, material or feature).\n"
+        "site_only: true when the vendor cannot test the requirement because it depends on"
+        " the site (utility connections, the production room, plant systems).\n"
+        "transport_sensitive: true when transport or installation can change the result, so"
+        " a factory test alone does not prove it (calibration, alignment, measurement"
+        " accuracy).\n"
+        "Use only the ids given; return empty lists when nothing fits."
+    ),
+    schema={
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["steps", "rows", "site_only", "transport_sensitive"],
+        "properties": {
+            "steps": {"type": "array", "items": {"type": "string"}},
+            "rows": {"type": "array", "items": {"type": "string"}},
+            "site_only": {"type": "boolean"},
+            "transport_sensitive": {"type": "boolean"},
+        },
+    },
+    max_tokens=2000,
+)
+
+PROMPTS = (SEGMENT, EXTRACT, FACTS, LINK)

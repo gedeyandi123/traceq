@@ -7,6 +7,7 @@ license = "Apache-2.0"
 requires-python = ">=3.13"
 dependencies = [
     "anthropic>=2.8.0",
+    "docling>=2.150.0",
     "numpy>=2.5.4",
     "openpyxl>=3.1.5",
     "pillow>=13.0.0",
@@ -14,6 +15,8 @@ dependencies = [
     "pypdf>=6",
     "pypdfium2>=5.15.2",
     "pyyaml>=6.0.2",
+    "torch>=2.14",
+    "torchvision>=0.29",
     "typst==0.15.2",
 ]
 
@@ -23,6 +26,17 @@ dev = [
     "pyright>=1.1.414",
     "pytest>=8.4",
 ]
+
+# Docling's layout and table models run on torch. The slice runs on a laptop CPU (spec #29),
+# so torch comes from the CPU wheel index: no CUDA libraries in CI or on the laptop.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]
 
 [build-system]
 requires = ["hatchling>=1.27"]
@@ -58,6 +72,7 @@ allowed-confusables = ["–"]
 # ADR 0008: module boundaries of the TraceQ system, checked by tests/test_boundaries.py.
 [tool.importlinter]
 root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "TraceQ modules are layered: runs > traceability > documents, ai"
@@ -69,3 +84,9 @@ name = "The system never imports the dataset or the scorer"
 type = "forbidden"
 source_modules = ["traceq"]
 forbidden_modules = ["traceq_dataset", "traceq_eval"]
+
+[[tool.importlinter.contracts]]
+name = "The system reads PDFs with Docling, not pypdf (spec #29)"
+type = "forbidden"
+source_modules = ["traceq"]
+forbidden_modules = ["pypdf"]
