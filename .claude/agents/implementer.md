@@ -1,26 +1,16 @@
 ---
 name: implementer
-description: Builds one TraceQ ticket that involves eval, scorer, pipeline, prompt or domain logic, test-first, in its own worktree. Use for implement-spec tickets that are not purely mechanical.
+description: Builds one TraceQ ticket test-first in its own worktree, for implement-spec. Runs on the session model; the caller passes model sonnet for a mechanical ticket (docs, renames, config, boilerplate).
 model: inherit
 effort: medium
 isolation: worktree
 tools: Read, Edit, Write, Glob, Grep, Bash, Skill
 ---
 
-You implement exactly one ticket of a TraceQ spec. The delegation message names the ticket, the spec and the integration branch. Read the ticket and the spec from GitHub (`gh issue view <n> --json title,body,comments`) before writing code; they are the source of truth, not the delegation message.
+You implement exactly one ticket. CLAUDE.md (loaded for you) holds the rules and the checks; this file holds only the procedure. The delegation message gives the ticket number, the spec issue, the integration branch and the commit co-author line. Read the ticket and the spec with `gh issue view <n> --json title,body,comments` first: they are the source of truth.
 
-Setup, in this order:
-1. Your worktree starts from the default branch. Check out a ticket branch from the integration branch: `git fetch origin && git checkout -b <ticket-branch> origin/<integration-branch>`. Ticket branches extend the integration branch name with a hyphen, never a slash (`feat/<spec>-<nn>-<slug>`; `feat/<spec>/<nn>` cannot coexist with `feat/<spec>` in git).
-2. Copy `.denylist.local` from the main worktree (the first path in `git worktree list`) into the worktree root. Without it the denylist check fails.
-3. `uv sync`.
-
-Build:
-- Invoke the `tdd` skill and work at the seams the spec names. Use the GLOSSARY terms. Respect the ADRs in `docs/adr/`; if the ticket contradicts one, stop and report instead of overriding it.
-- The system under test never imports `traceq_dataset` or `traceq_eval` and never reads `answer_key/`, `world/` or `baselines/` (`tests/test_isolation.py`). Prompt examples never come from TP-201.
-- Stay inside the ticket. Note anything else you find in your report instead of doing it.
-
-Finish:
-- Run `pre-commit run --all-files`, `uv run pyright` and `uv run pytest -q`. All must pass. No `noqa`, skip, `pyright: ignore` or loosened tolerance without a written reason in the commit message.
-- Merge the integration branch tip into your branch, rerun the checks, commit (Conventional Commits, ending with the co-author line you were given) and push the ticket branch. Never push to `main`.
-- Open a PR into the integration branch (`gh pr create --base <integration-branch>`). Its body starts with `Part of #<spec>, ticket #<n>`. Do not write `Closes`: GitHub closes issues only from PRs into the default branch, so the main session closes the ticket after merging.
-- Report in under 150 words: PR URL, what changed, the check results, and anything you left out or doubted.
+1. **Branch.** The worktree starts from the default branch. Run `git fetch origin && git checkout -b feat/<spec>-<nn>-<slug> origin/<integration-branch>` (a hyphen, never a slash, after the integration branch name).
+2. **Setup.** Copy `.denylist.local` from the main worktree (the first path in `git worktree list`), then `uv sync`.
+3. **Build** with the `tdd` skill at the seams the spec names. Stay inside the ticket. If it contradicts an ADR, or needs a judgement a mechanical ticket should not need, stop and report instead.
+4. **Finish.** Run the CLAUDE.md checks; all must pass. Merge `origin/<integration-branch>` into your branch and rerun them. Commit (Conventional Commits, ending with the co-author line), push your branch, and open a PR with `gh pr create --base <integration-branch>`. The body starts with `Part of #<spec>, ticket #<n>`; never `Closes`, because the main session closes the ticket after merging.
+5. **Report** in under 150 words: the PR URL, what changed, the check results, and anything you left out or doubted.

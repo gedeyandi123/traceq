@@ -21,9 +21,9 @@ Single-context: `GLOSSARY.md` and `docs/adr/` at the root. See `docs/agents/doma
 ## Flow per feature
 
 1. `grilling` + `domain-modeling`: decisions land in `GLOSSARY.md` and `docs/adr/`. Prototype only when code must answer a question; at most two rounds on paper, then a probe.
-2. A fresh-context subagent reviews the plan for doubts (strongest counter-argument per decision).
+2. The `reviewer` agent, in a fresh context, reviews the plan for doubts (strongest counter-argument per decision).
 3. to-spec, then the owner approves it, then to-tickets (issues with native blocking edges). Keep user stories to what the slice needs.
-4. implement-spec: integration branch `feat/<spec>`; each ticket in its own worktree, built by a fresh subagent with `tdd`. Ticket PRs target the integration branch and the agent merges them after CI; `code-review` runs on the integration branch; one PR to `main`, merged by the owner.
+4. implement-spec: integration branch `feat/<spec>`; each ticket in its own worktree, built by a fresh `implementer` with `tdd`. Ticket PRs target the integration branch and the agent merges them after CI; `code-review` runs on the integration branch; one PR to `main`, merged by the owner.
 5. `retro` per milestone, not per PR. No separate protocol audits.
 
 The user-only Matt skills (to-spec, to-tickets, implement-spec, retro, setup) run by reading their `SKILL.md` from the installed `mattpocock-skills` plugin when the owner asks in prose.
@@ -38,15 +38,14 @@ The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec an
 
 | Agent | Use for | Model / effort | Tools |
 |---|---|---|---|
-| `implementer` | A ticket with eval, scorer, pipeline, prompt or domain logic | inherit (Opus) / `medium`; pass `effort: high` for scoring rules and gates | edit, own worktree |
-| `implementer-light` | A mechanical ticket (docs, renames, config, boilerplate) | Sonnet / `medium` | edit, own worktree |
+| `implementer` | One ticket. Pass `model: sonnet` for a mechanical ticket (docs, renames, config, boilerplate) and `effort: high` for scoring rules and gates | inherit (Opus) / `medium` | edit, own worktree |
 | `reviewer` | Both code-review axes and the plan doubt review | inherit (Opus) / `medium` | read-only |
 | `explorer` | A lookup: where is X, which files mention Y | Haiku / `low`, no CLAUDE.md | Read, Glob, Grep |
 
 How implement-spec's roles map here:
 
 - **Exploration subagent (step 2):** `explorer` for codebase lookups. It cannot write, so the main session saves its notes in the session scratchpad, never in the repo. External docs go through the `research` or `claude-api` skill in the main session.
-- **Implementer subagents (step 4):** `implementer` or `implementer-light`, at most **two at a time**. The delegation message holds only pointers: ticket number, spec issue, integration branch, and the commit co-author line (subagents do not receive it otherwise).
+- **Implementer subagents (step 4):** `implementer`, at most **two at a time**. The delegation message holds only pointers: ticket number, spec issue, integration branch, and the commit co-author line (subagents do not receive it otherwise).
 - **Merger subagent (step 5):** none. The main session merges the ticket PR into the integration branch (`gh pr merge <n> --squash`), then comments on the ticket and closes it, so native blocking edges unblock the next tickets. GitHub closes issues only from PRs into the default branch. On a merge conflict, a fresh implementer resolves it.
 - **Integration PR (steps 3 and 8):** a draft PR into `main` that closes the spec issue, listing every ticket. The owner merges it.
 - **Cleanup (step 9):** `git worktree prune` and delete leftover local `worktree-agent-*` and ticket branches.
@@ -60,7 +59,7 @@ The session's own effort changes only by the owner typing `/effort`. The agent s
 ## Rules
 
 - The owner decides: grilling answers, spec approval, merging code into `main`, gates, scoring rules and claims, ADRs, money, contacting people.
-- The agent pushes any branch except `main` and merges `docs/*` and `chore/*` PRs after CI is green (enforced by a local hook and branch protection). No force push.
+- The agent pushes branches with a standard prefix (`feat/`, `fix/`, `docs/`, `chore/`, `test/`, `refactor/`), never `main`, and never force-pushes. It merges, after CI is green, `docs/*` and `chore/*` PRs into `main` and ticket PRs into an integration branch; code reaches `main` only through the owner. A local hook (github-guard) and branch protection enforce this.
 - The system under test never reads world data, the answer key or baselines (`tests/test_isolation.py`); prompt examples never come from TP-201.
 - No `noqa`, skip, `pyright: ignore` or loosened tolerance without a written reason. Answer-key changes go in their own PR (design §10). New product packages go in pyright `strict`.
 - A new task must pass: "if the result is A versus B, what do we build differently?" Ports only where a second implementation exists.
