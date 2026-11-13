@@ -5,7 +5,8 @@ gates.
 
 - ``requirements``: Coverage class (``also_valid`` counts as correct), extracted value, the
   rev 0 value of a superseded requirement (S8), citation of the URS sentence, and the vendor
-  steps offered as Evidence.
+  steps offered as Evidence. Answers are paired with requirements by id when the URS prints
+  its requirement numbers, otherwise by the URS text they quote (``traceq_eval.segmentation``).
 - ``defects``: a finding matches a planted defect when it has the defect's type and one of
   its citations quotes one of the defect's locations (same document, revision and page, the
   location's text inside the quote). Recall per defect, layer and severity; precision per
@@ -52,9 +53,10 @@ from traceq_eval.citations import (
 )
 from traceq_eval.judge import Criterion, Judge, NoJudge, UrsRequirement
 from traceq_eval.ocr import score_ocr
+from traceq_eval.segmentation import Alignment, align
 from traceq_eval.submission import Citation, Submission
 
-SCORER_VERSION = "0.4.0"
+SCORER_VERSION = "0.5.0"
 
 CLAIMS_A_TEST = frozenset({"covered_by_vendor", "partial"})
 """Coverage classes that say a vendor step tested the requirement."""
@@ -170,7 +172,10 @@ class Ledger:
 # --- Sections ---------------------------------------------------------------------------
 
 
-def score_requirements(sub: Submission, key: Key, ledger: Ledger) -> dict[str, Any]:
+def score_requirements(
+    sub: Submission, key: Key, ledger: Ledger, alignment: Alignment | None = None
+) -> dict[str, Any]:
+    """``alignment``: how answers were paired with requirements by span (``None``: by id)."""
     answers = {a.id: a for a in sub.requirements}
     steps = {(t.protocol, 0, t.step) for t in ledger.pages.corpus.eq.tests}
     classes = [str(c) for c in CoverageClass]
@@ -225,6 +230,7 @@ def score_requirements(sub: Submission, key: Key, ledger: Ledger) -> dict[str, A
         )
 
     known = {r["id"] for r in key["requirements.yaml"]}
+    extra = set(alignment.extra) if alignment else set[str]()
     for a in sub.requirements:
         if a.id not in known:
             for c in a.citations:
@@ -235,6 +241,18 @@ def score_requirements(sub: Submission, key: Key, ledger: Ledger) -> dict[str, A
                         {"requirement": a.id, "doc": e.doc, "rev": e.rev, "step": e.step}
                     )
     n = len(items)
+    segmentation: dict[str, Any] = {}
+    if alignment:
+        matched = {m.requirement: m for m in alignment.matches}
+        for i in items:
+            m = matched.get(i["id"])
+            if m:
+                i.update(answer=m.answer, cover=m.cover, purity=m.purity)
+        segmentation = {
+            "segmentation_recall": _ratio(len(matched), alignment.requirements),
+            "segmentation_precision": _ratio(len(matched), alignment.answers),
+            "extra_segments": alignment.extra,
+        }
     per_class = {}
     for c in classes:
         tp = confusion[c][c]
@@ -254,7 +272,10 @@ def score_requirements(sub: Submission, key: Key, ledger: Ledger) -> dict[str, A
             "source_citation_rate": _ratio(sum(i["source_cited"] for i in items), n),
             "evidence_precision": _ratio(ev_right, ev_submitted),
             "evidence_recall": _ratio(ev_found, ev_needed),
-            "unknown_requirements": sorted(a.id for a in sub.requirements if a.id not in known),
+            "unknown_requirements": sorted(
+                a.id for a in sub.requirements if a.id not in known and a.id not in extra
+            ),
+            **segmentation,
         },
         "per_class": per_class,
         "confusion": confusion,
@@ -527,8 +548,9 @@ def score(
     tag = pages.corpus.eq.tag
     if sub.equipment != tag:
         raise ValueError(f"submission is for {sub.equipment}, the answer key for {tag}")
+    sub, alignment = align(sub, key, pages)
     ledger = Ledger(pages)
-    requirements = score_requirements(sub, key, ledger)
+    requirements = score_requirements(sub, key, ledger, alignment)
     defects = score_defects(sub, key, ledger)
     test_steps = score_test_steps(sub, key, ledger, judge)
     ambiguous = score_ambiguous(key, ledger, defects.pop("_asking"))

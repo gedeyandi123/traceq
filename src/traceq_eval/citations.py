@@ -39,18 +39,27 @@ def norm(text: str) -> str:
 def partial_ratio(needle: str, haystack: str) -> float:
     """Best ``SequenceMatcher`` ratio of ``needle`` against any window of ``haystack`` of
     the same length, with windows aligned on matching blocks (as fuzzywuzzy does)."""
+    return locate(needle, haystack)[0]
+
+
+def locate(needle: str, haystack: str) -> tuple[float, int, int]:
+    """``partial_ratio`` and the window of ``norm(haystack)`` it was found in (start, end;
+    the first exact occurrence, else the first best window)."""
     a, b = norm(needle), norm(haystack)
     if not a or not b:
-        return 0.0
+        return 0.0, 0, 0
     if a in b:
-        return 1.0
+        start = b.index(a)
+        return 1.0, start, start + len(a)
     if len(a) >= len(b):
-        return SequenceMatcher(None, a, b, autojunk=False).ratio()
-    best = 0.0
+        return SequenceMatcher(None, a, b, autojunk=False).ratio(), 0, len(b)
+    best = (0.0, 0, 0)
     for i, j, _ in SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
         start = max(0, min(j - i, len(b) - len(a)))
         window = b[start : start + len(a)]
-        best = max(best, SequenceMatcher(None, a, window, autojunk=False).ratio())
+        ratio = SequenceMatcher(None, a, window, autojunk=False).ratio()
+        if ratio > best[0]:
+            best = (ratio, start, start + len(a))
     return best
 
 
