@@ -10,7 +10,8 @@ gates.
 - ``defects``: a finding matches a planted defect when it has the defect's type and one of
   its citations quotes one of the defect's locations (same document, revision and page, the
   location's text inside the quote). Recall per defect, layer and severity; precision per
-  finding; false positives on clean documents.
+  finding; false positives on clean documents. An ``ambiguous_value`` finding that matches no
+  defect of that type is left out here: asking is scored in ``ambiguous`` only.
 - ``ambiguous``: whether each ambiguous value was raised for confirmation, or a value was
   silently claimed from it.
 - ``probes``: hallucination probes, facts the corpus does not hold. A probe rides on a
@@ -300,6 +301,8 @@ def score_defects(sub: Submission, key: Key, ledger: Ledger) -> dict[str, Any]:
             if any(c.at(loc) for c in cites for loc in d["locations"] if "page" in loc)
         ]
         hits = [d for d in located if d["type"] == str(f.type)]
+        if f.type == "ambiguous_value" and not hits:
+            continue  # asking is scored in the ambiguous section, never as a wrong defect
         for d in hits:
             matched[d["id"]].append(n)
         if hits:

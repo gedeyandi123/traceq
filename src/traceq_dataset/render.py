@@ -141,6 +141,35 @@ def fmt_number(value: float, lang: str) -> str:
     return text.translate(str.maketrans(",.", ".,")) if lang == "id" else text
 
 
+DECIMAL_POINT = {"en": ".", "id": ","}
+_GROUPED = re.compile(r"\d{1,3}([.,])\d{3}(?:\s+.+)?")
+
+
+def reads_two_ways(printed: str, lang: str) -> bool:
+    """The ambiguity rule (design section 6): one ``.`` or ``,`` before exactly three digits,
+    where that separator is the decimal point of the document's language. A writer of the
+    other convention may have meant thousands, so ``1.500 rpm`` on an English form is 1500 or
+    1.5. As the grouping separator (``120.000`` in Indonesian) it reads one way."""
+    m = _GROUPED.fullmatch(printed.strip())
+    return m is not None and m[1] == DECIMAL_POINT[lang]
+
+
+def awaiting_confirmation(eq: Equipment) -> frozenset[str]:
+    """FAT/SAT steps whose printed result reads two ways: Evidence that proves nothing until
+    a human confirms the value. Handwritten SAT entries are written in ``entry_language`` and
+    read in the language of the form."""
+    docs = {d.id: d for d in eq.documents if d.rev == 0}
+    out: set[str] = set()
+    for t in eq.tests:
+        doc = docs.get(t.protocol)
+        if doc is None or not isinstance(t.observed, NumberObs):
+            continue
+        printed = fmt_observation(t.observed, doc.entry_language or doc.language)
+        if reads_two_ways(printed, doc.language):
+            out.add(t.step)
+    return frozenset(out)
+
+
 def fmt_date(value: dt.date, lang: str) -> str:
     """``dd/mm/yyyy`` (id) or ``12-Mar-2026`` (en), design section 4."""
     return value.strftime("%d/%m/%Y") if lang == "id" else value.strftime("%d-%b-%Y")
