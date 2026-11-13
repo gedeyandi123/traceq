@@ -261,9 +261,28 @@ documents:
     executed_by: p-ve
     witnessed_by: p-wit
     attachments: ["Noise level measurement at 1 m from the machine"]
+  # Site documents (not in required_documents). The Vendor Assessment prints the limited
+  # scope (design section 6), so condition 1 fails on a cited document for control; the
+  # short VMP's annex lists required_documents, the source of the expected IQ/OQ gaps.
+  - id: VA-2025-008
+    rev: 0
+    type: vendor_assessment
+    language: id
+    issued_on: T0-250d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+  - id: VMP-TP202
+    rev: 0
+    type: vmp
+    language: id
+    issued_on: T0-60d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
 
-# What a new tablet press needs (as for TP-201); the slice renders only the URS and the FAT,
-# and IQ/OQ are what TraceQ drafts. No VMP or SOP is rendered for TP-202.
+# What a new tablet press needs (as for TP-201), printed in the VMP annex; the slice renders
+# only the URS and the FAT, and IQ/OQ are what TraceQ drafts. No SOP is rendered for TP-202.
 required_documents:
   - {id: URS-TP202, type: urs, stage: design}
   - {id: FAT-TP202, type: fat, stage: FAT}

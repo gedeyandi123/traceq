@@ -1402,6 +1402,99 @@ def render_sop(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
     return _compile("governing.typ", data, issued, texts, doc)
 
 
+ASSESSMENT_AREAS = {
+    "mechanical": (
+        "Mekanik (mechanical)",
+        "Desain dan fabrikasi mekanik, material bagian kontak produk, uji fungsi mekanik.",
+    ),
+    "control": (
+        "Sistem kendali dan perangkat lunak (control system/software)",
+        "PLC, HMI, perangkat lunak kendali dan uji fungsi kendali.",
+    ),
+    "data_integrity": (
+        "Integritas data (data integrity)",
+        "Hak akses, audit trail, log alarm, cadangan data dan sinkronisasi waktu.",
+    ),
+    "documentation": (
+        "Dokumentasi (documentation)",
+        "Pengendalian dokumen, sertifikat material dan kalibrasi, protokol FAT/SAT.",
+    ),
+}
+"""Areas every Vendor Assessment rates, keyed by ``VendorAssessment.scope`` (Indonesian,
+with the English area name the site's vendor questionnaire uses)."""
+
+
+def render_vendor_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Vendor Assessment (Indonesian, born-digital): the site's evaluation of the vendor
+    and the areas whose results it may rely on (CPOB Ch. 12; Coverage condition 1, design
+    section 6). Every area is printed with ``Ya`` or ``Tidak``, so a limited scope is as
+    citable as a full one."""
+    doc = _governing(eq, doc_id)
+    assessment = eq.vendor.assessment
+    if assessment is None:
+        raise RenderError(f"{doc_id}: a Vendor Assessment needs vendor.assessment")
+    unknown = sorted(assessment.scope - set(ASSESSMENT_AREAS))
+    if unknown:
+        raise RenderError(f"{doc_id}: no assessment area for scope {unknown}")
+    issued = doc.issued_on.resolve(t0)
+    texts: dict[str, str] = {}
+    rows = []
+    for key, (label, activities) in ASSESSMENT_AREAS.items():
+        texts[f"scope.{key}"] = label
+        relied = "Ya" if key in assessment.scope else "Tidak"
+        rows.append({"key": f"scope.{key}", "cells": [label, relied, activities]})
+    limited = set(ASSESSMENT_AREAS) - assessment.scope
+    conclusion = (
+        "Pemasok disetujui untuk seluruh area di atas."
+        if not limited
+        else "Pemasok disetujui dengan ruang lingkup terbatas: area dengan hasil Tidak belum "
+        "dinilai, sehingga hasil uji pemasok untuk area tersebut tidak dapat digunakan "
+        "sebagai Bukti dan diuji oleh site."
+    )
+    machine = f"{eq.tag} {EN_DASH} {eq.name}" + (f", model {eq.model}" if eq.model else "")
+    sections = [
+        {
+            "title": "Tujuan",
+            "paragraphs": [
+                f"Laporan ini mencatat penilaian site terhadap pemasok {eq.vendor.name} "
+                "dan menetapkan area kegiatan pemasok yang hasilnya dapat diandalkan site "
+                "dalam kualifikasi peralatan (CPOB Bab 12)."
+            ],
+        },
+        {
+            "title": "Pengadaan terkait",
+            "paragraphs": [f"Peralatan {machine}."],
+        },
+        {
+            "title": "Metode penilaian",
+            "paragraphs": [
+                "Kuesioner pemasok, tinjauan sistem mutu pemasok, dan audit di lokasi pemasok "
+                "oleh Qualification Supervisor dan QA."
+            ],
+        },
+        {
+            "title": "Ruang lingkup yang dinilai",
+            "paragraphs": [
+                "Hasil uji pemasok (FAT/SAT) dapat digunakan sebagai Bukti kualifikasi hanya "
+                "untuk area dengan hasil Ya."
+            ],
+            "table": {
+                "columns": [3, 1, 4],
+                "header": ["Area", "Dapat diandalkan", "Kegiatan yang dinilai"],
+                "rows": rows,
+            },
+        },
+        {"title": "Kesimpulan", "paragraphs": [conclusion]},
+    ]
+    data = {
+        **_site_frame(eq, doc, t0),
+        "title": "Laporan Penilaian Pemasok (Vendor Assessment)",
+        "title_short": "Penilaian Pemasok",
+        "sections": sections,
+    }
+    return _compile("governing.typ", data, issued, texts, doc)
+
+
 RENDERERS = {
     "fat": render_fat,
     "sat": render_sat,
@@ -1413,6 +1506,7 @@ RENDERERS = {
     "risk_assessment": render_risk_assessment,
     "vmp": render_vmp,
     "sop": render_sop,
+    "vendor_assessment": render_vendor_assessment,
 }
 
 

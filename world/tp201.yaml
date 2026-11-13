@@ -956,6 +956,17 @@ documents:
     checked_by: p-qs
     approved_by: p-qa
     change_note: "Aturan koreksi catatan diselaraskan dengan PIC/S PI 041-1."
+  # The site's Vendor Assessment of the press vendor (design section 6, Coverage condition
+  # 1): dated by vendor.assessment and printing its scope, so condition 1 is cited, not
+  # assumed. Site document, so not in required_documents.
+  - id: VA-2025-011
+    rev: 0
+    type: vendor_assessment
+    language: id
+    issued_on: T0-200d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
 
 # Site rules the SOP states that discovery may change (design section 12, [D]); the
 # defaults follow the design: a Witness for Test Steps that verify a Critical Aspect, and

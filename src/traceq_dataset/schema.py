@@ -423,6 +423,7 @@ class Document(Model):
         "risk_assessment",
         "vmp",
         "sop",
+        "vendor_assessment",
     ]
     title: str = Field("", description="Subtitle, e.g. 'Mechanical' for a FAT protocol.")
     language: Literal["id", "en"] = Field(description="Language of the printed text.")
@@ -470,9 +471,10 @@ class Document(Model):
     ROLES: ClassVar = ("prepared_by", "checked_by", "approved_by", "executed_by", "witnessed_by")
     DESIGN_TYPES: ClassVar = frozenset({"datasheet", "functional_spec", "material_certificate"})
     REVIEWING_TYPES: ClassVar = frozenset({"dq_report", "risk_assessment"})
-    GOVERNING_TYPES: ClassVar = frozenset({"vmp", "sop"})
-    """Site-wide documents (design section 4): they govern every Equipment, so they are
-    not in an Equipment's ``required_documents``."""
+    GOVERNING_TYPES: ClassVar = frozenset({"vmp", "sop", "vendor_assessment"})
+    """Site documents outside an Equipment's package (design section 4): the VMP and SOP
+    govern every Equipment, the Vendor Assessment what the site may rely on from a vendor
+    (Coverage condition 1). They are not in an Equipment's ``required_documents``."""
     LAYOUTS: ClassVar = {"prose": "urs", "record": "fat"}
     """Document type each non-standard layout is for."""
 
@@ -788,6 +790,12 @@ class Equipment(Model):
             errors.append(f"{name}: sop needs site_rules")
         if d.type == "vmp" and not self.required_documents:
             errors.append(f"{name}: vmp needs required_documents")
+        if d.type == "vendor_assessment":
+            assessment = self.vendor.assessment
+            if assessment is None:
+                errors.append(f"{name}: vendor_assessment needs vendor.assessment")
+            elif d.issued_on != assessment.assessed_on:
+                errors.append(f"{name}: issued_on is not vendor.assessment.assessed_on")
         if d.type in ("urs", "dq_report", "risk_assessment", *Document.GOVERNING_TYPES):
             errors += [
                 f"{name}: {d.type} needs {r}"
