@@ -1005,6 +1005,261 @@ def _fixed_dates(xlsx: bytes, issued: dt.date) -> bytes:
     return out.getvalue()
 
 
+# --- Governing documents (VMP, qualification SOP) -------------------------------------
+
+DOC_TYPES_ID = {
+    "urs": "Spesifikasi Kebutuhan Pengguna (SKP)",
+    "risk_assessment": "Penilaian risiko (FMEA)",
+    "datasheet": "Lembar data teknis vendor",
+    "functional_spec": "Spesifikasi desain fungsional (FDS)",
+    "dq_report": "Laporan Kualifikasi Desain (DQ)",
+    "material_certificate": "Sertifikat material 3.1 bagian kontak produk",
+    "calibration_certificate": "Sertifikat kalibrasi",
+    "fat": "Protokol dan laporan FAT",
+    "sat": "Protokol dan laporan SAT",
+    "iq_protocol": "Protokol IQ",
+    "oq_protocol": "Protokol OQ",
+}
+"""Required-document types as the VMP names them (Indonesian)."""
+
+STAGES_ID = {"design": "Desain", "FAT": "FAT", "SAT": "SAT", "IQ": "IQ", "OQ": "OQ"}
+
+
+def _governing(eq: Equipment, doc_id: str) -> Document:
+    """A governing document is rendered in one revision: the one in force at T0."""
+    docs = [d for d in eq.documents if d.id == doc_id]
+    if len(docs) != 1:
+        raise RenderError(f"{eq.tag}: {doc_id} needs exactly one revision")
+    return docs[0]
+
+
+def _site_frame(eq: Equipment, doc: Document, t0: dt.date) -> dict:
+    """Header, revision entry and approval block shared by the governing documents."""
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    people = _people(eq)
+    roles = (
+        ("Disusun oleh", doc.prepared_by),
+        ("Diperiksa oleh", doc.checked_by),
+        ("Disetujui oleh", doc.approved_by),
+    )
+    return {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "issued_on": fmt_date(issued, lang),
+        "site": eq.site_name or "",
+        "history": [
+            {
+                "rev": str(doc.rev),
+                "date": fmt_date(issued, lang),
+                "note": doc.change_note or "Terbitan pertama.",
+            }
+        ],
+        "signatures": [
+            {"role": role, **_signature(people[pid].name if pid else None, issued, lang)}
+            for role, pid in roles
+        ],
+    }
+
+
+def _required_label(eq: Equipment, req_type: str, doc_id: str) -> str:
+    label = DOC_TYPES_ID[req_type]
+    if req_type == "calibration_certificate":
+        inst = next(i for i in eq.instruments if i.certificate.id == doc_id)
+        return f"{label}: {inst.name} ({inst.id})"
+    title = next((d.title for d in eq.documents if d.id == doc_id and d.title), "")
+    return f"{label} ({title})" if title else label
+
+
+def render_vmp(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Validation Master Plan (Indonesian, born-digital): qualification stages and, in its
+    annex, the documents required for the Equipment (``required_documents``), so the system
+    learns that list from the corpus. It prints no status: finding what is missing is the
+    reader's job."""
+    doc = _governing(eq, doc_id)
+    issued = doc.issued_on.resolve(t0)
+    sop = next((d.id for d in eq.documents if d.type == "sop"), None)
+    texts: dict[str, str] = {}
+    rows = []
+    for r in eq.required_documents:
+        key = f"required.{r.id}"
+        texts[key] = r.id
+        cells = [r.id, _required_label(eq, r.type, r.id), STAGES_ID[r.stage]]
+        rows.append({"key": key, "cells": cells})
+    stages = (
+        ("Desain", "SKP, penilaian risiko, data desain vendor, dan Kualifikasi Desain (DQ)."),
+        ("FAT", "Uji penerimaan di pabrik vendor dengan protokol vendor."),
+        ("SAT", "Uji penerimaan di site setelah instalasi."),
+        ("IQ", "Kualifikasi instalasi dengan protokol yang disusun site."),
+        ("OQ", "Kualifikasi operasional dengan protokol yang disusun site."),
+    )
+    sections = [
+        {
+            "title": "Tujuan",
+            "paragraphs": [
+                "Rencana Induk Validasi ini menetapkan pendekatan kualifikasi peralatan di "
+                f"{eq.site_name or 'site'}: tahapan kualifikasi, tanggung jawab, dan dokumen "
+                "yang dipersyaratkan untuk setiap peralatan."
+            ],
+        },
+        {
+            "title": "Ruang lingkup",
+            "paragraphs": [
+                "Peralatan produksi sediaan padat oral beserta sistem kendalinya. Kualifikasi "
+                "kinerja (PQ) dilaksanakan bersama validasi proses dan diatur dalam protokol "
+                "validasi proses, di luar paket dokumen kualifikasi peralatan."
+            ],
+        },
+        {
+            "title": "Tahapan kualifikasi",
+            "table": {
+                "columns": [1, 4],
+                "header": ["Tahap", "Kegiatan"],
+                "rows": [{"cells": list(s)} for s in stages],
+            },
+        },
+        {
+            "title": "Tanggung jawab dan dokumentasi",
+            "paragraphs": [
+                "Penandatangan, pemisahan tugas, koreksi catatan, dan Saksi diatur dalam "
+                + (f"Protap {sop}." if sop else "Protap kualifikasi peralatan.")
+            ],
+        },
+        {
+            "title": "Penomoran dokumen",
+            "paragraphs": [
+                "Dokumen kualifikasi site diberi nomor jenis dokumen diikuti tag peralatan "
+                f"tanpa tanda hubung, misalnya SKP URS-{eq.tag.replace('-', '')}. Dokumen "
+                "vendor dan sertifikat memakai nomor penerbitnya."
+            ],
+        },
+        {
+            "title": f"Lampiran 1. Dokumen yang dipersyaratkan: {eq.tag} {EN_DASH} {eq.name}",
+            "paragraphs": [
+                f"Peralatan baru {eq.tag} tidak dirilis untuk penggunaan produksi sebelum "
+                "seluruh dokumen berikut tersedia dan disetujui."
+            ],
+            "table": {
+                "columns": [2, 4, 1],
+                "header": ["No. dokumen", "Jenis dokumen", "Tahap"],
+                "rows": rows,
+            },
+        },
+    ]
+    data = {
+        **_site_frame(eq, doc, t0),
+        "title": "Rencana Induk Validasi (Validation Master Plan)",
+        "title_short": "Rencana Induk Validasi",
+        "sections": sections,
+    }
+    return _compile("governing.typ", data, issued, texts, doc)
+
+
+WITNESS_RULES = {
+    "critical_aspects": (
+        "Langkah Uji yang memverifikasi Aspek Kritis (persyaratan dengan Kritis = Ya dalam "
+        "SKP dan penilaian risiko) wajib disaksikan oleh Saksi, yang membubuhkan paraf dan "
+        "tanggal pada hasil. Langkah Uji lain tidak memerlukan Saksi."
+    ),
+    "all": (
+        "Setiap Langkah Uji wajib disaksikan oleh Saksi, yang membubuhkan paraf dan tanggal "
+        "pada hasil."
+    ),
+}
+"""SOP text per ``SiteRules.witness`` (design section 12, **[D]**)."""
+
+PROTOCOL_RULES = {
+    "template": (
+        "Protokol IQ/OQ disusun dari templat protokol standar site untuk setiap peralatan; "
+        "protokol tidak disalin dari protokol peralatan lain."
+    ),
+    "copied": (
+        "Protokol IQ/OQ boleh disusun dengan menyalin protokol peralatan sejenis; setiap tag, "
+        "nilai, dan rujukan peralatan asal diganti dan diperiksa sebelum persetujuan."
+    ),
+}
+"""SOP text per ``SiteRules.protocols`` (design section 12, **[D]**)."""
+
+
+def render_sop(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Qualification SOP (Protap, Indonesian, born-digital): signatories, segregation of
+    duties, GDP corrections, which Test Steps need a Witness, and how protocols are written.
+    The last two follow ``Equipment.site_rules``."""
+    doc = _governing(eq, doc_id)
+    rules = eq.site_rules
+    if rules is None:
+        raise RenderError(f"{doc_id}: an SOP needs site_rules")
+    issued = doc.issued_on.resolve(t0)
+    texts = {
+        "signatories": (
+            "Protokol FAT/SAT vendor diperiksa dan disetujui site sebelum dieksekusi. Setiap "
+            "tanda tangan disertai nama dan tanggal."
+        ),
+        "segregation": (
+            "Dalam satu dokumen, penyusun tidak boleh menyetujui dokumen yang disusunnya, "
+            "pemeriksa dan penyetuju adalah dua orang yang berbeda, dan pelaksana tidak boleh "
+            "sekaligus menjadi Saksi pada Langkah Uji yang sama."
+        ),
+        "gdp": (
+            "Koreksi pada catatan dibuat dengan mencoret nilai lama dengan satu garis sehingga "
+            "tetap terbaca, menulis nilai baru di dekatnya, serta membubuhkan paraf, tanggal, "
+            "dan alasan koreksi. Nilai tidak boleh ditimpa, dihapus, atau ditutup dengan "
+            "cairan koreksi (CPOB 10.8; PIC/S PI 041-1 §8.7)."
+        ),
+        "witness": WITNESS_RULES[rules.witness],
+        "protocols": PROTOCOL_RULES[rules.protocols],
+    }
+    signers = (
+        (
+            "Dokumen site (SKP, penilaian risiko, DQ, protokol IQ/OQ)",
+            "Qualification Engineer",
+            "Qualification Supervisor",
+            "QA Approver",
+        ),
+        ("Protokol FAT/SAT vendor", "Vendor", "Qualification Supervisor", "QA Approver"),
+    )
+
+    def rule(title: str, key: str) -> dict:
+        return {"title": title, "paragraphs": [{"key": key, "text": texts[key]}]}
+
+    sections = [
+        {
+            "title": "Tujuan",
+            "paragraphs": [
+                "Prosedur ini menetapkan cara menyusun, menandatangani, mengeksekusi, dan "
+                "mengoreksi dokumen kualifikasi peralatan."
+            ],
+        },
+        {
+            "title": "Ruang lingkup",
+            "paragraphs": [
+                "Dokumen kualifikasi site (SKP, penilaian risiko, DQ, protokol dan laporan "
+                "IQ/OQ) serta protokol FAT/SAT vendor yang digunakan sebagai Bukti. Dokumen "
+                "vendor lain (lembar data, FDS, sertifikat) ditandatangani sesuai sistem mutu "
+                "penerbitnya."
+            ],
+        },
+        {
+            **rule("Penandatangan", "signatories"),
+            "table": {
+                "columns": [3, 2, 2, 2],
+                "header": ["Dokumen", "Disusun oleh", "Diperiksa oleh", "Disetujui oleh"],
+                "rows": [{"cells": list(s)} for s in signers],
+            },
+        },
+        rule("Pemisahan tugas", "segregation"),
+        rule("Koreksi catatan (GDP)", "gdp"),
+        rule("Saksi (Witness)", "witness"),
+        rule("Penyusunan protokol", "protocols"),
+    ]
+    data = {
+        **_site_frame(eq, doc, t0),
+        "title": "Prosedur Tetap: Kualifikasi Peralatan",
+        "title_short": "Protap Kualifikasi Peralatan",
+        "sections": sections,
+    }
+    return _compile("governing.typ", data, issued, texts, doc)
+
+
 RENDERERS = {
     "fat": render_fat,
     "sat": render_sat,
@@ -1014,6 +1269,8 @@ RENDERERS = {
     "calibration_certificate": render_calibration_certificate,
     "dq_report": render_dq,
     "risk_assessment": render_risk_assessment,
+    "vmp": render_vmp,
+    "sop": render_sop,
 }
 
 

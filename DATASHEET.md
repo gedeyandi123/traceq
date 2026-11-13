@@ -11,7 +11,7 @@ Format: [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) (Gebru et al
 ## Composition
 
 - **Instances:** documents of a fictional oral solid dose plant (URS, Vendor Documents, FAT/SAT, Protocols, Execution records, reports, monitoring data), plus a structured answer key.
-- **Counts (v0, TP-201):** 13 files for 12 documents (URS in rev 0 and rev 1): 7 born-digital PDFs, 5 image-only scans (SAT, material certificate, three calibration certificates), 1 XLSX risk assessment. Answer key: 38 requirements, 7 planted defects, 1 ambiguous value, 6 hallucination probes, 14 required documents (12 in the corpus, IQ and OQ expected gaps), 37 handwritten entries (36 legible plus one overwritten original).
+- **Counts (v0, TP-201):** 15 files for 14 documents (URS in rev 0 and rev 1; the site's VMP and qualification SOP): 9 born-digital PDFs, 5 image-only scans (SAT, material certificate, three calibration certificates), 1 XLSX risk assessment. Answer key: 38 requirements, 7 planted defects, 1 ambiguous value, 6 hallucination probes, 14 required documents (12 in the corpus, IQ and OQ expected gaps), 37 handwritten entries (36 legible plus one overwritten original).
 - **Labels:** answer key derived from the same world data as the documents: requirement values, citations, Coverage class, required documents, planted defects, OCR bounding boxes.
 - **Splits:** dev = all Equipment except TP-202; held-out test = TP-202.
 - **Real data:** none. Every plant, vendor, person, and serial number is fictional. A CI denylist blocks real equipment vendor names and other protected terms.

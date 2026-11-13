@@ -934,6 +934,35 @@ documents:
   - {id: KAL-2026-0057, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-118d, prepared_by: p-labt, approved_by: p-labm}
   # The vendor's certificate for the press's force sensors (URS-TP201-036). Clean.
   - {id: CAL-TP201-01, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-148d, prepared_by: p-ve, approved_by: p-vqc}
+  # Governing site documents (design section 4), one revision each: the one in force at T0.
+  # Site-wide, so not in required_documents. The VMP annex prints required_documents (its
+  # revision follows the SAT, when the certificate numbers are known); the SOP prints the
+  # site rules, with the [D] parts from site_rules.
+  - id: VMP-001
+    rev: 3
+    type: vmp
+    language: id
+    issued_on: T0-10d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+    change_note: "Lampiran 1 diperbarui: dokumen yang dipersyaratkan untuk TP-201."
+  - id: SOP-VAL-002
+    rev: 2
+    type: sop
+    language: id
+    issued_on: T0-420d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+    change_note: "Aturan koreksi catatan diselaraskan dengan PIC/S PI 041-1."
+
+# Site rules the SOP states that discovery may change (design section 12, [D]); the
+# defaults follow the design: a Witness for Test Steps that verify a Critical Aspect, and
+# IQ/OQ protocols written from the site template (no "leftover from another Equipment").
+site_rules:
+  witness: critical_aspects
+  protocols: template
 
 # Documents the VMP requires for a new tablet press (design section 5). `missing` says why
 # one is not in the corpus: expected_gap = what TraceQ drafts.
