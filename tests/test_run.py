@@ -87,14 +87,26 @@ LINKS: dict[str, tuple[list[str], list[str], bool, bool]] = {
     "URS-TP201-014": (["FAT-TP201-C/FAT-C-01"], [], False, False),
     "URS-TP201-026": ([], [], True, False),
 }
+MECHANICAL = "Mekanik (mechanical)"
+CONTROL = "Sistem kendali dan perangkat lunak (control system/software)"
+# Requirement -> the Vendor Assessment area the scripted model names.
+AREAS = {
+    "URS-TP201-001": MECHANICAL,
+    "URS-TP201-002": MECHANICAL,
+    "URS-TP201-004": MECHANICAL,
+    "URS-TP201-014": CONTROL,
+}
 EXPECTED_COVERAGE = {
-    # No Vendor Assessment is in the corpus: condition 1 never holds.
-    "URS-TP201-001": ("partial", "FAT-M-01: condition 1: no Vendor Assessment"),
-    "URS-TP201-002": ("partial", "FAT-M-02: condition 1: no Vendor Assessment"),
+    # The Vendor Assessment rates every area Ya: condition 1 holds within its areas.
+    "URS-TP201-001": ("covered_by_vendor", "proved by FAT-TP201-M"),
+    "URS-TP201-002": ("partial", "FAT-M-02: condition 3: full URS range not tested"),
     "URS-TP201-004": ("partial", "FAT-M-03: result does not meet the URS"),
     "URS-TP201-008": ("conflict", "DS-TP201 does not meet the URS"),
     "URS-TP201-012": ("gap", "no FAT/SAT step addresses it"),
-    "URS-TP201-014": ("partial", "FAT-C-01: condition 1: no Vendor Assessment"),
+    "URS-TP201-014": (
+        "partial",
+        "FAT-C-01: condition 2: protocol not approved by site before execution (CPOB 12.14)",
+    ),
     "URS-TP201-026": ("site_only", "cannot be tested by the vendor"),
     "URS-TP201-003": ("gap", "no FAT/SAT step addresses it"),
 }
@@ -147,14 +159,35 @@ def _facts(r: Request) -> dict[str, Any]:
 
 def _link(r: Request) -> dict[str, Any]:
     asked = json.loads(r.user)
-    steps, rows, site_only, transport = LINKS.get(asked["requirement"]["id"], ([], [], False, True))
+    rid = asked["requirement"]["id"]
+    steps, rows, site_only, transport = LINKS.get(rid, ([], [], False, True))
     by_name = {row["name"]: row["id"] for row in asked["rows"]}
+    area = AREAS.get(rid)
     return {
         "steps": steps,
         "rows": [by_name[name] for name in rows],
         "site_only": site_only,
         "transport_sensitive": transport,
+        "area": area if area in asked["areas"] else None,
     }
+
+
+def _assessment(r: Request) -> dict[str, Any]:
+    """Every area row of the Vendor Assessment as printed, and its issue date."""
+    pages = _pages(r).items()
+    areas = [
+        {"area": m[1], "mark": m[2], "relied": m[2] == "Ya", "page": n, "quote": m[0]}
+        for n, text in pages
+        for x in text.splitlines()
+        if (m := re.match(r"^(.+\)) (Ya|Tidak) .*$", x))
+    ]
+    date = next(
+        {"date": m[1], "page": n, "quote": m[0]}
+        for n, text in pages
+        for x in text.splitlines()
+        if (m := re.match(r"^Tanggal berlaku (\S+)$", x))
+    )
+    return {"assessed_on": date, "areas": areas}
 
 
 # --- Pre-review: the scripted model reads signature rows, the VMP annex and the SOP ------
@@ -245,7 +278,12 @@ def _site_rules(r: Request) -> dict[str, Any]:
     return {"rules": [{"rule": k, "page": 1, "quote": q} for k, q in SOP_RULES.items()]}
 
 
-REVIEW = {"record": _record, "required_documents": _required, "site_rules": _site_rules}
+REVIEW = {
+    "record": _record,
+    "required_documents": _required,
+    "site_rules": _site_rules,
+    "vendor_assessment": _assessment,
+}
 
 
 # --- Drafting: the scripted model copies the verified URS value, or tries to invent one ---
@@ -413,6 +451,7 @@ def test_coverage_is_decided_by_the_decision_table(recorded: RunOutput) -> None:
     )
     items = {i["id"]: i for i in report["requirements"]["items"]}
     assert [rid for rid in EXPECTED_COVERAGE if items[rid]["coverage_ok"]] == [
+        "URS-TP201-001",
         "URS-TP201-002",
         "URS-TP201-004",
         "URS-TP201-008",
@@ -436,7 +475,7 @@ def test_each_requirement_cites_its_evidence(recorded: RunOutput) -> None:
     assert (step["doc"], step["step"], step["failure"]) == (
         "FAT-TP201-M",
         "FAT-M-02",
-        "condition 1: no Vendor Assessment",
+        "condition 3: full URS range not tested",
     )
     assert step["citation"]["page"] == 1 and "FAT-M-02" in step["citation"]["quote"]
     assert [d["printed"] for d in speed["design"]] == ["20–70 rpm"]
@@ -561,6 +600,7 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         "record",
         "required_documents",
         "site_rules",
+        "vendor_assessment",
         "draft",
     }
     assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in meta["prompts"].values())
@@ -568,9 +608,9 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
     # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1), SAT-TP201 (2, a scan),
     # DS-TP201 (1) and MTC-TP201-01 (1, a scan); one record call per page of the FATs (3),
     # the SAT (2) and the three calibration certificates (3, scans); one call each for the
-    # VMP and the SOP; one draft per requirement the vendor did not cover (all 38: no
-    # Vendor Assessment is read yet).
-    calls = 2 + 38 + 38 + 7 + 8 + 2 + 38
+    # Vendor Assessment, the VMP and the SOP; one draft per requirement the vendor did not
+    # cover.
+    calls = 2 + 38 + 38 + 7 + 8 + 3 + DRAFTED
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls
     expected = (meta["tokens"]["input"] * 1.0 + meta["tokens"]["output"] * 2.0) / 1e6 * 0.5
@@ -588,6 +628,7 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         ("CAL-TP201-01", 0),
         ("VMP-001", 3),
         ("SOP-VAL-002", 2),
+        ("VA-2025-011", 0),
     ]
 
 
@@ -699,12 +740,17 @@ def test_live_run_with_an_unpriced_model_refuses(
 
 # --- Drafted Test Steps -------------------------------------------------------------------
 
+# Every requirement but the one the run proves covered by the vendor gets a draft.
+COVERED = {rid for rid, (c, _) in EXPECTED_COVERAGE.items() if c == "covered_by_vendor"}
+DRAFTED = 38 - len(COVERED)
 DETERMINISTIC = ("traces_to_requirement", "ac_sourced_or_empty")
 
 
 def test_drafted_steps_pass_scorer_criteria_1_and_2(recorded: RunOutput) -> None:
-    """Criterion 1 fails only where the key expects ``covered_by_vendor``: without a Vendor
-    Assessment (#55) the run cannot show condition 1, so it drafts those too."""
+    """With the Vendor Assessment read (#55), a requirement the run proves covered by the
+    vendor gets no draft, so criterion 1 passes for it. It still fails on the other
+    requirements the key expects ``covered_by_vendor``: the scripted model links no vendor
+    step to them, so the run drafts them."""
     report = _report(recorded)
     steps = report["test_steps"]
     rates = steps["metrics"]["criteria_pass_rate"]
@@ -715,7 +761,8 @@ def test_drafted_steps_pass_scorer_criteria_1_and_2(recorded: RunOutput) -> None
     failing = {
         i["requirement"] for i in steps["items"] if not i["criteria"]["traces_to_requirement"]
     }
-    assert failing == {rid for rid, c in key.items() if c == "covered_by_vendor"}
+    assert COVERED and not COVERED & {i["requirement"] for i in steps["items"]}
+    assert failing == {rid for rid, c in key.items() if c == "covered_by_vendor"} - COVERED
     assert steps["metrics"]["site_test_recall"] == 1.0
     assert report["gates"]["fabricated_acceptance_criterion"]["count"] == 0
     acceptance = [p for p in report["probes"]["items"] if p["absent"] == "acceptance"]
@@ -727,7 +774,7 @@ def test_an_ac_is_copied_from_a_verified_citation_or_left_for_a_human(
 ) -> None:
     sub = json.loads((recorded.folder / "submission.json").read_text(encoding="utf-8"))
     steps = {s["requirement"]: s for s in sub["test_steps"]}
-    assert len(steps) == 38
+    assert len(steps) == DRAFTED
     speed = steps["URS-TP201-002"]
     assert speed["acceptance"] == {"type": "range", "min": 20, "max": 70, "unit": "rpm"}
     assert speed["acceptance_citation"]["doc"] == "URS-TP201"
@@ -749,7 +796,7 @@ def test_an_ac_is_copied_from_a_verified_citation_or_left_for_a_human(
 def test_each_draft_is_an_ai_finding_pending_review(recorded: RunOutput) -> None:
     drafts = json.loads((recorded.folder / "drafts.json").read_text(encoding="utf-8"))
     meta = recorded.metadata
-    assert len(drafts["test_steps"]) == 38
+    assert len(drafts["test_steps"]) == DRAFTED
     for d in drafts["test_steps"]:
         assert d["layer"] == "ai"
         assert d["reviewer_action"] == "pending"

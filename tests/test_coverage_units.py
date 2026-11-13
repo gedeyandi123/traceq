@@ -105,7 +105,7 @@ def test_condition_1_vendor_not_assessed_or_out_of_scope() -> None:
     c = classify(_req(scope="software"), [_step(FULL)], [], ASSESSED)
     assert c.reason == "FAT-01: condition 1: scope 'software' not in vendor assessment"
     c = classify(_req(scope=None), [_step(FULL)], [], ASSESSED)
-    assert c.reason == "FAT-01: condition 1: scope None not in vendor assessment"
+    assert c.reason == "FAT-01: condition 1: no assessed area named"
 
 
 def test_condition_2_protocol_not_approved_before_execution() -> None:
