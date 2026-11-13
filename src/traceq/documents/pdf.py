@@ -10,42 +10,26 @@ each table row as its cells joined by a space, one row per line. That is the ord
 (and the scorer's printed text) sees, so a quote of a table row is checked against it
 verbatim. The rows themselves are kept in ``Page.tables``.
 
-A process converts each document once, keyed by its hash and ``INGEST_VERSION``; the ingest
-cache on disk comes with the scan ingest.
+Docling runs only when the ingest cache (``traceq.documents.cache``) has no entry for the
+document's hash and ``PDF_VERSION``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from traceq.documents.pages import Page, Row, Table
 
 if TYPE_CHECKING:
     from docling.document_converter import DocumentConverter
     from docling_core.types.doc.document import DoclingDocument
     from docling_core.types.doc.items.table.table import TableItem
 
-INGEST_VERSION = "docling-1"
-"""Part of the ingest key: bump it when a change alters the page text."""
-
-Row = tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class Table:
-    rows: tuple[Row, ...]
-
-
-@dataclass(frozen=True)
-class Page:
-    number: int
-    """1-based."""
-    text: str
-    tables: tuple[Table, ...] = ()
-
-
-_converted: dict[tuple[str, str], tuple[Page, ...]] = {}
+PDF_VERSION = "docling-1"
+"""Part of the ingest cache key: bump it when a change alters the page text."""
+ENGINE = "Docling (pypdfium2 backend)"
 
 
 @cache
@@ -96,10 +80,7 @@ def pages_of(doc: DoclingDocument, page_count: int) -> tuple[Page, ...]:
     return tuple(Page(n, "\n".join(lines[n]), tuple(tables[n])) for n in range(1, page_count + 1))
 
 
-def read_pdf(path: Path, sha256: str) -> tuple[Page, ...]:
-    """The pages of a born-digital PDF whose bytes hash to ``sha256``."""
-    key = (sha256, INGEST_VERSION)
-    if key not in _converted:
-        result = _converter().convert(path)
-        _converted[key] = pages_of(result.document, len(result.pages))
-    return _converted[key]
+def read_pdf(path: Path) -> tuple[Page, ...]:
+    """The pages of a born-digital PDF."""
+    result = _converter().convert(path)
+    return pages_of(result.document, len(result.pages))

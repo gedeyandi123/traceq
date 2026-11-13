@@ -4,9 +4,13 @@
 traceability matrix with each Coverage reason and its Evidence; ``findings.json`` holds the
 Pre-review Check Findings, the VMP's required documents and those missing, and the site rules
 read from the SOP, each with its citation; ``run.json`` is the run
-metadata: model, prompt hashes, tokens, cost in USD, which calls were replayed and which
-claims the citation check dropped. A live run sends only calls that are not yet recorded,
-and refuses before sending when their estimate would pass ``max_usd``.
+metadata: model, prompt hashes, tokens, cost in USD, which calls were replayed, which
+claims the citation check dropped, and per document read its ingest engine, seconds per
+page and peak RAM. Ingest output is cached in ``<recordings>/ingest`` beside the LLM
+recordings, so a replay reads no document whose ingest is cached. Every scan is read by OCR
+before any LLM call, so a run that cannot read one fails before it spends. A live run sends
+only calls that are not yet recorded, and refuses before sending when their estimate would
+pass ``max_usd``.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from traceq.runs.submission import Submission, SystemInfo, build
 from traceq.traceability import PIPELINE_VERSION, PROMPTS, trace
 
 SYSTEM_NAME = "traceq"
+INGEST_DIR = "ingest"
 
 
 @dataclass(frozen=True)
@@ -58,7 +63,8 @@ def run(
     prices = prices or PriceTable.load()
     now = now or dt.datetime.now(dt.UTC)
     run_id = f"{now:%Y%m%dT%H%M%SZ}-{secrets.token_hex(3)}"
-    corpus = Corpus.load(corpus_dir, equipment)
+    corpus = Corpus.load(corpus_dir, equipment, cache=recordings / INGEST_DIR)
+    scans = [(d, corpus.read(d)) for d in corpus.documents if d.format == "scan"]
     budget = Budget(max_usd, prices) if live is not None else None
     llm = Recorder(recordings, model, PIPELINE_VERSION, live=live, budget=budget)
 
@@ -72,7 +78,7 @@ def run(
         prompt=sha256(json.dumps(prompt_hashes, sort_keys=True))[:12],
         run_id=run_id,
     )
-    submission = build(corpus.equipment, system, traced, reviewed)
+    submission = build(corpus.equipment, system, traced, reviewed, scans)
 
     responses = [c.response for c in llm.calls]
     try:
@@ -112,6 +118,21 @@ def run(
         "dropped": [
             {"claim": d.claim, "id": d.id, "reason": d.reason}
             for d in (*traced.dropped, *reviewed.dropped)
+        ],
+        "ingest": [
+            {
+                "doc_id": d.doc_id,
+                "rev": d.rev,
+                "format": d.format,
+                "engine": i.engine,
+                "version": i.version,
+                "cached": i.cached,
+                "pages": len(i.pages),
+                "seconds_per_page": list(i.seconds_per_page),
+                "load_seconds": i.load_seconds,
+                "peak_ram_bytes": i.peak_ram_bytes,
+            }
+            for d, i in corpus.ingested()
         ],
         "not_read": [
             {"doc_id": d.doc_id, "rev": d.rev, "format": d.format}
