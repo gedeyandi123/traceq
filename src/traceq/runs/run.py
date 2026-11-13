@@ -3,14 +3,19 @@
 ``<out>/<run id>/submission.json`` is what the scorer grades; ``matrix.json`` is the
 traceability matrix with each Coverage reason and its Evidence; ``findings.json`` holds the
 Pre-review Check Findings, the VMP's required documents and those missing, and the site rules
-read from the SOP, each with its citation; ``run.json`` is the run
-metadata: model, prompt hashes, tokens, cost in USD, which calls were replayed, which
-claims the citation check dropped, and per document read its ingest engine, seconds per
-page and peak RAM. Ingest output is cached in ``<recordings>/ingest`` beside the LLM
+read from the SOP, each with its citation; ``drafts.json`` holds the drafted IQ/OQ Test
+Steps as AI Findings pending review; ``run.json`` is the run
+metadata: the run settings, model, prompt hashes, tokens, cost in USD, which calls were
+replayed, which claims the citation check dropped, and per document read its ingest engine,
+seconds per page and peak RAM. Ingest output is cached in ``<recordings>/ingest`` beside the LLM
 recordings, so a replay reads no document whose ingest is cached. Every scan is read by OCR
 before any LLM call, so a run that cannot read one fails before it spends. A live run sends
 only calls that are not yet recorded, and refuses before sending when their estimate would
 pass ``max_usd``.
+
+``vendor_reuse`` (default true) decides whether a ``covered_by_vendor`` requirement also
+gets a drafted Test Step. Eval runs keep it true: scorer criterion 1 counts a step for a
+``covered_by_vendor`` requirement as a failure (spec #29, "Vendor reuse framing").
 """
 
 from __future__ import annotations
@@ -25,8 +30,11 @@ from typing import Any
 from traceq.ai import LLM, Budget, PriceTable, Recorder
 from traceq.ai.port import sha256
 from traceq.documents import Corpus
+from traceq.protocols import PROMPTS as DRAFT_PROMPTS
+from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
 from traceq.review import review
+from traceq.runs.drafts import drafts
 from traceq.runs.findings import findings
 from traceq.runs.matrix import matrix
 from traceq.runs.submission import Submission, SystemInfo, build
@@ -59,6 +67,7 @@ def run(
     max_usd: float = 1.0,
     prices: PriceTable | None = None,
     now: dt.datetime | None = None,
+    vendor_reuse: bool = True,
 ) -> RunOutput:
     prices = prices or PriceTable.load()
     now = now or dt.datetime.now(dt.UTC)
@@ -70,15 +79,16 @@ def run(
 
     traced = trace(corpus, llm)
     reviewed = review(corpus, llm, traced)
+    drafted = draft(corpus, llm, traced, vendor_reuse=vendor_reuse)
 
-    prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS)}
+    prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS, *DRAFT_PROMPTS)}
     system = SystemInfo(
         name=SYSTEM_NAME,
         model=model,
         prompt=sha256(json.dumps(prompt_hashes, sort_keys=True))[:12],
         run_id=run_id,
     )
-    submission = build(corpus.equipment, system, traced, reviewed, scans)
+    submission = build(corpus.equipment, system, traced, reviewed, drafted, scans)
 
     responses = [c.response for c in llm.calls]
     try:
@@ -92,6 +102,7 @@ def run(
         "system": SYSTEM_NAME,
         "pipeline_version": PIPELINE_VERSION,
         "mode": "live" if live is not None else "replay",
+        "settings": {"vendor_reuse": vendor_reuse},
         "model": model,
         "prompts": prompt_hashes,
         "corpus": {
@@ -117,7 +128,7 @@ def run(
         "price_table": {"batch_discount": prices.batch_discount},
         "dropped": [
             {"claim": d.claim, "id": d.id, "reason": d.reason}
-            for d in (*traced.dropped, *reviewed.dropped)
+            for d in (*traced.dropped, *reviewed.dropped, *drafted.dropped)
         ],
         "ingest": [
             {
@@ -145,5 +156,9 @@ def run(
     _write_json(folder / "submission.json", submission.model_dump(mode="json", exclude_none=True))
     _write_json(folder / "matrix.json", matrix(traced).model_dump(mode="json"))
     _write_json(folder / "findings.json", findings(reviewed))
+    _write_json(
+        folder / "drafts.json",
+        drafts(drafted, model=model, prompt=prompt_hashes["draft"], created=metadata["created"]),
+    )
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)

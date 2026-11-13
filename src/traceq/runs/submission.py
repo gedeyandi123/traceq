@@ -6,9 +6,10 @@ Coverage class, the vendor steps offered as Evidence and the citations of the UR
 the Evidence and the design facts compared with the URS. A value that reads two ways is an
 ``ambiguous_value`` finding: ask for confirmation. Pre-review adds its Check Findings and the
 documents the VMP requires that the corpus lacks. ``ocr`` holds every entry the OCR model
-read on a scan, with its quad. AI Findings and drafted Test Steps come with later tickets.
-The Coverage reason is in ``matrix.json``: the
-submission schema has no field for it.
+read on a scan, with its quad. ``test_steps`` are the drafted IQ/OQ Test Steps: an AC only
+when copied from a verified citation, otherwise none, "to be set by a human" (the flag and
+the AI Finding fields are in ``drafts.json``). AI Findings come with a later ticket. The
+Coverage reason is in ``matrix.json``: the submission schema has no field for it.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from pydantic import BaseModel, ConfigDict
 
 from traceq.documents import CorpusDocument, Page
 from traceq.documents.pages import Quad
+from traceq.protocols import Drafts
 from traceq.review import Review
 from traceq.review.rules import CheckType
 from traceq.traceability import Ambiguous, Citation, Linked, Traceability, Value
@@ -81,6 +83,18 @@ class OcrEntry(_Model):
     quad: Quad
 
 
+class TestStep(_Model):
+    __test__ = False  # not a pytest class
+
+    id: str
+    requirement: str
+    description: str = ""
+    method: str | None = None
+    instrument: str | None = None
+    acceptance: Value | None = None
+    acceptance_citation: CitationOut | None = None
+
+
 class Submission(_Model):
     version: Literal[1] = SUBMISSION_VERSION
     equipment: str
@@ -88,6 +102,7 @@ class Submission(_Model):
     requirements: tuple[RequirementAnswer, ...] = ()
     findings: tuple[Finding, ...] = ()
     missing_documents: tuple[MissingDocument, ...] = ()
+    test_steps: tuple[TestStep, ...] = ()
     ocr: tuple[OcrEntry, ...] = ()
 
 
@@ -135,6 +150,7 @@ def build(
     system: SystemInfo,
     t: Traceability,
     review: Review,
+    drafts: Drafts | None = None,
     scans: Sequence[tuple[CorpusDocument, Sequence[Page]]] = (),
 ) -> Submission:
     """Only verified claims reach the submission: a requirement without a verified value
@@ -169,6 +185,20 @@ def build(
         ),
         missing_documents=tuple(
             MissingDocument(type=d.type, stage=d.stage, id=d.doc_id) for d in review.missing
+        ),
+        test_steps=tuple(
+            TestStep(
+                id=d.id,
+                requirement=d.requirement.id,
+                description=d.description,
+                method=d.method,
+                instrument=d.instrument,
+                acceptance=d.acceptance.value,
+                acceptance_citation=None
+                if d.acceptance.citation is None
+                else _cite(d.acceptance.citation),
+            )
+            for d in (drafts.drafts if drafts else ())
         ),
         ocr=tuple(ocr_entries(scans)),
     )
