@@ -1,8 +1,8 @@
-"""The shape of ``matrix.json`` and of the read-only API over run folders.
+"""The shape of ``matrix.json``, ``findings.json`` and of the read-only API over run folders.
 
-The pipeline writes ``matrix.json`` from these models and the API serves them, so the
-OpenAPI schema, and the TypeScript client generated from it (ADR 0003), describe exactly
-what a run folder holds.
+The pipeline writes both files from these models and the API serves them, so the OpenAPI
+schema, and the TypeScript client generated from it (ADR 0003), describe exactly what a
+run folder holds.
 """
 
 from __future__ import annotations
@@ -11,6 +11,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from traceq.review.ai_findings import AiType
+from traceq.review.facts import SiteRule
+from traceq.review.rules import CheckType
 from traceq.traceability.coverage import CoverageClass, Result, Stage
 from traceq.traceability.values import Value
 
@@ -106,3 +109,86 @@ class RunSummary(_Model):
     model: str
     mode: Literal["replay", "live"]
     pipeline_version: str
+
+
+class Source(_Model):
+    """A document and revision an AI Finding cites."""
+
+    doc: str
+    rev: int
+
+
+class CheckFinding(_Model):
+    """A Pre-review finding of a deterministic rule: no model involved."""
+
+    layer: Literal["check"]
+    type: CheckType
+    doc: str
+    detail: str
+    citations: tuple[Cite, ...]
+    rule: Cite | None
+    """The SOP sentence that sets the rule, for a site rule."""
+
+
+class AiFinding(_Model):
+    """A Pre-review finding of the LLM, every citation verified; advisory (ADR 0002)."""
+
+    layer: Literal["ai"]
+    type: AiType
+    detail: str
+    citations: tuple[Cite, ...]
+    sources: tuple[Source, ...]
+    model: str
+    prompt: str
+    """Hash of the prompt that produced it."""
+    created: str
+    reviewer_action: Literal["pending"]
+    """``pending`` until a write feature lets a human accept, edit or reject it."""
+
+
+DocStage = Literal["design", "FAT", "SAT", "IQ", "OQ"]
+
+
+class RequiredDocument(_Model):
+    """A document the VMP requires for the Equipment, with the annex row cited."""
+
+    doc_id: str
+    type: str
+    stage: DocStage
+    in_corpus: bool
+    citation: Cite
+
+
+class MissingDocument(_Model):
+    """A document the VMP requires that the corpus lacks."""
+
+    doc_id: str
+    type: str
+    stage: DocStage
+    citation: Cite
+
+
+class SiteRuleCite(_Model):
+    """A site rule read from the SOP, with the sentence that sets it."""
+
+    rule: SiteRule
+    citation: Cite
+
+
+class GoverningDocument(_Model):
+    """A VMP or SOP the run read its required documents and site rules from."""
+
+    doc_id: str
+    rev: int
+
+
+class Findings(_Model):
+    """The Pre-review of a run: Check Findings and AI Findings kept apart, and the
+    documents the VMP requires that the corpus lacks."""
+
+    check_findings: tuple[CheckFinding, ...]
+    ai_findings: tuple[AiFinding, ...]
+    required_documents: tuple[RequiredDocument, ...]
+    missing_documents: tuple[MissingDocument, ...]
+    site_rules: tuple[SiteRuleCite, ...]
+    governing_documents: tuple[GoverningDocument, ...]

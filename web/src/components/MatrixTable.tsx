@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
-import { documentHref } from "@/api/client";
-import type { Cite, Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
+import type { Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
+import { CiteLink } from "./CiteLink";
 
 type T = ReturnType<typeof useTranslations<"matrix">>;
 
@@ -30,14 +30,6 @@ function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
   }
 }
 
-function CiteLink({ runId, cite, t }: { runId: string; cite: Cite; t: T }) {
-  return (
-    <a href={documentHref(runId, cite)} target="_blank" rel="noreferrer" title={cite.quote}>
-      {t("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
-    </a>
-  );
-}
-
 function Evidence({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
   if (row.evidence.length === 0 && row.design.length === 0) {
     return <span className="muted">{t("noEvidence")}</span>;
@@ -58,14 +50,14 @@ function Evidence({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
             {t("result", { result: t(`results.${e.result ?? "none"}`) })}
           </div>
           {e.failure && <div className="failure">{e.failure}</div>}
-          <CiteLink runId={runId} cite={e.citation} t={t} />
+          <CiteLink runId={runId} cite={e.citation} />
         </li>
       ))}
       {row.design.map((d) => (
         <li key={`${d.doc}/${d.name}`}>
           <strong>{t("design")}</strong> {d.name}: {t("printed", { printed: d.printed })}
           <div>
-            <CiteLink runId={runId} cite={d.citation} t={t} />
+            <CiteLink runId={runId} cite={d.citation} />
           </div>
         </li>
       ))}
@@ -95,13 +87,13 @@ export function MatrixTable({ matrix, runId }: { matrix: Matrix; runId: string }
               <td>
                 <strong>{row.id}</strong>
                 <p>{row.text}</p>
-                <CiteLink runId={runId} cite={row.source} t={t} />
+                <CiteLink runId={runId} cite={row.source} />
               </td>
               <td>
                 {row.value ? formatValue(t, row.value) : <span className="muted">{t("noValue")}</span>}
                 {row.value_citation && (
                   <div>
-                    <CiteLink runId={runId} cite={row.value_citation} t={t} />
+                    <CiteLink runId={runId} cite={row.value_citation} />
                   </div>
                 )}
               </td>
