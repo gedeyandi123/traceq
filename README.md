@@ -2,7 +2,7 @@
 
 Traceability-led workspace for pharmaceutical equipment qualification (GMP), with AI as an advisory assistant. The plant, vendors, people, and documents are fictional; all data is synthetic.
 
-Status: early. Work starts with the synthetic dataset that drives the demo and the evals.
+Status: the synthetic dataset v0 (TP-201 package and its answer key) and the eval scorer are in place; the TraceQ system itself is next, starting with a thin slice that turns the TP-201 package into a scored submission. The dataset is not frozen yet: judged values await practitioner review.
 
 - [`GLOSSARY.md`](GLOSSARY.md): domain language
 - [`docs/design/synthetic-dataset.md`](docs/design/synthetic-dataset.md): dataset design
