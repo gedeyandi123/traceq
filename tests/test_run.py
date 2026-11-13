@@ -286,6 +286,60 @@ REVIEW = {
 }
 
 
+# --- Drafting: the scripted model copies the verified URS value, or tries to invent one ---
+
+NO_AC: dict[str, Any] = {"kind": "none", "min": None, "max": None, "number": None}
+NO_AC |= {"unit": None, "allowed": [], "text": None}
+# Requirement -> (proposed AC, its source), each emptied by the AC validator.
+UNSOURCED: dict[str, tuple[dict[str, Any], dict[str, Any] | None]] = {
+    # Probe P6: no document names the lubricant class.
+    "URS-TP201-013": (NO_AC | {"kind": "text", "text": "H1"}, None),
+    # Probe P5: a stopping time from a page the model was not given.
+    "URS-TP201-018": (
+        NO_AC | {"kind": "number", "number": 2, "unit": "s"},
+        {"doc": "SAT-TP201", "rev": 0, "page": 1, "quote": "Press each emergency stop"},
+    ),
+    # The URS sentence is cited (filled in below), but it does not state 5 kN.
+    "URS-TP201-003": (NO_AC | {"kind": "number", "number": 5, "unit": "kN"}, None),
+    # A quote that is not on the page.
+    "URS-TP201-005": (
+        NO_AC | {"kind": "range", "min": 50, "unit": "kN"},
+        {"doc": "URS-TP201", "rev": 1, "page": 1, "quote": FABRICATED_QUOTE},
+    ),
+}
+
+
+def _ac(value: dict[str, Any]) -> dict[str, Any]:
+    ac = NO_AC | {"kind": value["type"]}
+    for k, v in value.items():
+        if k == "value":
+            ac["number" if value["type"] == "number" else "text"] = v
+        elif k != "type":
+            ac[k] = v
+    return ac
+
+
+def _draft(r: Request) -> dict[str, Any]:
+    asked = json.loads(r.user)
+    req = asked["requirement"]
+    ac, source = NO_AC, None
+    if req["id"] in UNSOURCED:
+        ac, source = UNSOURCED[req["id"]]
+        if req["id"] == "URS-TP201-003":
+            urs = asked["sources"][0]
+            line = next(x for x in urs["text"].splitlines() if x.startswith(req["id"]))
+            source = {k: urs[k] for k in ("doc", "rev", "page")} | {"quote": line}
+    elif req["value"] is not None:
+        ac, source = _ac(req["value"]), req["value_citation"]
+    return {
+        "description": f"Verify {req['id']}",
+        "method": "Operate the press across its range and record the reading.",
+        "instrument": "calibrated tachometer",
+        "acceptance": ac,
+        "acceptance_source": source,
+    }
+
+
 class ScriptedLLM:
     """Segments by the printed requirement numbers, extracts from ``SCRIPT``, reads the
     vendor facts in ``STEPS`` and ``ROWS`` and links by ``LINKS``."""
@@ -302,6 +356,8 @@ class ScriptedLLM:
         return [Response(self._answer(r), MODEL, len(r.user) // 4, 40) for r in requests]
 
     def _answer(self, r: Request) -> str:
+        if r.prompt.name == "draft":
+            return json.dumps(_draft(r))
         if r.prompt.name in REVIEW:
             return json.dumps(REVIEW[r.prompt.name](r))
         if r.prompt.name == "facts":
@@ -475,6 +531,7 @@ def test_an_unverifiable_claim_never_reaches_the_submission(recorded: RunOutput)
         ("step", "FAT-TP201-M/FAT-M-99"),
         ("link", "URS-TP201-004 FAT-TP201-M/FAT-M-99"),
         ("required_document", "PQ-TP201"),
+        *(("acceptance", rid) for rid in UNSOURCED),
     }
     assert FABRICATED_STEP["quote"] not in text
 
@@ -544,14 +601,16 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         "required_documents",
         "site_rules",
         "vendor_assessment",
+        "draft",
     }
     assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in meta["prompts"].values())
     # One segmentation call per URS page, one extraction and one link per requirement, one
     # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1), SAT-TP201 (2, a scan),
     # DS-TP201 (1) and MTC-TP201-01 (1, a scan); one record call per page of the FATs (3),
     # the SAT (2) and the three calibration certificates (3, scans); one call each for the
-    # Vendor Assessment, the VMP and the SOP.
-    calls = 2 + 38 + 38 + 7 + 8 + 3
+    # Vendor Assessment, the VMP and the SOP; one draft per requirement the vendor did not
+    # cover.
+    calls = 2 + 38 + 38 + 7 + 8 + 3 + DRAFTED
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls
     expected = (meta["tokens"]["input"] * 1.0 + meta["tokens"]["output"] * 2.0) / 1e6 * 0.5
@@ -677,3 +736,95 @@ def test_live_run_with_an_unpriced_model_refuses(
     with pytest.raises(BudgetExceeded, match="no price"):
         run(corpus_dir, tmp_path / "runs", tmp_path / "rec", MODEL, live=llm)
     assert llm.sent == []
+
+
+# --- Drafted Test Steps -------------------------------------------------------------------
+
+# Every requirement but the one the run proves covered by the vendor gets a draft.
+COVERED = {rid for rid, (c, _) in EXPECTED_COVERAGE.items() if c == "covered_by_vendor"}
+DRAFTED = 38 - len(COVERED)
+DETERMINISTIC = ("traces_to_requirement", "ac_sourced_or_empty")
+
+
+def test_drafted_steps_pass_scorer_criteria_1_and_2(recorded: RunOutput) -> None:
+    """With the Vendor Assessment read (#55), a requirement the run proves covered by the
+    vendor gets no draft, so criterion 1 passes for it. It still fails on the other
+    requirements the key expects ``covered_by_vendor``: the scripted model links no vendor
+    step to them, so the run drafts them."""
+    report = _report(recorded)
+    steps = report["test_steps"]
+    rates = steps["metrics"]["criteria_pass_rate"]
+    assert rates["ac_sourced_or_empty"] == 1.0
+    not_scored = {c: v for c, v in rates.items() if c not in DETERMINISTIC}
+    assert len(not_scored) == 4 and set(not_scored.values()) == {"not_scored"}
+    key = {r["id"]: r["expected_coverage"] for r in load_key(KEY)["requirements.yaml"]}
+    failing = {
+        i["requirement"] for i in steps["items"] if not i["criteria"]["traces_to_requirement"]
+    }
+    assert COVERED and not COVERED & {i["requirement"] for i in steps["items"]}
+    assert failing == {rid for rid, c in key.items() if c == "covered_by_vendor"} - COVERED
+    assert steps["metrics"]["site_test_recall"] == 1.0
+    assert report["gates"]["fabricated_acceptance_criterion"]["count"] == 0
+    acceptance = [p for p in report["probes"]["items"] if p["absent"] == "acceptance"]
+    assert [p["status"] for p in acceptance] == ["not_found", "not_found"]
+
+
+def test_an_ac_is_copied_from_a_verified_citation_or_left_for_a_human(
+    recorded: RunOutput,
+) -> None:
+    sub = json.loads((recorded.folder / "submission.json").read_text(encoding="utf-8"))
+    steps = {s["requirement"]: s for s in sub["test_steps"]}
+    assert len(steps) == DRAFTED
+    speed = steps["URS-TP201-002"]
+    assert speed["acceptance"] == {"type": "range", "min": 20, "max": 70, "unit": "rpm"}
+    assert speed["acceptance_citation"]["doc"] == "URS-TP201"
+    assert "70 rpm" in speed["acceptance_citation"]["quote"]
+    for rid in UNSOURCED:
+        assert "acceptance" not in steps[rid] and "acceptance_citation" not in steps[rid], rid
+
+    drafts = json.loads((recorded.folder / "drafts.json").read_text(encoding="utf-8"))
+    assert drafts["vendor_reuse"] is True
+    flags = {d["requirement"]: d["acceptance_flag"] for d in drafts["test_steps"]}
+    human = "to be set by a human"
+    assert flags["URS-TP201-013"] == f"{human}: no source cited"
+    assert flags["URS-TP201-018"] == f"{human}: source not given"
+    assert flags["URS-TP201-003"] == f"{human}: value not in the quote"
+    assert flags["URS-TP201-005"] == f"{human}: quote not on the page"
+    assert flags["URS-TP201-002"] is None
+
+
+def test_each_draft_is_an_ai_finding_pending_review(recorded: RunOutput) -> None:
+    drafts = json.loads((recorded.folder / "drafts.json").read_text(encoding="utf-8"))
+    meta = recorded.metadata
+    assert len(drafts["test_steps"]) == DRAFTED
+    for d in drafts["test_steps"]:
+        assert d["layer"] == "ai"
+        assert d["reviewer_action"] == "pending"
+        assert d["source"] == {"doc": "URS-TP201", "rev": 1}
+        assert (d["model"], d["prompt"], d["created"]) == (
+            MODEL,
+            meta["prompts"]["draft"],
+            meta["created"],
+        )
+        assert d["saved_by_reuse"] is False
+
+
+def test_vendor_reuse_is_a_run_setting_recorded_in_the_run(
+    recorded: RunOutput, corpus_dir: Path, tmp_path: Path, seeded: Callable[[Path], Path]
+) -> None:
+    """Eval runs keep the default, true: scorer criterion 1 assumes it."""
+    assert recorded.metadata["settings"] == {"vendor_reuse": True}
+    seeded(tmp_path / "rec")
+    out = run(
+        corpus_dir,
+        tmp_path / "runs",
+        tmp_path / "rec",
+        MODEL,
+        live=ScriptedLLM(),
+        prices=PRICES,
+        vendor_reuse=False,
+    )
+    assert out.metadata["settings"] == {"vendor_reuse": False}
+    drafts = json.loads((out.folder / "drafts.json").read_text(encoding="utf-8"))
+    assert drafts["vendor_reuse"] is False
+    assert len(out.submission.test_steps) == len(out.submission.requirements) == 38

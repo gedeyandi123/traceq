@@ -117,6 +117,8 @@ Claim = Literal[
     "required_document",
     "site_rule",
     "assessment",
+    "test_step",
+    "acceptance",
 ]
 
 
