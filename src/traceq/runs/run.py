@@ -1,6 +1,7 @@
 """One run: a released corpus in, a run folder out.
 
-``<out>/<run id>/submission.json`` is what the scorer grades; ``run.json`` is the run
+``<out>/<run id>/submission.json`` is what the scorer grades; ``matrix.json`` is the
+traceability matrix with each Coverage reason and its Evidence; ``run.json`` is the run
 metadata: model, prompt hashes, tokens, cost in USD, which calls were replayed and which
 claims the citation check dropped. A live run sends only calls that are not yet recorded,
 and refuses before sending when their estimate would pass ``max_usd``.
@@ -18,6 +19,7 @@ from typing import Any
 from traceq.ai import LLM, Budget, PriceTable, Recorder
 from traceq.ai.port import sha256
 from traceq.documents import Corpus
+from traceq.runs.matrix import matrix
 from traceq.runs.submission import Submission, SystemInfo, build
 from traceq.traceability import PIPELINE_VERSION, PROMPTS, trace
 
@@ -102,10 +104,14 @@ def run(
         "max_usd": max_usd if live is not None else None,
         "price_table": {"batch_discount": prices.batch_discount},
         "dropped": [{"claim": d.claim, "id": d.id, "reason": d.reason} for d in traced.dropped],
+        "not_read": [
+            {"doc_id": d.doc_id, "rev": d.rev, "format": d.format} for d in traced.vendor.not_read
+        ],
     }
 
     folder = out_dir / run_id
     folder.mkdir(parents=True)
     _write_json(folder / "submission.json", submission.model_dump(mode="json", exclude_none=True))
+    _write_json(folder / "matrix.json", matrix(traced))
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)
