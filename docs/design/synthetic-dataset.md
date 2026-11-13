@@ -169,6 +169,8 @@ All four conditions must hold. The first failing condition decides the class (ti
 | 3 | The full URS range was tested | — | `partial` |
 | 4 | The function is not affected by transport/installation (`transport_sensitive: false`), or it was retested at SAT | CPOB 12.24 | `partial` |
 
+A step is Evidence only if its result proves the URS. A result whose print reads two ways (see "Ambiguous values") proves nothing until a human confirms it: the step fails with "value awaits confirmation" before any condition is checked, and the requirement is `partial` unless another step proves it (TP-201: URS-TP201-003 through SAT-01, owner decision on #53).
+
 Vendor assessment state: TP-201 vendor assessed, full scope. TP-202 vendor assessed with limited scope (mechanical yes, control system/software no). Each corpus holds the site's Vendor Assessment, which rates every area `Ya` or `Tidak`, so condition 1 is cited from a document; like the VMP and SOP it is a site document, not a required document.
 
 ### Documents that should exist
@@ -197,6 +199,10 @@ Layer and default reference follow from the type (section 7, taxonomy); a scenar
 
 Some values are deliberately ambiguous (`1.500 rpm` in a mixed-language document, `03/04/2026`). The expected answer is "ask for confirmation". Deterministic rules never score an ambiguous date. Each entry stores the printed text, both readings (`1500 rpm`: `.` groups thousands, Indonesian; `1.5 rpm`: `.` is the decimal point, English), the true value, and `expected_answer: ask_confirmation`.
 
+**Rule.** A number reads two ways when it has one `.` or `,` followed by exactly three digits, and that separator is the decimal point of the document's language (`.` in English, `,` in Indonesian): a writer of the other convention may have meant thousands. As the grouping separator (`120.000` in an Indonesian URS) it reads one way. An ambiguous value is **always** asked, however implausible one reading is against the URS (owner decision on #53): `122.400 tablets/h` on the English SAT form is asked even though 122.4 cannot meet "at least 120,000". So `ambiguous.yaml` is derived, not planted: it lists every FAT/SAT result whose print reads two ways. A planted one names its scenario (S7); others carry none. Not listed: a struck original under a GDP correction (not a result; S1 reports it) and values the system does not read as Evidence (a datasheet row quoted in the DQ).
+
+**Scoring.** An `ambiguous_value` finding is scored in the ambiguous section only (asked, or the value silently claimed). The defects section ignores it unless it matches a defect of type `ambiguous_value` (S7), so asking is never a false positive or mislabelled, even when it cites the same text as another defect (SAT-01 under S1).
+
 ### Hallucination probes
 
 A probe is a fact the corpus does not hold, placed beside a lure that invites a system to make it up; the expected answer is "not found". Probes are planted in world data (`probes[]`: requirement, what is absent, detail, lure anchors) and ride on the requirements and drafted Test Steps a submission answers anyway, so the submission format is unchanged and a system cannot tell a probe from any other item. The schema checks that world data really holds no such fact.
@@ -206,7 +212,7 @@ A probe is a fact the corpus does not hold, placed beside a lure that invites a 
 | `evidence` | FAT/SAT step or certificate row proving the requirement | Any Evidence step, a `covered_by_vendor` or `partial` class, or a citation that fails its check |
 | `acceptance` | value to test against beyond the URS sentence | A drafted Test Step whose AC is neither empty nor the URS value |
 
-TP-201 has six probes, 10% of its 60 answer-key items (38 requirements, 7 defects, 1 ambiguous value, 14 documents):
+TP-201 has six probes, 10% of its 61 answer-key items (38 requirements, 7 defects, 2 ambiguous values, 14 documents):
 
 | Probe | Requirement | Absent | Lures |
 |---|---|---|---|

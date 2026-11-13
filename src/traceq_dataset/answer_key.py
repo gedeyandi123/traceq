@@ -41,7 +41,7 @@ from pydantic import BaseModel
 
 from traceq_dataset.corpus import Corpus, DocKey, build_corpus
 from traceq_dataset.coverage import classify, meets, step_failure
-from traceq_dataset.render import design_field
+from traceq_dataset.render import awaiting_confirmation, design_field, reads_two_ways
 from traceq_dataset.schema import Anchor, DefectType, Equipment, Requirement, Scenario
 from traceq_dataset.validate import normalise, page_texts
 
@@ -147,10 +147,11 @@ def requirements(corpus: Corpus) -> list[dict[str, Any]]:
         raise AnswerKeyError(f"{eq.tag}: no {urs} rendered")
     protocols = {p.doc_id: p for p in eq.protocols}
     vendors = {eq.vendor.id: eq.vendor}
+    awaiting = _awaiting(corpus)
     out = []
     for r in eq.requirements:
         current = corpus.rendered[(urs, revs[-1])].placed[r.id]
-        result = classify(r, eq.tests, eq.designs, protocols, vendors)
+        result = classify(r, eq.tests, eq.designs, protocols, vendors, awaiting)
         entry: dict[str, Any] = {
             "id": r.id,
             "text": current.text,
@@ -218,7 +219,8 @@ def _test_evidence(corpus: Corpus, r: Requirement) -> list[dict[str, Any]]:
         doc = (t.protocol, 0)
         placed = corpus.rendered[doc].placed
         observed = placed[f"{t.step}.observed"]
-        failure = step_failure(r, t, protocols[t.protocol], eq.vendor)
+        awaiting = reads_two_ways(observed.text, corpus.document(doc).language)
+        failure = step_failure(r, t, protocols[t.protocol], eq.vendor, awaiting)
         entry: dict[str, Any] = {
             "doc": t.protocol,
             "rev": 0,
@@ -307,32 +309,59 @@ def readings(text: str) -> list[dict[str, Any]]:
     return [r | {"unit": unit} for r in out] if unit else out
 
 
+def _awaiting(corpus: Corpus) -> frozenset[str]:
+    """Steps whose rendered result reads two ways. It must agree with what world data
+    predicts (``render.awaiting_confirmation``), which ``world.disagreements`` relies on."""
+    printed = frozenset(
+        t.step
+        for t in corpus.eq.tests
+        if (t.protocol, 0) in corpus.rendered
+        and reads_two_ways(
+            corpus.rendered[(t.protocol, 0)].placed[f"{t.step}.observed"].text,
+            corpus.document((t.protocol, 0)).language,
+        )
+    )
+    predicted = awaiting_confirmation(corpus.eq)
+    if printed != predicted:
+        raise AnswerKeyError(f"results reading two ways: printed {printed}, world {predicted}")
+    return printed
+
+
 def ambiguous(corpus: Corpus) -> list[dict[str, Any]]:
+    """Every FAT/SAT result whose print reads two ways, plausible or not: the expected answer
+    is always "ask for confirmation" (design section 6). A planted one (S7) names its
+    scenario."""
     eq, texts = corpus.eq, {}
-    tests = {t.step: t for t in eq.tests}
     reqs = {r.id: r for r in eq.requirements}
-    out = []
+    awaiting = _awaiting(corpus)
+    planted: dict[tuple[str, str], str] = {}
     for s in eq.scenarios:
         if not s.finding or s.finding.type is not DefectType.AMBIGUOUS_VALUE:
             continue
         for a in s.finding.at:
-            step = (a.field or "").removesuffix(".observed")
-            if step not in tests:
-                raise AnswerKeyError(f"{s.id}: ambiguous anchor must be a step's observed value")
-            t = tests[step]
-            loc = locate(corpus, a, texts)
-            out.append(
-                {
-                    "id": f"A-{eq.tag.replace('-', '')}-{len(out) + 1:03d}",
-                    "scenario": s.id,
-                    "location": loc,
-                    "readings": readings(loc["text"]),
-                    "true_value": _plain(t.observed),
-                    "requirement": t.requirement,
-                    "requirement_value": _plain(reqs[t.requirement].spec),
-                    "expected_answer": "ask_confirmation",
-                }
-            )
+            if (a.field or "").removesuffix(".observed") not in awaiting:
+                raise AnswerKeyError(f"{s.id}: ambiguous anchor must be a result reading two ways")
+            planted[(a.doc, a.field or "")] = s.id
+    out = []
+    # Planted values first, so their ids stay put when unplanted ones are found.
+    for t in sorted(eq.tests, key=lambda t: (t.protocol, f"{t.step}.observed") not in planted):
+        if t.step not in awaiting:
+            continue
+        field = f"{t.step}.observed"
+        scenario = planted.get((t.protocol, field))
+        loc = locate(corpus, Anchor(doc=t.protocol, rev=0, field=field), texts)
+        out.append(
+            {
+                "id": f"A-{eq.tag.replace('-', '')}-{len(out) + 1:03d}",
+                **({"scenario": scenario} if scenario else {}),
+                "location": loc,
+                "readings": readings(loc["text"]),
+                "true_value": _plain(t.observed),
+                "requirement": t.requirement,
+                "requirement_value": _plain(reqs[t.requirement].spec),
+                "expected_answer": "ask_confirmation",
+            }
+        )
     return out
 
 

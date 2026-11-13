@@ -98,7 +98,9 @@ requirements:
       reviewed_by: owner
     scope: mechanical
     critical: true
-    intended_coverage: covered_by_vendor
+    # SAT-01 is written "122.400 tablets/h" on an English form: it reads 122400 or 122.4, so
+    # it is not proof until a human confirms it (owner decision on #53).
+    intended_coverage: partial
   - id: URS-TP201-004
     section: "1. Kinerja"
     text: "Gaya tekan utama yang dapat dicapai minimal {min} kN."
