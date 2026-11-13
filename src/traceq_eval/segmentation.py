@@ -13,19 +13,20 @@ by the URS text the answer quotes:
   this requirement. Text that is no requirement (headings, table labels, intro sentences)
   counts for nothing, so quoting a row label with its cell, or running into an intro, costs
   nothing; quoting two requirements as one halves the purity.
-- An answer is a candidate for a key requirement when cover ≥ ``COVER_MIN`` and purity ≥
-  ``PURITY_MIN``. Candidates are paired one-to-one, best cover first, then best purity,
-  then key order and answer order.
+- An answer is a candidate for a key requirement when cover ≥ ``COVER_MIN`` and purity >
+  ``PURITY_OVER``. Purities add up to at most 1, so an answer is a candidate for one
+  requirement at most; when several answers are candidates for one requirement, the best
+  cover wins, then the best purity, then the earlier answer.
 
 A **split** requirement therefore matches its larger part (if it quotes at least half) and
-leaves the rest as an extra segment; a **merged** one matches the requirement that holds most
-of its text and leaves the other one missing. An unmatched answer that quotes a URS
+leaves the rest as an extra segment; a **merged** one matches the requirement that holds
+more than half of its requirement text and leaves the other one missing, and an even merge
+matches neither. An unmatched answer that quotes a URS
 requirement page is an extra segment, a segmentation error rather than a made-up
 requirement; one that does not is an unknown requirement, as with a wrong id.
 
 Matched answers and the Test Steps tracing to them take the key's id, so every section
-scores them as if the system had named them so. The thresholds await the owner's decision
-(ticket #44).
+scores them as if the system had named them so. The thresholds are the owner's (ticket #44).
 """
 
 from __future__ import annotations
@@ -39,8 +40,9 @@ from traceq_eval.submission import RequirementAnswer, Submission
 
 COVER_MIN = 0.5
 """An answer must quote at least this share of the key requirement's characters."""
-PURITY_MIN = 0.5
-"""At least this share of the requirement text an answer quotes must be this requirement's."""
+PURITY_OVER = 0.5
+"""More than this share of the requirement text an answer quotes must be this requirement's,
+so an evenly merged pair matches neither requirement."""
 
 UNMATCHED = "unmatched:"
 """Prefix for an unmatched answer whose own name is a key id, so it is not scored by id."""
@@ -97,7 +99,7 @@ def align(
                 continue
             on_keys = sum(len(chars.get(p, set()) & c) for p, c in key_chars.values())
             cover, purity = overlap / len(k), overlap / on_keys
-            if cover >= COVER_MIN and purity >= PURITY_MIN:
+            if cover >= COVER_MIN and purity > PURITY_OVER:
                 m = Match(a.id, r["id"], round(cover, 4), round(purity, 4))
                 candidates.append((-cover, -purity, ki, ai, m))
     matches: list[Match] = []

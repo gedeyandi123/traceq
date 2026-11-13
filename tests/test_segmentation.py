@@ -158,22 +158,43 @@ def test_split_requirement_matches_its_larger_part(
     assert report["fabrication"]["fabricated"] == 0
 
 
-def test_merged_requirements_match_one_and_miss_the_other(
+def test_merged_requirements_match_the_one_holding_most_text(
     own_names: dict[str, Any], key: dict, pages: PageTexts
 ) -> None:
-    """Two table rows quoted as one answer: an even split of requirement text, so the
-    earlier requirement in key order takes it."""
+    """Two table rows quoted as one answer: 003 holds 58 of its 72 requirement characters,
+    so the answer is 003 and 004 is missing."""
+    sub = copy.deepcopy(own_names)
+    merged = (
+        "Minimal 300.000 tablet/jam pada kecepatan turret maksimum. Ya Gaya tekan utama "
+        "Minimal 80 kN."
+    )
+    _quote(_answer(sub, key, "URS-TP202-003"), merged)
+    sub["requirements"].remove(_answer(sub, key, "URS-TP202-004"))
+    sub["test_steps"] = [s for s in sub["test_steps"] if s["requirement"] != "R4"]
+    report = _score(sub, key, pages)
+    m = report["requirements"]["metrics"]
+    assert m["segmentation_recall"] == round(12 / 13, 4)
+    assert m["segmentation_precision"] == 1.0
+    items = {i["id"]: i for i in report["requirements"]["items"]}
+    assert items["URS-TP202-003"]["answer"] == "R3"
+    assert 0.5 < items["URS-TP202-003"]["purity"] < 1.0
+    assert items["URS-TP202-004"]["got"] is None
+
+
+def test_evenly_merged_requirements_match_neither(
+    own_names: dict[str, Any], key: dict, pages: PageTexts
+) -> None:
+    """Purity must be over half: two 14-character rows quoted as one answer are neither."""
     sub = copy.deepcopy(own_names)
     merged = "Minimal 80 kN. Ya Gaya pra-kompresi Minimal 20 kN."
     _quote(_answer(sub, key, "URS-TP202-004"), merged)
     sub["requirements"].remove(_answer(sub, key, "URS-TP202-005"))
     report = _score(sub, key, pages)
     m = report["requirements"]["metrics"]
-    assert m["segmentation_recall"] == round(12 / 13, 4)
-    assert m["segmentation_precision"] == 1.0
+    assert m["segmentation_recall"] == round(11 / 13, 4)
+    assert m["extra_segments"] == ["R4"]
     items = {i["id"]: i for i in report["requirements"]["items"]}
-    assert (items["URS-TP202-004"]["answer"], items["URS-TP202-004"]["purity"]) == ("R4", 0.5)
-    assert items["URS-TP202-005"]["got"] is None
+    assert items["URS-TP202-004"]["got"] is None and items["URS-TP202-005"]["got"] is None
 
 
 def test_span_over_several_requirements_matches_none(
