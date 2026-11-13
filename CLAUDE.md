@@ -34,7 +34,15 @@ A prompt or model change is an experiment, not a ticket: change it, run live (Ba
 
 ## Models
 
-The session model (Opus) does grilling, spec, plan review and code review. Implementer subagents inherit it for eval, scorer and pipeline logic; pass `model: sonnet` for mechanical tickets (docs, renames, boilerplate) and `model: haiku` for read-only probes.
+The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec, plan review and code review. When spawning a subagent, the agent sets its model and effort by this table:
+
+| Subagent task | `model` | `effort` |
+|---|---|---|
+| Eval, scorer or pipeline logic; plan doubt review | inherit (Opus) | `medium`; `high` for scoring rules and gates |
+| Mechanical ticket (docs, renames, boilerplate, config) | `sonnet` | `medium` |
+| Read-only probe or lookup | `haiku` | `low` |
+
+The session's own effort changes only by the owner typing `/effort`. The agent says "switch to `/effort high`" before a decision on gates, scoring rules or ADRs, or after two failed attempts at the same bug, and "back to `/effort medium`" when that is done. `xhigh` and `max` are not used routinely. If Sonnet tickets keep failing CI or need rework, move that kind of ticket back to Opus.
 
 ## Rules
 
