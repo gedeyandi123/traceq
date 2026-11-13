@@ -34,13 +34,16 @@ A prompt or model change is an experiment, not a ticket: change it, run live (Ba
 
 ## Models
 
-The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec, plan review and code review. When spawning a subagent, the agent sets its model and effort by this table:
+The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec and merging. Subagents are spawned by name (`subagent_type`) from `.claude/agents/`, which fixes their model, effort and tools:
 
-| Subagent task | `model` | `effort` |
-|---|---|---|
-| Eval, scorer or pipeline logic; plan doubt review | inherit (Opus) | `medium`; `high` for scoring rules and gates |
-| Mechanical ticket (docs, renames, boilerplate, config) | `sonnet` | `medium` |
-| Read-only probe or lookup | `haiku` | `low` |
+| Agent | Use for | Model / effort | Tools |
+|---|---|---|---|
+| `implementer` | A ticket with eval, scorer, pipeline, prompt or domain logic | inherit (Opus) / `medium`; pass `effort: high` for scoring rules and gates | edit, own worktree |
+| `implementer-light` | A mechanical ticket (docs, renames, config, boilerplate) | Sonnet / `medium` | edit, own worktree |
+| `reviewer` | Both code-review axes and the plan doubt review | inherit (Opus) / `medium` | read-only |
+| `explorer` | A lookup: where is X, which files mention Y | Haiku / `low`, no CLAUDE.md | Read, Glob, Grep |
+
+Never use the general-purpose agent for these jobs, and prefer `explorer` over the built-in Explore (which runs on Opus) for lookups. A subagent cannot spawn further subagents unless its tools include Agent; none of these do.
 
 The session's own effort changes only by the owner typing `/effort`. The agent says "switch to `/effort high`" before a decision on gates, scoring rules or ADRs, or after two failed attempts at the same bug, and "back to `/effort medium`" when that is done. `xhigh` and `max` are not used routinely. If Sonnet tickets keep failing CI or need rework, move that kind of ticket back to Opus.
 
