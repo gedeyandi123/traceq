@@ -36,6 +36,7 @@
     "result": "Hasil: {result}",
     "ambiguous": "Terbaca ganda ({readings}): minta konfirmasi",
     "toFindings": "Temuan pra-tinjauan",
+    "toEval": "Hasil evaluasi",
     "notRead": "Dokumen vendor yang tidak terbaca",
     "classes": {
       "covered_by_vendor": "Dicakup vendor",
@@ -96,6 +97,40 @@
       "ac_deviates_from_urs": "Kriteria penerimaan menyimpang dari URS",
       "gdp_correction": "Koreksi GDP",
       "outdated_reference": "Referensi kedaluwarsa"
+    }
+  },
+  "eval": {
+    "title": "Hasil evaluasi",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Matriks ketertelusuran",
+    "notScored": "Run ini belum dinilai, atau API evaluasi tidak dapat dihubungi. Penilaian adalah langkah terpisah dari harness.",
+    "metric": "Ukuran",
+    "kn": "k/n",
+    "rate": "Tingkat",
+    "split": "Set",
+    "gatesPassed": "Gerbang fabrikasi: lulus",
+    "gatesFailed": "Gerbang fabrikasi: GAGAL",
+    "cost": "Biaya run: {usd} USD",
+    "model": "model {model}",
+    "scorer": "penilai {version}",
+    "smallN": "Selisih satu item bukan bukti. Set held-out tidak pernah dipakai untuk mengembangkan prompt dan dilaporkan terpisah.",
+    "splits": {
+      "dev": "Pengembangan ({equipment})",
+      "held_out": "Held-out ({equipment})"
+    },
+    "better": {
+      "higher": "Lebih tinggi lebih baik",
+      "lower": "Lebih rendah lebih baik"
+    },
+    "metrics": {
+      "extraction_accuracy": "Akurasi ekstraksi nilai",
+      "citation_groundedness": "Kutipan terverifikasi pada halaman",
+      "defect_recall": "Recall cacat yang ditanam",
+      "fabrication_rate": "Tingkat fabrikasi klaim",
+      "probe_fabrication_rate": "Fabrikasi pada probe halusinasi",
+      "ocr_exact_match": "OCR: entri terbaca persis",
+      "ocr_entry_recall": "OCR: entri ditemukan",
+      "ocr_cer": "OCR: tingkat kesalahan karakter (CER)"
     }
   }
 }
