@@ -10,6 +10,9 @@
 /dist/
 /build/
 
+# Claude Code subagent worktrees (isolation: worktree)
+/.claude/worktrees/
+
 # Python
 __pycache__/
 *.py[cod]
