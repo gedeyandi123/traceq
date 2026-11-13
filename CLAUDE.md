@@ -51,6 +51,8 @@ How implement-spec's roles map here:
 - **Integration PR (steps 3 and 8):** a draft PR into `main` that closes the spec issue, listing every ticket. The owner merges it.
 - **Cleanup (step 9):** `git worktree prune` and delete leftover local `worktree-agent-*` and ticket branches.
 
+Quality checks on the agents themselves: the main session reads the `path:line` an `explorer` answer cites before relying on it; `reviewer` Bash is limited by `.claude/hooks/readonly-bash.mjs` (tests: `node .claude/hooks/readonly-bash.test.mjs`); every implementer PR still passes CI and the integration-branch code review.
+
 Never use the general-purpose agent for these jobs, and prefer `explorer` over the built-in Explore (which runs on Opus) for lookups. A subagent cannot spawn further subagents unless its tools include Agent; none of these do.
 
 The session's own effort changes only by the owner typing `/effort`. The agent says "switch to `/effort high`" before a decision on gates, scoring rules or ADRs, or after two failed attempts at the same bug, and "back to `/effort medium`" when that is done. `xhigh` and `max` are not used routinely. If Sonnet tickets keep failing CI or need rework, move that kind of ticket back to Opus.
