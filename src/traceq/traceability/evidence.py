@@ -117,6 +117,7 @@ Claim = Literal[
     "site_rule",
     "test_step",
     "acceptance",
+    "ai_finding",
 ]
 
 

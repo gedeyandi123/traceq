@@ -2,8 +2,9 @@
 
 ``<out>/<run id>/submission.json`` is what the scorer grades; ``matrix.json`` is the
 traceability matrix with each Coverage reason and its Evidence; ``findings.json`` holds the
-Pre-review Check Findings, the VMP's required documents and those missing, and the site rules
-read from the SOP, each with its citation; ``drafts.json`` holds the drafted IQ/OQ Test
+Pre-review Check Findings and, apart from them, the AI Findings pending review, the VMP's
+required documents and those missing, and the site rules read from the SOP, each with its
+citation; ``drafts.json`` holds the drafted IQ/OQ Test
 Steps as AI Findings pending review; ``run.json`` is the run
 metadata: the run settings, model, prompt hashes, tokens, cost in USD, which calls were
 replayed, which claims the citation check dropped, and per document read its ingest engine,
@@ -95,7 +96,7 @@ def run(
         cost: float | None = round(prices.response_cost_usd(responses), 6)
     except KeyError:
         cost = None
-    read = {(c.request.doc_sha256) for c in llm.calls}
+    read = {c.request.doc_sha256 for c in llm.calls} | {d.sha256 for d, _ in corpus.ingested()}
     metadata: dict[str, Any] = {
         "run_id": run_id,
         "created": now.isoformat(),
@@ -155,7 +156,12 @@ def run(
     folder.mkdir(parents=True)
     _write_json(folder / "submission.json", submission.model_dump(mode="json", exclude_none=True))
     _write_json(folder / "matrix.json", matrix(traced).model_dump(mode="json"))
-    _write_json(folder / "findings.json", findings(reviewed))
+    _write_json(
+        folder / "findings.json",
+        findings(
+            reviewed, model=model, prompt=prompt_hashes["ai_review"], created=metadata["created"]
+        ),
+    )
     _write_json(
         folder / "drafts.json",
         drafts(drafted, model=model, prompt=prompt_hashes["draft"], created=metadata["created"]),

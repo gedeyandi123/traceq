@@ -245,7 +245,54 @@ def _site_rules(r: Request) -> dict[str, Any]:
     return {"rules": [{"rule": k, "page": 1, "quote": q} for k, q in SOP_RULES.items()]}
 
 
-REVIEW = {"record": _record, "required_documents": _required, "site_rules": _site_rules}
+# --- AI Findings: the scripted model reports S3 and S1, and two it cannot cite ------------
+
+DOCUMENT = re.compile(
+    r'<document doc="([^"]+)" rev="(\d+)" type="[^"]+">\n(.*?)\n</document>', re.S
+)
+# Not printed anywhere: the citation check must drop the finding.
+INVENTED_REFERENCE = "FAT-TP201-M refers to URS-TP201 rev 0."
+
+
+def _lines(r: Request, pattern: str) -> list[dict[str, Any]]:
+    """Every printed line matching ``pattern``, as a citation of the page it is on."""
+    return [
+        {"doc": m[1], "rev": int(m[2]), "page": n, "quote": hit[0]}
+        for m in DOCUMENT.finditer(r.user)
+        for n, text in _pages(Request(r.prompt, m[3], r.doc_sha256)).items()
+        if (hit := re.search(pattern, text, re.M))
+    ]
+
+
+def _ai_review(r: Request) -> dict[str, Any]:
+    serials = _lines(r, r"RTP36-25-04\d\d")
+    sat = next(c for c in _lines(r, r"122\.400 tablets/h") if c["doc"] == "SAT-TP201")
+    invented = {"doc": "FAT-TP201-M", "rev": 0, "page": 1, "quote": INVENTED_REFERENCE}
+    superseded = {"doc": "URS-TP201", "rev": 0, "page": 1, "quote": "URS-TP201"}
+    return {
+        "findings": [
+            {
+                "type": "inconsistent_data",
+                "detail": "The SAT serial number differs from the FAT and the datasheet.",
+                "citations": serials,
+            },
+            {
+                "type": "gdp_correction",
+                "detail": "SAT-01 output is overwritten without initials, date or reason.",
+                "citations": [sat],
+            },
+            {"type": "outdated_reference", "detail": "Old URS.", "citations": [invented]},
+            {"type": "outdated_reference", "detail": "Old URS.", "citations": [superseded]},
+        ]
+    }
+
+
+REVIEW = {
+    "record": _record,
+    "required_documents": _required,
+    "site_rules": _site_rules,
+    "ai_review": _ai_review,
+}
 
 
 # --- Drafting: the scripted model copies the verified URS value, or tries to invent one ---
@@ -493,6 +540,8 @@ def test_an_unverifiable_claim_never_reaches_the_submission(recorded: RunOutput)
         ("link", "URS-TP201-004 FAT-TP201-M/FAT-M-99"),
         ("required_document", "PQ-TP201"),
         *(("acceptance", rid) for rid in UNSOURCED),
+        ("ai_finding", "outdated_reference 3"),
+        ("ai_finding", "outdated_reference 4"),
     }
     assert FABRICATED_STEP["quote"] not in text
 
@@ -524,6 +573,40 @@ def test_check_findings_match_the_planted_rule_defects(recorded: RunOutput) -> N
     assert s4["rule"]["doc"] == "SOP-VAL-002"
     assert s4["rule"]["quote"] == SOP_RULES["vendor_protocol_approved_before_execution"]
     assert {r["rule"] for r in review["site_rules"]} == set(SOP_RULES)
+
+
+def test_ai_findings_are_cited_kept_apart_and_scored_in_their_layer(
+    recorded: RunOutput,
+) -> None:
+    """S3 (inconsistent serial number) and S1 (GDP correction on the SAT scan) come from the
+    AI layer; the scorer counts them under the layers the answer key gives them."""
+    report = _report(recorded)
+    found = {d["scenario"]: d["found_by"] for d in report["defects"]["items"]}
+    assert found["S1"] and found["S3"]
+    recall = report["defects"]["metrics"]["recall_by_layer"]
+    assert (recall["llm"], recall["vision"], recall["rule"]) == (
+        round(1 / 3, 4),
+        1.0,
+        round(2 / 3, 4),
+    )
+    assert report["gates"]["passed"], report["gates"]
+
+    review = json.loads((recorded.folder / "findings.json").read_text(encoding="utf-8"))
+    ai = {f["type"]: f for f in review["ai_findings"]}
+    assert set(ai) == {"inconsistent_data", "gdp_correction"}
+    assert {f["type"] for f in review["check_findings"]}.isdisjoint(ai)
+    serial = ai["inconsistent_data"]
+    assert {"SAT-TP201", "FAT-TP201-M", "DS-TP201"} <= {c["doc"] for c in serial["citations"]}
+    assert serial["sources"] == [{"doc": c["doc"], "rev": c["rev"]} for c in serial["citations"]]
+    for f in ai.values():
+        assert f["layer"] == "ai" and f["reviewer_action"] == "pending"
+        assert (f["model"], f["prompt"], f["created"]) == (
+            MODEL,
+            recorded.metadata["prompts"]["ai_review"],
+            recorded.metadata["created"],
+        )
+    text = (recorded.folder / "submission.json").read_text(encoding="utf-8")
+    assert INVENTED_REFERENCE not in text and "outdated_reference" not in text
 
 
 def test_missing_documents_are_what_the_vmp_requires_and_the_corpus_lacks(
@@ -561,6 +644,7 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         "record",
         "required_documents",
         "site_rules",
+        "ai_review",
         "draft",
     }
     assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in meta["prompts"].values())
@@ -568,9 +652,9 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
     # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1), SAT-TP201 (2, a scan),
     # DS-TP201 (1) and MTC-TP201-01 (1, a scan); one record call per page of the FATs (3),
     # the SAT (2) and the three calibration certificates (3, scans); one call each for the
-    # VMP and the SOP; one draft per requirement the vendor did not cover (all 38: no
-    # Vendor Assessment is read yet).
-    calls = 2 + 38 + 38 + 7 + 8 + 2 + 38
+    # VMP and the SOP; one AI review over the current documents; one draft per requirement
+    # the vendor did not cover (all 38: no Vendor Assessment is read yet).
+    calls = 2 + 38 + 38 + 7 + 8 + 2 + 1 + 38
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls
     expected = (meta["tokens"]["input"] * 1.0 + meta["tokens"]["output"] * 2.0) / 1e6 * 0.5
@@ -581,13 +665,18 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         ("FAT-TP201-M", 0),
         ("FAT-TP201-C", 0),
         ("SAT-TP201", 0),
+        # Read by the AI review only, which reads every current document.
+        ("RA-TP201", 0),
         ("DS-TP201", 0),
+        ("DQ-TP201", 0),
+        ("FDS-TP201", 0),
         ("MTC-TP201-01", 0),
         ("KAL-2025-0412", 0),
         ("KAL-2026-0057", 0),
         ("CAL-TP201-01", 0),
         ("VMP-001", 3),
         ("SOP-VAL-002", 2),
+        ("VA-2025-011", 0),
     ]
 
 
@@ -600,7 +689,7 @@ def test_run_metadata_logs_ingest_time_and_peak_ram(recorded: RunOutput) -> None
     assert all(s > 0 for s in sat["seconds_per_page"])
     assert sat["peak_ram_bytes"] > 0
     assert sat["cached"]
-    assert {d["format"] for d in meta["ingest"]} == {"born_digital", "scan"}
+    assert {d["format"] for d in meta["ingest"]} == {"born_digital", "scan", "xlsx"}
     assert all(len(d["seconds_per_page"]) == d["pages"] for d in meta["ingest"])
 
 
