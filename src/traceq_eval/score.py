@@ -1,7 +1,7 @@
 """Score a submission against an Equipment's answer key (design section 9). Deterministic.
 
 One report section per answer-key file, plus the citations every claim carries and the
-gates. ``ocr.yaml`` is not scored yet.
+gates.
 
 - ``requirements``: Coverage class (``also_valid`` counts as correct), extracted value, the
   rev 0 value of a superseded requirement (S8), citation of the URS sentence, and the vendor
@@ -21,6 +21,8 @@ gates. ``ocr.yaml`` is not scored yet.
   gate (design section 9).
 - ``documents``: documents that should exist but are not in the corpus, matched by type and
   stage.
+- ``ocr``: handwritten entries on scans, read by the submission (``traceq_eval.ocr``): entry
+  recall, localisation, exact match and CER, by kind and scan level. Not a gate.
 - ``test_steps``: drafted Test Steps on the deterministic criteria (1 traces to a requirement
   that needs site testing, 2 AC sourced or left empty; 6 needs the SOP, which world data does
   not have yet) and, through a ``Judge``, criteria 3–5.
@@ -49,9 +51,10 @@ from traceq_eval.citations import (
     partial_ratio,
 )
 from traceq_eval.judge import Criterion, Judge, NoJudge, UrsRequirement
+from traceq_eval.ocr import score_ocr
 from traceq_eval.submission import Citation, Submission
 
-SCORER_VERSION = "0.3.0"
+SCORER_VERSION = "0.4.0"
 
 CLAIMS_A_TEST = frozenset({"covered_by_vendor", "partial"})
 """Coverage classes that say a vendor step tested the requirement."""
@@ -575,5 +578,6 @@ def score(
         "probes": probes,
         "documents": documents,
         "test_steps": test_steps,
-        "not_scored": ["ocr.yaml", "witness_matches_sop (no SOP in world data yet)"],
+        "ocr": score_ocr(sub, key),
+        "not_scored": ["witness_matches_sop (no SOP in world data yet)"],
     }

@@ -92,9 +92,18 @@ def markdown(report: dict[str, Any]) -> str:
         for i in report["probes"]["items"]
         if i["status"] == "fabricated"
     ]
-    for section in ("requirements", "defects", "ambiguous", "probes", "documents", "test_steps"):
+    sections = ("requirements", "defects", "ambiguous", "probes", "documents", "test_steps", "ocr")
+    for section in sections:
         out += ["", f"## {section}", "", "| Metric | Value |", "|---|---|"]
         out += [f"| {k} | {_fmt(v)} |" for k, v in report[section]["metrics"].items()]
+    misread = [i for i in report["ocr"]["items"] if not i["exact"]]
+    if misread:
+        out += ["", "OCR entries not read exactly (expected → read):", ""]
+        out += [
+            f"- {i['doc']} p{i['page']} {i['field']}: {i['expected']!r} → {i['got']!r}"
+            + (" (overwritten original)" if i["read_overwritten_original"] else "")
+            for i in misread[:20]
+        ]
     cm = report["requirements"]["confusion"]
     cols = list(next(iter(cm.values())))
     out += ["", "Coverage confusion (rows expected, columns submitted):", ""]
