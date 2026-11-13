@@ -61,12 +61,13 @@ jobs:
 
       - run: npm ci
 
-      # web/openapi.json is checked against the API by pytest (tests/test_api.py); the
-      # TypeScript client generated from it must be committed as generated (ADR 0003).
+      # web/openapi.json and web/eval-openapi.json are checked against the system's and the
+      # harness's APIs by pytest (tests/test_api.py, tests/test_eval_screen.py); the
+      # TypeScript clients generated from them must be committed as generated (ADR 0003).
       - name: generated TypeScript client is current
         run: |
           npm run generate
-          git diff --exit-code -- src/api/schema.ts
+          git diff --exit-code -- src/api/schema.ts src/api/eval-schema.ts
 
       - run: npm run typecheck
       - run: npm test

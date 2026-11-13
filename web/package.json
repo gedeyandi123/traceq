@@ -7,8 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "openapi": "uv run --project .. python -m traceq.runs.api openapi.json",
-    "generate": "openapi-typescript openapi.json -o src/api/schema.ts",
+    "openapi": "uv run --project .. python -m traceq.runs.api openapi.json && uv run --project .. python -m traceq_eval.screen openapi eval-openapi.json",
+    "generate": "openapi-typescript openapi.json -o src/api/schema.ts && openapi-typescript eval-openapi.json -o src/api/eval-schema.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
