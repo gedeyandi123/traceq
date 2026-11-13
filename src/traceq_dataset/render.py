@@ -256,6 +256,8 @@ def render_urs(eq: Equipment, rev: int, t0: dt.date) -> Rendered:
     """URS (SKP) revision ``rev``. Rev 0 uses ``superseded_spec`` where one is set."""
     _require_filled(eq)
     doc = document(eq, f"URS-{eq.tag.replace('-', '')}", rev)
+    if doc.layout == "prose":
+        return _render_urs_prose(eq, doc, t0)
     lang = doc.language
     latest = max(d.rev for d in eq.documents if d.id == doc.id)
     people = {p.id: p.name for p in eq.people}
@@ -311,6 +313,8 @@ def render_fat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
     doc = document(eq, doc_id, 0)
     if doc.type != "fat":
         raise RenderError(f"{doc_id} is a {doc.type}, not a FAT")
+    if doc.layout == "record":
+        return _render_fat_record(eq, doc, t0)
     lang = doc.language
     protocol = next(p for p in eq.protocols if p.doc_id == doc_id)
     reqs = {r.id: r for r in eq.requirements}
@@ -371,6 +375,142 @@ def render_fat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
         ],
     }
     return _compile("fat.typ", data, issued, texts, doc)
+
+
+def _render_urs_prose(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
+    """A URS written as prose and unnumbered tables (design section 5, TP-202), with no
+    requirement numbers. Per section: an opening sentence that states no requirement
+    (``urs_intros``), the requirements without a ``table_label`` as one paragraph, and those
+    with one as table rows with their criticality. Each requirement's span is placed."""
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    people = _people(eq)
+    texts: dict[str, str] = {}
+    sections: dict[str, dict] = {}
+    for r in eq.requirements:
+        texts[r.id] = requirement_text(r, r.spec, lang)
+        s = sections.setdefault(
+            r.section,
+            {
+                "title": r.section,
+                "intro": eq.urs_intros.get(r.section, ""),
+                "prose": [],
+                "rows": [],
+            },
+        )
+        if r.table_label is None:
+            s["prose"].append({"key": r.id, "text": texts[r.id]})
+        else:
+            s["rows"].append(
+                {
+                    "key": r.id,
+                    "label": r.table_label,
+                    "text": texts[r.id],
+                    "critical": "Ya" if r.critical else "Tidak",
+                }
+            )
+    roles = (
+        ("Disusun oleh", doc.prepared_by),
+        ("Diperiksa oleh", doc.checked_by),
+        ("Disetujui oleh", doc.approved_by),
+    )
+    data = {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "title": "Spesifikasi Kebutuhan Pengguna",
+        "issued_on": fmt_date(issued, lang),
+        "equipment": f"{eq.tag} {EN_DASH} {eq.name}",
+        "purpose": (
+            f"Dokumen ini menguraikan kebutuhan {eq.site_name or 'site'} terhadap "
+            f"{eq.name.lower()} {eq.tag}. Kebutuhan dalam tabel yang ditandai Kritis = Ya "
+            "berdampak langsung pada mutu produk atau keselamatan."
+        ),
+        "sections": list(sections.values()),
+        "note": doc.change_note or "Terbitan pertama.",
+        "signatures": [
+            {"role": role, **_signature(people[pid].name if pid else None, issued, lang)}
+            for role, pid in roles
+        ],
+    }
+    return _compile("urs_prose.typ", data, issued, texts, doc)
+
+
+def _render_fat_record(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
+    """A FAT from another vendor (design section 5, TP-202): as-built machine data, the
+    customer's release of the procedure, one test record per step, a deviation statement,
+    and a list of attachments none of which is bound in (``Document.attachments``)."""
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    protocol = next(p for p in eq.protocols if p.doc_id == doc.id)
+    reqs = {r.id: r for r in eq.requirements}
+    people = _people(eq)
+    employers = {eq.site: eq.site_name or "Customer", eq.vendor.id: eq.vendor.name}
+    approved = protocol.site_approved_on.resolve(t0) if protocol.site_approved_on else None
+    executed = protocol.executed_on.resolve(t0)
+    texts: dict[str, str] = {}
+
+    def put(key: str, text: str) -> str:
+        texts[key] = text
+        return text
+
+    def row(role: str, pid: str | None, date: dt.date | None) -> dict[str, str]:
+        person = people[pid] if pid else None
+        company = employers[person.employer] if person else ""
+        return {"role": role, "company": company, **_signature(person and person.name, date, lang)}
+
+    as_built = [
+        {"label": "Serial number", "value": eq.serial_no or ""},
+        {"label": "Model", "value": eq.model or ""},
+    ]
+    for fact in eq.designs:
+        if fact.doc_id != doc.id:
+            continue
+        key = design_field(eq, fact)
+        assert key is not None and fact.label is not None
+        value = put(key, fmt_design(fact.observed, lang))
+        as_built.append({"label": fact.label, "value": value, "key": key})
+
+    records = []
+    for t in eq.tests:
+        if t.protocol != doc.id:
+            continue
+        if not t.description:
+            raise RenderError(f"{t.step}: needs a description to be rendered")
+        ac = fmt_spec(t.acceptance or reqs[t.requirement].spec, lang)
+        records.append(
+            {
+                "step": t.step,
+                "description": t.description,
+                "acceptance": put(f"{t.step}.acceptance", ac),
+                "observed": put(f"{t.step}.observed", fmt_observation(t.observed, lang)),
+                "result": put(f"{t.step}.result", t.recorded_result.upper()),
+            }
+        )
+    attachments = [
+        {"key": f"attachment.{n}", "text": put(f"attachment.{n}", f"Attachment {n}: {title}")}
+        for n, title in enumerate(doc.attachments, 1)
+    ]
+    data = {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "title": doc.title,
+        "vendor": eq.vendor.name,
+        "issued_on": fmt_date(issued, lang),
+        "customer": eq.site_name or "",
+        "equipment": f"{eq.name}, customer tag {eq.tag}",
+        "as_built": as_built,
+        "release": [
+            row("Issued", doc.prepared_by, issued),
+            row("Reviewed (customer)", doc.checked_by, approved),
+            row("Released for test (customer)", doc.approved_by, approved),
+        ],
+        "records": records,
+        "deviations": put("deviations", "No deviations were raised during the test."),
+        "attachments": attachments,
+        "execution": [
+            row("Tested by", doc.executed_by, executed),
+            row("Witnessed by", doc.witnessed_by, executed),
+        ],
+    }
+    return _compile("fat_record.typ", data, issued, texts, doc)
 
 
 def render_sat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
@@ -506,6 +646,8 @@ def design_field(eq: Equipment, fact: DesignEvidence) -> str | None:
         return None
     if doc.type in ("datasheet", "functional_spec"):
         return next(r.param for r in eq.requirements if r.id == fact.requirement)
+    if doc.type == "fat":
+        return "as_built." + next(r.param for r in eq.requirements if r.id == fact.requirement)
     if doc.type == "material_certificate":
         rows = [f for f in eq.designs if f.doc_id == fact.doc_id]
         return f"item-{next(i for i, f in enumerate(rows, 1) if f is fact)}.material"

@@ -1,0 +1,229 @@
+# TP-202 answer key: requirements.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: URS-TP202-001
+  text: Minimal 45 stasiun punch.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Kinerja mesin}
+  param: punch_stations
+  value: {type: range, min: 45, unit: stations}
+  critical: false
+  evidence: []
+  design_evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 1
+    field: as_built.punch_stations
+    text: 41 stations
+    value: {type: number, value: 41, unit: stations}
+    meets_urs: false
+  expected_coverage: conflict
+  reason: FAT-TP202 does not meet the URS
+  also_valid: []
+- id: URS-TP202-002
+  text: Dapat diatur pada rentang 10–80 rpm.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Kinerja mesin}
+  param: turret_speed
+  value: {type: range, min: 10, max: 80, unit: rpm}
+  critical: true
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 1
+    step: TC-01
+    acceptance: 10–80 rpm
+    observed: 10–80 rpm
+    value: {type: range, min: 10, max: 80, unit: rpm}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP202
+  also_valid: []
+- id: URS-TP202-003
+  text: Minimal 300.000 tablet/jam pada kecepatan turret maksimum.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Kinerja mesin}
+  param: output_rate
+  value: {type: range, min: 300000, unit: tablets/h}
+  critical: true
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 1
+    step: TC-02
+    acceptance: ≥ 300,000 tablets/h
+    observed: 312,000 tablets/h
+    value: {type: number, value: 312000, unit: tablets/h}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP202
+  also_valid: []
+- id: URS-TP202-004
+  text: Minimal 80 kN.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Kinerja mesin}
+  param: main_compression_force
+  value: {type: range, min: 80, unit: kN}
+  critical: true
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 1
+    step: TC-03
+    acceptance: ≥ 80 kN
+    observed: 76 kN
+    value: {type: number, value: 76, unit: kN}
+    recorded_result: fail
+    qualifies: false
+    failure: result does not meet the URS
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'TC-03: result does not meet the URS'
+  also_valid: []
+- id: URS-TP202-005
+  text: Minimal 20 kN.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Kinerja mesin}
+  param: precompression_force
+  value: {type: range, min: 20, unit: kN}
+  critical: false
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 1
+    step: TC-04
+    acceptance: ≥ 20 kN
+    observed: 22 kN
+    value: {type: number, value: 22, unit: kN}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP202
+  also_valid: []
+- id: URS-TP202-006
+  text: Baja tahan karat SS 316L.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Material dan permukaan}
+  param: product_contact_material
+  value:
+    type: one_of
+    allowed: [SS 316L]
+  critical: true
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 1
+    step: TC-05
+    acceptance: SS 316L
+    observed: SS 316L
+    value: {type: text, value: SS 316L}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP202
+  also_valid: []
+- id: URS-TP202-007
+  text: Ra maksimal 0,8 µm.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Material dan permukaan}
+  param: surface_roughness
+  value: {type: range, max: 0.8, unit: µm}
+  critical: false
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 2
+    step: TC-06
+    acceptance: ≤ 0.8 µm
+    observed: 0.5 µm
+    value: {type: number, value: 0.5, unit: µm}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-TP202
+  also_valid: []
+- id: URS-TP202-008
+  text: Mesin dilengkapi kontrol bobot tablet otomatis berdasarkan gaya tekan.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Sistem kendali dan data}
+  param: weight_control
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 2
+    step: TC-07
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 1: scope ''control'' not in vendor assessment'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'TC-07: condition 1: scope ''control'' not in vendor assessment'
+  also_valid: []
+- id: URS-TP202-009
+  text: Data batch dan resep dicadangkan otomatis ke server site setiap hari.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Sistem kendali dan data}
+  param: data_backup
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP202-010
+  text: Tingkat kebisingan pada jarak 1 m dari mesin tidak lebih dari 80 dB(A).
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Keselamatan dan lingkungan kerja}
+  param: noise_level
+  value: {type: range, max: 80, unit: dB(A)}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP202-011
+  text: Pintu pelindung dilengkapi interlock yang menghentikan mesin ketika pintu dibuka.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Keselamatan dan lingkungan kerja}
+  param: guard_door_interlock
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-TP202-012
+  text: Tombol henti darurat tersedia di panel operator dan di sisi belakang mesin.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Keselamatan dan lingkungan kerja}
+  param: emergency_stop
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-TP202
+    rev: 0
+    page: 2
+    step: TC-08
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-TP202-013
+  text: Mesin beroperasi dengan udara tekan site pada tekanan 6–7 bar.
+  source: {doc: URS-TP202, rev: 0, page: 1, section: Utilitas}
+  param: compressed_air
+  value: {type: range, min: 6, max: 7, unit: bar}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []

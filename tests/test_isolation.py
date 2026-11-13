@@ -16,7 +16,7 @@ import pytest
 SRC = Path(__file__).parents[1] / "src"
 HARNESS = {"traceq_dataset", "traceq_eval"}
 FORBIDDEN_IMPORTS = HARNESS
-FORBIDDEN_TEXT = ("answer_key", "world/", "world\\", "tp201.yaml", "baselines/")
+FORBIDDEN_TEXT = ("answer_key", "world/", "world\\", "tp201.yaml", "tp202.yaml", "baselines/")
 
 
 def system_files() -> list[Path]:
