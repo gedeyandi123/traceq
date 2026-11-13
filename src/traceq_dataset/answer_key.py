@@ -307,32 +307,60 @@ def readings(text: str) -> list[dict[str, Any]]:
     return [r | {"unit": unit} for r in out] if unit else out
 
 
+_DECIMAL_POINT = {"en": ".", "id": ","}
+
+
+def reads_two_ways(text: str, language: str) -> bool:
+    """The ambiguity rule (design section 6): one ``.`` or ``,`` before exactly three digits,
+    where that separator is the decimal point of the document's language. A writer of the
+    other convention may have meant thousands, so ``1.500 rpm`` on an English form is 1500
+    or 1.5. As the grouping separator (``120.000`` in Indonesian) it reads one way."""
+    m = _GROUPED.fullmatch(text.strip())
+    return m is not None and m[2] == _DECIMAL_POINT[language]
+
+
 def ambiguous(corpus: Corpus) -> list[dict[str, Any]]:
+    """Every FAT/SAT result whose print reads two ways, plausible or not: the expected answer
+    is always "ask for confirmation". A planted one (S7) names its scenario."""
     eq, texts = corpus.eq, {}
     tests = {t.step: t for t in eq.tests}
     reqs = {r.id: r for r in eq.requirements}
-    out = []
+    planted: dict[tuple[str, str], str] = {}
     for s in eq.scenarios:
         if not s.finding or s.finding.type is not DefectType.AMBIGUOUS_VALUE:
             continue
         for a in s.finding.at:
-            step = (a.field or "").removesuffix(".observed")
-            if step not in tests:
+            if (a.field or "").removesuffix(".observed") not in tests:
                 raise AnswerKeyError(f"{s.id}: ambiguous anchor must be a step's observed value")
-            t = tests[step]
-            loc = locate(corpus, a, texts)
-            out.append(
-                {
-                    "id": f"A-{eq.tag.replace('-', '')}-{len(out) + 1:03d}",
-                    "scenario": s.id,
-                    "location": loc,
-                    "readings": readings(loc["text"]),
-                    "true_value": _plain(t.observed),
-                    "requirement": t.requirement,
-                    "requirement_value": _plain(reqs[t.requirement].spec),
-                    "expected_answer": "ask_confirmation",
-                }
-            )
+            planted[(a.doc, a.field or "")] = s.id
+    out = []
+    # Planted values first, so their ids stay put when unplanted ones are found.
+    for t in sorted(eq.tests, key=lambda t: (t.protocol, f"{t.step}.observed") not in planted):
+        field = f"{t.step}.observed"
+        doc = next((k for k in corpus.rendered if k[0] == t.protocol), None)
+        if doc is None:
+            continue
+        placed = corpus.rendered[doc].placed.get(field)
+        scenario = planted.pop((t.protocol, field), None)
+        if placed is None or not reads_two_ways(placed.text, corpus.document(doc).language):
+            if scenario:
+                raise AnswerKeyError(f"{scenario}: {placed and placed.text!r} reads one way")
+            continue
+        loc = locate(corpus, Anchor(doc=doc[0], rev=doc[1], field=field), texts)
+        out.append(
+            {
+                "id": f"A-{eq.tag.replace('-', '')}-{len(out) + 1:03d}",
+                **({"scenario": scenario} if scenario else {}),
+                "location": loc,
+                "readings": readings(loc["text"]),
+                "true_value": _plain(t.observed),
+                "requirement": t.requirement,
+                "requirement_value": _plain(reqs[t.requirement].spec),
+                "expected_answer": "ask_confirmation",
+            }
+        )
+    if planted:
+        raise AnswerKeyError(f"ambiguous anchors on no rendered step: {sorted(planted)}")
     return out
 
 

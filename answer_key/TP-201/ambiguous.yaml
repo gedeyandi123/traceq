@@ -21,3 +21,22 @@
   requirement: URS-TP201-017
   requirement_value: {type: range, min: 10, max: 60, unit: rpm}
   expected_answer: ask_confirmation
+- id: A-TP201-002
+  location:
+    doc: SAT-TP201
+    rev: 0
+    page: 1
+    field: SAT-01.observed
+    text: 122.400 tablets/h
+    quad:
+    - [414.28, 626.46]
+    - [498.69, 625.25]
+    - [498.92, 641.0]
+    - [414.51, 642.21]
+  readings:
+  - {value: 122400, separator: thousands, convention: id, unit: tablets/h}
+  - {value: 122.4, separator: decimal, convention: en, unit: tablets/h}
+  true_value: {type: number, value: 122400, unit: tablets/h}
+  requirement: URS-TP201-003
+  requirement_value: {type: range, min: 120000, unit: tablets/h}
+  expected_answer: ask_confirmation

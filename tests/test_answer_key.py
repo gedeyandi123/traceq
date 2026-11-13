@@ -76,11 +76,24 @@ def test_s8_superseded_value(key: dict) -> None:
 
 
 def test_s7_ambiguous_readings(key: dict) -> None:
-    [a] = key["ambiguous.yaml"]
+    a = next(a for a in key["ambiguous.yaml"] if a.get("scenario") == "S7")
     assert a["location"]["text"] == "1.500 rpm"
     assert [r["value"] for r in a["readings"]] == [1500, 1.5]
     assert a["true_value"]["value"] == 1500
     assert a["expected_answer"] == "ask_confirmation"
+
+
+def test_every_result_that_reads_two_ways_is_ambiguous(key: dict) -> None:
+    """Always ask (#53): a result printed with the document's decimal point before exactly
+    three digits is listed, however implausible one reading is against the URS."""
+    listed = {a["location"]["field"]: a for a in key["ambiguous.yaml"]}
+    assert set(listed) == {"SAT-01.observed", "SAT-03.observed"}
+    sat01 = listed["SAT-01.observed"]
+    assert "scenario" not in sat01
+    assert sat01["location"]["text"] == "122.400 tablets/h"
+    assert [r["value"] for r in sat01["readings"]] == [122400, 122.4]
+    assert sat01["true_value"]["value"] == 122400
+    assert sat01["expected_answer"] == "ask_confirmation"
 
 
 def test_readings() -> None:
