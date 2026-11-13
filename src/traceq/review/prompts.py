@@ -3,7 +3,8 @@ the prompt hash, so recordings no longer replay until the run is redone live. Ex
 come from the development Equipment.
 
 The model only reads and cites what a page prints; the rules in ``traceq.review.rules`` and
-the comparison in ``traceq.review.missing`` decide."""
+the comparison in ``traceq.review.governing`` decide. ``AI_REVIEW`` is the exception the spec
+names: the issues no rule can decide, reported as AI Findings for a human to judge."""
 
 from __future__ import annotations
 
@@ -189,4 +190,58 @@ RULES = Prompt(
     max_tokens=4000,
 )
 
-PROMPTS = (RECORD, REQUIRED, RULES)
+AI_TYPES = (
+    "inconsistent_data",
+    "ac_deviates_from_urs",
+    "gdp_correction",
+    "outdated_reference",
+)
+"""What the AI layer of Pre-review looks for: issues no rule can decide. The rule layer's
+types are not on the list, so the model never repeats a Check Finding."""
+
+AI_REVIEW = Prompt(
+    name="ai_review",
+    system=(
+        "You pre-review the qualification documents of one pharmaceutical equipment item"
+        " for a human reviewer. Deterministic rules already check signatures, dates,"
+        " segregation of duties, results against their acceptance criteria, deviations,"
+        " protocol approval, calibration validity and calculations; do not report those."
+        " Report only issues of these types:\n"
+        "- inconsistent_data: the same fact (a serial number, a model, a material, a"
+        " capacity) is printed differently in two documents.\n"
+        "- ac_deviates_from_urs: a vendor test uses an acceptance criterion that is looser"
+        " than, or different from, what the URS requires.\n"
+        "- gdp_correction: a handwritten entry on a scan was corrected against good"
+        " documentation practice: overwritten or made illegible, without initials, date and"
+        " reason.\n"
+        "- outdated_reference: a document refers to a revision of another document that is"
+        " not the current one in the register.\n"
+        "For each issue: type; detail: one or two sentences a reviewer can act on; citations:"
+        " every place that shows it (for inconsistent data, both sides), each with doc and"
+        " rev as given, the page number and a quote.\n"
+        + _QUOTE_RULE
+        + "Cite only the documents given. Report nothing you cannot quote; return an empty"
+        " list when there is no such issue."
+    ),
+    schema=_object(
+        {
+            "findings": _list(
+                {
+                    "type": {"type": "string", "enum": list(AI_TYPES)},
+                    "detail": _STR,
+                    "citations": _list(
+                        {
+                            "doc": _STR,
+                            "rev": {"type": "integer"},
+                            "page": {"type": "integer"},
+                            "quote": _STR,
+                        }
+                    ),
+                }
+            )
+        }
+    ),
+    max_tokens=8000,
+)
+
+PROMPTS = (RECORD, REQUIRED, RULES, AI_REVIEW)

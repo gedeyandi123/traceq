@@ -119,6 +119,7 @@ Claim = Literal[
     "assessment",
     "test_step",
     "acceptance",
+    "ai_finding",
 ]
 
 
