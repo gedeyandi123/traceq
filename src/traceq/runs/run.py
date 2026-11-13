@@ -143,7 +143,7 @@ def run(
     folder = out_dir / run_id
     folder.mkdir(parents=True)
     _write_json(folder / "submission.json", submission.model_dump(mode="json", exclude_none=True))
-    _write_json(folder / "matrix.json", matrix(traced))
+    _write_json(folder / "matrix.json", matrix(traced).model_dump(mode="json"))
     _write_json(folder / "findings.json", findings(reviewed))
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)
