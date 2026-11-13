@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+from traceq.traceability import Citation, StepFact
 from traceq.traceability.ambiguity import Ambiguous, parse_date, read_number
 from traceq.traceability.coverage import (
     DesignFact,
@@ -17,6 +18,9 @@ from traceq.traceability.coverage import (
     VendorAssessment,
     classify,
 )
+from traceq.traceability.evidence import (
+    _Value,  # pyright: ignore[reportPrivateUsage]  # the model's answer shape; no public builder
+)
 from traceq.traceability.values import Number, OneOf, Present, Range, Text, Value
 
 # --- Ambiguous values (S7) --------------------------------------------------------------
@@ -24,28 +28,27 @@ from traceq.traceability.values import Number, OneOf, Present, Range, Text, Valu
 
 def test_a_decimal_separator_before_three_digits_reads_two_ways() -> None:
     # English document: "." is the decimal point, but an Indonesian hand groups thousands.
-    assert read_number("1.500 rpm", "en", reference=(10, 60)) == Ambiguous((1500, 1.5))
+    assert read_number("1.500 rpm", "en") == Ambiguous((1500, 1.5))
     # Indonesian document: "," is the decimal point.
-    assert read_number("1,500 rpm", "id", reference=(10, 60)) == Ambiguous((1500, 1.5))
+    assert read_number("1,500 rpm", "id") == Ambiguous((1500, 1.5))
 
 
 def test_the_document_convention_reads_grouping_without_doubt() -> None:
-    assert read_number("120.000 tablet/jam", "id", reference=()) == 120000
-    assert read_number("151,200 tablets/h", "en", reference=()) == 151200
-    assert read_number("0,8 µm", "id", reference=()) == 0.8
-    assert read_number("0.6 µm", "en", reference=()) == 0.6
-    assert read_number("96 kN", "en", reference=(100,)) == 96
+    assert read_number("120.000 tablet/jam", "id") == 120000
+    assert read_number("151,200 tablets/h", "en") == 151200
+    assert read_number("0,8 µm", "id") == 0.8
+    assert read_number("0.6 µm", "en") == 0.6
+    assert read_number("96 kN", "en") == 96
 
 
-def test_a_reading_off_by_a_factor_100_is_implausible() -> None:
-    # 122.4 tablets/h against at least 120,000: only 122,400 is plausible.
-    assert read_number("122.400 tablets/h", "en", reference=(120000,)) == 122400
-    # Without a reference, never guess.
-    assert read_number("122.400 tablets/h", "en", reference=()) == Ambiguous((122400, 122.4))
+def test_a_reading_off_by_a_factor_100_is_still_asked() -> None:
+    """Always ask (#53): 122.4 tablets/h cannot meet "at least 120,000", but plausibility
+    against the URS is a guess, so the value stays ambiguous."""
+    assert read_number("122.400 tablets/h", "en") == Ambiguous((122400, 122.4))
 
 
 def test_no_number_reads_as_none() -> None:
-    assert read_number("Present and functional", "en", reference=()) is None
+    assert read_number("Present and functional", "en") is None
 
 
 def test_dates() -> None:
@@ -237,5 +240,26 @@ def test_a_design_fact_that_cannot_be_compared_is_no_conflict() -> None:
 def test_an_ambiguous_result_is_not_guessed() -> None:
     paddle = _req(Range(min=10, max=60, unit="rpm"))
     c = classify(paddle, [_step(Ambiguous((1500.0, 1.5)), SAT, "SAT-03")], [], ASSESSED)
-    assert (c.coverage, c.reason) == ("partial", "SAT-03: result ambiguous, ask for confirmation")
+    assert (c.coverage, c.reason) == ("partial", "SAT-03: value awaits confirmation")
     assert [s.step for s in c.ambiguous] == ["SAT-03"]
+
+
+def test_a_result_100_times_off_is_asked_not_proof() -> None:
+    """Always ask (#53): SAT-01 "122.400 tablets/h" against at least 120,000 tablets/h. One
+    reading is 1000 times too small, yet the step is no proof until a human confirms it, and
+    it is listed for the ``ambiguous_value`` finding the submission raises."""
+    read = _Value(
+        kind="number", min=None, max=None, number=122400, unit="tablets/h", text=None,
+        present=None,
+    )  # fmt: skip
+    quote = "SAT-01 Output. ≥ 120,000 tablets/h 122.400 tablets/h Pass"
+    fact = StepFact(
+        SAT, "SAT-01", "Output", "≥ 120,000 tablets/h", "122.400 tablets/h", "pass",
+        Citation("SAT-X", 0, 1, quote), "en", read,
+    )  # fmt: skip
+    step = fact.as_step()
+    assert step.observed == Ambiguous((122400, 122.4))
+    output = _req(Range(min=120000, unit="tablets/h"))
+    c = classify(output, [step], [], ASSESSED)
+    assert (c.coverage, c.reason) == ("partial", "SAT-01: value awaits confirmation")
+    assert [s.step for s in c.ambiguous] == ["SAT-01"]

@@ -135,13 +135,11 @@ def _contains(printed: str, quote: str) -> bool:
     return bool(p) and p in normalise(quote)
 
 
-def _observation(
-    v: _Value, printed: str, language: str, reference: Sequence[float]
-) -> Observed | None:
+def _observation(v: _Value, printed: str, language: str) -> Observed | None:
     """The value as printed. A number is read from the print by the ambiguity rule."""
     match v.kind:
         case "number":
-            x = read_number(printed, language, reference)
+            x = read_number(printed, language)
             if isinstance(x, Ambiguous):
                 return x
             return None if x is None else Number(value=x, unit=v.unit or "")
@@ -175,8 +173,8 @@ class StepFact:
     def id(self) -> str:
         return f"{self.protocol.doc}/{self.step}"
 
-    def as_step(self, reference: Sequence[float]) -> Step:
-        observed = _observation(self.value, self.observed, self.language, reference)
+    def as_step(self) -> Step:
+        observed = _observation(self.value, self.observed, self.language)
         return Step(self.protocol, self.step, observed, self.result)
 
 
@@ -297,23 +295,13 @@ def _add_row(
 ) -> None:
     rid = f"{doc.doc_id}#p{page}.{i}"
     c = Citation(doc.doc_id, doc.rev, page, r.quote)
-    value = _observation(r.value, r.printed, doc.language, ())
+    value = _observation(r.value, r.printed, doc.language)
     if not (verified(c, pages) and _contains(r.printed, r.quote)):
         dropped.append(Dropped("row", rid, "quote not on page"))
     elif value is None or isinstance(value, Ambiguous):
         dropped.append(Dropped("row", rid, "value not read from the print"))
     else:
         out.rows.append(RowFact(rid, r.name, r.printed, DesignFact(doc.doc_id, doc.rev, value), c))
-
-
-def _reference(value: Value | None) -> tuple[float, ...]:
-    match value:
-        case Range(min=lo, max=hi):
-            return tuple(b for b in (lo, hi) if b is not None)
-        case Number(value=x):
-            return (x,)
-        case _:
-            return ()
 
 
 def _link_prompt(
@@ -380,8 +368,7 @@ def link(
             dropped.append(Dropped("link", f"{rid} {a.area}", "unknown area"))
         scope = None if area is None else area.name
         req = RequirementFacts(rid, value, a.site_only, a.transport_sensitive, scope)
-        reference = _reference(value)
-        pairs = [(s, s.as_step(reference)) for s in linked_steps]
+        pairs = [(s, s.as_step()) for s in linked_steps]
         decision = None if assessment is None else assessment.decision
         coverage = classify(req, [p[1] for p in pairs], [r.fact for r in linked_rows], decision)
         used = [next(f for f, s in pairs if s is v.step) for v in coverage.verdicts]

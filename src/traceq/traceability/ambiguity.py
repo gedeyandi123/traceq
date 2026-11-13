@@ -5,9 +5,9 @@ Numbers. A single ``.`` or ``,`` followed by exactly three digits reads as a tho
 separator or as a decimal point. Where it is the decimal point of the document's language
 (``.`` in English, ``,`` in Indonesian), a writer of the other convention may have meant
 thousands, so ``1.500 rpm`` on an English form is 1500 or 1.5. Where it is the document's
-grouping separator (``120.000`` in an Indonesian URS) it reads one way. A reading is dropped
-only when a reference value (the URS value) makes it implausible: off by a factor of 100 or
-more while the other reading is within a factor of 10. Otherwise the value is ambiguous.
+grouping separator (``120.000`` in an Indonesian URS) it reads one way. An ambiguous value is
+always asked, however implausible one reading is against the URS (owner decision on #53):
+plausibility is a guess, and a misread must never become a test result.
 
 Dates. ``03/04/2026`` is 3 April or 4 March: two numeric fields that are both valid months
 and differ are ambiguous. ``22-Jan-2026``, ``29/10/2025`` and ISO dates read one way.
@@ -16,9 +16,7 @@ and differ are ambiguous. ``22-Jan-2026``, ``29/10/2025`` and ISO dates read one
 from __future__ import annotations
 
 import datetime as dt
-import math
 import re
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 
@@ -40,20 +38,7 @@ def _parse(token: str, decimal: str) -> float:
     return float(token.replace(grouping, "").replace(decimal, "."))
 
 
-def _decades_off(x: float, reference: Sequence[float]) -> float:
-    lo, hi = min(reference), max(reference)
-    if x <= 0 or lo <= 0:
-        return math.inf
-    if x < lo:
-        return math.log10(lo / x)
-    if x > hi:
-        return math.log10(x / hi)
-    return 0.0
-
-
-def read_number(
-    printed: str, language: str, reference: Sequence[float]
-) -> float | Ambiguous[float] | None:
+def read_number(printed: str, language: str) -> float | Ambiguous[float] | None:
     """The first number printed, read by the document's convention."""
     m = _NUMBER.search(printed)
     if m is None:
@@ -64,13 +49,7 @@ def read_number(
     if seps != [decimal] or len(token) - token.index(decimal) - 1 != 3:
         return _parse(token, decimal)
     whole, frac = token.split(decimal)
-    readings = (float(whole + frac), float(f"{whole}.{frac}"))
-    if reference:
-        off = [_decades_off(r, reference) for r in readings]
-        for keep, drop in ((0, 1), (1, 0)):
-            if off[keep] < 1 and off[drop] >= 2:
-                return readings[keep]
-    return Ambiguous(readings)
+    return Ambiguous((float(whole + frac), float(f"{whole}.{frac}")))
 
 
 def parse_date(printed: str) -> dt.date | Ambiguous[dt.date] | None:

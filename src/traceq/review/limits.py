@@ -9,7 +9,6 @@ rule judges it.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 from traceq.documents import normalise
@@ -43,18 +42,18 @@ def _unit(text: str) -> str:
     return normalise(text).casefold()
 
 
-def _number(token: str, language: str, reference: Sequence[float]) -> float | None:
-    x = read_number(token, language, reference)
+def _number(token: str, language: str) -> float | None:
+    x = read_number(token, language)
     return x if isinstance(x, float) else None
 
 
-def parse(printed: str, language: str, reference: Sequence[float] = ()) -> Interval | None:
+def parse(printed: str, language: str) -> Interval | None:
     """A limit (``≥ 100 kN``, ``20–60 rpm``) or a reading (``96 kN``: lo = hi)."""
     m = _LIMIT.match(normalise(printed))
     if m is None:
         return None
-    a = _number(m["a"], language, reference)
-    b = None if m["b"] is None else _number(m["b"], language, reference)
+    a = _number(m["a"], language)
+    b = None if m["b"] is None else _number(m["b"], language)
     if a is None or (m["b"] is not None and b is None):
         return None
     unit = _unit(m["unit"])
@@ -77,7 +76,7 @@ def outside(acceptance: str, observed: str, language: str) -> bool | None:
     limit = parse(acceptance, language)
     if limit is None:
         return None
-    reading = parse(observed, language, limit.bounds())
+    reading = parse(observed, language)
     if reading is None or reading.unit != limit.unit:
         return None
     return not all(limit.contains(x) for x in reading.bounds())

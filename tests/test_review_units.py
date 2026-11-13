@@ -254,6 +254,8 @@ def test_s5_counterexamples() -> None:
         ("≤ 0,8 µm", "0,9 µm", "id", True),
         ("< 5 mm", "5 mm", "en", True),
         ("100.000 tablet/jam", "100.000 tablet/jam", "id", False),
+        # SAT-01 reads 122400 or 122.4: always asked (#53), never judged here.
+        ("≥ 120,000 tablets/h", "122.400 tablets/h", "en", None),
     ],
 )
 def test_outside(acceptance: str, observed: str, language: str, out: bool | None) -> None:

@@ -140,7 +140,7 @@ class _Reader:
         c = self.cite(n, k.quote, "calculation", k.step, k.step, *k.inputs, k.result)
         if c is None:
             return
-        numbers = [read_number(x, self.doc.language, ()) for x in (*k.inputs, k.result)]
+        numbers = [read_number(x, self.doc.language) for x in (*k.inputs, k.result)]
         values = [x for x in numbers if isinstance(x, float)]
         if len(values) != len(numbers) or not k.inputs:
             self.dropped.append(
