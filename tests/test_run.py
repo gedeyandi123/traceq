@@ -53,13 +53,18 @@ BLANK_VALUE = {
     "text": None,
     "present": None,
 }
-# Test steps the scripted model reads: step -> (observed as printed, value).
-STEPS: dict[str, tuple[str, dict[str, Any]]] = {
-    "FAT-M-01": ("36 stations", {"kind": "number", "number": 36, "unit": "stations"}),
-    "FAT-M-02": ("20–60 rpm", {"kind": "range", "min": 20, "max": 60, "unit": "rpm"}),
-    "FAT-M-03": ("96 kN", {"kind": "number", "number": 96, "unit": "kN"}),
-    "FAT-M-12": ("Present and functional", {"kind": "present", "present": True}),
-    "FAT-C-01": ("Present and functional", {"kind": "present", "present": True}),
+# Test steps the scripted model reads: step -> (AC and observed as printed, value).
+PRESENT = ("Present and functional", "Present and functional")
+STEPS: dict[str, tuple[str, str, dict[str, Any]]] = {
+    "FAT-M-01": (
+        "≥ 36 stations",
+        "36 stations",
+        {"kind": "number", "number": 36, "unit": "stations"},
+    ),
+    "FAT-M-02": ("20–60 rpm", "20–60 rpm", {"kind": "range", "min": 20, "max": 60, "unit": "rpm"}),
+    "FAT-M-03": ("≥ 100 kN", "96 kN", {"kind": "number", "number": 96, "unit": "kN"}),
+    "FAT-M-12": (*PRESENT, {"kind": "present", "present": True}),
+    "FAT-C-01": (*PRESENT, {"kind": "present", "present": True}),
 }
 FABRICATED_STEP = {"step": "FAT-M-99", "quote": "FAT-M-99 Fly the press. Flies Pass"}
 # Datasheet rows: label -> (value as printed, value).
@@ -108,13 +113,13 @@ def _facts(r: Request) -> dict[str, Any]:
         {
             "step": sid,
             "test": "",
-            "acceptance": "",
+            "acceptance": acceptance,
             "observed": observed,
             "result": "pass",
             "value": BLANK_VALUE | value,
             "quote": m[0],
         }
-        for sid, (observed, value) in STEPS.items()
+        for sid, (acceptance, observed, value) in STEPS.items()
         if (m := line(rf"^{sid} .*$"))
     ]
     if "FAT-M-01" in page:
@@ -148,6 +153,97 @@ def _link(r: Request) -> dict[str, Any]:
     }
 
 
+# --- Pre-review: the scripted model reads signature rows, the VMP annex and the SOP ------
+
+SIGNATURE = re.compile(
+    r"^(?P<role>(?P<r>Prepared|Checked|Approved|Executed|Witnessed) by)"
+    r"(?: (?P<name>\w+ \w+) (?P<org>.*?) Signed electronically (?P<date>\S+))?$"
+)
+ROLES = {"Prepared": "prepared", "Checked": "checked", "Approved": "approved"}
+ROLES |= {"Executed": "executed", "Witnessed": "witnessed"}
+
+
+def _record(r: Request) -> dict[str, Any]:
+    signatures = [
+        {
+            "role_printed": m["role"],
+            "role": ROLES[m["r"]],
+            "site": "(site)" in (m["org"] or ""),
+            "name": m["name"] or "",
+            "signed": m["name"] is not None,
+            "date": m["date"] or "",
+            "quote": m[0],
+        }
+        for line in _page(r).splitlines()
+        if (m := SIGNATURE.match(line))
+    ]
+    empty: list[Any] = []
+    return {
+        "signatures": signatures,
+        "instruments": empty,
+        "step_instruments": empty,
+        "deviations": empty,
+        "calculations": empty,
+    }
+
+
+def _pages(r: Request) -> dict[int, str]:
+    return {int(m[1]): m[2] for m in re.finditer(r'<page n="(\d+)">\n(.*?)\n</page>', r.user, re.S)}
+
+
+TYPES = {label: code for code, label in render.DOC_TYPES_ID.items()}
+STAGES = {label: code for code, label in render.STAGES_ID.items()}
+# Not printed in the VMP: the citation check must drop it, so it is never reported missing.
+FABRICATED_ROW = {"doc_id": "PQ-TP201", "type_printed": "Protokol PQ", "stage_printed": "OQ"}
+
+
+def _row(page: int, line: str) -> dict[str, Any] | None:
+    for label, code in TYPES.items():
+        m = re.match(rf"^(\S+-\S+) ({re.escape(label)}.*) (\w+)$", line)
+        if m and m[3] in STAGES:
+            return {
+                "doc_id": m[1],
+                "type_printed": m[2],
+                "type": code,
+                "stage_printed": m[3],
+                "stage": STAGES[m[3]],
+                "page": page,
+                "quote": line,
+            }
+    return None
+
+
+def _required(r: Request) -> dict[str, Any]:
+    pages = _pages(r)
+    head = next((n, x) for n, t in pages.items() for x in t.splitlines() if "Lampiran 1" in x)
+    rows = [row for n, t in pages.items() for x in t.splitlines() if (row := _row(n, x))]
+    fabricated = FABRICATED_ROW | {"type": "other", "stage": "OQ", "page": 2}
+    fabricated["quote"] = "PQ-TP201 Protokol PQ OQ"
+    return {
+        "annexes": [
+            {"equipment": "TP-201", "page": head[0], "quote": head[1], "rows": [*rows, fabricated]}
+        ]
+    }
+
+
+SOP_RULES = {
+    "signature_name_and_date": "Setiap tanda tangan disertai nama dan tanggal.",
+    "vendor_protocol_approved_before_execution": (
+        "Protokol FAT/SAT vendor diperiksa dan disetujui site sebelum dieksekusi."
+    ),
+    "preparer_not_approver": "penyusun tidak boleh menyetujui dokumen yang disusunnya",
+    "checker_not_approver": "pemeriksa dan penyetuju adalah dua orang yang berbeda",
+    "performer_not_witness": "pelaksana tidak boleh sekaligus menjadi Saksi",
+}
+
+
+def _site_rules(r: Request) -> dict[str, Any]:
+    return {"rules": [{"rule": k, "page": 1, "quote": q} for k, q in SOP_RULES.items()]}
+
+
+REVIEW = {"record": _record, "required_documents": _required, "site_rules": _site_rules}
+
+
 class ScriptedLLM:
     """Segments by the printed requirement numbers, extracts from ``SCRIPT``, reads the
     vendor facts in ``STEPS`` and ``ROWS`` and links by ``LINKS``."""
@@ -164,6 +260,8 @@ class ScriptedLLM:
         return [Response(self._answer(r), MODEL, len(r.user) // 4, 40) for r in requests]
 
     def _answer(self, r: Request) -> str:
+        if r.prompt.name in REVIEW:
+            return json.dumps(REVIEW[r.prompt.name](r))
         if r.prompt.name == "facts":
             return json.dumps(_facts(r))
         if r.prompt.name == "link":
@@ -293,19 +391,81 @@ def test_an_unverifiable_claim_never_reaches_the_submission(recorded: RunOutput)
         ("value", "URS-TP201-006"),
         ("step", "FAT-TP201-M/FAT-M-99"),
         ("link", "URS-TP201-004 FAT-TP201-M/FAT-M-99"),
+        ("required_document", "PQ-TP201"),
     }
     assert FABRICATED_STEP["quote"] not in text
+
+
+def _report(recorded: RunOutput) -> dict[str, Any]:
+    sub = Submission.model_validate_json(
+        (recorded.folder / "submission.json").read_text(encoding="utf-8")
+    )
+    return score(sub, load_key(KEY), PageTexts(build_corpus(load(TP201))))
+
+
+def test_check_findings_match_the_planted_rule_defects(recorded: RunOutput) -> None:
+    """S4 and S5 are on born-digital FATs; S2 is on scans, which this slice does not read
+    yet (its rule is tested on its facts in ``test_review_units``)."""
+    report = _report(recorded)
+    found = {d["scenario"]: d["found_by"] for d in report["defects"]["items"]}
+    assert found["S4"] and found["S5"]
+    metrics = report["defects"]["metrics"]
+    assert (metrics["false_positives"], metrics["mislabelled"]) == (0, 0)
+    assert report["citations"]["by_status"]["verified"] == report["citations"]["total"]
+
+    review = json.loads((recorded.folder / "findings.json").read_text(encoding="utf-8"))
+    by_type = {f["type"]: f for f in review["check_findings"]}
+    assert set(by_type) == {"vendor_protocol_not_approved", "out_of_limit_marked_pass"}
+    assert all(f["layer"] == "check" for f in review["check_findings"])
+    s4 = by_type["vendor_protocol_not_approved"]
+    assert s4["doc"] == "FAT-TP201-C" and [c["quote"] for c in s4["citations"]] == ["Approved by"]
+    # A site rule cites the SOP sentence that sets it.
+    assert s4["rule"]["doc"] == "SOP-VAL-002"
+    assert s4["rule"]["quote"] == SOP_RULES["vendor_protocol_approved_before_execution"]
+    assert {r["rule"] for r in review["site_rules"]} == set(SOP_RULES)
+
+
+def test_missing_documents_are_what_the_vmp_requires_and_the_corpus_lacks(
+    recorded: RunOutput,
+) -> None:
+    report = _report(recorded)
+    metrics = report["documents"]["metrics"]
+    assert (metrics["precision"], metrics["recall"]) == (1.0, 1.0)
+    assert metrics["flagged_but_in_corpus"] == []
+
+    sub = json.loads((recorded.folder / "submission.json").read_text(encoding="utf-8"))
+    assert sub["missing_documents"] == [
+        {"type": "iq_protocol", "stage": "IQ", "id": "IQ-TP201"},
+        {"type": "oq_protocol", "stage": "OQ", "id": "OQ-TP201"},
+    ]
+    review = json.loads((recorded.folder / "findings.json").read_text(encoding="utf-8"))
+    required = review["required_documents"]
+    assert len(required) == 14 and all(r["citation"]["doc"] == "VMP-001" for r in required)
+    assert [r["doc_id"] for r in required if not r["in_corpus"]] == ["IQ-TP201", "OQ-TP201"]
+    # The site-wide VMP and SOP are not on the list; a row the VMP does not print is dropped.
+    assert not {"VMP-001", "SOP-VAL-002", "PQ-TP201"} & {r["doc_id"] for r in required}
+    oq = next(r for r in review["missing_documents"] if r["doc_id"] == "OQ-TP201")
+    assert oq["citation"]["page"] == 2 and "Protokol OQ" in oq["citation"]["quote"]
 
 
 def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput) -> None:
     meta = json.loads((recorded.folder / "run.json").read_text(encoding="utf-8"))
     assert meta["model"] == MODEL
     assert meta["mode"] == "live"
-    assert set(meta["prompts"]) == {"segment", "extract", "facts", "link"}
+    assert set(meta["prompts"]) == {
+        "segment",
+        "extract",
+        "facts",
+        "link",
+        "record",
+        "required_documents",
+        "site_rules",
+    }
     assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in meta["prompts"].values())
     # One segmentation call per URS page, one extraction and one link per requirement, one
-    # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1) and DS-TP201 (1).
-    calls = 2 + 38 + 38 + 4
+    # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1) and DS-TP201 (1), one record
+    # call per page of the two FATs (3), one call each for the VMP and the SOP.
+    calls = 2 + 38 + 38 + 4 + 3 + 2
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls
     expected = (meta["tokens"]["input"] * 1.0 + meta["tokens"]["output"] * 2.0) / 1e6 * 0.5
@@ -316,6 +476,8 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         ("FAT-TP201-M", 0),
         ("FAT-TP201-C", 0),
         ("DS-TP201", 0),
+        ("VMP-001", 3),
+        ("SOP-VAL-002", 2),
     ]
 
 

@@ -101,9 +101,26 @@ class _Link(_Answer):
     transport_sensitive: bool
 
 
+Claim = Literal[
+    "requirement",
+    "value",
+    "step",
+    "row",
+    "date",
+    "link",
+    "signature",
+    "calibration",
+    "instrument",
+    "deviation",
+    "calculation",
+    "required_document",
+    "site_rule",
+]
+
+
 @dataclass(frozen=True)
 class Dropped:
-    claim: Literal["requirement", "value", "step", "row", "date", "link"]
+    claim: Claim
     id: str
     reason: str
 

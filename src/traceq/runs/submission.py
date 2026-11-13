@@ -4,8 +4,9 @@ The system owns it rather than importing the scorer's (spec #29, "Isolation"); a
 that what it writes validates against the scorer's schema. Requirements carry their value,
 Coverage class, the vendor steps offered as Evidence and the citations of the URS sentence,
 the Evidence and the design facts compared with the URS. A value that reads two ways is an
-``ambiguous_value`` finding: ask for confirmation. Other findings, missing documents, drafted
-Test Steps and OCR come with later tickets. The Coverage reason is in ``matrix.json``: the
+``ambiguous_value`` finding: ask for confirmation. Pre-review adds its Check Findings and the
+documents the VMP requires that the corpus lacks. AI Findings, drafted Test Steps and OCR
+come with later tickets. The Coverage reason is in ``matrix.json``: the
 submission schema has no field for it.
 """
 
@@ -15,6 +16,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from traceq.review import Review
+from traceq.review.rules import CheckType
 from traceq.traceability import Ambiguous, Citation, Linked, Traceability, Value
 from traceq.traceability.coverage import CoverageClass
 
@@ -48,9 +51,15 @@ class RequirementAnswer(_Model):
 
 
 class Finding(_Model):
-    type: Literal["ambiguous_value"]
+    type: Literal["ambiguous_value"] | CheckType
     detail: str
     citations: tuple[CitationOut, ...]
+
+
+class MissingDocument(_Model):
+    type: str
+    stage: Literal["design", "FAT", "SAT", "IQ", "OQ"]
+    id: str | None = None
 
 
 class SystemInfo(_Model):
@@ -66,6 +75,7 @@ class Submission(_Model):
     system: SystemInfo
     requirements: tuple[RequirementAnswer, ...] = ()
     findings: tuple[Finding, ...] = ()
+    missing_documents: tuple[MissingDocument, ...] = ()
 
 
 def _cite(c: Citation, value: Value | None = None) -> CitationOut:
@@ -96,7 +106,7 @@ def _ambiguous(t: Traceability) -> list[Finding]:
     return list(findings.values())
 
 
-def build(equipment: str, system: SystemInfo, t: Traceability) -> Submission:
+def build(equipment: str, system: SystemInfo, t: Traceability, review: Review) -> Submission:
     """Only verified claims reach the submission: a requirement without a verified value
     keeps its URS citation and an empty value, for a human to fill."""
     answers: list[RequirementAnswer] = []
@@ -120,5 +130,14 @@ def build(equipment: str, system: SystemInfo, t: Traceability) -> Submission:
         equipment=equipment,
         system=system,
         requirements=tuple(answers),
-        findings=tuple(_ambiguous(t)),
+        findings=(
+            *(
+                Finding(type=f.type, detail=f.detail, citations=tuple(map(_cite, f.citations)))
+                for f in review.findings
+            ),
+            *_ambiguous(t),
+        ),
+        missing_documents=tuple(
+            MissingDocument(type=d.type, stage=d.stage, id=d.doc_id) for d in review.missing
+        ),
     )

@@ -1,7 +1,9 @@
 """One run: a released corpus in, a run folder out.
 
 ``<out>/<run id>/submission.json`` is what the scorer grades; ``matrix.json`` is the
-traceability matrix with each Coverage reason and its Evidence; ``run.json`` is the run
+traceability matrix with each Coverage reason and its Evidence; ``findings.json`` holds the
+Pre-review Check Findings, the VMP's required documents and those missing, and the site rules
+read from the SOP, each with its citation; ``run.json`` is the run
 metadata: model, prompt hashes, tokens, cost in USD, which calls were replayed and which
 claims the citation check dropped. A live run sends only calls that are not yet recorded,
 and refuses before sending when their estimate would pass ``max_usd``.
@@ -19,6 +21,9 @@ from typing import Any
 from traceq.ai import LLM, Budget, PriceTable, Recorder
 from traceq.ai.port import sha256
 from traceq.documents import Corpus
+from traceq.review import PROMPTS as REVIEW_PROMPTS
+from traceq.review import review
+from traceq.runs.findings import findings
 from traceq.runs.matrix import matrix
 from traceq.runs.submission import Submission, SystemInfo, build
 from traceq.traceability import PIPELINE_VERSION, PROMPTS, trace
@@ -58,15 +63,16 @@ def run(
     llm = Recorder(recordings, model, PIPELINE_VERSION, live=live, budget=budget)
 
     traced = trace(corpus, llm)
+    reviewed = review(corpus, llm, traced)
 
-    prompt_hashes = {p.name: p.hash for p in PROMPTS}
+    prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS)}
     system = SystemInfo(
         name=SYSTEM_NAME,
         model=model,
         prompt=sha256(json.dumps(prompt_hashes, sort_keys=True))[:12],
         run_id=run_id,
     )
-    submission = build(corpus.equipment, system, traced)
+    submission = build(corpus.equipment, system, traced, reviewed)
 
     responses = [c.response for c in llm.calls]
     try:
@@ -103,9 +109,13 @@ def run(
         "live_cost_usd": round(budget.spent_usd, 6) if budget else 0.0,
         "max_usd": max_usd if live is not None else None,
         "price_table": {"batch_discount": prices.batch_discount},
-        "dropped": [{"claim": d.claim, "id": d.id, "reason": d.reason} for d in traced.dropped],
+        "dropped": [
+            {"claim": d.claim, "id": d.id, "reason": d.reason}
+            for d in (*traced.dropped, *reviewed.dropped)
+        ],
         "not_read": [
-            {"doc_id": d.doc_id, "rev": d.rev, "format": d.format} for d in traced.vendor.not_read
+            {"doc_id": d.doc_id, "rev": d.rev, "format": d.format}
+            for d in dict.fromkeys((*traced.vendor.not_read, *reviewed.not_read))
         ],
     }
 
@@ -113,5 +123,6 @@ def run(
     folder.mkdir(parents=True)
     _write_json(folder / "submission.json", submission.model_dump(mode="json", exclude_none=True))
     _write_json(folder / "matrix.json", matrix(traced))
+    _write_json(folder / "findings.json", findings(reviewed))
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)
