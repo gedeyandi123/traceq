@@ -86,6 +86,7 @@ Registry state and history are seeded from world data; only the TP-201 package i
 | DQ report | ID | PDF | User | URS ↔ design link (clean) |
 | Validation Master Plan (site-wide) | ID | Born-digital PDF | QA | Required-document list per Equipment (annex), qualification stages |
 | Qualification SOP (site-wide) | ID | Born-digital PDF | QA | Signatories, segregation of duties, GDP corrections, Witness rule **[D]**, protocol writing **[D]** |
+| Vendor Assessment (per vendor) | ID | Born-digital PDF | QA | Areas the site may rely on (Coverage condition 1) |
 
 The TP-201 URS includes 4–6 data integrity requirements for the HMI (CPOB Annex 7: access levels, audit trail, alarm log, recipe backup, time synchronisation). Full computerised system validation is out of scope.
 
@@ -168,7 +169,7 @@ All four conditions must hold. The first failing condition decides the class (ti
 | 3 | The full URS range was tested | — | `partial` |
 | 4 | The function is not affected by transport/installation (`transport_sensitive: false`), or it was retested at SAT | CPOB 12.24 | `partial` |
 
-Vendor assessment state: TP-201 vendor assessed, full scope. TP-202 vendor assessed with limited scope (mechanical yes, control system/software no).
+Vendor assessment state: TP-201 vendor assessed, full scope. TP-202 vendor assessed with limited scope (mechanical yes, control system/software no). Each corpus holds the site's Vendor Assessment, which rates every area `Ya` or `Tidak`, so condition 1 is cited from a document; like the VMP and SOP it is a site document, not a required document.
 
 ### Documents that should exist
 

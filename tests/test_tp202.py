@@ -87,7 +87,7 @@ def test_defects_sit_behind_a_partial_a_gap_and_a_conflict(eq: Equipment) -> Non
 
 def test_no_scan(eq: Equipment) -> None:
     assert all(d.scan is None for d in eq.documents)
-    assert {d.type for d in eq.documents} == {"urs", "fat"}
+    assert {d.type for d in eq.documents} == {"urs", "fat", "vendor_assessment", "vmp"}
 
 
 def test_prose_urs_needs_a_table_for_a_critical_requirement(eq: Equipment) -> None:
