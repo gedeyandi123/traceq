@@ -22,6 +22,7 @@ from pypdf import PdfReader
 
 from traceq_dataset.degrade import Scanned
 from traceq_dataset.render import Box, Rendered, fmt_number
+from traceq_dataset.schema import Document
 
 if TYPE_CHECKING:
     from traceq_dataset.corpus import Corpus
@@ -285,6 +286,8 @@ class _KeyCheck:
     def documents(self, required: list[Mapping[str, Any]]) -> None:
         rendered: dict[str, set[tuple[int, str]]] = {}
         for doc, rev in self.corpus.rendered:
+            if self.corpus.document((doc, rev)).type in Document.GOVERNING_TYPES:
+                continue  # site-wide, not part of the Equipment's package
             rendered.setdefault(doc, set()).add((rev, self.corpus.filename((doc, rev))))
         listed = set()
         for d in required:

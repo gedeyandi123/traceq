@@ -415,6 +415,8 @@ class Document(Model):
         "dq_report",
         "functional_spec",
         "risk_assessment",
+        "vmp",
+        "sop",
     ]
     title: str = Field("", description="Subtitle, e.g. 'Mechanical' for a FAT protocol.")
     language: Literal["id", "en"] = Field(description="Language of the printed text.")
@@ -451,6 +453,9 @@ class Document(Model):
     ROLES: ClassVar = ("prepared_by", "checked_by", "approved_by", "executed_by", "witnessed_by")
     DESIGN_TYPES: ClassVar = frozenset({"datasheet", "functional_spec", "material_certificate"})
     REVIEWING_TYPES: ClassVar = frozenset({"dq_report", "risk_assessment"})
+    GOVERNING_TYPES: ClassVar = frozenset({"vmp", "sop"})
+    """Site-wide documents (design section 4): they govern every Equipment, so they are
+    not in an Equipment's ``required_documents``."""
 
 
 # --- Risk assessment ----------------------------------------------------------------
@@ -593,6 +598,21 @@ class Probe(Model):
     )
 
 
+class SiteRules(Model):
+    """Site rules the qualification SOP states that discovery may change (design section
+    12, **[D]**). Each changes the SOP text and is applied by re-rendering."""
+
+    witness: Literal["critical_aspects", "all"] = Field(
+        description="Test Steps that need a Witness: those that verify a Critical Aspect "
+        "(design default) or every Test Step."
+    )
+    protocols: Literal["template", "copied"] = Field(
+        description="How the site writes IQ/OQ protocols: from its template (design "
+        "default, no 'leftover from another Equipment' defect) or copied from similar "
+        "Equipment."
+    )
+
+
 class RequiredDocument(Model):
     """A document the VMP requires for this Equipment (design section 6, "Documents that
     should exist"). ``missing`` says why it is not in the corpus."""
@@ -642,6 +662,7 @@ class Equipment(Model):
     probes: tuple[Probe, ...] = ()
     documents: tuple[Document, ...] = ()
     required_documents: tuple[RequiredDocument, ...] = ()
+    site_rules: SiteRules | None = Field(None, description="Rendered by the SOP.")
 
     @model_validator(mode="after")
     def _references(self) -> Equipment:
@@ -733,7 +754,11 @@ class Equipment(Model):
         errors += [
             f"{name}: {d.type} has no {r}" for r in ("executed_by", "witnessed_by") if getattr(d, r)
         ]
-        if d.type in ("urs", "dq_report", "risk_assessment"):
+        if d.type == "sop" and self.site_rules is None:
+            errors.append(f"{name}: sop needs site_rules")
+        if d.type == "vmp" and not self.required_documents:
+            errors.append(f"{name}: vmp needs required_documents")
+        if d.type in ("urs", "dq_report", "risk_assessment", *Document.GOVERNING_TYPES):
             errors += [
                 f"{name}: {d.type} needs {r}"
                 for r in ("checked_by", "approved_by")
@@ -859,13 +884,14 @@ class Equipment(Model):
         errors: list[str] = []
         rendered = {(d.id, d.rev) for d in self.documents}
         rendered_ids = {d.id for d in self.documents}
+        governing = {d.id for d in self.documents if d.type in Document.GOVERNING_TYPES}
         required = {d.id: d for d in self.required_documents}
         if len(required) != len(self.required_documents):
             errors.append("duplicate required document")
         if self.required_documents:
             errors += [
                 f"{i}: rendered but not in required_documents"
-                for i in sorted(rendered_ids - set(required))
+                for i in sorted(rendered_ids - governing - set(required))
             ]
         for d in self.required_documents:
             if d.missing is None and d.id not in rendered_ids:
