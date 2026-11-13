@@ -1,6 +1,6 @@
 # TraceQ: agent protocol
 
-Domain language: `GLOSSARY.md`. Decisions: `docs/adr/`. Dataset and eval design: `docs/design/synthetic-dataset.md`. Commands: `README.md`.
+Domain language: `GLOSSARY.md`. Decisions: `docs/adr/`. Dataset and eval design: `docs/design/synthetic-dataset.md`. Commands: `README.md`. Moving to another coding agent: `docs/agents/porting.md`.
 
 Checks before claiming done (show the output): `pre-commit run --all-files`, `uv run pyright`, `uv run pytest -q`.
 
