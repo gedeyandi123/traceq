@@ -1,9 +1,10 @@
 """The read-only API over run folders (spec #29): what the UI shows, nothing it may not.
 
-A run folder is read through exactly two files, ``run.json`` and ``matrix.json``; nothing
-else in it is ever opened, so a scorer report written beside them stays private. From
-``run.json`` only the summary fields are served, never per-item scores. A cited page opens
-from the released corpus, and only for a document the run read, with the bytes it read.
+A run folder is read through exactly three files, ``run.json``, ``matrix.json`` and
+``findings.json``; nothing else in it is ever opened, so a scorer report written beside
+them stays private. From ``run.json`` only the summary fields are served, never per-item
+scores. A cited page opens from the released corpus, and only for a document the run read,
+with the bytes it read.
 
 There is no upload and no database: every route is a GET.
 
@@ -24,10 +25,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 
 from traceq.documents import Corpus
-from traceq.runs.schemas import Matrix, RunSummary
+from traceq.runs.schemas import Findings, Matrix, RunSummary
 
 RUN_FILE = "run.json"
 MATRIX_FILE = "matrix.json"
+FINDINGS_FILE = "findings.json"
 _RUN_ID = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_-]{0,63}$")
 _MEDIA = {
     ".pdf": "application/pdf",
@@ -83,6 +85,11 @@ def create_app(runs: Path, corpus: Path | None = None) -> FastAPI:
     def get_matrix(run_id: str) -> Matrix:
         """The traceability matrix: Coverage class and reason, and cited Evidence."""
         return Matrix.model_validate(_read(folder(run_id) / MATRIX_FILE))
+
+    @app.get("/runs/{run_id}/findings", operation_id="getFindings")
+    def get_findings(run_id: str) -> Findings:
+        """The Pre-review: Check Findings, AI Findings kept apart, and missing documents."""
+        return Findings.model_validate(_read(folder(run_id) / FINDINGS_FILE))
 
     @app.get(
         "/runs/{run_id}/documents/{doc_id}/{rev}",

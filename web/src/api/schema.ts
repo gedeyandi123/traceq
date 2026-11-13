@@ -61,6 +61,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Findings
+         * @description The Pre-review: Check Findings, AI Findings kept apart, and missing documents.
+         */
+        get: operations["getFindings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/documents/{doc_id}/{rev}": {
         parameters: {
             query?: never;
@@ -86,6 +106,39 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AiFinding
+         * @description A Pre-review finding of the LLM, every citation verified; advisory (ADR 0002).
+         */
+        AiFinding: {
+            /**
+             * Layer
+             * @constant
+             */
+            layer: "ai";
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "inconsistent_data" | "ac_deviates_from_urs" | "gdp_correction" | "outdated_reference";
+            /** Detail */
+            detail: string;
+            /** Citations */
+            citations: components["schemas"]["Cite"][];
+            /** Sources */
+            sources: components["schemas"]["Source"][];
+            /** Model */
+            model: string;
+            /** Prompt */
+            prompt: string;
+            /** Created */
+            created: string;
+            /**
+             * Reviewer Action
+             * @constant
+             */
+            reviewer_action: "pending";
+        };
+        /**
          * AmbiguousValue
          * @description An observation that reads two ways: ask for confirmation, never guess.
          */
@@ -97,6 +150,29 @@ export interface components {
             type: "ambiguous";
             /** Readings */
             readings: number[];
+        };
+        /**
+         * CheckFinding
+         * @description A Pre-review finding of a deterministic rule: no model involved.
+         */
+        CheckFinding: {
+            /**
+             * Layer
+             * @constant
+             */
+            layer: "check";
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "missing_signature" | "impossible_date_order" | "segregation_of_duties" | "out_of_limit_marked_pass" | "failed_result_no_deviation" | "vendor_protocol_not_approved" | "expired_calibration" | "calculation_error";
+            /** Doc */
+            doc: string;
+            /** Detail */
+            detail: string;
+            /** Citations */
+            citations: components["schemas"]["Cite"][];
+            rule: components["schemas"]["Cite"] | null;
         };
         /**
          * Cite
@@ -159,6 +235,35 @@ export interface components {
             failure: string | null;
             citation: components["schemas"]["Cite"];
         };
+        /**
+         * Findings
+         * @description The Pre-review of a run: Check Findings and AI Findings kept apart, and the
+         *     documents the VMP requires that the corpus lacks.
+         */
+        Findings: {
+            /** Check Findings */
+            check_findings: components["schemas"]["CheckFinding"][];
+            /** Ai Findings */
+            ai_findings: components["schemas"]["AiFinding"][];
+            /** Required Documents */
+            required_documents: components["schemas"]["RequiredDocument"][];
+            /** Missing Documents */
+            missing_documents: components["schemas"]["MissingDocument"][];
+            /** Site Rules */
+            site_rules: components["schemas"]["SiteRuleCite"][];
+            /** Governing Documents */
+            governing_documents: components["schemas"]["GoverningDocument"][];
+        };
+        /**
+         * GoverningDocument
+         * @description A VMP or SOP the run read its required documents and site rules from.
+         */
+        GoverningDocument: {
+            /** Doc Id */
+            doc_id: string;
+            /** Rev */
+            rev: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -208,6 +313,22 @@ export interface components {
              * @default []
              */
             design: components["schemas"]["DesignRow"][];
+        };
+        /**
+         * MissingDocument
+         * @description A document the VMP requires that the corpus lacks.
+         */
+        MissingDocument: {
+            /** Doc Id */
+            doc_id: string;
+            /** Type */
+            type: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "design" | "FAT" | "SAT" | "IQ" | "OQ";
+            citation: components["schemas"]["Cite"];
         };
         /**
          * NotRead
@@ -274,6 +395,24 @@ export interface components {
             unit: string;
         };
         /**
+         * RequiredDocument
+         * @description A document the VMP requires for the Equipment, with the annex row cited.
+         */
+        RequiredDocument: {
+            /** Doc Id */
+            doc_id: string;
+            /** Type */
+            type: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "design" | "FAT" | "SAT" | "IQ" | "OQ";
+            /** In Corpus */
+            in_corpus: boolean;
+            citation: components["schemas"]["Cite"];
+        };
+        /**
          * RunSummary
          * @description What identifies a run: its id, Equipment, model and mode.
          */
@@ -293,6 +432,28 @@ export interface components {
             mode: "replay" | "live";
             /** Pipeline Version */
             pipeline_version: string;
+        };
+        /**
+         * SiteRuleCite
+         * @description A site rule read from the SOP, with the sentence that sets it.
+         */
+        SiteRuleCite: {
+            /**
+             * Rule
+             * @enum {string}
+             */
+            rule: "signature_name_and_date" | "vendor_protocol_approved_before_execution" | "preparer_not_approver" | "checker_not_approver" | "performer_not_witness";
+            citation: components["schemas"]["Cite"];
+        };
+        /**
+         * Source
+         * @description A document and revision an AI Finding cites.
+         */
+        Source: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
         };
         /** Text */
         Text: {
@@ -395,6 +556,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Matrix"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getFindings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Findings"];
                 };
             };
             /** @description Validation Error */

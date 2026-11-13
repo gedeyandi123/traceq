@@ -7,6 +7,7 @@ export type Matrix = components["schemas"]["Matrix"];
 export type MatrixRow = components["schemas"]["MatrixRow"];
 export type Cite = components["schemas"]["Cite"];
 export type RunSummary = components["schemas"]["RunSummary"];
+export type Findings = components["schemas"]["Findings"];
 export type Value = NonNullable<MatrixRow["value"]>;
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 

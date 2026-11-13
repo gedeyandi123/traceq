@@ -3,6 +3,9 @@
     "title": "TraceQ",
     "tagline": "Ketertelusuran kualifikasi peralatan. AI hanya memberi saran."
   },
+  "common": {
+    "cite": "{doc} rev {rev}, hlm. {page}"
+  },
   "runs": {
     "title": "Run analisis",
     "empty": "Belum ada run. Jalankan traceq run lalu traceq serve.",
@@ -32,7 +35,7 @@
     "observed": "Teramati: {observed}",
     "result": "Hasil: {result}",
     "ambiguous": "Terbaca ganda ({readings}): minta konfirmasi",
-    "cite": "{doc} rev {rev}, hlm. {page}",
+    "toFindings": "Temuan pra-tinjauan",
     "notRead": "Dokumen vendor yang tidak terbaca",
     "classes": {
       "covered_by_vendor": "Dicakup vendor",
@@ -53,6 +56,46 @@
       "absentObserved": "Tidak ada",
       "atLeast": "≥ {min} {unit}",
       "atMost": "≤ {max} {unit}"
+    }
+  },
+  "findings": {
+    "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Matriks ketertelusuran",
+    "check": "Temuan pemeriksaan (aturan)",
+    "checkNote": "Ditemukan oleh aturan deterministik, tanpa model.",
+    "ai": "Temuan AI (saran)",
+    "aiNote": "Diusulkan oleh model; setiap kutipan sudah diverifikasi. Perlu keputusan manusia.",
+    "missing": "Dokumen yang tidak ada",
+    "missingNote": "Diwajibkan oleh VMP untuk peralatan ini, tetapi tidak ada dalam korpus.",
+    "none": "Tidak ada.",
+    "document": "Dokumen",
+    "type": "Jenis",
+    "detail": "Rincian",
+    "citations": "Kutipan",
+    "rule": "Aturan lokasi",
+    "stage": "Tahap",
+    "required": "Diwajibkan oleh",
+    "status": "Status",
+    "trace": "Model {model} · prompt {prompt} · {created}",
+    "actions": {
+      "pending": "Menunggu tinjauan"
+    },
+    "checkTypes": {
+      "missing_signature": "Tanda tangan atau tanggal tidak ada",
+      "impossible_date_order": "Urutan tanggal tidak mungkin",
+      "segregation_of_duties": "Pemisahan tugas dilanggar",
+      "out_of_limit_marked_pass": "Di luar batas namun ditandai Lulus",
+      "failed_result_no_deviation": "Hasil gagal tanpa Deviasi",
+      "vendor_protocol_not_approved": "Protokol vendor belum disetujui",
+      "expired_calibration": "Kalibrasi kedaluwarsa",
+      "calculation_error": "Kesalahan perhitungan"
+    },
+    "aiTypes": {
+      "inconsistent_data": "Data tidak konsisten",
+      "ac_deviates_from_urs": "Kriteria penerimaan menyimpang dari URS",
+      "gdp_correction": "Koreksi GDP",
+      "outdated_reference": "Referensi kedaluwarsa"
     }
   }
 }

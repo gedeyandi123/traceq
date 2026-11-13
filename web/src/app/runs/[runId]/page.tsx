@@ -20,7 +20,11 @@ export default async function MatrixPage({ params }: { params: Promise<{ runId: 
     <>
       <Link href="/">{t("back")}</Link>
       <h1>{t("title")}</h1>
-      <p className="muted">{t("subtitle", { equipment: run.data.equipment, runId })}</p>
+      <p className="muted">
+        {t("subtitle", { equipment: run.data.equipment, runId })}
+        {" · "}
+        <Link href={`/runs/${encodeURIComponent(runId)}/findings`}>{t("toFindings")}</Link>
+      </p>
       <MatrixTable matrix={matrix.data} runId={runId} />
     </>
   );

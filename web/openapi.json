@@ -108,6 +108,46 @@
         }
       }
     },
+    "/runs/{run_id}/findings": {
+      "get": {
+        "summary": "Get Findings",
+        "description": "The Pre-review: Check Findings, AI Findings kept apart, and missing documents.",
+        "operationId": "getFindings",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Findings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/runs/{run_id}/documents/{doc_id}/{rev}": {
       "get": {
         "summary": "Get Document",
@@ -166,6 +206,75 @@
   },
   "components": {
     "schemas": {
+      "AiFinding": {
+        "properties": {
+          "layer": {
+            "type": "string",
+            "const": "ai",
+            "title": "Layer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "inconsistent_data",
+              "ac_deviates_from_urs",
+              "gdp_correction",
+              "outdated_reference"
+            ],
+            "title": "Type"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Cite"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "created": {
+            "type": "string",
+            "title": "Created"
+          },
+          "reviewer_action": {
+            "type": "string",
+            "const": "pending",
+            "title": "Reviewer Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "layer",
+          "type",
+          "detail",
+          "citations",
+          "sources",
+          "model",
+          "prompt",
+          "created",
+          "reviewer_action"
+        ],
+        "title": "AiFinding",
+        "description": "A Pre-review finding of the LLM, every citation verified; advisory (ADR 0002)."
+      },
       "AmbiguousValue": {
         "properties": {
           "type": {
@@ -189,6 +298,66 @@
         ],
         "title": "AmbiguousValue",
         "description": "An observation that reads two ways: ask for confirmation, never guess."
+      },
+      "CheckFinding": {
+        "properties": {
+          "layer": {
+            "type": "string",
+            "const": "check",
+            "title": "Layer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "missing_signature",
+              "impossible_date_order",
+              "segregation_of_duties",
+              "out_of_limit_marked_pass",
+              "failed_result_no_deviation",
+              "vendor_protocol_not_approved",
+              "expired_calibration",
+              "calculation_error"
+            ],
+            "title": "Type"
+          },
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Cite"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "layer",
+          "type",
+          "doc",
+          "detail",
+          "citations",
+          "rule"
+        ],
+        "title": "CheckFinding",
+        "description": "A Pre-review finding of a deterministic rule: no model involved."
       },
       "Cite": {
         "properties": {
@@ -415,6 +584,84 @@
         "title": "EvidenceStep",
         "description": "A vendor FAT/SAT step linked to a requirement, with its verdict."
       },
+      "Findings": {
+        "properties": {
+          "check_findings": {
+            "items": {
+              "$ref": "#/components/schemas/CheckFinding"
+            },
+            "type": "array",
+            "title": "Check Findings"
+          },
+          "ai_findings": {
+            "items": {
+              "$ref": "#/components/schemas/AiFinding"
+            },
+            "type": "array",
+            "title": "Ai Findings"
+          },
+          "required_documents": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocument"
+            },
+            "type": "array",
+            "title": "Required Documents"
+          },
+          "missing_documents": {
+            "items": {
+              "$ref": "#/components/schemas/MissingDocument"
+            },
+            "type": "array",
+            "title": "Missing Documents"
+          },
+          "site_rules": {
+            "items": {
+              "$ref": "#/components/schemas/SiteRuleCite"
+            },
+            "type": "array",
+            "title": "Site Rules"
+          },
+          "governing_documents": {
+            "items": {
+              "$ref": "#/components/schemas/GoverningDocument"
+            },
+            "type": "array",
+            "title": "Governing Documents"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "check_findings",
+          "ai_findings",
+          "required_documents",
+          "missing_documents",
+          "site_rules",
+          "governing_documents"
+        ],
+        "title": "Findings",
+        "description": "The Pre-review of a run: Check Findings and AI Findings kept apart, and the\ndocuments the VMP requires that the corpus lacks."
+      },
+      "GoverningDocument": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "rev"
+        ],
+        "title": "GoverningDocument",
+        "description": "A VMP or SOP the run read its required documents and site rules from."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -598,6 +845,42 @@
         "title": "MatrixRow",
         "description": "One requirement: its text and value, Coverage class and reason, and Evidence."
       },
+      "MissingDocument": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "design",
+              "FAT",
+              "SAT",
+              "IQ",
+              "OQ"
+            ],
+            "title": "Stage"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "type",
+          "stage",
+          "citation"
+        ],
+        "title": "MissingDocument",
+        "description": "A document the VMP requires that the corpus lacks."
+      },
       "NotRead": {
         "properties": {
           "doc_id": {
@@ -740,6 +1023,47 @@
         "title": "Range",
         "description": "A required or tested range; either bound may be open."
       },
+      "RequiredDocument": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "design",
+              "FAT",
+              "SAT",
+              "IQ",
+              "OQ"
+            ],
+            "title": "Stage"
+          },
+          "in_corpus": {
+            "type": "boolean",
+            "title": "In Corpus"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "type",
+          "stage",
+          "in_corpus",
+          "citation"
+        ],
+        "title": "RequiredDocument",
+        "description": "A document the VMP requires for the Equipment, with the annex row cited."
+      },
       "RunSummary": {
         "properties": {
           "run_id": {
@@ -783,6 +1107,52 @@
         ],
         "title": "RunSummary",
         "description": "What identifies a run: its id, Equipment, model and mode."
+      },
+      "SiteRuleCite": {
+        "properties": {
+          "rule": {
+            "type": "string",
+            "enum": [
+              "signature_name_and_date",
+              "vendor_protocol_approved_before_execution",
+              "preparer_not_approver",
+              "checker_not_approver",
+              "performer_not_witness"
+            ],
+            "title": "Rule"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule",
+          "citation"
+        ],
+        "title": "SiteRuleCite",
+        "description": "A site rule read from the SOP, with the sentence that sets it."
+      },
+      "Source": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev"
+        ],
+        "title": "Source",
+        "description": "A document and revision an AI Finding cites."
       },
       "Text": {
         "properties": {
