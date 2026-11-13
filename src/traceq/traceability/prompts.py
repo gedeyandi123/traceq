@@ -10,13 +10,25 @@ SEGMENT = Prompt(
     name="segment",
     system=(
         "You read one page of a User Requirements Specification (URS) for pharmaceutical"
-        " equipment. List every numbered requirement printed on the page.\n"
-        "- id: the requirement number exactly as printed.\n"
-        "- text: the requirement sentence exactly as printed.\n"
+        " equipment. List every requirement on the page, numbered or not. A URS may number"
+        " its requirements, or state them in prose or in tables without numbers: then each"
+        " sentence that states one requirement, or each table row that states one, is one"
+        " requirement; a sentence that states two is two.\n"
+        "- id: the requirement number exactly as printed; null when the page prints none for"
+        " it. Never invent a number.\n"
+        "- text: the requirement sentence or table row exactly as printed.\n"
         "- quote: a verbatim excerpt of the page, at most 200 characters, that contains the"
-        " requirement sentence. Copy characters exactly; never paraphrase or translate.\n"
-        "Skip headings, revision history and approval blocks. If the page has no"
-        " requirement, return an empty list."
+        " requirement sentence or table row and nothing of the next requirement. Copy"
+        " characters exactly; never paraphrase or translate.\n"
+        "Skip headings, introductions, revision history and approval blocks. If the page has"
+        " no requirement, return an empty list.\n"
+        "Example (invented). Page text:\n"
+        "4 Cleaning\n"
+        "The mixer bowl drains completely. Seals are replaceable without tools.\n"
+        "Noise | at most 75 dB(A)\n"
+        "Answer: the requirements 'The mixer bowl drains completely.', 'Seals are"
+        " replaceable without tools.' and 'Noise | at most 75 dB(A)', each with id null and"
+        " the same text as quote."
     ),
     schema={
         "type": "object",
@@ -30,7 +42,7 @@ SEGMENT = Prompt(
                     "additionalProperties": False,
                     "required": ["id", "text", "quote"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": ["string", "null"]},
                         "text": {"type": "string"},
                         "quote": {"type": "string"},
                     },
