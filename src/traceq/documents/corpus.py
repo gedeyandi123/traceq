@@ -1,13 +1,12 @@
 """A released corpus directory: ``manifest.json`` plus one file per document.
 
-Only born-digital PDFs are read in this slice; spreadsheets and scans come with their own
-ingest. Page text is what the PDF prints, extracted with pypdf.
+Only born-digital PDFs are read in this slice, with Docling (``traceq.documents.ingest``);
+spreadsheets and scans come with their own ingest.
 """
 
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import re
 import unicodedata
@@ -15,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pypdf import PdfReader
+from traceq.documents.ingest import Page, read_pdf
 
 _SPACE = re.compile(r"\s+")
 
@@ -31,6 +30,7 @@ class CorpusDocument:
     rev: int
     type: str
     format: str
+    language: str
     path: Path
     sha256: str
 
@@ -40,8 +40,8 @@ class Corpus:
     root: Path
     equipment: str
     documents: tuple[CorpusDocument, ...]
-    _pages: dict[tuple[str, int], list[str]] = field(
-        default_factory=dict[tuple[str, int], list[str]], repr=False
+    _pages: dict[tuple[str, int], tuple[Page, ...]] = field(
+        default_factory=dict[tuple[str, int], tuple[Page, ...]], repr=False
     )
 
     @classmethod
@@ -63,6 +63,7 @@ class Corpus:
                 rev=int(d["rev"]),
                 type=str(d["type"]),
                 format=str(d["format"]),
+                language=str(d.get("language") or "en"),
                 path=root / str(d["path"]),
                 sha256=str(d["sha256"]),
             )
@@ -82,15 +83,22 @@ class Corpus:
     def find(self, doc_id: str, rev: int) -> CorpusDocument | None:
         return next((d for d in self.documents if (d.doc_id, d.rev) == (doc_id, rev)), None)
 
-    def pages(self, doc: CorpusDocument) -> list[str]:
-        """Printed text per page, as extracted: page n is item n - 1."""
+    def readable(self, doc: CorpusDocument) -> bool:
+        """Whether this slice can read the document (born-digital PDFs only)."""
+        return doc.format == "born_digital"
+
+    def read(self, doc: CorpusDocument) -> tuple[Page, ...]:
+        """Page text and tables: page n is item n - 1."""
         key = (doc.doc_id, doc.rev)
         if key not in self._pages:
-            if doc.format != "born_digital":
+            if not self.readable(doc):
                 raise NotImplementedError(f"{doc.doc_id}: no ingest for {doc.format} yet")
             data = doc.path.read_bytes()
             if hashlib.sha256(data).hexdigest() != doc.sha256:
                 raise ValueError(f"{doc.path}: bytes do not match the manifest")
-            reader = PdfReader(io.BytesIO(data))
-            self._pages[key] = [p.extract_text() for p in reader.pages]
+            self._pages[key] = read_pdf(doc.path, doc.sha256)
         return self._pages[key]
+
+    def pages(self, doc: CorpusDocument) -> list[str]:
+        """Printed text per page: page n is item n - 1."""
+        return [p.text for p in self.read(doc)]
