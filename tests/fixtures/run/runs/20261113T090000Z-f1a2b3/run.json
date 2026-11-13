@@ -1,0 +1,55 @@
+{
+  "run_id": "20261113T090000Z-f1a2b3",
+  "created": "2026-11-13T09:00:00+00:00",
+  "system": "traceq",
+  "pipeline_version": "0.2.0",
+  "mode": "replay",
+  "model": "claude-haiku-5-5",
+  "prompts": {
+    "segment": "aaaaaaaaaaaa"
+  },
+  "corpus": {
+    "equipment": "TP-201",
+    "documents": [
+      {
+        "doc_id": "URS-TP201",
+        "rev": 0,
+        "sha256": "917f9d02d82db2877feae29ed070448e41dd7395265c73f385f05d762f1d5305"
+      },
+      {
+        "doc_id": "FAT-TP201-M",
+        "rev": 0,
+        "sha256": "4440f7175a994c616b1a123209f42815f7a69ad467159e5fa9975d172fd39012"
+      },
+      {
+        "doc_id": "DS-TP201",
+        "rev": 0,
+        "sha256": "5a4a0d860d68452f5ea234ef4d4d050deabb50b358e64e1b7147e6f9a7f33598"
+      }
+    ]
+  },
+  "calls": {
+    "total": 4,
+    "replayed": 4,
+    "live": 0
+  },
+  "tokens": {
+    "input": 4000,
+    "output": 400
+  },
+  "cost_usd": 0.0012,
+  "live_cost_usd": 0.0,
+  "max_usd": null,
+  "price_table": {
+    "batch_discount": 0.5
+  },
+  "dropped": [],
+  "ingest": [],
+  "not_read": [
+    {
+      "doc_id": "SAT-TP201",
+      "rev": 0,
+      "format": "scan"
+    }
+  ]
+}

@@ -4,12 +4,16 @@ Usage::
 
     traceq run CORPUS_DIR [--equipment TAG] [--out runs] [--recordings recordings]
         [--model claude-haiku-5-5] [--live] [--max-usd 1]
+    traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
 
 Without ``--live`` every LLM call is replayed from ``--recordings`` and nothing is sent.
 With ``--live``, calls not yet recorded go to Mode Cloud through the Batch API and are
 recorded; the run refuses before sending when their estimated cost would pass
 ``--max-usd``. Exit code 0 on success, 2 when a recording is missing, the budget refuses,
 a scan is neither cached nor readable (OCR model not installed) or the corpus is unusable.
+
+``traceq serve`` starts the read-only API over the run folders in ``--runs``; ``--corpus``
+is the released corpus they read, so a citation opens its page.
 """
 
 from __future__ import annotations
@@ -35,7 +39,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--model", default=DEFAULT_MODEL)
     p.add_argument("--live", action="store_true", help="send unrecorded calls to the API")
     p.add_argument("--max-usd", type=float, default=1.0)
+    s = commands.add_parser("serve", help="serve run folders read-only")
+    s.add_argument("--runs", type=Path, default=Path("runs"))
+    s.add_argument("--corpus", type=Path, help="released corpus directory holding manifest.json")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+
+    if args.command == "serve":
+        import uvicorn
+
+        from traceq.runs.api import create_app
+
+        uvicorn.run(create_app(args.runs, args.corpus), host=args.host, port=args.port)
+        return 0
 
     from traceq.runs.run import run
 

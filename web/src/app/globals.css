@@ -1,0 +1,62 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  color: #1a1a1a;
+}
+header {
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #ddd;
+}
+main {
+  padding: 1.5rem;
+}
+.muted {
+  color: #666;
+}
+table.matrix {
+  border-collapse: collapse;
+  width: 100%;
+}
+table.matrix th,
+table.matrix td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+table.matrix p {
+  margin: 0.25rem 0;
+}
+ul.evidence {
+  margin: 0;
+  padding-left: 1rem;
+}
+ul.evidence li + li {
+  margin-top: 0.5rem;
+}
+.failure {
+  color: #8a1c1c;
+}
+.coverage {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+.coverage-covered_by_vendor {
+  background: #dcefdc;
+}
+.coverage-partial {
+  background: #fdf0c8;
+}
+.coverage-site_only {
+  background: #dde8f6;
+}
+.coverage-gap {
+  background: #f6dada;
+}
+.coverage-conflict {
+  background: #f2c8c8;
+}
+.coverage-none {
+  background: #eee;
+}

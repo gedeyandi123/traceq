@@ -1,0 +1,58 @@
+{
+  "app": {
+    "title": "TraceQ",
+    "tagline": "Ketertelusuran kualifikasi peralatan. AI hanya memberi saran."
+  },
+  "runs": {
+    "title": "Run analisis",
+    "empty": "Belum ada run. Jalankan traceq run lalu traceq serve.",
+    "unavailable": "API tidak dapat dihubungi.",
+    "created": "Dibuat",
+    "equipment": "Peralatan",
+    "model": "Model",
+    "mode": "Mode",
+    "replay": "Putar ulang",
+    "live": "Langsung",
+    "open": "Buka matriks"
+  },
+  "matrix": {
+    "title": "Matriks ketertelusuran",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Semua run",
+    "notFound": "Run tidak ditemukan.",
+    "requirement": "Persyaratan",
+    "value": "Nilai yang disyaratkan",
+    "coverage": "Cakupan",
+    "reason": "Alasan",
+    "evidence": "Bukti",
+    "noValue": "Tidak ada nilai terverifikasi",
+    "noEvidence": "Tidak ada bukti vendor",
+    "design": "Data desain",
+    "printed": "tercetak {printed}",
+    "observed": "Teramati: {observed}",
+    "result": "Hasil: {result}",
+    "ambiguous": "Terbaca ganda ({readings}): minta konfirmasi",
+    "cite": "{doc} rev {rev}, hlm. {page}",
+    "notRead": "Dokumen vendor yang tidak terbaca",
+    "classes": {
+      "covered_by_vendor": "Dicakup vendor",
+      "partial": "Sebagian",
+      "site_only": "Hanya di lokasi",
+      "gap": "Celah",
+      "conflict": "Konflik",
+      "none": "Belum dinilai"
+    },
+    "results": {
+      "pass": "Lulus",
+      "fail": "Gagal",
+      "none": "Tidak tercatat"
+    },
+    "values": {
+      "present": "Harus ada",
+      "presentObserved": "Ada",
+      "absentObserved": "Tidak ada",
+      "atLeast": "≥ {min} {unit}",
+      "atMost": "≤ {max} {unit}"
+    }
+  }
+}

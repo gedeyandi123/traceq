@@ -10,11 +10,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
 
 from traceq.ai import BudgetExceeded, PriceTable, Request, Response
 from traceq.ai.cost import Price
 from traceq.documents import OcrUnavailable, pdf
 from traceq.runs import cli
+from traceq.runs.api import create_app
 from traceq.runs.run import RunOutput, run
 from traceq_dataset import render
 from traceq_dataset.answer_key import load_key
@@ -295,6 +297,28 @@ def test_each_requirement_cites_its_evidence(recorded: RunOutput) -> None:
     assert any("EU B" in c["quote"] for c in tooling["citations"])
     # Scans are read through OCR: every vendor record is read.
     assert matrix["not_read"] == []
+
+
+def test_the_api_serves_the_run_and_opens_each_cited_page(
+    recorded: RunOutput, corpus_dir: Path
+) -> None:
+    """The read-only API over a real run folder: the matrix as written, and every citation
+    opens a document of the released corpus."""
+    client = TestClient(create_app(recorded.folder.parent, corpus_dir))
+    run_id = recorded.folder.name
+
+    assert [r["run_id"] for r in client.get("/runs").json()] == [run_id]
+    served = client.get(f"/runs/{run_id}/matrix").json()
+    assert served == json.loads((recorded.folder / "matrix.json").read_text(encoding="utf-8"))
+    cited = {
+        (c["doc"], c["rev"])
+        for row in served["requirements"]
+        for c in [row["source"]] + [e["citation"] for e in row["evidence"] + row["design"]]
+    }
+    assert len(cited) > 1
+    for doc, rev in sorted(cited):
+        r = client.get(f"/runs/{run_id}/documents/{doc}/{rev}")
+        assert r.status_code == 200, (doc, rev)
 
 
 def test_an_unverifiable_claim_never_reaches_the_submission(recorded: RunOutput) -> None:
