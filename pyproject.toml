@@ -84,9 +84,9 @@ root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "TraceQ modules are layered: runs > traceability > documents, ai"
+name = "TraceQ modules are layered: runs > review > traceability > documents, ai"
 type = "layers"
-layers = ["traceq.runs", "traceq.traceability", "traceq.documents | traceq.ai"]
+layers = ["traceq.runs", "traceq.review", "traceq.traceability", "traceq.documents | traceq.ai"]
 
 [[tool.importlinter.contracts]]
 name = "The system never imports the dataset or the scorer"
