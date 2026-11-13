@@ -8,8 +8,8 @@ Usage::
 Without ``--live`` every LLM call is replayed from ``--recordings`` and nothing is sent.
 With ``--live``, calls not yet recorded go to Mode Cloud through the Batch API and are
 recorded; the run refuses before sending when their estimated cost would pass
-``--max-usd``. Exit code 0 on success, 2 when a recording is missing, the budget refuses
-or the corpus is unusable.
+``--max-usd``. Exit code 0 on success, 2 when a recording is missing, the budget refuses,
+a scan is neither cached nor readable (OCR model not installed) or the corpus is unusable.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 from traceq.ai import BudgetExceeded, MissingRecording
+from traceq.documents import OcrUnavailable
 
 DEFAULT_MODEL = "claude-haiku-5-5"
 
@@ -53,7 +54,13 @@ def main(argv: list[str] | None = None) -> int:
             live=live,
             max_usd=args.max_usd,
         )
-    except (MissingRecording, BudgetExceeded, FileNotFoundError, ValueError) as e:
+    except (
+        MissingRecording,
+        BudgetExceeded,
+        OcrUnavailable,
+        FileNotFoundError,
+        ValueError,
+    ) as e:
         print(f"traceq run: {e}", file=sys.stderr)
         return 2
     m = out.metadata
