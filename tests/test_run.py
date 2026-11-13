@@ -87,14 +87,26 @@ LINKS: dict[str, tuple[list[str], list[str], bool, bool]] = {
     "URS-TP201-014": (["FAT-TP201-C/FAT-C-01"], [], False, False),
     "URS-TP201-026": ([], [], True, False),
 }
+MECHANICAL = "Mekanik (mechanical)"
+CONTROL = "Sistem kendali dan perangkat lunak (control system/software)"
+# Requirement -> the Vendor Assessment area the scripted model names.
+AREAS = {
+    "URS-TP201-001": MECHANICAL,
+    "URS-TP201-002": MECHANICAL,
+    "URS-TP201-004": MECHANICAL,
+    "URS-TP201-014": CONTROL,
+}
 EXPECTED_COVERAGE = {
-    # No Vendor Assessment is in the corpus: condition 1 never holds.
-    "URS-TP201-001": ("partial", "FAT-M-01: condition 1: no Vendor Assessment"),
-    "URS-TP201-002": ("partial", "FAT-M-02: condition 1: no Vendor Assessment"),
+    # The Vendor Assessment rates every area Ya: condition 1 holds within its areas.
+    "URS-TP201-001": ("covered_by_vendor", "proved by FAT-TP201-M"),
+    "URS-TP201-002": ("partial", "FAT-M-02: condition 3: full URS range not tested"),
     "URS-TP201-004": ("partial", "FAT-M-03: result does not meet the URS"),
     "URS-TP201-008": ("conflict", "DS-TP201 does not meet the URS"),
     "URS-TP201-012": ("gap", "no FAT/SAT step addresses it"),
-    "URS-TP201-014": ("partial", "FAT-C-01: condition 1: no Vendor Assessment"),
+    "URS-TP201-014": (
+        "partial",
+        "FAT-C-01: condition 2: protocol not approved by site before execution (CPOB 12.14)",
+    ),
     "URS-TP201-026": ("site_only", "cannot be tested by the vendor"),
     "URS-TP201-003": ("gap", "no FAT/SAT step addresses it"),
 }
@@ -147,14 +159,35 @@ def _facts(r: Request) -> dict[str, Any]:
 
 def _link(r: Request) -> dict[str, Any]:
     asked = json.loads(r.user)
-    steps, rows, site_only, transport = LINKS.get(asked["requirement"]["id"], ([], [], False, True))
+    rid = asked["requirement"]["id"]
+    steps, rows, site_only, transport = LINKS.get(rid, ([], [], False, True))
     by_name = {row["name"]: row["id"] for row in asked["rows"]}
+    area = AREAS.get(rid)
     return {
         "steps": steps,
         "rows": [by_name[name] for name in rows],
         "site_only": site_only,
         "transport_sensitive": transport,
+        "area": area if area in asked["areas"] else None,
     }
+
+
+def _assessment(r: Request) -> dict[str, Any]:
+    """Every area row of the Vendor Assessment as printed, and its issue date."""
+    pages = _pages(r).items()
+    areas = [
+        {"area": m[1], "mark": m[2], "relied": m[2] == "Ya", "page": n, "quote": m[0]}
+        for n, text in pages
+        for x in text.splitlines()
+        if (m := re.match(r"^(.+\)) (Ya|Tidak) .*$", x))
+    ]
+    date = next(
+        {"date": m[1], "page": n, "quote": m[0]}
+        for n, text in pages
+        for x in text.splitlines()
+        if (m := re.match(r"^Tanggal berlaku (\S+)$", x))
+    )
+    return {"assessed_on": date, "areas": areas}
 
 
 # --- Pre-review: the scripted model reads signature rows, the VMP annex and the SOP ------
@@ -245,7 +278,12 @@ def _site_rules(r: Request) -> dict[str, Any]:
     return {"rules": [{"rule": k, "page": 1, "quote": q} for k, q in SOP_RULES.items()]}
 
 
-REVIEW = {"record": _record, "required_documents": _required, "site_rules": _site_rules}
+REVIEW = {
+    "record": _record,
+    "required_documents": _required,
+    "site_rules": _site_rules,
+    "vendor_assessment": _assessment,
+}
 
 
 class ScriptedLLM:
@@ -357,6 +395,7 @@ def test_coverage_is_decided_by_the_decision_table(recorded: RunOutput) -> None:
     )
     items = {i["id"]: i for i in report["requirements"]["items"]}
     assert [rid for rid in EXPECTED_COVERAGE if items[rid]["coverage_ok"]] == [
+        "URS-TP201-001",
         "URS-TP201-002",
         "URS-TP201-004",
         "URS-TP201-008",
@@ -380,7 +419,7 @@ def test_each_requirement_cites_its_evidence(recorded: RunOutput) -> None:
     assert (step["doc"], step["step"], step["failure"]) == (
         "FAT-TP201-M",
         "FAT-M-02",
-        "condition 1: no Vendor Assessment",
+        "condition 3: full URS range not tested",
     )
     assert step["citation"]["page"] == 1 and "FAT-M-02" in step["citation"]["quote"]
     assert [d["printed"] for d in speed["design"]] == ["20–70 rpm"]
@@ -504,14 +543,15 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         "record",
         "required_documents",
         "site_rules",
+        "vendor_assessment",
     }
     assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in meta["prompts"].values())
     # One segmentation call per URS page, one extraction and one link per requirement, one
     # fact call per page of FAT-TP201-M (2), FAT-TP201-C (1), SAT-TP201 (2, a scan),
     # DS-TP201 (1) and MTC-TP201-01 (1, a scan); one record call per page of the FATs (3),
     # the SAT (2) and the three calibration certificates (3, scans); one call each for the
-    # VMP and the SOP.
-    calls = 2 + 38 + 38 + 7 + 8 + 2
+    # Vendor Assessment, the VMP and the SOP.
+    calls = 2 + 38 + 38 + 7 + 8 + 3
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls
     expected = (meta["tokens"]["input"] * 1.0 + meta["tokens"]["output"] * 2.0) / 1e6 * 0.5
@@ -529,6 +569,7 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         ("CAL-TP201-01", 0),
         ("VMP-001", 3),
         ("SOP-VAL-002", 2),
+        ("VA-2025-011", 0),
     ]
 
 

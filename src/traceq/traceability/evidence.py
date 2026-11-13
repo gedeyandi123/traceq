@@ -6,12 +6,13 @@ the LLM proposes from each requirement to them, and the Coverage the decision ta
    A fact whose quote is not on the page, or does not hold the printed value, is dropped.
    Numbers and dates are read from the printed text by code (the ambiguity rule), not from
    the model's reading.
-2. Links: one call per requirement proposes which steps and design rows concern it and
-   judges whether only the site can test it and whether transport can affect it. An id the
-   model invents is dropped.
-3. Coverage: ``traceability.coverage.classify``. The corpus holds no Vendor Assessment, so
-   condition 1 cannot be shown and no requirement is ``covered_by_vendor`` until one is
-   read; that is the decision table's own answer, not a guess.
+2. Links: one call per requirement proposes which steps and design rows concern it,
+   judges whether only the site can test it and whether transport can affect it, and names
+   the area of the Vendor Assessment (``traceability.assessment``) it belongs to. An id or
+   an area the model invents is dropped.
+3. Coverage: ``traceability.coverage.classify``. Condition 1 holds only when the named area
+   is one the verified assessment lets the site rely on; with no assessment in the corpus it
+   fails for every step.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -38,17 +39,16 @@ from traceq.traceability.coverage import (
     Result,
     Stage,
     Step,
-    VendorAssessment,
     classify,
 )
 from traceq.traceability.prompts import FACTS, LINK
 from traceq.traceability.values import Number, Present, Range, Text, Value
 
+if TYPE_CHECKING:
+    from traceq.traceability.assessment import Area, Assessment
+
 PROTOCOL_TYPES: dict[str, Stage] = {"fat": "FAT", "sat": "SAT"}
 DESIGN_TYPES = ("datasheet", "material_certificate")
-
-VENDOR_ASSESSMENT: VendorAssessment | None = None
-"""No document of the corpus is a Vendor Assessment, so condition 1 never holds."""
 
 
 class _Answer(BaseModel):
@@ -99,6 +99,7 @@ class _Link(_Answer):
     rows: list[str]
     site_only: bool
     transport_sensitive: bool
+    area: str | None
 
 
 Claim = Literal[
@@ -115,6 +116,7 @@ Claim = Literal[
     "calculation",
     "required_document",
     "site_rule",
+    "assessment",
 ]
 
 
@@ -194,6 +196,8 @@ class Linked:
     """The Evidence, in the order of ``coverage.verdicts``."""
     rows: tuple[RowFact, ...]
     """The design facts compared with the URS value."""
+    area: Area | None = None
+    """The Vendor Assessment area named for the requirement, with its verified rating."""
 
 
 @dataclass
@@ -309,7 +313,9 @@ def _reference(value: Value | None) -> tuple[float, ...]:
             return ()
 
 
-def _link_prompt(rid: str, text: str, value: Value | None, facts: VendorFacts) -> str:
+def _link_prompt(
+    rid: str, text: str, value: Value | None, facts: VendorFacts, areas: Sequence[str]
+) -> str:
     return json.dumps(
         {
             "requirement": {
@@ -322,6 +328,7 @@ def _link_prompt(rid: str, text: str, value: Value | None, facts: VendorFacts) -
                 for s in facts.steps
             ],
             "rows": [{"id": r.id, "name": r.name, "value": r.printed} for r in facts.rows],
+            "areas": list(areas),
         },
         ensure_ascii=False,
         indent=1,
@@ -334,12 +341,19 @@ def link(
     urs_sha256: str,
     llm: LLM,
     dropped: list[Dropped],
+    assessment: Assessment | None = None,
 ) -> dict[str, Linked]:
-    """``requirements``: id, text and verified value of each requirement."""
-    key = sha256(",".join(sorted([urs_sha256, *(d.sha256 for d in facts.read)])))
+    """``requirements``: id, text and verified value of each requirement. ``assessment``:
+    the verified Vendor Assessment, ``None`` when the corpus holds none. The model is
+    offered every area it prints, never the rating."""
+    shas = [urs_sha256, *(d.sha256 for d in facts.read)]
+    if assessment is not None:
+        shas.append(assessment.sha256)
+    key = sha256(",".join(sorted(shas)))
+    areas = [] if assessment is None else [a.name for a in assessment.areas]
     answers = llm.complete(
         [
-            Request(LINK, _link_prompt(rid, text, value, facts), key)
+            Request(LINK, _link_prompt(rid, text, value, facts, areas), key)
             for rid, text, value in requirements
         ]
     )
@@ -351,20 +365,23 @@ def link(
             a = _Link.model_validate_json(answer.text)
         except ValidationError:
             dropped.append(Dropped("link", rid, "bad answer"))
-            a = _Link(steps=[], rows=[], site_only=False, transport_sensitive=True)
+            a = _Link(steps=[], rows=[], site_only=False, transport_sensitive=True, area=None)
         for unknown in [i for i in a.steps if i not in steps] + [
             i for i in a.rows if i not in rows
         ]:
             dropped.append(Dropped("link", f"{rid} {unknown}", "unknown id"))
         linked_steps = [steps[i] for i in dict.fromkeys(a.steps) if i in steps]
         linked_rows = [rows[i] for i in dict.fromkeys(a.rows) if i in rows]
-        req = RequirementFacts(rid, value, a.site_only, a.transport_sensitive)
+        area = None if assessment is None or a.area is None else assessment.area(a.area)
+        if a.area is not None and area is None:
+            dropped.append(Dropped("link", f"{rid} {a.area}", "unknown area"))
+        scope = None if area is None else area.name
+        req = RequirementFacts(rid, value, a.site_only, a.transport_sensitive, scope)
         reference = _reference(value)
         pairs = [(s, s.as_step(reference)) for s in linked_steps]
-        coverage = classify(
-            req, [p[1] for p in pairs], [r.fact for r in linked_rows], VENDOR_ASSESSMENT
-        )
+        decision = None if assessment is None else assessment.decision
+        coverage = classify(req, [p[1] for p in pairs], [r.fact for r in linked_rows], decision)
         used = [next(f for f, s in pairs if s is v.step) for v in coverage.verdicts]
         compared = [r for r in linked_rows if any(r.fact is d for d in coverage.design)]
-        out[rid] = Linked(req, coverage, tuple(used), tuple(compared))
+        out[rid] = Linked(req, coverage, tuple(used), tuple(compared), area)
     return out

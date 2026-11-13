@@ -203,20 +203,73 @@ LINK = Prompt(
         "transport_sensitive: true when transport or installation can change the result, so"
         " a factory test alone does not prove it (calibration, alignment, measurement"
         " accuracy).\n"
+        "area: the one area, from the areas given, whose vendor activities the requirement"
+        " belongs to, copied exactly; null when no area fits or none is given.\n"
         "Use only the ids given; return empty lists when nothing fits."
     ),
     schema={
         "type": "object",
         "additionalProperties": False,
-        "required": ["steps", "rows", "site_only", "transport_sensitive"],
+        "required": ["steps", "rows", "site_only", "transport_sensitive", "area"],
         "properties": {
             "steps": {"type": "array", "items": {"type": "string"}},
             "rows": {"type": "array", "items": {"type": "string"}},
             "site_only": {"type": "boolean"},
             "transport_sensitive": {"type": "boolean"},
+            "area": {"type": ["string", "null"]},
         },
     },
     max_tokens=2000,
 )
 
-PROMPTS = (SEGMENT, EXTRACT, FACTS, LINK)
+ASSESSMENT = Prompt(
+    name="vendor_assessment",
+    system=(
+        "You read the site's Vendor Assessment report for a pharmaceutical equipment vendor:"
+        " the areas of vendor activity the site assessed and whether it may rely on the"
+        " vendor's results in each. Report only what the document prints.\n"
+        "assessed_on: the date the assessment was issued, exactly as printed, with the page"
+        " and a quote that holds it; null when no date is printed.\n"
+        "areas: every area the report rates. area: the area name exactly as printed; mark:"
+        " its rating exactly as printed; relied: true when the rating means the site may"
+        " rely on the vendor's results in that area, false otherwise; page: the page number;"
+        " quote: a verbatim excerpt of that page, at most 200 characters, holding the area"
+        " name and its rating. Copy characters exactly; never paraphrase or translate.\n"
+        "If the document rates no area, return an empty list."
+    ),
+    schema={
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["assessed_on", "areas"],
+        "properties": {
+            "assessed_on": {
+                "type": ["object", "null"],
+                "additionalProperties": False,
+                "required": ["date", "page", "quote"],
+                "properties": {
+                    "date": {"type": "string"},
+                    "page": {"type": "integer"},
+                    "quote": {"type": "string"},
+                },
+            },
+            "areas": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["area", "mark", "relied", "page", "quote"],
+                    "properties": {
+                        "area": {"type": "string"},
+                        "mark": {"type": "string"},
+                        "relied": {"type": "boolean"},
+                        "page": {"type": "integer"},
+                        "quote": {"type": "string"},
+                    },
+                },
+            },
+        },
+    },
+    max_tokens=4000,
+)
+
+PROMPTS = (SEGMENT, EXTRACT, FACTS, LINK, ASSESSMENT)
