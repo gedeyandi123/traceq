@@ -34,6 +34,12 @@ packages = ["src/traceq_dataset", "src/traceq_eval", "src/traceq"]
 [project.scripts]
 traceq = "traceq.runs.cli:main"
 
+[project.optional-dependencies]
+ocr = [
+    "onnxruntime==1.31.1",
+    "rapidocr==3.10.0",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers"]
