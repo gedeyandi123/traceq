@@ -35,7 +35,7 @@ None on the answer key. Values are stored normalised; documents keep locale-spec
 
 ## Distribution
 
-- Rendered corpus: GitHub Release asset per dataset version; release bytes are canonical.
+- Rendered corpus: GitHub Release asset per dataset version, built in a pinned container (`docker/corpus.Dockerfile`); release bytes are canonical. Release 0.1.0 (`corpus-v0.1.0`) is **not frozen**: judged values and drafted numbers are not yet reviewed by a practitioner; freeze on 2026-11-25 or when the TP-201 form returns, whichever comes first. Baselines taken on 0.1.0 are redone at freeze.
 - Licence: CC BY 4.0 ([`LICENSE-DATA`](LICENSE-DATA)). Code: Apache-2.0 ([`LICENSE`](LICENSE)).
 
 ## Maintenance

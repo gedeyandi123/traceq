@@ -10,6 +10,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added (corpus release)
+
+- Corpus release 0.1.0 (`corpus-v0.1.0`, pre-release, **not frozen**: practitioner review pending, freeze 2026-11-25 or when the TP-201 form returns): TP-201 and TP-202 eval corpus built by `docker/corpus.Dockerfile`, with `manifest.json` and checksums.
+
 ### Added
 
 - Dataset design, glossary, datasheet skeleton, and licences (code Apache-2.0, data CC BY 4.0).
