@@ -26,7 +26,7 @@ Total $0.128883 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 ru
 | defect findings matched | 5/11 | 5/10 | 5/11 |
 | missing docs | 2/2 | 2/2 | 2/2 |
 | probes fabricated | 0/6 | 0/6 | 0/6 |
-| fabrication | 4/184 | 5/169 | 5/187 |
+| fabrication | 1/184 | 2/169 | 2/187 |
 | gates | FAIL | FAIL | FAIL |
 | vendor_reuse | True | True | True |
 | calls (live) | 130 (130) | 130 (130) | 128 (128) |
@@ -83,4 +83,6 @@ TP-202 is held out: n = 13, one item is about 8 points, a direction signal only;
 
 ## Open: the `fabricated_citation` gate fails on every TP-201 run
 
-The same citations fail in all three runs (4, 5, 5), so this is systematic, not noise: `URS-TP201-009` cites `DS-TP201` p1 "Materials and finish SS 316L", and AI Findings cite the calibration certificates ("Calibrated by Markus Brandt Brandt CALIBRATED") and the SAT scan ("TACH-07 SW-03 122.400 tablets/h Lulus"). The system's own check passed each quote against its ingest text (Docling or OCR reading order: the first quote is verbatim in the ingest cache); the scorer matches against the rendered page text (pypdf), where table cells and stamp text come in another order, at ratio 0.75–0.81 below the 0.9 floor. Whether the scorer's page text, the system's quoting, or the gate changes is an owner decision (gates and scoring rules). Until then no TP-201 run can become a baseline.
+The failures (1, 2, 2) are systematic, not noise: in all three runs `URS-TP201-009` cites `DS-TP201` p1 "Materials and finish SS 316L", and in r2 and r3 an AI Finding cites the SAT scan ("TACH-07 SW-03 122.400 tablets/h Lulus"). The system's own check passed each quote against its ingest text (Docling or OCR reading order: the first quote is verbatim in the ingest cache); the scorer matches against the rendered page text (pypdf), where table cells come in another order, at ratio 0.75–0.81 below the 0.9 floor. Whether the scorer's page text, the system's quoting, or the gate changes is an owner decision (gates and scoring rules). Until then no TP-201 run can become a baseline.
+
+The calibration certificates no longer fail (#76): OCR joined the signature row and the stamp beside it into one line ("Calibrated by Markus Brandt Brandt CALIBRATED"), and a signature citation is now trimmed to the span from the printed role to the last printed field ("Calibrated by Markus Brandt"). The three TP-201 reports were re-scored for this; only those three citations per run changed, from `quote_not_found` to verified.

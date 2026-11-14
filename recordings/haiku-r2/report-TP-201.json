@@ -23,9 +23,9 @@
       "better": "higher"
     },
     "citations.verified_rate": {
-      "k": 107,
+      "k": 110,
       "n": 112,
-      "rate": 0.9554,
+      "rate": 0.9821,
       "better": "higher"
     },
     "defects.recall": {
@@ -35,9 +35,9 @@
       "better": "higher"
     },
     "fabrication.rate": {
-      "k": 5,
+      "k": 2,
       "n": 169,
-      "rate": 0.0296,
+      "rate": 0.0118,
       "better": "lower"
     },
     "probes.fabrication_rate": {
@@ -74,7 +74,7 @@
       "items": []
     },
     "fabricated_citation": {
-      "count": 5,
+      "count": 2,
       "floor": 0,
       "passed": false,
       "items": [
@@ -86,33 +86,6 @@
           "quote": "Materials and finish SS 316L",
           "status": "quote_not_found",
           "ratio": 0.75
-        },
-        {
-          "where": "finding 3 citation",
-          "doc": "CAL-TP201-01",
-          "rev": 0,
-          "page": 1,
-          "quote": "Calibrated by Markus Brandt Brandt CALIBRATED",
-          "status": "quote_not_found",
-          "ratio": 0.8
-        },
-        {
-          "where": "finding 4 citation",
-          "doc": "KAL-2025-0412",
-          "rev": 0,
-          "page": 1,
-          "quote": "Calibrated by Hendra Wijaya Wijaya CALIBRATED",
-          "status": "quote_not_found",
-          "ratio": 0.8
-        },
-        {
-          "where": "finding 5 citation",
-          "doc": "KAL-2026-0057",
-          "rev": 0,
-          "page": 1,
-          "quote": "Calibrated by Hendra Wijaya Wijaya CALIBRATED",
-          "status": "quote_not_found",
-          "ratio": 0.8
         },
         {
           "where": "finding 8 citation",
@@ -140,19 +113,19 @@
   },
   "fabrication": {
     "claims": 169,
-    "fabricated": 5,
-    "rate": 0.0296
+    "fabricated": 2,
+    "rate": 0.0118
   },
   "citations": {
     "total": 112,
-    "verified_rate": 0.9554,
+    "verified_rate": 0.9821,
     "by_status": {
-      "verified": 107,
+      "verified": 110,
       "value_not_in_quote": 0,
       "too_long": 0,
       "unknown_document": 0,
       "unknown_page": 0,
-      "quote_not_found": 5
+      "quote_not_found": 2
     },
     "failed": [
       {
@@ -163,33 +136,6 @@
         "quote": "Materials and finish SS 316L",
         "status": "quote_not_found",
         "ratio": 0.75
-      },
-      {
-        "where": "finding 3 citation",
-        "doc": "CAL-TP201-01",
-        "rev": 0,
-        "page": 1,
-        "quote": "Calibrated by Markus Brandt Brandt CALIBRATED",
-        "status": "quote_not_found",
-        "ratio": 0.8
-      },
-      {
-        "where": "finding 4 citation",
-        "doc": "KAL-2025-0412",
-        "rev": 0,
-        "page": 1,
-        "quote": "Calibrated by Hendra Wijaya Wijaya CALIBRATED",
-        "status": "quote_not_found",
-        "ratio": 0.8
-      },
-      {
-        "where": "finding 5 citation",
-        "doc": "KAL-2026-0057",
-        "rev": 0,
-        "page": 1,
-        "quote": "Calibrated by Hendra Wijaya Wijaya CALIBRATED",
-        "status": "quote_not_found",
-        "ratio": 0.8
       },
       {
         "where": "finding 8 citation",
