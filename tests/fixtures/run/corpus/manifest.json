@@ -1,0 +1,37 @@
+{
+  "equipment": [
+    "TP-201"
+  ],
+  "documents": [
+    {
+      "doc_id": "URS-TP201",
+      "rev": 0,
+      "type": "urs",
+      "equipment": "TP-201",
+      "format": "born_digital",
+      "language": "id",
+      "path": "URS-TP201_rev0.pdf",
+      "sha256": "917f9d02d82db2877feae29ed070448e41dd7395265c73f385f05d762f1d5305"
+    },
+    {
+      "doc_id": "FAT-TP201-M",
+      "rev": 0,
+      "type": "fat",
+      "equipment": "TP-201",
+      "format": "born_digital",
+      "language": "en",
+      "path": "FAT-TP201-M_rev0.pdf",
+      "sha256": "4440f7175a994c616b1a123209f42815f7a69ad467159e5fa9975d172fd39012"
+    },
+    {
+      "doc_id": "DS-TP201",
+      "rev": 0,
+      "type": "datasheet",
+      "equipment": "TP-201",
+      "format": "born_digital",
+      "language": "en",
+      "path": "DS-TP201_rev0.pdf",
+      "sha256": "5a4a0d860d68452f5ea234ef4d4d050deabb50b358e64e1b7147e6f9a7f33598"
+    }
+  ]
+}

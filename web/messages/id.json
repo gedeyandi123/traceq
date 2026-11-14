@@ -1,0 +1,136 @@
+{
+  "app": {
+    "title": "TraceQ",
+    "tagline": "Ketertelusuran kualifikasi peralatan. AI hanya memberi saran."
+  },
+  "common": {
+    "cite": "{doc} rev {rev}, hlm. {page}"
+  },
+  "runs": {
+    "title": "Run analisis",
+    "empty": "Belum ada run. Jalankan traceq run lalu traceq serve.",
+    "unavailable": "API tidak dapat dihubungi.",
+    "created": "Dibuat",
+    "equipment": "Peralatan",
+    "model": "Model",
+    "mode": "Mode",
+    "replay": "Putar ulang",
+    "live": "Langsung",
+    "open": "Buka matriks"
+  },
+  "matrix": {
+    "title": "Matriks ketertelusuran",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Semua run",
+    "notFound": "Run tidak ditemukan.",
+    "requirement": "Persyaratan",
+    "value": "Nilai yang disyaratkan",
+    "coverage": "Cakupan",
+    "reason": "Alasan",
+    "evidence": "Bukti",
+    "noValue": "Tidak ada nilai terverifikasi",
+    "noEvidence": "Tidak ada bukti vendor",
+    "design": "Data desain",
+    "printed": "tercetak {printed}",
+    "observed": "Teramati: {observed}",
+    "result": "Hasil: {result}",
+    "ambiguous": "Terbaca ganda ({readings}): minta konfirmasi",
+    "toFindings": "Temuan pra-tinjauan",
+    "toEval": "Hasil evaluasi",
+    "notRead": "Dokumen vendor yang tidak terbaca",
+    "classes": {
+      "covered_by_vendor": "Dicakup vendor",
+      "partial": "Sebagian",
+      "site_only": "Hanya di lokasi",
+      "gap": "Celah",
+      "conflict": "Konflik",
+      "none": "Belum dinilai"
+    },
+    "results": {
+      "pass": "Lulus",
+      "fail": "Gagal",
+      "none": "Tidak tercatat"
+    },
+    "values": {
+      "present": "Harus ada",
+      "presentObserved": "Ada",
+      "absentObserved": "Tidak ada",
+      "atLeast": "≥ {min} {unit}",
+      "atMost": "≤ {max} {unit}"
+    }
+  },
+  "findings": {
+    "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Matriks ketertelusuran",
+    "check": "Temuan pemeriksaan (aturan)",
+    "checkNote": "Ditemukan oleh aturan deterministik, tanpa model.",
+    "ai": "Temuan AI (saran)",
+    "aiNote": "Diusulkan oleh model; setiap kutipan sudah diverifikasi. Perlu keputusan manusia.",
+    "missing": "Dokumen yang tidak ada",
+    "missingNote": "Diwajibkan oleh VMP untuk peralatan ini, tetapi tidak ada dalam korpus.",
+    "none": "Tidak ada.",
+    "document": "Dokumen",
+    "type": "Jenis",
+    "detail": "Rincian",
+    "citations": "Kutipan",
+    "rule": "Aturan lokasi",
+    "stage": "Tahap",
+    "required": "Diwajibkan oleh",
+    "status": "Status",
+    "trace": "Model {model} · prompt {prompt} · {created}",
+    "actions": {
+      "pending": "Menunggu tinjauan"
+    },
+    "checkTypes": {
+      "missing_signature": "Tanda tangan atau tanggal tidak ada",
+      "impossible_date_order": "Urutan tanggal tidak mungkin",
+      "segregation_of_duties": "Pemisahan tugas dilanggar",
+      "out_of_limit_marked_pass": "Di luar batas namun ditandai Lulus",
+      "failed_result_no_deviation": "Hasil gagal tanpa Deviasi",
+      "vendor_protocol_not_approved": "Protokol vendor belum disetujui",
+      "expired_calibration": "Kalibrasi kedaluwarsa",
+      "calculation_error": "Kesalahan perhitungan"
+    },
+    "aiTypes": {
+      "inconsistent_data": "Data tidak konsisten",
+      "ac_deviates_from_urs": "Kriteria penerimaan menyimpang dari URS",
+      "gdp_correction": "Koreksi GDP",
+      "outdated_reference": "Referensi kedaluwarsa"
+    }
+  },
+  "eval": {
+    "title": "Hasil evaluasi",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Matriks ketertelusuran",
+    "notScored": "Run ini belum dinilai, atau API evaluasi tidak dapat dihubungi. Penilaian adalah langkah terpisah dari harness.",
+    "metric": "Ukuran",
+    "kn": "k/n",
+    "rate": "Tingkat",
+    "split": "Set",
+    "gatesPassed": "Gerbang fabrikasi: lulus",
+    "gatesFailed": "Gerbang fabrikasi: GAGAL",
+    "cost": "Biaya run: {usd} USD",
+    "model": "model {model}",
+    "scorer": "penilai {version}",
+    "smallN": "Selisih satu item bukan bukti. Set held-out tidak pernah dipakai untuk mengembangkan prompt dan dilaporkan terpisah.",
+    "splits": {
+      "dev": "Pengembangan ({equipment})",
+      "held_out": "Held-out ({equipment})"
+    },
+    "better": {
+      "higher": "Lebih tinggi lebih baik",
+      "lower": "Lebih rendah lebih baik"
+    },
+    "metrics": {
+      "extraction_accuracy": "Akurasi ekstraksi nilai",
+      "citation_groundedness": "Kutipan terverifikasi pada halaman",
+      "defect_recall": "Recall cacat yang ditanam",
+      "fabrication_rate": "Tingkat fabrikasi klaim",
+      "probe_fabrication_rate": "Fabrikasi pada probe halusinasi",
+      "ocr_exact_match": "OCR: entri terbaca persis",
+      "ocr_entry_recall": "OCR: entri ditemukan",
+      "ocr_cer": "OCR: tingkat kesalahan karakter (CER)"
+    }
+  }
+}

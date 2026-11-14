@@ -1,0 +1,1219 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TraceQ",
+    "summary": "Read-only API over run folders.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/runs": {
+      "get": {
+        "summary": "List Runs",
+        "description": "Every run folder, newest first.",
+        "operationId": "listRuns",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "type": "array",
+                  "title": "Response Listruns"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}": {
+      "get": {
+        "summary": "Get Run",
+        "operationId": "getRun",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/matrix": {
+      "get": {
+        "summary": "Get Matrix",
+        "description": "The traceability matrix: Coverage class and reason, and cited Evidence.",
+        "operationId": "getMatrix",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Matrix"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/findings": {
+      "get": {
+        "summary": "Get Findings",
+        "description": "The Pre-review: Check Findings, AI Findings kept apart, and missing documents.",
+        "operationId": "getFindings",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Findings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/documents/{doc_id}/{rev}": {
+      "get": {
+        "summary": "Get Document",
+        "description": "A document the run read, as released: a citation links here with ``#page=N``.",
+        "operationId": "getDocument",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Doc Id"
+            }
+          },
+          {
+            "name": "rev",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rev"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {},
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AiFinding": {
+        "properties": {
+          "layer": {
+            "type": "string",
+            "const": "ai",
+            "title": "Layer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "inconsistent_data",
+              "ac_deviates_from_urs",
+              "gdp_correction",
+              "outdated_reference"
+            ],
+            "title": "Type"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Cite"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "created": {
+            "type": "string",
+            "title": "Created"
+          },
+          "reviewer_action": {
+            "type": "string",
+            "const": "pending",
+            "title": "Reviewer Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "layer",
+          "type",
+          "detail",
+          "citations",
+          "sources",
+          "model",
+          "prompt",
+          "created",
+          "reviewer_action"
+        ],
+        "title": "AiFinding",
+        "description": "A Pre-review finding of the LLM, every citation verified; advisory (ADR 0002)."
+      },
+      "AmbiguousValue": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ambiguous",
+            "title": "Type",
+            "default": "ambiguous"
+          },
+          "readings": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Readings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "readings"
+        ],
+        "title": "AmbiguousValue",
+        "description": "An observation that reads two ways: ask for confirmation, never guess."
+      },
+      "CheckFinding": {
+        "properties": {
+          "layer": {
+            "type": "string",
+            "const": "check",
+            "title": "Layer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "missing_signature",
+              "impossible_date_order",
+              "segregation_of_duties",
+              "out_of_limit_marked_pass",
+              "failed_result_no_deviation",
+              "vendor_protocol_not_approved",
+              "expired_calibration",
+              "calculation_error"
+            ],
+            "title": "Type"
+          },
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Cite"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "layer",
+          "type",
+          "doc",
+          "detail",
+          "citations",
+          "rule"
+        ],
+        "title": "CheckFinding",
+        "description": "A Pre-review finding of a deterministic rule: no model involved."
+      },
+      "Cite": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "page",
+          "quote"
+        ],
+        "title": "Cite",
+        "description": "Where a claim comes from: document, revision, page and the verbatim quote."
+      },
+      "DesignRow": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "printed": {
+            "type": "string",
+            "title": "Printed"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Range"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OneOf"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Present"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "number": "#/components/schemas/Number",
+                    "one_of": "#/components/schemas/OneOf",
+                    "present": "#/components/schemas/Present",
+                    "range": "#/components/schemas/Range",
+                    "text": "#/components/schemas/Text"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "name",
+          "printed",
+          "value",
+          "citation"
+        ],
+        "title": "DesignRow",
+        "description": "A datasheet or certificate value compared with the URS value."
+      },
+      "EvidenceStep": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "FAT",
+              "SAT"
+            ],
+            "title": "Stage"
+          },
+          "step": {
+            "type": "string",
+            "title": "Step"
+          },
+          "test": {
+            "type": "string",
+            "title": "Test"
+          },
+          "acceptance": {
+            "type": "string",
+            "title": "Acceptance"
+          },
+          "observed": {
+            "type": "string",
+            "title": "Observed"
+          },
+          "observed_value": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Range"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OneOf"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Present"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AmbiguousValue"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "ambiguous": "#/components/schemas/AmbiguousValue",
+                    "number": "#/components/schemas/Number",
+                    "one_of": "#/components/schemas/OneOf",
+                    "present": "#/components/schemas/Present",
+                    "range": "#/components/schemas/Range",
+                    "text": "#/components/schemas/Text"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Value"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "stage",
+          "step",
+          "test",
+          "acceptance",
+          "observed",
+          "observed_value",
+          "result",
+          "failure",
+          "citation"
+        ],
+        "title": "EvidenceStep",
+        "description": "A vendor FAT/SAT step linked to a requirement, with its verdict."
+      },
+      "Findings": {
+        "properties": {
+          "check_findings": {
+            "items": {
+              "$ref": "#/components/schemas/CheckFinding"
+            },
+            "type": "array",
+            "title": "Check Findings"
+          },
+          "ai_findings": {
+            "items": {
+              "$ref": "#/components/schemas/AiFinding"
+            },
+            "type": "array",
+            "title": "Ai Findings"
+          },
+          "required_documents": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocument"
+            },
+            "type": "array",
+            "title": "Required Documents"
+          },
+          "missing_documents": {
+            "items": {
+              "$ref": "#/components/schemas/MissingDocument"
+            },
+            "type": "array",
+            "title": "Missing Documents"
+          },
+          "site_rules": {
+            "items": {
+              "$ref": "#/components/schemas/SiteRuleCite"
+            },
+            "type": "array",
+            "title": "Site Rules"
+          },
+          "governing_documents": {
+            "items": {
+              "$ref": "#/components/schemas/GoverningDocument"
+            },
+            "type": "array",
+            "title": "Governing Documents"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "check_findings",
+          "ai_findings",
+          "required_documents",
+          "missing_documents",
+          "site_rules",
+          "governing_documents"
+        ],
+        "title": "Findings",
+        "description": "The Pre-review of a run: Check Findings and AI Findings kept apart, and the\ndocuments the VMP requires that the corpus lacks."
+      },
+      "GoverningDocument": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "rev"
+        ],
+        "title": "GoverningDocument",
+        "description": "A VMP or SOP the run read its required documents and site rules from."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Matrix": {
+        "properties": {
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/MatrixRow"
+            },
+            "type": "array",
+            "title": "Requirements"
+          },
+          "not_read": {
+            "items": {
+              "$ref": "#/components/schemas/NotRead"
+            },
+            "type": "array",
+            "title": "Not Read",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirements"
+        ],
+        "title": "Matrix",
+        "description": "The traceability matrix of a run."
+      },
+      "MatrixRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Cite"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Range"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OneOf"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Present"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "number": "#/components/schemas/Number",
+                    "one_of": "#/components/schemas/OneOf",
+                    "present": "#/components/schemas/Present",
+                    "range": "#/components/schemas/Range",
+                    "text": "#/components/schemas/Text"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_citation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "covered_by_vendor",
+                  "partial",
+                  "site_only",
+                  "gap",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "site_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Only"
+          },
+          "transport_sensitive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Sensitive"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceStep"
+            },
+            "type": "array",
+            "title": "Evidence",
+            "default": []
+          },
+          "design": {
+            "items": {
+              "$ref": "#/components/schemas/DesignRow"
+            },
+            "type": "array",
+            "title": "Design",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "source",
+          "value",
+          "value_citation",
+          "coverage",
+          "reason",
+          "site_only",
+          "transport_sensitive"
+        ],
+        "title": "MatrixRow",
+        "description": "One requirement: its text and value, Coverage class and reason, and Evidence."
+      },
+      "MissingDocument": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "design",
+              "FAT",
+              "SAT",
+              "IQ",
+              "OQ"
+            ],
+            "title": "Stage"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "type",
+          "stage",
+          "citation"
+        ],
+        "title": "MissingDocument",
+        "description": "A document the VMP requires that the corpus lacks."
+      },
+      "NotRead": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "rev",
+          "format"
+        ],
+        "title": "NotRead",
+        "description": "A vendor document the run could not read."
+      },
+      "Number": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "number",
+            "title": "Type",
+            "default": "number"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "unit"
+        ],
+        "title": "Number"
+      },
+      "OneOf": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "one_of",
+            "title": "Type",
+            "default": "one_of"
+          },
+          "allowed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Allowed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "allowed"
+        ],
+        "title": "OneOf"
+      },
+      "Present": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "present",
+            "title": "Type",
+            "default": "present"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Present",
+        "description": "A feature that must exist; ``value`` is set when an observation states it."
+      },
+      "Range": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "range",
+            "title": "Type",
+            "default": "range"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "unit"
+        ],
+        "title": "Range",
+        "description": "A required or tested range; either bound may be open."
+      },
+      "RequiredDocument": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "design",
+              "FAT",
+              "SAT",
+              "IQ",
+              "OQ"
+            ],
+            "title": "Stage"
+          },
+          "in_corpus": {
+            "type": "boolean",
+            "title": "In Corpus"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "type",
+          "stage",
+          "in_corpus",
+          "citation"
+        ],
+        "title": "RequiredDocument",
+        "description": "A document the VMP requires for the Equipment, with the annex row cited."
+      },
+      "RunSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "created": {
+            "type": "string",
+            "title": "Created"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "replay",
+              "live"
+            ],
+            "title": "Mode"
+          },
+          "pipeline_version": {
+            "type": "string",
+            "title": "Pipeline Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "created",
+          "equipment",
+          "model",
+          "mode",
+          "pipeline_version"
+        ],
+        "title": "RunSummary",
+        "description": "What identifies a run: its id, Equipment, model and mode."
+      },
+      "SiteRuleCite": {
+        "properties": {
+          "rule": {
+            "type": "string",
+            "enum": [
+              "signature_name_and_date",
+              "vendor_protocol_approved_before_execution",
+              "preparer_not_approver",
+              "checker_not_approver",
+              "performer_not_witness"
+            ],
+            "title": "Rule"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule",
+          "citation"
+        ],
+        "title": "SiteRuleCite",
+        "description": "A site rule read from the SOP, with the sentence that sets it."
+      },
+      "Source": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev"
+        ],
+        "title": "Source",
+        "description": "A document and revision an AI Finding cites."
+      },
+      "Text": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type",
+            "default": "text"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "Text"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

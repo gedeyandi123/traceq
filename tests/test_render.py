@@ -180,6 +180,9 @@ def test_every_document_validates(eq: Equipment) -> None:
         "CAL-TP201-01_rev0.pdf",
         "FDS-TP201_rev0.pdf",
         "RA-TP201_rev0.xlsx",
+        "VMP-001_rev3.pdf",
+        "SOP-VAL-002_rev2.pdf",
+        "VA-2025-011_rev0.pdf",
     }
     assert [p for r in rendered for p in missing_text(r)] == []
 

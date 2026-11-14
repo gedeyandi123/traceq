@@ -1,0 +1,181 @@
+{
+  "run_id": "20261113T214025Z-2c5590",
+  "created": "2026-11-13T21:40:25.511294+00:00",
+  "system": "traceq",
+  "pipeline_version": "0.3.0",
+  "mode": "live",
+  "settings": {
+    "vendor_reuse": true
+  },
+  "model": "claude-haiku-5-5",
+  "prompts": {
+    "segment": "0752fef1f3358d02220034af60b388a3871945f3bff09a779c85523b7f47e6a0",
+    "extract": "d912733cc3accb664f0f9c09838ecec4caa05bf8d967e4b513ea0786c352dc70",
+    "facts": "38a59b8b647ab5af9a63b1ce9bfa05a0ab1d2db5a545b5c064e5f1cedafb128d",
+    "link": "914fa1a4844c574d28fc05a8c7de5dcd336f59e55c523935f45e6bc0dc356828",
+    "vendor_assessment": "328083d109790adc466659533950578cfa4a41ba95d972f00667c7f99f25bd70",
+    "record": "6ce13f73300d68c716dde38522b5c26b1f13eae5bf7b88e6ace8584e7386878f",
+    "required_documents": "604b82ae801d7b99efb51e81b285ddaad30c9e1e0ce89e08465f8a196b7ebfad",
+    "site_rules": "55dce8aa92345e83c355de3e75353aaa7553f7ef215f1178fd458025cc837b50",
+    "ai_review": "82c5edcac961d401ce77a8a416298cd67ca8fa491f8ae639b362608529153dea",
+    "draft": "73f1a5e017d18b1ebec0e78811f4abf8f9b37796434ac0658f6afa0d80d058e6"
+  },
+  "corpus": {
+    "equipment": "TP-202",
+    "documents": [
+      {
+        "doc_id": "URS-TP202",
+        "rev": 0,
+        "sha256": "d94ea49192a71ca1b2fe8904f197c8cc66ed04856f4d6e6f877e1400e9f847af"
+      },
+      {
+        "doc_id": "FAT-TP202",
+        "rev": 0,
+        "sha256": "8cbf6c1710dc97487c19e1ceb582c8139b80058a67d479013031eca5ed4853cb"
+      },
+      {
+        "doc_id": "VA-2025-008",
+        "rev": 0,
+        "sha256": "934b8f890bfd924c3579cb7ce415cbbaf06a1e2ea3bb2c74c51f55eda493e62a"
+      },
+      {
+        "doc_id": "VMP-TP202",
+        "rev": 0,
+        "sha256": "fb0d5b6f9b604100436bf691499ca35256e844cd3d52693d3499eb88cf360640"
+      }
+    ]
+  },
+  "calls": {
+    "total": 53,
+    "replayed": 0,
+    "live": 53
+  },
+  "tokens": {
+    "input": 105302,
+    "output": 15087
+  },
+  "cost_usd": 0.009037,
+  "live_cost_usd": 0.009037,
+  "max_usd": 0.25,
+  "price_table": {
+    "batch_discount": 0.5
+  },
+  "dropped": [
+    {
+      "claim": "value",
+      "id": "URS-TP202-p1-04",
+      "reason": "quote not on page or value not in it"
+    },
+    {
+      "claim": "value",
+      "id": "URS-TP202-p1-06",
+      "reason": "quote not on page or value not in it"
+    },
+    {
+      "claim": "step",
+      "id": "FAT-TP202/TC-02",
+      "reason": "quote not on page"
+    },
+    {
+      "claim": "step",
+      "id": "FAT-TP202/TC-07",
+      "reason": "quote not on page"
+    },
+    {
+      "claim": "step",
+      "id": "FAT-TP202/TC-08",
+      "reason": "quote not on page"
+    },
+    {
+      "claim": "acceptance",
+      "id": "URS-TP202-p1-04",
+      "reason": "to be set by a human: quote not on the page"
+    },
+    {
+      "claim": "acceptance",
+      "id": "URS-TP202-p1-09",
+      "reason": "to be set by a human: no source cited"
+    },
+    {
+      "claim": "acceptance",
+      "id": "URS-TP202-p1-10",
+      "reason": "to be set by a human: no source cited"
+    },
+    {
+      "claim": "acceptance",
+      "id": "URS-TP202-p1-11",
+      "reason": "to be set by a human: no source cited"
+    },
+    {
+      "claim": "acceptance",
+      "id": "URS-TP202-p1-13",
+      "reason": "to be set by a human: no source cited"
+    },
+    {
+      "claim": "acceptance",
+      "id": "URS-TP202-p1-14",
+      "reason": "to be set by a human: no source cited"
+    }
+  ],
+  "ingest": [
+    {
+      "doc_id": "URS-TP202",
+      "rev": 0,
+      "format": "born_digital",
+      "engine": "Docling (pypdfium2 backend)",
+      "version": "docling-1",
+      "cached": true,
+      "pages": 2,
+      "seconds_per_page": [
+        33.61,
+        33.61
+      ],
+      "load_seconds": 0.0,
+      "peak_ram_bytes": 1152917504
+    },
+    {
+      "doc_id": "FAT-TP202",
+      "rev": 0,
+      "format": "born_digital",
+      "engine": "Docling (pypdfium2 backend)",
+      "version": "docling-1",
+      "cached": true,
+      "pages": 2,
+      "seconds_per_page": [
+        17.15,
+        17.15
+      ],
+      "load_seconds": 0.0,
+      "peak_ram_bytes": 1191530496
+    },
+    {
+      "doc_id": "VA-2025-008",
+      "rev": 0,
+      "format": "born_digital",
+      "engine": "Docling (pypdfium2 backend)",
+      "version": "docling-1",
+      "cached": true,
+      "pages": 1,
+      "seconds_per_page": [
+        9.03
+      ],
+      "load_seconds": 0.0,
+      "peak_ram_bytes": 1191530496
+    },
+    {
+      "doc_id": "VMP-TP202",
+      "rev": 0,
+      "format": "born_digital",
+      "engine": "Docling (pypdfium2 backend)",
+      "version": "docling-1",
+      "cached": true,
+      "pages": 1,
+      "seconds_per_page": [
+        9.96
+      ],
+      "load_seconds": 0.0,
+      "peak_ram_bytes": 1191530496
+    }
+  ],
+  "not_read": []
+}

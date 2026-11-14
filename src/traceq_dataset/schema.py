@@ -249,6 +249,12 @@ class Requirement(Model):
     superseded_spec: Spec | None = Field(
         None, description="Value in the superseded URS revision (scenario: rev 0 -> rev 1)."
     )
+    table_label: str | None = Field(
+        None,
+        description="Prose URS only: the requirement is a row of its section's unnumbered "
+        "table, with this label in the first column; without one it is a sentence of the "
+        "section's paragraph.",
+    )
 
     @model_validator(mode="after")
     def _value_in_quote(self) -> Requirement:
@@ -415,6 +421,9 @@ class Document(Model):
         "dq_report",
         "functional_spec",
         "risk_assessment",
+        "vmp",
+        "sop",
+        "vendor_assessment",
     ]
     title: str = Field("", description="Subtitle, e.g. 'Mechanical' for a FAT protocol.")
     language: Literal["id", "en"] = Field(description="Language of the printed text.")
@@ -442,6 +451,17 @@ class Document(Model):
     executed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     witnessed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     change_note: str = Field("", description="Revision history entry; empty for rev 0.")
+    layout: Literal["standard", "prose", "record"] = Field(
+        "standard",
+        description="standard: the TP-201 layouts; prose: a URS written as paragraphs and "
+        "unnumbered tables, with no requirement numbers; record: a FAT laid out as one "
+        "test record per step, with an as-built data table (design section 5, TP-202).",
+    )
+    attachments: tuple[str, ...] = Field(
+        (),
+        description="FAT only: attachments the document lists. None is bound into the "
+        "rendered file, so each one is a referenced attachment that is missing.",
+    )
     reviews: tuple[DocRef, ...] = Field(
         (),
         description="Documents a DQ report or risk assessment reviews, e.g. the URS and the "
@@ -451,6 +471,12 @@ class Document(Model):
     ROLES: ClassVar = ("prepared_by", "checked_by", "approved_by", "executed_by", "witnessed_by")
     DESIGN_TYPES: ClassVar = frozenset({"datasheet", "functional_spec", "material_certificate"})
     REVIEWING_TYPES: ClassVar = frozenset({"dq_report", "risk_assessment"})
+    GOVERNING_TYPES: ClassVar = frozenset({"vmp", "sop", "vendor_assessment"})
+    """Site documents outside an Equipment's package (design section 4): the VMP and SOP
+    govern every Equipment, the Vendor Assessment what the site may rely on from a vendor
+    (Coverage condition 1). They are not in an Equipment's ``required_documents``."""
+    LAYOUTS: ClassVar = {"prose": "urs", "record": "fat"}
+    """Document type each non-standard layout is for."""
 
 
 # --- Risk assessment ----------------------------------------------------------------
@@ -593,6 +619,21 @@ class Probe(Model):
     )
 
 
+class SiteRules(Model):
+    """Site rules the qualification SOP states that discovery may change (design section
+    12, **[D]**). Each changes the SOP text and is applied by re-rendering."""
+
+    witness: Literal["critical_aspects", "all"] = Field(
+        description="Test Steps that need a Witness: those that verify a Critical Aspect "
+        "(design default) or every Test Step."
+    )
+    protocols: Literal["template", "copied"] = Field(
+        description="How the site writes IQ/OQ protocols: from its template (design "
+        "default, no 'leftover from another Equipment' defect) or copied from similar "
+        "Equipment."
+    )
+
+
 class RequiredDocument(Model):
     """A document the VMP requires for this Equipment (design section 6, "Documents that
     should exist"). ``missing`` says why it is not in the corpus."""
@@ -642,6 +683,12 @@ class Equipment(Model):
     probes: tuple[Probe, ...] = ()
     documents: tuple[Document, ...] = ()
     required_documents: tuple[RequiredDocument, ...] = ()
+    site_rules: SiteRules | None = Field(None, description="Rendered by the SOP.")
+    urs_intros: dict[str, str] = Field(
+        default_factory=dict,
+        description="Prose URS only: the opening sentence of a section, keyed by section. "
+        "It states no requirement, so segmentation must leave it out.",
+    )
 
     @model_validator(mode="after")
     def _references(self) -> Equipment:
@@ -724,6 +771,12 @@ class Equipment(Model):
         ]
         if d.rev > 0 and not d.change_note:
             errors.append(f"{name}: needs a change_note")
+        if d.layout in Document.LAYOUTS and d.type != Document.LAYOUTS[d.layout]:
+            errors.append(f"{name}: layout {d.layout} is for a {Document.LAYOUTS[d.layout]}")
+        if d.attachments and d.type != "fat":
+            errors.append(f"{name}: only a FAT lists attachments")
+        if d.type == "urs":
+            errors += self._urs_layout_errors(d, name)
         if d.type in ("fat", "sat"):
             return errors + self._protocol_document_errors(d, name)
         if d.entry_language is not None:
@@ -733,7 +786,17 @@ class Equipment(Model):
         errors += [
             f"{name}: {d.type} has no {r}" for r in ("executed_by", "witnessed_by") if getattr(d, r)
         ]
-        if d.type in ("urs", "dq_report", "risk_assessment"):
+        if d.type == "sop" and self.site_rules is None:
+            errors.append(f"{name}: sop needs site_rules")
+        if d.type == "vmp" and not self.required_documents:
+            errors.append(f"{name}: vmp needs required_documents")
+        if d.type == "vendor_assessment":
+            assessment = self.vendor.assessment
+            if assessment is None:
+                errors.append(f"{name}: vendor_assessment needs vendor.assessment")
+            elif d.issued_on != assessment.assessed_on:
+                errors.append(f"{name}: issued_on is not vendor.assessment.assessed_on")
+        if d.type in ("urs", "dq_report", "risk_assessment", *Document.GOVERNING_TYPES):
             errors += [
                 f"{name}: {d.type} needs {r}"
                 for r in ("checked_by", "approved_by")
@@ -781,6 +844,27 @@ class Equipment(Model):
                 errors.append(f"{name}: issued before calibration")
         return errors
 
+    def _urs_layout_errors(self, d: Document, name: str) -> list[str]:
+        """A prose URS prints no Kritis column for its sentences, so a critical requirement
+        goes in a table; table labels and intros belong to a prose URS only."""
+        if d.layout != "prose":
+            errors = [
+                f"{name}: table_label {r.id} needs a prose URS"
+                for r in self.requirements
+                if r.table_label is not None
+            ]
+            return errors + ([f"{name}: urs_intros need a prose URS"] if self.urs_intros else [])
+        sections = {r.section for r in self.requirements}
+        return [
+            f"{name}: {r.id} is critical, so it needs a table_label"
+            for r in self.requirements
+            if r.critical and r.table_label is None
+        ] + [
+            f"{name}: urs_intros names unknown section {s!r}"
+            for s in self.urs_intros
+            if s not in sections
+        ]
+
     def _risk_errors(self) -> list[str]:
         """One FMEA row per requirement; its criticality agrees with the URS."""
         ra = self.risk_assessment
@@ -818,6 +902,13 @@ class Equipment(Model):
         ]
         if (d.approved_by is None) != (protocol.site_approved_on is None):
             errors.append(f"{name}: approved_by must match the protocol's site approval")
+        for e in self.designs:
+            if e.doc_id != d.id:
+                continue
+            if d.layout != "record":
+                errors.append(f"{name}: only a record-layout FAT holds as-built data")
+            elif e.label is None:
+                errors.append(f"{name}: as-built {e.requirement} needs a label")
         return errors
 
     def _probe_errors(self) -> list[str]:
@@ -859,13 +950,14 @@ class Equipment(Model):
         errors: list[str] = []
         rendered = {(d.id, d.rev) for d in self.documents}
         rendered_ids = {d.id for d in self.documents}
+        governing = {d.id for d in self.documents if d.type in Document.GOVERNING_TYPES}
         required = {d.id: d for d in self.required_documents}
         if len(required) != len(self.required_documents):
             errors.append("duplicate required document")
         if self.required_documents:
             errors += [
                 f"{i}: rendered but not in required_documents"
-                for i in sorted(rendered_ids - set(required))
+                for i in sorted(rendered_ids - governing - set(required))
             ]
         for d in self.required_documents:
             if d.missing is None and d.id not in rendered_ids:

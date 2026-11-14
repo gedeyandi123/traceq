@@ -1,0 +1,17 @@
+# TP-202 answer key: documents.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: URS-TP202
+  type: urs
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: URS-TP202_rev0.pdf}
+- id: FAT-TP202
+  type: fat
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: FAT-TP202_rev0.pdf}
+- {id: IQ-TP202, type: iq_protocol, stage: IQ, status: expected_gap}
+- {id: OQ-TP202, type: oq_protocol, stage: OQ, status: expected_gap}

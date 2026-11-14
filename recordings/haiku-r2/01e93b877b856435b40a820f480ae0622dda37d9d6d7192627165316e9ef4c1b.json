@@ -1,0 +1,133 @@
+{
+  "doc_sha256": "cbf3e72a3be0963d0474b96cdde5eb7b51df7a688a69fb52e5860afb504f292a",
+  "key": "01e93b877b856435b40a820f480ae0622dda37d9d6d7192627165316e9ef4c1b",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "draft",
+  "prompt_hash": "73f1a5e017d18b1ebec0e78811f4abf8f9b37796434ac0658f6afa0d80d058e6",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "enum": [
+                "range",
+                "number",
+                "one_of",
+                "text",
+                "present",
+                "none"
+              ],
+              "type": "string"
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "number": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max",
+            "number",
+            "unit",
+            "allowed",
+            "text"
+          ],
+          "type": "object"
+        },
+        "acceptance_source": {
+          "additionalProperties": false,
+          "properties": {
+            "doc": {
+              "type": "string"
+            },
+            "page": {
+              "type": "integer"
+            },
+            "quote": {
+              "type": "string"
+            },
+            "rev": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "doc",
+            "rev",
+            "page",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "instrument": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "method",
+        "instrument",
+        "acceptance",
+        "acceptance_source"
+      ],
+      "type": "object"
+    },
+    "system": "You draft one IQ/OQ Test Step for one URS requirement of pharmaceutical equipment. You get the requirement with its verified value and Coverage class, the vendor Evidence linked to it with why it does not prove the requirement, and the pages of the source documents.\ndescription: what the step verifies, one sentence.\nmethod: how to perform it, executable at the site; test the upper and lower limits or the worst case where the requirement has them.\ninstrument: the measuring instrument to use; null when the step measures nothing.\nacceptance: the Acceptance Criterion, only when a source page prints it. kind: range (min and/or max), number, one_of (accepted texts in allowed, exactly as printed), text, present (a feature that must exist), or none. Numbers are plain JSON numbers (Indonesian documents write 1.000 for one thousand and 0,5 for one half); unit: a short English unit symbol such as mm, kN, rpm or °C.\nacceptance_source: where the AC is printed: doc and rev of one of the given sources, the page number and a verbatim quote, at most 200 characters, that states the AC with its numbers as printed. Copy characters exactly.\nNever invent, round or tighten a limit. If no source prints an AC for this requirement, answer kind none and acceptance_source null: a human sets it.",
+    "user": "{\n \"requirement\": {\n  \"id\": \"URS-TP201-012\",\n  \"text\": \"Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\",\n  \"value\": {\n   \"type\": \"one_of\",\n   \"allowed\": [\n    \"EPDM\",\n    \"silicone\"\n   ]\n  },\n  \"value_citation\": {\n   \"doc\": \"URS-TP201\",\n   \"rev\": 1,\n   \"page\": 1,\n   \"quote\": \"URS-TP201-012 Tidak Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\"\n  },\n  \"coverage\": \"gap\",\n  \"reason\": \"no FAT/SAT step addresses it\"\n },\n \"evidence\": [],\n \"sources\": [\n  {\n   \"doc\": \"URS-TP201\",\n   \"rev\": 1,\n   \"page\": 1,\n   \"text\": \"Spesifikasi Kebutuhan Pengguna (SKP)\\nNomor dokumen URS-TP201\\nRevisi 1\\nTanggal berlaku 29/10/2025\\nPeralatan TP-201 – Rotary tablet press (single-sided)\\nTujuan\\nDokumen ini menetapkan kebutuhan pengguna untuk TP-201. Persyaratan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\\n1. Kinerja\\nNo. Kritis Persyaratan\\nURS-TP201-001 Tidak Mesin memiliki 36 stasiun punch.\\nURS-TP201-002 Ya Kecepatan turret dapat diatur pada rentang 20–70 rpm.\\nURS-TP201-003 Ya Kapasitas produksi minimal 120.000 tablet/jam.\\nURS-TP201-004 Ya Gaya tekan utama yang dapat dicapai minimal 100 kN.\\nURS-TP201-005 Tidak Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\\nURS-TP201-006 Tidak Diameter tablet maksimal 25 mm.\\nURS-TP201-007 Tidak Kedalaman pengisian maksimal 18 mm.\\nURS-TP201-008 Tidak Mesin menggunakan tooling tipe EU D.\\n2. Material dan konstruksi\\nNo. Kritis Persyaratan\\nURS-TP201-009 Ya Semua bagian yang kontak dengan produk terbuat dari SS 316L.\\nURS-TP201-010 Tidak Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm.\\nURS-TP201-011 Tidak Bagian yang tidak kontak dengan produk terbuat dari SS 304.\\nURS-TP201-012 Tidak Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\\nURS-TP201-013 Tidak Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade.\\n3. Kontrol dan keselamatan\\nNo. Kritis Persyaratan\\nURS-TP201-014 Ya Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan.\\nURS-TP201-015 Ya Tablet di luar batas berat ditolak otomatis.\\nURS-TP201-016 Ya Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh.\\nURS-TP201-017 Tidak Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm.\\nURS-TP201-018 Ya Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.\\nURS-TP201-019 Ya Tombol emergency stop tersedia dan berfungsi.\\nURS-TP201-020 Tidak Mesin berhenti otomatis saat terjadi overload pada punch.\\n4. Integritas data HMI\\nNo. Kritis Persyaratan\\nURS-TP201-021 Ya HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin).\\nURS-TP201-022 Ya HMI merekam audit trail untuk setiap perubahan parameter dan resep.\\nURS-TP201-023 Tidak HMI menyimpan log alarm beserta waktu dan pengguna.\"\n  }\n ]\n}"
+  },
+  "response": {
+    "input_tokens": 2740,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 246,
+    "text": "{\"description\":\"Verify that gaskets and seals in contact with the product are made of EPDM or silicone, by checking material certificates and visual identification against the equipment inventory.\",\"method\":\"Compile the list of all gaskets and seals whose surfaces contact the product (e.g. feed frame, hopper and turret seals). For each item, check the material certificate or the marking on the component against the material documentation supplied by the vendor and confirm it is EPDM or silicone. Record any item that is neither. Verify the list is complete by walking the product-contact zones during the inspection.\",\"instrument\":null,\"acceptance\":{\"kind\":\"none\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"allowed\":[],\"text\":null},\"acceptance_source\":null}"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "run_id": "20261113T090000Z-f1a2b3",
+  "equipment": "TP-201",
+  "split": "dev",
+  "scorer_version": "0.5.0",
+  "gates_passed": true,
+  "rates": [
+    {
+      "metric": "extraction_accuracy",
+      "k": 31,
+      "n": 38,
+      "rate": 0.8158,
+      "better": "higher"
+    },
+    {
+      "metric": "citation_groundedness",
+      "k": 84,
+      "n": 91,
+      "rate": 0.9231,
+      "better": "higher"
+    },
+    {
+      "metric": "defect_recall",
+      "k": 5,
+      "n": 7,
+      "rate": 0.7143,
+      "better": "higher"
+    },
+    {
+      "metric": "fabrication_rate",
+      "k": 0,
+      "n": 129,
+      "rate": 0.0,
+      "better": "lower"
+    },
+    {
+      "metric": "probe_fabrication_rate",
+      "k": 0,
+      "n": 6,
+      "rate": 0.0,
+      "better": "lower"
+    },
+    {
+      "metric": "ocr_exact_match",
+      "k": 29,
+      "n": 36,
+      "rate": 0.8056,
+      "better": "higher"
+    },
+    {
+      "metric": "ocr_entry_recall",
+      "k": 34,
+      "n": 36,
+      "rate": 0.9444,
+      "better": "higher"
+    },
+    {
+      "metric": "ocr_cer",
+      "k": 41,
+      "n": 371,
+      "rate": 0.1105,
+      "better": "lower"
+    }
+  ],
+  "model": "claude-haiku-5-5",
+  "mode": "replay",
+  "cost_usd": 0.0012
+}

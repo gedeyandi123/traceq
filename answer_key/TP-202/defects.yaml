@@ -1,0 +1,48 @@
+# TP-202 answer key: defects.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: D-TP202-001
+  scenario: S1
+  type: failed_result_no_deviation
+  severity: major
+  layer: rule
+  reference:
+    primary: CPOB 12.16
+    equivalents: []
+  detail: TC-03 records 76 kN against a requirement of at least 80 kN and is marked FAIL, but section
+    D says no deviations were raised; the failure needs a Deviation and its assessment before the FAT
+    is relied on.
+  documents:
+  - {doc: FAT-TP202, rev: 0}
+  locations:
+  - {doc: FAT-TP202, rev: 0, page: 1, field: TC-03.observed, text: 76 kN}
+  - {doc: FAT-TP202, rev: 0, page: 1, field: TC-03.result, text: FAIL}
+  - {doc: FAT-TP202, rev: 0, page: 2, field: deviations, text: No deviations were raised during the test.}
+- id: D-TP202-002
+  scenario: S2
+  type: missing_attachment
+  severity: major
+  layer: rule+llm
+  reference:
+    primary: CPOB Ch. 10
+    equivalents: []
+  detail: Section E lists Attachment 1, a noise level measurement, but the record has no attachment and
+    no test record for noise; the URS noise limit of 80 dB(A) has no Evidence.
+  documents:
+  - {doc: FAT-TP202, rev: 0}
+  locations:
+  - {doc: FAT-TP202, rev: 0, page: 2, field: attachment.1, text: 'Attachment 1: Noise level measurement
+      at 1 m from the machine'}
+- id: D-TP202-003
+  scenario: S3
+  type: design_conflict
+  severity: major
+  layer: llm
+  reference: null
+  detail: The as-built machine data in FAT-TP202 give 41 punch stations; the URS requires at least 45.
+  documents:
+  - {doc: URS-TP202, rev: 0}
+  - {doc: FAT-TP202, rev: 0}
+  locations:
+  - {doc: URS-TP202, rev: 0, page: 1, field: URS-TP202-001, text: Minimal 45 stasiun punch.}
+  - {doc: FAT-TP202, rev: 0, page: 1, field: as_built.punch_stations, text: 41 stations}

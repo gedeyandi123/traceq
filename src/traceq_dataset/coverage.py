@@ -9,12 +9,14 @@ Order of evaluation:
    otherwise ``partial``. The reason names the first condition that failed.
 
 A step counts as Evidence only if its observation actually meets the URS. A step
-recorded "pass" with an out-of-limit value (planted defect) does not prove anything.
+recorded "pass" with an out-of-limit value (planted defect) does not prove anything, and
+neither does a result whose print reads two ways until a human confirms it.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 
 from traceq_dataset.schema import (
@@ -103,8 +105,10 @@ def classify(
     designs: Iterable[DesignEvidence],
     protocols: Mapping[str, VendorProtocol],
     vendors: Mapping[str, Vendor],
+    awaiting: AbstractSet[str] = frozenset(),
 ) -> CoverageResult:
-    """Apply the decision table to one requirement. Inputs may hold other requirements' data."""
+    """Apply the decision table to one requirement. Inputs may hold other requirements' data.
+    ``awaiting``: steps whose printed result reads two ways (``render.awaiting_confirmation``)."""
     tests, designs = list(tests), list(designs)
     _require_filled(req, tests, designs)
     for fact in designs:
@@ -122,7 +126,7 @@ def classify(
     qualifying: list[VendorProtocol] = []
     for step in steps:
         protocol = protocols[step.protocol]
-        failure = step_failure(req, step, protocol, vendors[protocol.vendor])
+        failure = step_failure(req, step, protocol, vendors[protocol.vendor], step.step in awaiting)
         if failure is None:
             qualifying.append(protocol)
         else:
@@ -146,8 +150,16 @@ def _require_filled(
 
 
 def step_failure(
-    req: Requirement, step: TestEvidence, protocol: VendorProtocol, vendor: Vendor
+    req: Requirement,
+    step: TestEvidence,
+    protocol: VendorProtocol,
+    vendor: Vendor,
+    awaiting: bool = False,
 ) -> str | None:
+    """The first decision-table condition the step fails. A result awaiting confirmation (its
+    print reads two ways) fails before any other: nobody knows yet what it shows."""
+    if awaiting:
+        return "value awaits confirmation"
     if not proves(req, step):
         return "result does not meet the URS"
     assessment = vendor.assessment

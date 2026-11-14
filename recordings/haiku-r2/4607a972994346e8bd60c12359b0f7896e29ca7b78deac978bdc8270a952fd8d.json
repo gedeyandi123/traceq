@@ -1,0 +1,54 @@
+{
+  "doc_sha256": "00fae3509f8199088287711a049583a1d400cfa4817a91a3ba7ea01e952b90f2",
+  "key": "4607a972994346e8bd60c12359b0f7896e29ca7b78deac978bdc8270a952fd8d",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "segment",
+  "prompt_hash": "0752fef1f3358d02220034af60b388a3871945f3bff09a779c85523b7f47e6a0",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "requirements": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "quote": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "requirements"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a User Requirements Specification (URS) for pharmaceutical equipment. List every requirement on the page, numbered or not. A URS may number its requirements, or state them in prose or in tables without numbers: then each sentence that states one requirement, or each table row that states one, is one requirement; a sentence that states two is two.\n- id: the requirement number exactly as printed; null when the page prints none for it. Never invent a number.\n- text: the requirement sentence or table row exactly as printed.\n- quote: a verbatim excerpt of the page, at most 200 characters, that contains the requirement sentence or table row and nothing of the next requirement. Copy characters exactly; never paraphrase or translate.\nSkip headings, introductions, revision history and approval blocks. If the page has no requirement, return an empty list.\nExample (invented). Page text:\n4 Cleaning\nThe mixer bowl drains completely. Seals are replaceable without tools.\nNoise | at most 75 dB(A)\nAnswer: the requirements 'The mixer bowl drains completely.', 'Seals are replaceable without tools.' and 'Noise | at most 75 dB(A)', each with id null and the same text as quote.",
+    "user": "Document URS-TP201, revision 1, page 1.\n\n<page>\nSpesifikasi Kebutuhan Pengguna (SKP)\nNomor dokumen URS-TP201\nRevisi 1\nTanggal berlaku 29/10/2025\nPeralatan TP-201 – Rotary tablet press (single-sided)\nTujuan\nDokumen ini menetapkan kebutuhan pengguna untuk TP-201. Persyaratan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\n1. Kinerja\nNo. Kritis Persyaratan\nURS-TP201-001 Tidak Mesin memiliki 36 stasiun punch.\nURS-TP201-002 Ya Kecepatan turret dapat diatur pada rentang 20–70 rpm.\nURS-TP201-003 Ya Kapasitas produksi minimal 120.000 tablet/jam.\nURS-TP201-004 Ya Gaya tekan utama yang dapat dicapai minimal 100 kN.\nURS-TP201-005 Tidak Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\nURS-TP201-006 Tidak Diameter tablet maksimal 25 mm.\nURS-TP201-007 Tidak Kedalaman pengisian maksimal 18 mm.\nURS-TP201-008 Tidak Mesin menggunakan tooling tipe EU D.\n2. Material dan konstruksi\nNo. Kritis Persyaratan\nURS-TP201-009 Ya Semua bagian yang kontak dengan produk terbuat dari SS 316L.\nURS-TP201-010 Tidak Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm.\nURS-TP201-011 Tidak Bagian yang tidak kontak dengan produk terbuat dari SS 304.\nURS-TP201-012 Tidak Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\nURS-TP201-013 Tidak Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade.\n3. Kontrol dan keselamatan\nNo. Kritis Persyaratan\nURS-TP201-014 Ya Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan.\nURS-TP201-015 Ya Tablet di luar batas berat ditolak otomatis.\nURS-TP201-016 Ya Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh.\nURS-TP201-017 Tidak Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm.\nURS-TP201-018 Ya Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.\nURS-TP201-019 Ya Tombol emergency stop tersedia dan berfungsi.\nURS-TP201-020 Tidak Mesin berhenti otomatis saat terjadi overload pada punch.\n4. Integritas data HMI\nNo. Kritis Persyaratan\nURS-TP201-021 Ya HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin).\nURS-TP201-022 Ya HMI merekam audit trail untuk setiap perubahan parameter dan resep.\nURS-TP201-023 Tidak HMI menyimpan log alarm beserta waktu dan pengguna.\n</page>"
+  },
+  "response": {
+    "input_tokens": 1947,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 2069,
+    "text": "{\"requirements\":[{\"id\":\"URS-TP201-001\",\"text\":\"Mesin memiliki 36 stasiun punch.\",\"quote\":\"URS-TP201-001 Tidak Mesin memiliki 36 stasiun punch.\"},{\"id\":\"URS-TP201-002\",\"text\":\"Kecepatan turret dapat diatur pada rentang 20–70 rpm.\",\"quote\":\"URS-TP201-002 Ya Kecepatan turret dapat diatur pada rentang 20–70 rpm.\"},{\"id\":\"URS-TP201-003\",\"text\":\"Kapasitas produksi minimal 120.000 tablet/jam.\",\"quote\":\"URS-TP201-003 Ya Kapasitas produksi minimal 120.000 tablet/jam.\"},{\"id\":\"URS-TP201-004\",\"text\":\"Gaya tekan utama yang dapat dicapai minimal 100 kN.\",\"quote\":\"URS-TP201-004 Ya Gaya tekan utama yang dapat dicapai minimal 100 kN.\"},{\"id\":\"URS-TP201-005\",\"text\":\"Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\",\"quote\":\"URS-TP201-005 Tidak Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\"},{\"id\":\"URS-TP201-006\",\"text\":\"Diameter tablet maksimal 25 mm.\",\"quote\":\"URS-TP201-006 Tidak Diameter tablet maksimal 25 mm.\"},{\"id\":\"URS-TP201-007\",\"text\":\"Kedalaman pengisian maksimal 18 mm.\",\"quote\":\"URS-TP201-007 Tidak Kedalaman pengisian maksimal 18 mm.\"},{\"id\":\"URS-TP201-008\",\"text\":\"Mesin menggunakan tooling tipe EU D.\",\"quote\":\"URS-TP201-008 Tidak Mesin menggunakan tooling tipe EU D.\"},{\"id\":\"URS-TP201-009\",\"text\":\"Semua bagian yang kontak dengan produk terbuat dari SS 316L.\",\"quote\":\"URS-TP201-009 Ya Semua bagian yang kontak dengan produk terbuat dari SS 316L.\"},{\"id\":\"URS-TP201-010\",\"text\":\"Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm.\",\"quote\":\"URS-TP201-010 Tidak Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm.\"},{\"id\":\"URS-TP201-011\",\"text\":\"Bagian yang tidak kontak dengan produk terbuat dari SS 304.\",\"quote\":\"URS-TP201-011 Tidak Bagian yang tidak kontak dengan produk terbuat dari SS 304.\"},{\"id\":\"URS-TP201-012\",\"text\":\"Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\",\"quote\":\"URS-TP201-012 Tidak Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\"},{\"id\":\"URS-TP201-013\",\"text\":\"Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade.\",\"quote\":\"URS-TP201-013 Tidak Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade.\"},{\"id\":\"URS-TP201-014\",\"text\":\"Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan.\",\"quote\":\"URS-TP201-014 Ya Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan.\"},{\"id\":\"URS-TP201-015\",\"text\":\"Tablet di luar batas berat ditolak otomatis.\",\"quote\":\"URS-TP201-015 Ya Tablet di luar batas berat ditolak otomatis.\"},{\"id\":\"URS-TP201-016\",\"text\":\"Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh.\",\"quote\":\"URS-TP201-016 Ya Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh.\"},{\"id\":\"URS-TP201-017\",\"text\":\"Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm.\",\"quote\":\"URS-TP201-017 Tidak Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm.\"},{\"id\":\"URS-TP201-018\",\"text\":\"Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.\",\"quote\":\"URS-TP201-018 Ya Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.\"},{\"id\":\"URS-TP201-019\",\"text\":\"Tombol emergency stop tersedia dan berfungsi.\",\"quote\":\"URS-TP201-019 Ya Tombol emergency stop tersedia dan berfungsi.\"},{\"id\":\"URS-TP201-020\",\"text\":\"Mesin berhenti otomatis saat terjadi overload pada punch.\",\"quote\":\"URS-TP201-020 Tidak Mesin berhenti otomatis saat terjadi overload pada punch.\"},{\"id\":\"URS-TP201-021\",\"text\":\"HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin).\",\"quote\":\"URS-TP201-021 Ya HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin).\"},{\"id\":\"URS-TP201-022\",\"text\":\"HMI merekam audit trail untuk setiap perubahan parameter dan resep.\",\"quote\":\"URS-TP201-022 Ya HMI merekam audit trail untuk setiap perubahan parameter dan resep.\"},{\"id\":\"URS-TP201-023\",\"text\":\"HMI menyimpan log alarm beserta waktu dan pengguna.\",\"quote\":\"URS-TP201-023 Tidak HMI menyimpan log alarm beserta waktu dan pengguna.\"}]}"
+  }
+}

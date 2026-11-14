@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 
 from traceq_dataset.coverage import classify
+from traceq_dataset.render import awaiting_confirmation
 from traceq_dataset.schema import CoverageClass, Equipment
 
 TARGET_SHARE = {  # design section 6, TP-201
@@ -40,9 +41,10 @@ def disagreements(eq: Equipment) -> list[str]:
     """Requirements whose decision-table class differs from the intended one."""
     protocols = {p.doc_id: p for p in eq.protocols}
     vendors = {eq.vendor.id: eq.vendor}
+    awaiting = awaiting_confirmation(eq)
     out = []
     for r in eq.requirements:
-        got = classify(r, eq.tests, eq.designs, protocols, vendors)
+        got = classify(r, eq.tests, eq.designs, protocols, vendors, awaiting)
         if got.coverage is not r.intended_coverage:
             out.append(f"{r.id}: intended {r.intended_coverage}, got {got.coverage} ({got.reason})")
     return out

@@ -13,10 +13,18 @@ from pathlib import Path
 
 import pytest
 
+from traceq.ai.port import Prompt
+from traceq.protocols.prompts import PROMPTS as PROTOCOLS
+from traceq.review.prompts import PROMPTS as REVIEW
+from traceq.traceability.prompts import PROMPTS as TRACEABILITY
+from traceq_dataset.answer_key import load_key
+from traceq_eval.citations import norm
+
 SRC = Path(__file__).parents[1] / "src"
 HARNESS = {"traceq_dataset", "traceq_eval"}
 FORBIDDEN_IMPORTS = HARNESS
-FORBIDDEN_TEXT = ("answer_key", "world/", "world\\", "tp201.yaml", "baselines/")
+PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS)
+FORBIDDEN_TEXT = ("answer_key", "world/", "world\\", "tp201.yaml", "tp202.yaml", "baselines/")
 
 
 def system_files() -> list[Path]:
@@ -52,3 +60,24 @@ def test_guard_catches_a_leak(tmp_path: Path) -> None:
     bad = tmp_path / "prompt.py"
     bad.write_text("from traceq_dataset.answer_key import derive\nP = 'answer_key/TP-201'\n")
     assert leaks(bad) == ["mentions 'answer_key'", "imports traceq_dataset.answer_key"]
+
+
+def copied(prompt: str, equipment: str) -> list[str]:
+    """What a prompt takes from a dataset Equipment: its tag, or one of its URS requirements
+    as printed."""
+    key = load_key(SRC.parent / "answer_key" / equipment)
+    texts = [norm(r["text"]) for r in key["requirements.yaml"]]
+    text = norm(prompt)
+    return [t for t in [equipment, *texts] if t in text]
+
+
+@pytest.mark.parametrize("prompt", PROMPTS, ids=lambda p: p.name)
+@pytest.mark.parametrize("equipment", ["TP-201", "TP-202"])
+def test_prompt_examples_are_invented(equipment: str, prompt: Prompt) -> None:
+    """Examples are invented, never taken from the development or the held-out Equipment."""
+    assert copied(prompt.system, equipment) == []
+
+
+def test_copy_guard_catches_a_requirement() -> None:
+    first = load_key(SRC.parent / "answer_key" / "TP-202")["requirements.yaml"][0]["text"]
+    assert copied(f"Example: {first}", "TP-202") == [norm(first)]

@@ -56,6 +56,17 @@ def perfect(key: Key, equipment: str) -> Submission:
         }
         for d in key["defects.yaml"]
     ]
+    planted = {d["scenario"] for d in key["defects.yaml"] if d["type"] == "ambiguous_value"}
+    findings += [
+        {
+            "type": "ambiguous_value",
+            "detail": f"'{loc['text']}' reads two ways; ask for confirmation",
+            "citations": [{**_where(loc), "quote": loc["text"]}],
+        }
+        for a in key["ambiguous.yaml"]
+        if a.get("scenario") not in planted
+        for loc in [a["location"]]
+    ]
     missing = [
         {"type": d["type"], "stage": d["stage"], "id": d["id"]}
         for d in key["documents.yaml"]

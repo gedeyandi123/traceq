@@ -1,0 +1,133 @@
+{
+  "doc_sha256": "e703654cae0e4d6b8f0ebfa299b4eed35c29c0e6bd07180e6a86d536cd9178eb",
+  "key": "a9eb16a96fd2b731bd01e69bcf4d805412be92526d3a92d635ec8705a1ccade9",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "draft",
+  "prompt_hash": "73f1a5e017d18b1ebec0e78811f4abf8f9b37796434ac0658f6afa0d80d058e6",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "enum": [
+                "range",
+                "number",
+                "one_of",
+                "text",
+                "present",
+                "none"
+              ],
+              "type": "string"
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "number": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max",
+            "number",
+            "unit",
+            "allowed",
+            "text"
+          ],
+          "type": "object"
+        },
+        "acceptance_source": {
+          "additionalProperties": false,
+          "properties": {
+            "doc": {
+              "type": "string"
+            },
+            "page": {
+              "type": "integer"
+            },
+            "quote": {
+              "type": "string"
+            },
+            "rev": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "doc",
+            "rev",
+            "page",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "instrument": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "method",
+        "instrument",
+        "acceptance",
+        "acceptance_source"
+      ],
+      "type": "object"
+    },
+    "system": "You draft one IQ/OQ Test Step for one URS requirement of pharmaceutical equipment. You get the requirement with its verified value and Coverage class, the vendor Evidence linked to it with why it does not prove the requirement, and the pages of the source documents.\ndescription: what the step verifies, one sentence.\nmethod: how to perform it, executable at the site; test the upper and lower limits or the worst case where the requirement has them.\ninstrument: the measuring instrument to use; null when the step measures nothing.\nacceptance: the Acceptance Criterion, only when a source page prints it. kind: range (min and/or max), number, one_of (accepted texts in allowed, exactly as printed), text, present (a feature that must exist), or none. Numbers are plain JSON numbers (Indonesian documents write 1.000 for one thousand and 0,5 for one half); unit: a short English unit symbol such as mm, kN, rpm or °C.\nacceptance_source: where the AC is printed: doc and rev of one of the given sources, the page number and a verbatim quote, at most 200 characters, that states the AC with its numbers as printed. Copy characters exactly.\nNever invent, round or tighten a limit. If no source prints an AC for this requirement, answer kind none and acceptance_source null: a human sets it.",
+    "user": "{\n \"requirement\": {\n  \"id\": \"URS-TP201-005\",\n  \"text\": \"Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\",\n  \"value\": {\n   \"type\": \"number\",\n   \"value\": 20.0,\n   \"unit\": \"kN\"\n  },\n  \"value_citation\": {\n   \"doc\": \"URS-TP201\",\n   \"rev\": 1,\n   \"page\": 1,\n   \"quote\": \"URS-TP201-005 Tidak Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\"\n  },\n  \"coverage\": \"partial\",\n  \"reason\": \"SAT-02: result does not meet the URS\"\n },\n \"evidence\": [\n  {\n   \"doc\": \"SAT-TP201\",\n   \"step\": \"SAT-02\",\n   \"test\": \"Set pre-compression to maximum; read the force on the HMI\",\n   \"acceptance\": \"≥ 20 kN\",\n   \"observed\": \"20,4 kN\",\n   \"failure\": \"result does not meet the URS\"\n  }\n ],\n \"sources\": [\n  {\n   \"doc\": \"URS-TP201\",\n   \"rev\": 1,\n   \"page\": 1,\n   \"text\": \"Spesifikasi Kebutuhan Pengguna (SKP)\\nNomor dokumen URS-TP201\\nRevisi 1\\nTanggal berlaku 29/10/2025\\nPeralatan TP-201 – Rotary tablet press (single-sided)\\nTujuan\\nDokumen ini menetapkan kebutuhan pengguna untuk TP-201. Persyaratan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\\n1. Kinerja\\nNo. Kritis Persyaratan\\nURS-TP201-001 Tidak Mesin memiliki 36 stasiun punch.\\nURS-TP201-002 Ya Kecepatan turret dapat diatur pada rentang 20–70 rpm.\\nURS-TP201-003 Ya Kapasitas produksi minimal 120.000 tablet/jam.\\nURS-TP201-004 Ya Gaya tekan utama yang dapat dicapai minimal 100 kN.\\nURS-TP201-005 Tidak Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\\nURS-TP201-006 Tidak Diameter tablet maksimal 25 mm.\\nURS-TP201-007 Tidak Kedalaman pengisian maksimal 18 mm.\\nURS-TP201-008 Tidak Mesin menggunakan tooling tipe EU D.\\n2. Material dan konstruksi\\nNo. Kritis Persyaratan\\nURS-TP201-009 Ya Semua bagian yang kontak dengan produk terbuat dari SS 316L.\\nURS-TP201-010 Tidak Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm.\\nURS-TP201-011 Tidak Bagian yang tidak kontak dengan produk terbuat dari SS 304.\\nURS-TP201-012 Tidak Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\\nURS-TP201-013 Tidak Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade.\\n3. Kontrol dan keselamatan\\nNo. Kritis Persyaratan\\nURS-TP201-014 Ya Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan.\\nURS-TP201-015 Ya Tablet di luar batas berat ditolak otomatis.\\nURS-TP201-016 Ya Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh.\\nURS-TP201-017 Tidak Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm.\\nURS-TP201-018 Ya Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.\\nURS-TP201-019 Ya Tombol emergency stop tersedia dan berfungsi.\\nURS-TP201-020 Tidak Mesin berhenti otomatis saat terjadi overload pada punch.\\n4. Integritas data HMI\\nNo. Kritis Persyaratan\\nURS-TP201-021 Ya HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin).\\nURS-TP201-022 Ya HMI merekam audit trail untuk setiap perubahan parameter dan resep.\\nURS-TP201-023 Tidak HMI menyimpan log alarm beserta waktu dan pengguna.\"\n  },\n  {\n   \"doc\": \"SAT-TP201\",\n   \"rev\": 0,\n   \"page\": 1,\n   \"text\": \"Pressora Maschinenbau GmbH SAT-TP201 · Rev. 0 · Page 1 of 2\\nSite Acceptance Test - Protocol and Report\\nUji Penerimaan di Lokasi (SAT)\\nDocument no. / No. dokumen SAT-TP201\\nRevision / Revisi 0\\nIssue date 02-May-2026\\nEquipment / Peralatan TP-201 - Rotary tablet press (single-sided)\\nSerial no. / No. seri RTP36-25-0471\\nManufacturer Pressora Maschinenbau GmbH\\n1. Purpose / Tujuan\\nThis document defines and records the site acceptance tests of the rotary tablet press (single-sided) after delivery and\\ninstallation at the customer's site.\\n2. Approval before execution / Persetujuan sebelum pelaksanaan\\nRole / Peran Name /Nama Company Signature / Paraf Date / Tanggal\\nPrepared by Markus Brandt Pressora Maschinenbau GmbH Brandt 02/05/2026\\nChecked by Bayu Pratama Customer (site) Pratama 07/05/2026\\nApproved by Dewi Anggraini Customer (site) Anggraini 07/05/2026\\n3. Test instruments / Alat ukur\\nID Instrument Serial no. Calibration cert. Cal. due / Berlaku s.d.\\nTACH-07 Digital tachometer DT2236-58812 KAL-2025-0412 17/05/2026\\nE0-MS Stopwatch SW-11907 KAL-2026-0057 01/02/2027\\n4. Test results / Hasil uji\\nResults are entered by hand at site. Pass/Fail is recorded against the acceptance criterion.\\nStep Test Acceptance criterion Instr. Result / Hasil P/F\\nSAT-01 Run placebo blend at production speed for 10 min; count the tablets and convert to tablets per hour. Check turret speed with the tachometer. ≥ 120,000 tablets/h TACH-07 SW-03 122.400 tablets/h Lulus\\nSAT-02 Set pre-compression to maximum; read the force on the HMI. ≥ 20 kN 20,4 kN Lulus\\nSAT-03 Run the paddle feeder at its maximum setting; measure the speed with the tachometer. 10-60 rpm TACH-07 1.500 rpm Lulus\\nSAT-04 Press each emergency stop while running; the press must stop. Present and functional Ada dan berfungsi Lulus\"\n  },\n  {\n   \"doc\": \"DS-TP201\",\n   \"rev\": 0,\n   \"page\": 1,\n   \"text\": \"Technical Datasheet\\nRTP 36 rotary tablet press (single-sided)\\nManufacturer Pressora Maschinenbau GmbH Document no. DS-TP201\\nModel RTP 36 Revision 0\\nMachine serial no. RTP36-25-0417 Issue date 08-Nov-2025\\nCustomer PT Arunika Farma Lestari Customer equipment tag TP-201\\nPerformance\\nNumber of punch stations 36 stations\\nTurret speed 20–70 rpm\\nMaximum output 151,200 tablets/h\\nMaximum main compression force 100 kN\\nMaximum pre-compression force 20 kN\\nTooling\\nMaximum tablet diameter 25 mm\\nMaximum fill depth 18 mm\\nTooling standard EU B\\nMaterials and finish SS 316L\\nProduct-contact parts\\nSurface roughness Ra, product-contact parts (max.) 0.8 µm\\nFrame and covers SS 304\\nControl and safety\\nAutomatic tablet weight control (force-based) Yes\\nAutomatic rejection of out-of-limit tablets Yes\\nCompression force measurement accuracy (max. ±) 1 % FS\\nFeeder paddle speed 10–60 rpm\\nEmergency stop Yes\\nPunch overload protection Yes\\nDesign values for machine serial no. RTP36-25-0417, as built for the customer's order. Values marked max. are limits of the machine.\\nPrepared by Markus Brandt Signed electronically 08-Nov-2025\\nHMI and data\\nUser access levels (operator, supervisor, admin) Yes\\nAudit trail of parameter and recipe changes Yes\\nAlarm log with time and user Yes\\nUtilities\\nPower supply (3 phase, 50 Hz) 380 V\\nCompressed air 6–7 bar\\nDust extraction flow (required) 300 m3/h\"\n  }\n ]\n}"
+  },
+  "response": {
+    "input_tokens": 4452,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 883,
+    "text": "{\"description\":\"Verify that the maximum achievable pre-compression force of TP-201 is at least 20 kN.\",\"method\":\"Set the pre-compression force to its maximum setting on the HMI. Run the machine (or a placebo blend) until the force reading is stable. Read the pre-compression force on the HMI and record the value. The step passes if the reading is at least 20 kN. Repeat the reading after the stable period to confirm it holds.\",\"instrument\":\"Built-in HMI force readout of TP-201\",\"acceptance\":{\"kind\":\"range\",\"min\":20,\"max\":null,\"number\":null,\"unit\":\"kN\",\"allowed\":[],\"text\":null},\"acceptance_source\":{\"doc\":\"SAT-TP201\",\"rev\":0,\"page\":1,\"quote\":\"SAT-02 Set pre-compression to maximum; read the force on the HMI. ≥ 20 kN 20,4 kN Lulus\"}}"
+  }
+}

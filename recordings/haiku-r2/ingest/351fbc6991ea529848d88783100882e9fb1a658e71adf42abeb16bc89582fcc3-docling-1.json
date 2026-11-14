@@ -1,0 +1,103 @@
+{
+ "doc_sha256": "351fbc6991ea529848d88783100882e9fb1a658e71adf42abeb16bc89582fcc3",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  5.71,
+  5.71
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1240039424,
+ "pages": [
+  {
+   "number": 1,
+   "text": "Functional Design Specification\nControl system\nDocument no. FDS-TP201\nRevision 0\nIssue date 13-Dec-2025\nEquipment TP-201 – Rotary tablet press (single-sided)\nModel / serial no. RTP 36 / RTP36-25-0417\nCustomer PT Arunika Farma Lestari\nManufacturer Pressora Maschinenbau GmbH\n1 Purpose\nThis document describes the functions, interlocks and data handling of the RTP 36 rotary tablet press (single-sided) control system as designed for the customer's order. It is the basis of the control-system factory acceptance test.\n2 System overview\nThe press is controlled by a PLC with a touch-screen HMI on the operator panel. Turret and feeder have separate frequencycontrolled drives. The PLC processes the compression force signals for weight control, rejection and overload protection; safety functions act through a separate safety relay.\n3 Operating modes\nMode Behaviour\nSetup Turret jogged with hold-to-run buttons; production functions and the reject gate are disabled.\nProduction Recipe-controlled operation with weight control, rejection and batch counters active.\nCleaning All drives locked; product-contact parts can be removed for cleaning.\n4 Process control\n4.1 Automatic tablet weight control\nThe PLC measures the main compression force of every tablet. When the average force drifts from the set point, the controller adjusts the fill depth automatically to bring tablet weight back within limits. Set point and limits are part of the product recipe.\n4.2 Automatic rejection of out-of-limit tablets\nA tablet whose compression force lies outside the reject limits of the recipe is diverted by the reject gate into the reject container. The reject count is shown on the HMI and printed in the batch report.\n4.3 Compression force measurement\nMain and pre-compression forces are measured by load cells in the compression roller supports, with an accuracy within ±1% of full scale. Both channels are calibrated before delivery.\n4.4 Feeder paddle speed control\nThe paddle feeder has its own drive. Its speed is set on the HMI between 10 and 60 rpm, independently of the turret speed, and is stored in the recipe.\n5 Safety functions and interlocks\n5.1 Guard door interlock\nEvery guard door around the compression area is monitored by a safety switch. Opening a door while the press runs stops the turret and the feeder; the press cannot restart until the door is closed and the alarm is acknowledged.\n5.2 Emergency stop\nEmergency stop buttons on the operator panel and on both sides of the machine stop all drives through the safety relay. A restart needs the button released and a reset on the HMI.\n5.3 Punch overload protection\nIf the compression force exceeds the overload limit of the fitted tooling, the press stops at once and an alarm names the punch station.",
+   "tables": [
+    [
+     [
+      "Document no.",
+      "FDS-TP201"
+     ],
+     [
+      "Revision",
+      "0"
+     ],
+     [
+      "Issue date",
+      "13-Dec-2025"
+     ],
+     [
+      "Equipment",
+      "TP-201 – Rotary tablet press (single-sided)"
+     ],
+     [
+      "Model / serial no.",
+      "RTP 36 / RTP36-25-0417"
+     ],
+     [
+      "Customer",
+      "PT Arunika Farma Lestari"
+     ],
+     [
+      "Manufacturer",
+      "Pressora Maschinenbau GmbH"
+     ]
+    ],
+    [
+     [
+      "Mode",
+      "Behaviour"
+     ],
+     [
+      "Setup",
+      "Turret jogged with hold-to-run buttons; production functions and the reject gate are disabled."
+     ],
+     [
+      "Production",
+      "Recipe-controlled operation with weight control, rejection and batch counters active."
+     ],
+     [
+      "Cleaning",
+      "All drives locked; product-contact parts can be removed for cleaning."
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 2,
+   "text": "6 HMI and data integrity\n6.1 User access levels\nUsers log in with individual accounts at one of three levels: operator (run recipes, acknowledge alarms), supervisor (edit recipes and process limits) and administrator (user management and system settings).\n6.2 Audit trail\nEvery change of a process parameter or recipe is recorded with the old and new value, user, date and time, and the reason entered by the user. No user level can edit or delete audit trail entries.\n6.3 Alarm log\nEvery alarm is logged with the time it occurred, the time it was acknowledged and the user who acknowledged it.\n6.4 Recipe backup and restore\nThe administrator can export all recipes to external storage and restore them from it. Export and restore are recorded in the audit trail.\n6.5 Time synchronisation\nThe HMI clock is synchronised with the plant time server over the network. Users cannot change the system time.\n7 Approval\nRole Company Name Signature Date\nPrepared by Pressora Maschinenbau GmbH Markus Brandt Signed electronically 13-Dec-2025\nChecked by Customer (site) Bayu Pratama Signed electronically 13-Dec-2025\nApproved by Customer (site) Dewi Anggraini Signed electronically 13-Dec-2025",
+   "tables": [
+    [
+     [
+      "Role",
+      "Company",
+      "Name",
+      "Signature",
+      "Date"
+     ],
+     [
+      "Prepared by",
+      "Pressora Maschinenbau GmbH",
+      "Markus Brandt",
+      "Signed electronically",
+      "13-Dec-2025"
+     ],
+     [
+      "Checked by",
+      "Customer (site)",
+      "Bayu Pratama",
+      "Signed electronically",
+      "13-Dec-2025"
+     ],
+     [
+      "Approved by",
+      "Customer (site)",
+      "Dewi Anggraini",
+      "Signed electronically",
+      "13-Dec-2025"
+     ]
+    ]
+   ]
+  }
+ ]
+}

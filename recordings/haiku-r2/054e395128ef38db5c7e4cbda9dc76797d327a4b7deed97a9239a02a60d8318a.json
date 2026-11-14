@@ -1,0 +1,85 @@
+{
+  "doc_sha256": "d94ea49192a71ca1b2fe8904f197c8cc66ed04856f4d6e6f877e1400e9f847af",
+  "key": "054e395128ef38db5c7e4cbda9dc76797d327a4b7deed97a9239a02a60d8318a",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "extract",
+  "prompt_hash": "d912733cc3accb664f0f9c09838ecec4caa05bf8d967e4b513ea0786c352dc70",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "range",
+            "number",
+            "one_of",
+            "text",
+            "present",
+            "none"
+          ],
+          "type": "string"
+        },
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "number": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quote": {
+          "type": "string"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "min",
+        "max",
+        "number",
+        "unit",
+        "allowed",
+        "text",
+        "quote"
+      ],
+      "type": "object"
+    },
+    "system": "You extract the required value of one URS requirement for pharmaceutical equipment. Answer from the requirement and the page text only.\nkind:\n- range: a limit or interval; set min and/or max ('at least 5' has only min, 'at most 5' only max, '2-8' both).\n- number: one exact required number.\n- one_of: a required material, type or option; list the accepted texts in allowed, exactly as printed.\n- text: a required text value that is none of the above.\n- present: a feature or document that must exist, with no number.\n- none: the requirement states no value you can read with certainty.\nNumbers are plain JSON numbers: read the document's decimal and thousands separators (Indonesian documents write 1.000 for one thousand and 0,5 for one half). unit: a short English unit symbol such as mm, kN, rpm, min, bar or °C; null when there is none.\nquote: a verbatim excerpt of the page, at most 200 characters, that states the value with its numbers as printed. Copy characters exactly; never paraphrase. If a value is ambiguous, answer kind none rather than guess.",
+    "user": "{\"id\": \"URS-TP202-p1-09\", \"requirement\": \"Mesin dikendalikan melalui PLC dengan panel HMI layar sentuh di sisi operator.\"}\n\nDocument URS-TP202, revision 0, page 1.\n\n<page>\nSpesifikasi Kebutuhan Pengguna\nTP-202 – Rotary tablet press (double-sided)\nNomor dokumen URS-TP202, revisi 0, berlaku sejak 16/07/2025.\nPendahuluan\nDokumen ini menguraikan kebutuhan PT Arunika Farma Lestari terhadap rotary tablet press (doublesided) TP-202. Kebutuhan dalam tabel yang ditandai Kritis = Ya berdampak langsung pada mutu produk atau keselamatan.\n1. Kinerja mesin\nMesin akan digunakan untuk produksi tablet lepas cepat dengan volume tinggi di ruang cetak tablet.\nAspek Kebutuhan Kritis\nJumlah stasiun punch Minimal 45 stasiun punch. Tidak\nKecepatan turret Dapat diatur pada rentang 10–80 rpm. Ya\nKapasitas produksi Minimal 300.000 tablet/jam pada kecepatan turret maksimum. Ya\nGaya tekan utama Minimal 80 kN. Ya\nGaya pra-kompresi Minimal 20 kN. Tidak\n2. Material dan permukaan\nBagian ini berlaku untuk semua komponen yang bersentuhan langsung dengan serbuk atau tablet.\nAspek Kebutuhan Kritis\nMaterial bagian kontak produk Baja tahan karat SS 316L. Ya\nKekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm. Tidak\n3. Sistem kendali dan data\nMesin dikendalikan melalui PLC dengan panel HMI layar sentuh di sisi operator. Mesin dilengkapi kontrol bobot tablet otomatis berdasarkan gaya tekan. Data batch dan resep dicadangkan otomatis ke server site setiap hari.\n4. Keselamatan dan lingkungan kerja\nMesin dipasang di ruang cetak tablet bersama dua mesin lain dan dioperasikan oleh satu operator per shift. Tingkat kebisingan pada jarak 1 m dari mesin tidak lebih dari 80 dB(A). Pintu pelindung dilengkapi interlock yang menghentikan mesin ketika pintu dibuka. Tombol henti darurat tersedia di panel operator dan di sisi belakang mesin.\n5. Utilitas\nUtilitas disediakan oleh site sampai titik sambung di samping mesin. Mesin beroperasi dengan udara tekan site pada tekanan 6–7 bar.\nRiwayat dokumen\nRevisi 0, 16/07/2025: Terbitan pertama.\n</page>"
+  },
+  "response": {
+    "input_tokens": 1866,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 85,
+    "text": "{\"kind\":\"present\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"allowed\":[],\"text\":null,\"quote\":\"Mesin dikendalikan melalui PLC dengan panel HMI layar sentuh di sisi operator.\"}"
+  }
+}

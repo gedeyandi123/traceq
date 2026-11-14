@@ -131,6 +131,7 @@ def test_perfect_submission_scores_one_everywhere(key: dict, pages: PageTexts) -
     ):
         assert m["requirements"][name] == 1.0, name
     assert m["requirements"]["superseded_values"] == 0
+    assert "segmentation_recall" not in m["requirements"]  # TP-201 prints its ids
     assert (m["defects"]["recall"], m["defects"]["precision"]) == (1.0, 1.0)
     assert m["defects"]["severity_agreement"] == 1.0
     assert m["ambiguous"]["asked_rate"] == 1.0
@@ -250,7 +251,7 @@ def test_fabricated_acceptance_criterion_trips_the_gate(
     assert report["gates"]["fabricated_citation"]["passed"]
     assert report["fabrication"]["fabricated"] == 2
     rate = report["test_steps"]["metrics"]["criteria_pass_rate"]["ac_sourced_or_empty"]
-    assert rate == pytest.approx(19 / 21, 1e-3)
+    assert rate == pytest.approx(20 / 22, 1e-3)
 
 
 def test_step_for_a_covered_requirement_does_not_trace(
@@ -398,6 +399,32 @@ def test_finding_on_the_right_page_but_wrong_text_does_not_match(
     )
     m = score(sub, key, pages)["defects"]["metrics"]
     assert (m["recall"], m["false_positives"]) == (0.0, 1)
+
+
+def test_asking_is_scored_only_in_the_ambiguous_section(
+    best: dict, key: dict, pages: PageTexts
+) -> None:
+    """Owner decision on #53: an ``ambiguous_value`` finding that matches no defect of that
+    type is neither mislabelled nor a false positive, even on another defect's text (S1)."""
+    sat01 = next(a for a in key["ambiguous.yaml"] if a["location"]["field"] == "SAT-01.observed")
+    asks = [
+        f
+        for f in best["findings"]
+        if f["type"] == "ambiguous_value" and f["citations"][0]["quote"] == "122.400 tablets/h"
+    ]
+    assert len(asks) == 1, "the perfect submission asks for SAT-01"
+    sub = copy.deepcopy(best)
+    sub["findings"].append(
+        {
+            "type": "ambiguous_value",
+            "citations": [{"doc": "FDS-TP201", "rev": 0, "page": 1, "quote": "FDS"}],
+        }
+    )
+    report = score(Submission.model_validate(sub), key, pages)
+    m = report["defects"]["metrics"]
+    assert (m["precision"], m["mislabelled"], m["false_positives"]) == (1.0, 0, 0)
+    asked = {i["id"]: i["asked"] for i in report["ambiguous"]["items"]}
+    assert asked[sat01["id"]]
 
 
 def test_ambiguous_value_silently_resolved(best: dict, key: dict, pages: PageTexts) -> None:

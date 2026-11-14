@@ -11,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from traceq_dataset.coverage import IncomparableError, classify, meets
+from traceq_dataset.render import reads_two_ways
 from traceq_dataset.schema import (
     CoverageClass,
     DesignEvidence,
@@ -203,6 +204,25 @@ def test_single_reading_proves_one_sided_limit() -> None:
     req = _req(spec={"type": "range", "max": 80, "unit": "dB"})
     step = _step("FAT-OK", {"type": "number", "value": 75, "unit": "dB"})
     assert _classify(req, [step]) is C.COVERED_BY_VENDOR
+
+
+def test_a_result_awaiting_confirmation_does_not_prove_yet() -> None:
+    """Owner decision on #53: a result whose print reads two ways is not proof until a human
+    confirms it, however plausible one reading is."""
+    req = _req(spec={"type": "range", "min": 10, "unit": "rpm"})
+    step = _step("SAT-OK", {"type": "number", "value": 1500, "unit": "rpm"}, step="SAT-03")
+    assert _classify(req, [step]) is C.COVERED_BY_VENDOR
+    result = classify(req, [step], [], PROTOCOLS, VENDORS, awaiting=frozenset({"SAT-03"}))
+    assert (result.coverage, result.reason) == (C.PARTIAL, "SAT-03: value awaits confirmation")
+
+
+def test_awaiting_confirmation_is_read_from_the_print() -> None:
+    assert reads_two_ways("122.400 tablets/h", "en")
+    assert reads_two_ways("1,500 rpm", "id")
+    assert not reads_two_ways("120.000 tablet/jam", "id")  # the grouping separator
+    assert not reads_two_ways("151,200 tablets/h", "en")
+    assert not reads_two_ways("0.5 % FS", "en")
+    assert not reads_two_ways("1.234.567 kg", "en")
 
 
 def test_unit_mismatch_is_an_error_not_a_label() -> None:

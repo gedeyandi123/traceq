@@ -11,9 +11,10 @@ Format: [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) (Gebru et al
 ## Composition
 
 - **Instances:** documents of a fictional oral solid dose plant (URS, Vendor Documents, FAT/SAT, Protocols, Execution records, reports, monitoring data), plus a structured answer key.
-- **Counts (v0, TP-201):** 13 files for 12 documents (URS in rev 0 and rev 1): 7 born-digital PDFs, 5 image-only scans (SAT, material certificate, three calibration certificates), 1 XLSX risk assessment. Answer key: 38 requirements, 7 planted defects, 1 ambiguous value, 6 hallucination probes, 14 required documents (12 in the corpus, IQ and OQ expected gaps), 37 handwritten entries (36 legible plus one overwritten original).
+- **Counts (v0, TP-201):** 16 files for 15 documents (URS in rev 0 and rev 1; the site's VMP, qualification SOP and Vendor Assessment): 10 born-digital PDFs, 5 image-only scans (SAT, material certificate, three calibration certificates), 1 XLSX risk assessment. Answer key: 38 requirements, 7 planted defects, 1 ambiguous value, 6 hallucination probes, 14 required documents (12 in the corpus, IQ and OQ expected gaps), 37 handwritten entries (36 legible plus one overwritten original).
 - **Labels:** answer key derived from the same world data as the documents: requirement values, citations, Coverage class, required documents, planted defects, OCR bounding boxes.
-- **Splits:** dev = all Equipment except TP-202; held-out test = TP-202.
+- **Counts (v0, TP-202 held-out slice):** 4 born-digital PDFs: URS-TP202 (Indonesian prose with unnumbered tables, no requirement numbers) and FAT-TP202 (English test-record layout with as-built machine data) from a different vendor and layout, plus the site's Vendor Assessment of that vendor and a short VMP listing the TP-202 required documents. No scan. Answer key: 13 requirements, 3 planted defects (behind a `partial`, a `gap` and a `conflict`), 2 hallucination probes, 4 required documents (URS and FAT in the corpus, IQ and OQ expected gaps). The vendor is assessed with limited scope (mechanical, not control system). The full TP-202 package follows in v2.
+- **Splits:** dev = all Equipment except TP-202 (TP-201 in v0); held-out test = TP-202. Prompts are never developed or debugged on TP-202 output, scores are always reported separately with k/n, and the TP-202 answer key changes only after the prompt is frozen. With n = 13 requirements, one item is about 8 points: a direction signal, not a claim.
 - **Real data:** none. Every plant, vendor, person, and serial number is fictional. A CI denylist blocks real equipment vendor names and other protected terms.
 - **Known noise:** deliberate, documented in the defect manifest. Ambiguous values are labelled "ask for confirmation".
 
@@ -34,7 +35,7 @@ None on the answer key. Values are stored normalised; documents keep locale-spec
 
 ## Distribution
 
-- Rendered corpus: GitHub Release asset per dataset version; release bytes are canonical.
+- Rendered corpus: GitHub Release asset per dataset version, built in a pinned container (`docker/corpus.Dockerfile`); release bytes are canonical. Release 0.1.0 (`corpus-v0.1.0`) is **not frozen**: judged values and drafted numbers are not yet reviewed by a practitioner; freeze on 2026-11-25 or when the TP-201 form returns, whichever comes first. Baselines taken on 0.1.0 are redone at freeze.
 - Licence: CC BY 4.0 ([`LICENSE-DATA`](LICENSE-DATA)). Code: Apache-2.0 ([`LICENSE`](LICENSE)).
 
 ## Maintenance

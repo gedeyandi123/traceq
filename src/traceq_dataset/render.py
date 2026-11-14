@@ -141,6 +141,35 @@ def fmt_number(value: float, lang: str) -> str:
     return text.translate(str.maketrans(",.", ".,")) if lang == "id" else text
 
 
+DECIMAL_POINT = {"en": ".", "id": ","}
+_GROUPED = re.compile(r"\d{1,3}([.,])\d{3}(?:\s+.+)?")
+
+
+def reads_two_ways(printed: str, lang: str) -> bool:
+    """The ambiguity rule (design section 6): one ``.`` or ``,`` before exactly three digits,
+    where that separator is the decimal point of the document's language. A writer of the
+    other convention may have meant thousands, so ``1.500 rpm`` on an English form is 1500 or
+    1.5. As the grouping separator (``120.000`` in Indonesian) it reads one way."""
+    m = _GROUPED.fullmatch(printed.strip())
+    return m is not None and m[1] == DECIMAL_POINT[lang]
+
+
+def awaiting_confirmation(eq: Equipment) -> frozenset[str]:
+    """FAT/SAT steps whose printed result reads two ways: Evidence that proves nothing until
+    a human confirms the value. Handwritten SAT entries are written in ``entry_language`` and
+    read in the language of the form."""
+    docs = {d.id: d for d in eq.documents if d.rev == 0}
+    out: set[str] = set()
+    for t in eq.tests:
+        doc = docs.get(t.protocol)
+        if doc is None or not isinstance(t.observed, NumberObs):
+            continue
+        printed = fmt_observation(t.observed, doc.entry_language or doc.language)
+        if reads_two_ways(printed, doc.language):
+            out.add(t.step)
+    return frozenset(out)
+
+
 def fmt_date(value: dt.date, lang: str) -> str:
     """``dd/mm/yyyy`` (id) or ``12-Mar-2026`` (en), design section 4."""
     return value.strftime("%d/%m/%Y") if lang == "id" else value.strftime("%d-%b-%Y")
@@ -256,6 +285,8 @@ def render_urs(eq: Equipment, rev: int, t0: dt.date) -> Rendered:
     """URS (SKP) revision ``rev``. Rev 0 uses ``superseded_spec`` where one is set."""
     _require_filled(eq)
     doc = document(eq, f"URS-{eq.tag.replace('-', '')}", rev)
+    if doc.layout == "prose":
+        return _render_urs_prose(eq, doc, t0)
     lang = doc.language
     latest = max(d.rev for d in eq.documents if d.id == doc.id)
     people = {p.id: p.name for p in eq.people}
@@ -311,6 +342,8 @@ def render_fat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
     doc = document(eq, doc_id, 0)
     if doc.type != "fat":
         raise RenderError(f"{doc_id} is a {doc.type}, not a FAT")
+    if doc.layout == "record":
+        return _render_fat_record(eq, doc, t0)
     lang = doc.language
     protocol = next(p for p in eq.protocols if p.doc_id == doc_id)
     reqs = {r.id: r for r in eq.requirements}
@@ -371,6 +404,142 @@ def render_fat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
         ],
     }
     return _compile("fat.typ", data, issued, texts, doc)
+
+
+def _render_urs_prose(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
+    """A URS written as prose and unnumbered tables (design section 5, TP-202), with no
+    requirement numbers. Per section: an opening sentence that states no requirement
+    (``urs_intros``), the requirements without a ``table_label`` as one paragraph, and those
+    with one as table rows with their criticality. Each requirement's span is placed."""
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    people = _people(eq)
+    texts: dict[str, str] = {}
+    sections: dict[str, dict] = {}
+    for r in eq.requirements:
+        texts[r.id] = requirement_text(r, r.spec, lang)
+        s = sections.setdefault(
+            r.section,
+            {
+                "title": r.section,
+                "intro": eq.urs_intros.get(r.section, ""),
+                "prose": [],
+                "rows": [],
+            },
+        )
+        if r.table_label is None:
+            s["prose"].append({"key": r.id, "text": texts[r.id]})
+        else:
+            s["rows"].append(
+                {
+                    "key": r.id,
+                    "label": r.table_label,
+                    "text": texts[r.id],
+                    "critical": "Ya" if r.critical else "Tidak",
+                }
+            )
+    roles = (
+        ("Disusun oleh", doc.prepared_by),
+        ("Diperiksa oleh", doc.checked_by),
+        ("Disetujui oleh", doc.approved_by),
+    )
+    data = {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "title": "Spesifikasi Kebutuhan Pengguna",
+        "issued_on": fmt_date(issued, lang),
+        "equipment": f"{eq.tag} {EN_DASH} {eq.name}",
+        "purpose": (
+            f"Dokumen ini menguraikan kebutuhan {eq.site_name or 'site'} terhadap "
+            f"{eq.name.lower()} {eq.tag}. Kebutuhan dalam tabel yang ditandai Kritis = Ya "
+            "berdampak langsung pada mutu produk atau keselamatan."
+        ),
+        "sections": list(sections.values()),
+        "note": doc.change_note or "Terbitan pertama.",
+        "signatures": [
+            {"role": role, **_signature(people[pid].name if pid else None, issued, lang)}
+            for role, pid in roles
+        ],
+    }
+    return _compile("urs_prose.typ", data, issued, texts, doc)
+
+
+def _render_fat_record(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
+    """A FAT from another vendor (design section 5, TP-202): as-built machine data, the
+    customer's release of the procedure, one test record per step, a deviation statement,
+    and a list of attachments none of which is bound in (``Document.attachments``)."""
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    protocol = next(p for p in eq.protocols if p.doc_id == doc.id)
+    reqs = {r.id: r for r in eq.requirements}
+    people = _people(eq)
+    employers = {eq.site: eq.site_name or "Customer", eq.vendor.id: eq.vendor.name}
+    approved = protocol.site_approved_on.resolve(t0) if protocol.site_approved_on else None
+    executed = protocol.executed_on.resolve(t0)
+    texts: dict[str, str] = {}
+
+    def put(key: str, text: str) -> str:
+        texts[key] = text
+        return text
+
+    def row(role: str, pid: str | None, date: dt.date | None) -> dict[str, str]:
+        person = people[pid] if pid else None
+        company = employers[person.employer] if person else ""
+        return {"role": role, "company": company, **_signature(person and person.name, date, lang)}
+
+    as_built = [
+        {"label": "Serial number", "value": eq.serial_no or ""},
+        {"label": "Model", "value": eq.model or ""},
+    ]
+    for fact in eq.designs:
+        if fact.doc_id != doc.id:
+            continue
+        key = design_field(eq, fact)
+        assert key is not None and fact.label is not None
+        value = put(key, fmt_design(fact.observed, lang))
+        as_built.append({"label": fact.label, "value": value, "key": key})
+
+    records = []
+    for t in eq.tests:
+        if t.protocol != doc.id:
+            continue
+        if not t.description:
+            raise RenderError(f"{t.step}: needs a description to be rendered")
+        ac = fmt_spec(t.acceptance or reqs[t.requirement].spec, lang)
+        records.append(
+            {
+                "step": t.step,
+                "description": t.description,
+                "acceptance": put(f"{t.step}.acceptance", ac),
+                "observed": put(f"{t.step}.observed", fmt_observation(t.observed, lang)),
+                "result": put(f"{t.step}.result", t.recorded_result.upper()),
+            }
+        )
+    attachments = [
+        {"key": f"attachment.{n}", "text": put(f"attachment.{n}", f"Attachment {n}: {title}")}
+        for n, title in enumerate(doc.attachments, 1)
+    ]
+    data = {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "title": doc.title,
+        "vendor": eq.vendor.name,
+        "issued_on": fmt_date(issued, lang),
+        "customer": eq.site_name or "",
+        "equipment": f"{eq.name}, customer tag {eq.tag}",
+        "as_built": as_built,
+        "release": [
+            row("Issued", doc.prepared_by, issued),
+            row("Reviewed (customer)", doc.checked_by, approved),
+            row("Released for test (customer)", doc.approved_by, approved),
+        ],
+        "records": records,
+        "deviations": put("deviations", "No deviations were raised during the test."),
+        "attachments": attachments,
+        "execution": [
+            row("Tested by", doc.executed_by, executed),
+            row("Witnessed by", doc.witnessed_by, executed),
+        ],
+    }
+    return _compile("fat_record.typ", data, issued, texts, doc)
 
 
 def render_sat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
@@ -506,6 +675,8 @@ def design_field(eq: Equipment, fact: DesignEvidence) -> str | None:
         return None
     if doc.type in ("datasheet", "functional_spec"):
         return next(r.param for r in eq.requirements if r.id == fact.requirement)
+    if doc.type == "fat":
+        return "as_built." + next(r.param for r in eq.requirements if r.id == fact.requirement)
     if doc.type == "material_certificate":
         rows = [f for f in eq.designs if f.doc_id == fact.doc_id]
         return f"item-{next(i for i, f in enumerate(rows, 1) if f is fact)}.material"
@@ -1005,6 +1176,354 @@ def _fixed_dates(xlsx: bytes, issued: dt.date) -> bytes:
     return out.getvalue()
 
 
+# --- Governing documents (VMP, qualification SOP) -------------------------------------
+
+DOC_TYPES_ID = {
+    "urs": "Spesifikasi Kebutuhan Pengguna (SKP)",
+    "risk_assessment": "Penilaian risiko (FMEA)",
+    "datasheet": "Lembar data teknis vendor",
+    "functional_spec": "Spesifikasi desain fungsional (FDS)",
+    "dq_report": "Laporan Kualifikasi Desain (DQ)",
+    "material_certificate": "Sertifikat material 3.1 bagian kontak produk",
+    "calibration_certificate": "Sertifikat kalibrasi",
+    "fat": "Protokol dan laporan FAT",
+    "sat": "Protokol dan laporan SAT",
+    "iq_protocol": "Protokol IQ",
+    "oq_protocol": "Protokol OQ",
+}
+"""Required-document types as the VMP names them (Indonesian)."""
+
+STAGES_ID = {"design": "Desain", "FAT": "FAT", "SAT": "SAT", "IQ": "IQ", "OQ": "OQ"}
+
+
+def _governing(eq: Equipment, doc_id: str) -> Document:
+    """A governing document is rendered in one revision: the one in force at T0."""
+    docs = [d for d in eq.documents if d.id == doc_id]
+    if len(docs) != 1:
+        raise RenderError(f"{eq.tag}: {doc_id} needs exactly one revision")
+    return docs[0]
+
+
+def _site_frame(eq: Equipment, doc: Document, t0: dt.date) -> dict:
+    """Header, revision entry and approval block shared by the governing documents."""
+    lang, issued = doc.language, doc.issued_on.resolve(t0)
+    people = _people(eq)
+    roles = (
+        ("Disusun oleh", doc.prepared_by),
+        ("Diperiksa oleh", doc.checked_by),
+        ("Disetujui oleh", doc.approved_by),
+    )
+    return {
+        "doc_id": doc.id,
+        "rev": doc.rev,
+        "issued_on": fmt_date(issued, lang),
+        "site": eq.site_name or "",
+        "history": [
+            {
+                "rev": str(doc.rev),
+                "date": fmt_date(issued, lang),
+                "note": doc.change_note or "Terbitan pertama.",
+            }
+        ],
+        "signatures": [
+            {"role": role, **_signature(people[pid].name if pid else None, issued, lang)}
+            for role, pid in roles
+        ],
+    }
+
+
+def _required_label(eq: Equipment, req_type: str, doc_id: str) -> str:
+    label = DOC_TYPES_ID[req_type]
+    if req_type == "calibration_certificate":
+        inst = next(i for i in eq.instruments if i.certificate.id == doc_id)
+        return f"{label}: {inst.name} ({inst.id})"
+    title = next((d.title for d in eq.documents if d.id == doc_id and d.title), "")
+    return f"{label} ({title})" if title else label
+
+
+def render_vmp(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Validation Master Plan (Indonesian, born-digital): qualification stages and, in its
+    annex, the documents required for the Equipment (``required_documents``), so the system
+    learns that list from the corpus. It prints no status: finding what is missing is the
+    reader's job."""
+    doc = _governing(eq, doc_id)
+    issued = doc.issued_on.resolve(t0)
+    sop = next((d.id for d in eq.documents if d.type == "sop"), None)
+    texts: dict[str, str] = {}
+    rows = []
+    for r in eq.required_documents:
+        key = f"required.{r.id}"
+        texts[key] = r.id
+        cells = [r.id, _required_label(eq, r.type, r.id), STAGES_ID[r.stage]]
+        rows.append({"key": key, "cells": cells})
+    stages = (
+        ("Desain", "SKP, penilaian risiko, data desain vendor, dan Kualifikasi Desain (DQ)."),
+        ("FAT", "Uji penerimaan di pabrik vendor dengan protokol vendor."),
+        ("SAT", "Uji penerimaan di site setelah instalasi."),
+        ("IQ", "Kualifikasi instalasi dengan protokol yang disusun site."),
+        ("OQ", "Kualifikasi operasional dengan protokol yang disusun site."),
+    )
+    sections = [
+        {
+            "title": "Tujuan",
+            "paragraphs": [
+                "Rencana Induk Validasi ini menetapkan pendekatan kualifikasi peralatan di "
+                f"{eq.site_name or 'site'}: tahapan kualifikasi, tanggung jawab, dan dokumen "
+                "yang dipersyaratkan untuk setiap peralatan."
+            ],
+        },
+        {
+            "title": "Ruang lingkup",
+            "paragraphs": [
+                "Peralatan produksi sediaan padat oral beserta sistem kendalinya. Kualifikasi "
+                "kinerja (PQ) dilaksanakan bersama validasi proses dan diatur dalam protokol "
+                "validasi proses, di luar paket dokumen kualifikasi peralatan."
+            ],
+        },
+        {
+            "title": "Tahapan kualifikasi",
+            "table": {
+                "columns": [1, 4],
+                "header": ["Tahap", "Kegiatan"],
+                "rows": [{"cells": list(s)} for s in stages],
+            },
+        },
+        {
+            "title": "Tanggung jawab dan dokumentasi",
+            "paragraphs": [
+                "Penandatangan, pemisahan tugas, koreksi catatan, dan Saksi diatur dalam "
+                + (f"Protap {sop}." if sop else "Protap kualifikasi peralatan.")
+            ],
+        },
+        {
+            "title": "Penomoran dokumen",
+            "paragraphs": [
+                "Dokumen kualifikasi site diberi nomor jenis dokumen diikuti tag peralatan "
+                f"tanpa tanda hubung, misalnya SKP URS-{eq.tag.replace('-', '')}. Dokumen "
+                "vendor dan sertifikat memakai nomor penerbitnya."
+            ],
+        },
+        {
+            "title": f"Lampiran 1. Dokumen yang dipersyaratkan: {eq.tag} {EN_DASH} {eq.name}",
+            "paragraphs": [
+                f"Peralatan baru {eq.tag} tidak dirilis untuk penggunaan produksi sebelum "
+                "seluruh dokumen berikut tersedia dan disetujui."
+            ],
+            "table": {
+                "columns": [2, 4, 1],
+                "header": ["No. dokumen", "Jenis dokumen", "Tahap"],
+                "rows": rows,
+            },
+        },
+    ]
+    data = {
+        **_site_frame(eq, doc, t0),
+        "title": "Rencana Induk Validasi (Validation Master Plan)",
+        "title_short": "Rencana Induk Validasi",
+        "sections": sections,
+    }
+    return _compile("governing.typ", data, issued, texts, doc)
+
+
+WITNESS_RULES = {
+    "critical_aspects": (
+        "Langkah Uji yang memverifikasi Aspek Kritis (persyaratan dengan Kritis = Ya dalam "
+        "SKP dan penilaian risiko) wajib disaksikan oleh Saksi, yang membubuhkan paraf dan "
+        "tanggal pada hasil. Langkah Uji lain tidak memerlukan Saksi."
+    ),
+    "all": (
+        "Setiap Langkah Uji wajib disaksikan oleh Saksi, yang membubuhkan paraf dan tanggal "
+        "pada hasil."
+    ),
+}
+"""SOP text per ``SiteRules.witness`` (design section 12, **[D]**)."""
+
+PROTOCOL_RULES = {
+    "template": (
+        "Protokol IQ/OQ disusun dari templat protokol standar site untuk setiap peralatan; "
+        "protokol tidak disalin dari protokol peralatan lain."
+    ),
+    "copied": (
+        "Protokol IQ/OQ boleh disusun dengan menyalin protokol peralatan sejenis; setiap tag, "
+        "nilai, dan rujukan peralatan asal diganti dan diperiksa sebelum persetujuan."
+    ),
+}
+"""SOP text per ``SiteRules.protocols`` (design section 12, **[D]**)."""
+
+
+def render_sop(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Qualification SOP (Protap, Indonesian, born-digital): signatories, segregation of
+    duties, GDP corrections, which Test Steps need a Witness, and how protocols are written.
+    The last two follow ``Equipment.site_rules``."""
+    doc = _governing(eq, doc_id)
+    rules = eq.site_rules
+    if rules is None:
+        raise RenderError(f"{doc_id}: an SOP needs site_rules")
+    issued = doc.issued_on.resolve(t0)
+    texts = {
+        "signatories": (
+            "Protokol FAT/SAT vendor diperiksa dan disetujui site sebelum dieksekusi. Setiap "
+            "tanda tangan disertai nama dan tanggal."
+        ),
+        "segregation": (
+            "Dalam satu dokumen, penyusun tidak boleh menyetujui dokumen yang disusunnya, "
+            "pemeriksa dan penyetuju adalah dua orang yang berbeda, dan pelaksana tidak boleh "
+            "sekaligus menjadi Saksi pada Langkah Uji yang sama."
+        ),
+        "gdp": (
+            "Koreksi pada catatan dibuat dengan mencoret nilai lama dengan satu garis sehingga "
+            "tetap terbaca, menulis nilai baru di dekatnya, serta membubuhkan paraf, tanggal, "
+            "dan alasan koreksi. Nilai tidak boleh ditimpa, dihapus, atau ditutup dengan "
+            "cairan koreksi (CPOB 10.8; PIC/S PI 041-1 §8.7)."
+        ),
+        "witness": WITNESS_RULES[rules.witness],
+        "protocols": PROTOCOL_RULES[rules.protocols],
+    }
+    signers = (
+        (
+            "Dokumen site (SKP, penilaian risiko, DQ, protokol IQ/OQ)",
+            "Qualification Engineer",
+            "Qualification Supervisor",
+            "QA Approver",
+        ),
+        ("Protokol FAT/SAT vendor", "Vendor", "Qualification Supervisor", "QA Approver"),
+    )
+
+    def rule(title: str, key: str) -> dict:
+        return {"title": title, "paragraphs": [{"key": key, "text": texts[key]}]}
+
+    sections = [
+        {
+            "title": "Tujuan",
+            "paragraphs": [
+                "Prosedur ini menetapkan cara menyusun, menandatangani, mengeksekusi, dan "
+                "mengoreksi dokumen kualifikasi peralatan."
+            ],
+        },
+        {
+            "title": "Ruang lingkup",
+            "paragraphs": [
+                "Dokumen kualifikasi site (SKP, penilaian risiko, DQ, protokol dan laporan "
+                "IQ/OQ) serta protokol FAT/SAT vendor yang digunakan sebagai Bukti. Dokumen "
+                "vendor lain (lembar data, FDS, sertifikat) ditandatangani sesuai sistem mutu "
+                "penerbitnya."
+            ],
+        },
+        {
+            **rule("Penandatangan", "signatories"),
+            "table": {
+                "columns": [3, 2, 2, 2],
+                "header": ["Dokumen", "Disusun oleh", "Diperiksa oleh", "Disetujui oleh"],
+                "rows": [{"cells": list(s)} for s in signers],
+            },
+        },
+        rule("Pemisahan tugas", "segregation"),
+        rule("Koreksi catatan (GDP)", "gdp"),
+        rule("Saksi (Witness)", "witness"),
+        rule("Penyusunan protokol", "protocols"),
+    ]
+    data = {
+        **_site_frame(eq, doc, t0),
+        "title": "Prosedur Tetap: Kualifikasi Peralatan",
+        "title_short": "Protap Kualifikasi Peralatan",
+        "sections": sections,
+    }
+    return _compile("governing.typ", data, issued, texts, doc)
+
+
+ASSESSMENT_AREAS = {
+    "mechanical": (
+        "Mekanik (mechanical)",
+        "Desain dan fabrikasi mekanik, material bagian kontak produk, uji fungsi mekanik.",
+    ),
+    "control": (
+        "Sistem kendali dan perangkat lunak (control system/software)",
+        "PLC, HMI, perangkat lunak kendali dan uji fungsi kendali.",
+    ),
+    "data_integrity": (
+        "Integritas data (data integrity)",
+        "Hak akses, audit trail, log alarm, cadangan data dan sinkronisasi waktu.",
+    ),
+    "documentation": (
+        "Dokumentasi (documentation)",
+        "Pengendalian dokumen, sertifikat material dan kalibrasi, protokol FAT/SAT.",
+    ),
+}
+"""Areas every Vendor Assessment rates, keyed by ``VendorAssessment.scope`` (Indonesian,
+with the English area name the site's vendor questionnaire uses)."""
+
+
+def render_vendor_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
+    """Vendor Assessment (Indonesian, born-digital): the site's evaluation of the vendor
+    and the areas whose results it may rely on (CPOB Ch. 12; Coverage condition 1, design
+    section 6). Every area is printed with ``Ya`` or ``Tidak``, so a limited scope is as
+    citable as a full one."""
+    doc = _governing(eq, doc_id)
+    assessment = eq.vendor.assessment
+    if assessment is None:
+        raise RenderError(f"{doc_id}: a Vendor Assessment needs vendor.assessment")
+    unknown = sorted(assessment.scope - set(ASSESSMENT_AREAS))
+    if unknown:
+        raise RenderError(f"{doc_id}: no assessment area for scope {unknown}")
+    issued = doc.issued_on.resolve(t0)
+    texts: dict[str, str] = {}
+    rows = []
+    for key, (label, activities) in ASSESSMENT_AREAS.items():
+        texts[f"scope.{key}"] = label
+        relied = "Ya" if key in assessment.scope else "Tidak"
+        rows.append({"key": f"scope.{key}", "cells": [label, relied, activities]})
+    limited = set(ASSESSMENT_AREAS) - assessment.scope
+    conclusion = (
+        "Pemasok disetujui untuk seluruh area di atas."
+        if not limited
+        else "Pemasok disetujui dengan ruang lingkup terbatas: area dengan hasil Tidak belum "
+        "dinilai, sehingga hasil uji pemasok untuk area tersebut tidak dapat digunakan "
+        "sebagai Bukti dan diuji oleh site."
+    )
+    machine = f"{eq.tag} {EN_DASH} {eq.name}" + (f", model {eq.model}" if eq.model else "")
+    sections = [
+        {
+            "title": "Tujuan",
+            "paragraphs": [
+                f"Laporan ini mencatat penilaian site terhadap pemasok {eq.vendor.name} "
+                "dan menetapkan area kegiatan pemasok yang hasilnya dapat diandalkan site "
+                "dalam kualifikasi peralatan (CPOB Bab 12)."
+            ],
+        },
+        {
+            "title": "Pengadaan terkait",
+            "paragraphs": [f"Peralatan {machine}."],
+        },
+        {
+            "title": "Metode penilaian",
+            "paragraphs": [
+                "Kuesioner pemasok, tinjauan sistem mutu pemasok, dan audit di lokasi pemasok "
+                "oleh Qualification Supervisor dan QA."
+            ],
+        },
+        {
+            "title": "Ruang lingkup yang dinilai",
+            "paragraphs": [
+                "Hasil uji pemasok (FAT/SAT) dapat digunakan sebagai Bukti kualifikasi hanya "
+                "untuk area dengan hasil Ya."
+            ],
+            "table": {
+                "columns": [3, 1, 4],
+                "header": ["Area", "Dapat diandalkan", "Kegiatan yang dinilai"],
+                "rows": rows,
+            },
+        },
+        {"title": "Kesimpulan", "paragraphs": [conclusion]},
+    ]
+    data = {
+        **_site_frame(eq, doc, t0),
+        "title": "Laporan Penilaian Pemasok (Vendor Assessment)",
+        "title_short": "Penilaian Pemasok",
+        "sections": sections,
+    }
+    return _compile("governing.typ", data, issued, texts, doc)
+
+
 RENDERERS = {
     "fat": render_fat,
     "sat": render_sat,
@@ -1014,6 +1533,9 @@ RENDERERS = {
     "calibration_certificate": render_calibration_certificate,
     "dq_report": render_dq,
     "risk_assessment": render_risk_assessment,
+    "vmp": render_vmp,
+    "sop": render_sop,
+    "vendor_assessment": render_vendor_assessment,
 }
 
 

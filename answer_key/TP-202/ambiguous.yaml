@@ -1,0 +1,4 @@
+# TP-202 answer key: ambiguous.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+[]

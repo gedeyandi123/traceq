@@ -1,0 +1,112 @@
+{
+  "doc_sha256": "fb0d5b6f9b604100436bf691499ca35256e844cd3d52693d3499eb88cf360640",
+  "key": "b8a1d706faf735975f63df0c37b6d2e45dfd68322fe44e7431526635e16fcebf",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "required_documents",
+  "prompt_hash": "604b82ae801d7b99efb51e81b285ddaad30c9e1e0ce89e08465f8a196b7ebfad",
+  "request": {
+    "max_tokens": 8000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "annexes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "equipment": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "rows": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "doc_id": {
+                      "type": "string"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "quote": {
+                      "type": "string"
+                    },
+                    "stage": {
+                      "enum": [
+                        "design",
+                        "FAT",
+                        "SAT",
+                        "IQ",
+                        "OQ"
+                      ],
+                      "type": "string"
+                    },
+                    "stage_printed": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "enum": [
+                        "urs",
+                        "risk_assessment",
+                        "datasheet",
+                        "functional_spec",
+                        "dq_report",
+                        "material_certificate",
+                        "calibration_certificate",
+                        "fat",
+                        "sat",
+                        "iq_protocol",
+                        "oq_protocol",
+                        "other"
+                      ],
+                      "type": "string"
+                    },
+                    "type_printed": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "doc_id",
+                    "type_printed",
+                    "type",
+                    "stage_printed",
+                    "stage",
+                    "page",
+                    "quote"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "equipment",
+              "page",
+              "quote",
+              "rows"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "annexes"
+      ],
+      "type": "object"
+    },
+    "system": "You read a site Validation Master Plan (VMP) for pharmaceutical equipment. List each annex that names the documents required for one equipment item.\nequipment: the equipment tag exactly as printed; page and quote: where the annex names it.\nrows: one per required document. doc_id, type_printed, stage_printed: the document number, document type and qualification stage exactly as printed (the VMP may be in Indonesian); type: the code of that document type, from the list given; stage: the code of the stage (design, FAT, SAT, IQ, OQ); page: the page that prints the row.\nquote: a verbatim excerpt of the page, at most 200 characters, holding what the item states. Copy characters exactly; never paraphrase or translate.\nReturn an empty list when the document has no such annex.",
+    "user": "Document VMP-TP202, revision 0, 1 pages.\n\n<page n=\"1\">\nRencana Induk Validasi (Validation Master Plan)\nNomor dokumen VMP-TP202\nRevisi 0\nTanggal berlaku 02/04/2026\nLokasi PT Arunika Farma Lestari\n1. Tujuan\nRencana Induk Validasi ini menetapkan pendekatan kualifikasi peralatan di PT Arunika Farma Lestari: tahapan kualifikasi, tanggung jawab, dan dokumen yang dipersyaratkan untuk setiap peralatan.\n2. Ruang lingkup\nPeralatan produksi sediaan padat oral beserta sistem kendalinya. Kualifikasi kinerja (PQ) dilaksanakan bersama validasi proses dan diatur dalam protokol validasi proses, di luar paket dokumen kualifikasi peralatan.\n3. Tahapan kualifikasi\nTahap Kegiatan\nDesain SKP, penilaian risiko, data desain vendor, dan Kualifikasi Desain (DQ).\nFAT Uji penerimaan di pabrik vendor dengan protokol vendor.\nSAT Uji penerimaan di site setelah instalasi.\nIQ Kualifikasi instalasi dengan protokol yang disusun site.\nOQ Kualifikasi operasional dengan protokol yang disusun site.\n4. Tanggung jawab dan dokumentasi\nPenandatangan, pemisahan tugas, koreksi catatan, dan Saksi diatur dalam Protap kualifikasi peralatan.\n5. Penomoran dokumen\nDokumen kualifikasi site diberi nomor jenis dokumen diikuti tag peralatan tanpa tanda hubung, misalnya SKP URSTP202. Dokumen vendor dan sertifikat memakai nomor penerbitnya.\n6. Lampiran 1. Dokumen yang dipersyaratkan: TP-202 – Rotary tablet press (double-sided)\nPeralatan baru TP-202 tidak dirilis untuk penggunaan produksi sebelum seluruh dokumen berikut tersedia dan disetujui.\nNo. dokumen Jenis dokumen Tahap\nURS-TP202 Spesifikasi Kebutuhan Pengguna (SKP) Desain\nFAT-TP202 Protokol dan laporan FAT (Mechanical and control functions) FAT\nIQ-TP202 Protokol IQ IQ\nOQ-TP202 Protokol OQ OQ\nRiwayat revisi\nRev. Tanggal Keterangan\n0 02/04/2026 Terbitan pertama.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 02/04/2026\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 02/04/2026\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 02/04/2026\n</page>"
+  },
+  "response": {
+    "input_tokens": 2077,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 491,
+    "text": "{\"annexes\":[{\"equipment\":\"TP-202\",\"page\":1,\"quote\":\"6. Lampiran 1. Dokumen yang dipersyaratkan: TP-202 – Rotary tablet press (double-sided)\",\"rows\":[{\"doc_id\":\"URS-TP202\",\"type_printed\":\"Spesifikasi Kebutuhan Pengguna (SKP)\",\"type\":\"urs\",\"stage_printed\":\"Desain\",\"stage\":\"design\",\"page\":1,\"quote\":\"URS-TP202 Spesifikasi Kebutuhan Pengguna (SKP) Desain\"},{\"doc_id\":\"FAT-TP202\",\"type_printed\":\"Protokol dan laporan FAT (Mechanical and control functions)\",\"type\":\"fat\",\"stage_printed\":\"FAT\",\"stage\":\"FAT\",\"page\":1,\"quote\":\"FAT-TP202 Protokol dan laporan FAT (Mechanical and control functions) FAT\"},{\"doc_id\":\"IQ-TP202\",\"type_printed\":\"Protokol IQ\",\"type\":\"iq_protocol\",\"stage_printed\":\"IQ\",\"stage\":\"IQ\",\"page\":1,\"quote\":\"IQ-TP202 Protokol IQ IQ\"},{\"doc_id\":\"OQ-TP202\",\"type_printed\":\"Protokol OQ\",\"type\":\"oq_protocol\",\"stage_printed\":\"OQ\",\"stage\":\"OQ\",\"page\":1,\"quote\":\"OQ-TP202 Protokol OQ OQ\"}]}]}"
+  }
+}

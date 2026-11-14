@@ -28,3 +28,12 @@ Thumbs.db
 
 # gitleaks binary downloaded in CI
 /gitleaks
+
+# Run folders written by `traceq run` (recordings are committed; runs are not)
+/runs/
+
+# Web UI (web/): dependencies and build output
+node_modules/
+/web/.next/
+/web/next-env.d.ts
+*.tsbuildinfo

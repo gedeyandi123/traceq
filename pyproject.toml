@@ -1,11 +1,14 @@
 [project]
 name = "traceq-dataset"
-version = "0.0.0"
+version = "0.1.0"
 description = "Synthetic qualification dataset for TraceQ: world data schema, answer key, renderer."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.13"
 dependencies = [
+    "anthropic>=2.8.0",
+    "docling>=2.150.0",
+    "fastapi>=0.162.5",
     "numpy>=2.5.4",
     "openpyxl>=3.1.5",
     "pillow>=13.0.0",
@@ -13,21 +16,46 @@ dependencies = [
     "pypdf>=6",
     "pypdfium2>=5.15.2",
     "pyyaml>=6.0.2",
+    "torch>=2.14",
+    "torchvision>=0.29",
     "typst==0.15.2",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
+    "import-linter>=2.16",
     "pyright>=1.1.414",
     "pytest>=8.4",
 ]
+
+# Docling's layout and table models run on torch. The slice runs on a laptop CPU (spec #29),
+# so torch comes from the CPU wheel index: no CUDA libraries in CI or on the laptop.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]
 
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/traceq_dataset", "src/traceq_eval"]
+packages = ["src/traceq_dataset", "src/traceq_eval", "src/traceq"]
+
+[project.scripts]
+traceq = "traceq.runs.cli:main"
+
+[project.optional-dependencies]
+ocr = [
+    "onnxruntime==1.31.1",
+    "rapidocr==3.10.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -39,7 +67,7 @@ addopts = ["--strict-markers"]
 include = ["src", "scripts", "tests"]
 pythonVersion = "3.13"
 typeCheckingMode = "standard"
-strict = []
+strict = ["src/traceq"]
 
 [tool.ruff]
 target-version = "py313"
@@ -49,3 +77,30 @@ line-length = 100
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 # Rendered documents write ranges with an en dash (20–60 rpm), as in the design doc.
 allowed-confusables = ["–"]
+
+# ADR 0008: module boundaries of the TraceQ system, checked by tests/test_boundaries.py.
+[tool.importlinter]
+root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "TraceQ modules are layered: runs > review, protocols > traceability > documents, ai"
+type = "layers"
+layers = [
+    "traceq.runs",
+    "traceq.review | traceq.protocols",
+    "traceq.traceability",
+    "traceq.documents | traceq.ai",
+]
+
+[[tool.importlinter.contracts]]
+name = "The system never imports the dataset or the scorer"
+type = "forbidden"
+source_modules = ["traceq"]
+forbidden_modules = ["traceq_dataset", "traceq_eval"]
+
+[[tool.importlinter.contracts]]
+name = "The system reads PDFs with Docling, not pypdf (spec #29)"
+type = "forbidden"
+source_modules = ["traceq"]
+forbidden_modules = ["pypdf"]

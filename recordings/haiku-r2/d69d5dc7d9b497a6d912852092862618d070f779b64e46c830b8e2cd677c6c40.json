@@ -1,0 +1,133 @@
+{
+  "doc_sha256": "dba5c7ffbe13d747969a20942161c8f02151b311680605d34ec43e2205f8493a",
+  "key": "d69d5dc7d9b497a6d912852092862618d070f779b64e46c830b8e2cd677c6c40",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "draft",
+  "prompt_hash": "73f1a5e017d18b1ebec0e78811f4abf8f9b37796434ac0658f6afa0d80d058e6",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "enum": [
+                "range",
+                "number",
+                "one_of",
+                "text",
+                "present",
+                "none"
+              ],
+              "type": "string"
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "number": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max",
+            "number",
+            "unit",
+            "allowed",
+            "text"
+          ],
+          "type": "object"
+        },
+        "acceptance_source": {
+          "additionalProperties": false,
+          "properties": {
+            "doc": {
+              "type": "string"
+            },
+            "page": {
+              "type": "integer"
+            },
+            "quote": {
+              "type": "string"
+            },
+            "rev": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "doc",
+            "rev",
+            "page",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "instrument": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "method",
+        "instrument",
+        "acceptance",
+        "acceptance_source"
+      ],
+      "type": "object"
+    },
+    "system": "You draft one IQ/OQ Test Step for one URS requirement of pharmaceutical equipment. You get the requirement with its verified value and Coverage class, the vendor Evidence linked to it with why it does not prove the requirement, and the pages of the source documents.\ndescription: what the step verifies, one sentence.\nmethod: how to perform it, executable at the site; test the upper and lower limits or the worst case where the requirement has them.\ninstrument: the measuring instrument to use; null when the step measures nothing.\nacceptance: the Acceptance Criterion, only when a source page prints it. kind: range (min and/or max), number, one_of (accepted texts in allowed, exactly as printed), text, present (a feature that must exist), or none. Numbers are plain JSON numbers (Indonesian documents write 1.000 for one thousand and 0,5 for one half); unit: a short English unit symbol such as mm, kN, rpm or °C.\nacceptance_source: where the AC is printed: doc and rev of one of the given sources, the page number and a verbatim quote, at most 200 characters, that states the AC with its numbers as printed. Copy characters exactly.\nNever invent, round or tighten a limit. If no source prints an AC for this requirement, answer kind none and acceptance_source null: a human sets it.",
+    "user": "{\n \"requirement\": {\n  \"id\": \"URS-TP202-p1-05\",\n  \"text\": \"Gaya tekan utama | Minimal 80 kN. | Ya\",\n  \"value\": {\n   \"type\": \"range\",\n   \"min\": 80.0,\n   \"max\": null,\n   \"unit\": \"kN\"\n  },\n  \"value_citation\": {\n   \"doc\": \"URS-TP202\",\n   \"rev\": 0,\n   \"page\": 1,\n   \"quote\": \"Gaya tekan utama Minimal 80 kN. Ya\"\n  },\n  \"coverage\": \"gap\",\n  \"reason\": \"no FAT/SAT step addresses it\"\n },\n \"evidence\": [],\n \"sources\": [\n  {\n   \"doc\": \"URS-TP202\",\n   \"rev\": 0,\n   \"page\": 1,\n   \"text\": \"Spesifikasi Kebutuhan Pengguna\\nTP-202 – Rotary tablet press (double-sided)\\nNomor dokumen URS-TP202, revisi 0, berlaku sejak 16/07/2025.\\nPendahuluan\\nDokumen ini menguraikan kebutuhan PT Arunika Farma Lestari terhadap rotary tablet press (doublesided) TP-202. Kebutuhan dalam tabel yang ditandai Kritis = Ya berdampak langsung pada mutu produk atau keselamatan.\\n1. Kinerja mesin\\nMesin akan digunakan untuk produksi tablet lepas cepat dengan volume tinggi di ruang cetak tablet.\\nAspek Kebutuhan Kritis\\nJumlah stasiun punch Minimal 45 stasiun punch. Tidak\\nKecepatan turret Dapat diatur pada rentang 10–80 rpm. Ya\\nKapasitas produksi Minimal 300.000 tablet/jam pada kecepatan turret maksimum. Ya\\nGaya tekan utama Minimal 80 kN. Ya\\nGaya pra-kompresi Minimal 20 kN. Tidak\\n2. Material dan permukaan\\nBagian ini berlaku untuk semua komponen yang bersentuhan langsung dengan serbuk atau tablet.\\nAspek Kebutuhan Kritis\\nMaterial bagian kontak produk Baja tahan karat SS 316L. Ya\\nKekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm. Tidak\\n3. Sistem kendali dan data\\nMesin dikendalikan melalui PLC dengan panel HMI layar sentuh di sisi operator. Mesin dilengkapi kontrol bobot tablet otomatis berdasarkan gaya tekan. Data batch dan resep dicadangkan otomatis ke server site setiap hari.\\n4. Keselamatan dan lingkungan kerja\\nMesin dipasang di ruang cetak tablet bersama dua mesin lain dan dioperasikan oleh satu operator per shift. Tingkat kebisingan pada jarak 1 m dari mesin tidak lebih dari 80 dB(A). Pintu pelindung dilengkapi interlock yang menghentikan mesin ketika pintu dibuka. Tombol henti darurat tersedia di panel operator dan di sisi belakang mesin.\\n5. Utilitas\\nUtilitas disediakan oleh site sampai titik sambung di samping mesin. Mesin beroperasi dengan udara tekan site pada tekanan 6–7 bar.\\nRiwayat dokumen\\nRevisi 0, 16/07/2025: Terbitan pertama.\"\n  }\n ]\n}"
+  },
+  "response": {
+    "input_tokens": 2429,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 710,
+    "text": "{\"description\":\"Verifies that the rotary tablet press can deliver a main compression force of at least 80 kN.\",\"method\":\"With the machine assembled and calibrated per the vendor procedure, fit the compression roller set for the maximum rated main compression force, set the main compression force to its maximum adjustable setting, and run the turret empty at a low speed. Measure the peak main compression force with the calibrated force transducer (punch force monitor) at each station as it passes the compression rollers, record the maximum, and confirm it is at least 80 kN. Repeat for three consecutive runs and record all values.\",\"instrument\":\"Calibrated punch force monitor / load cell (compression force transducer) with a valid calibration certificate\",\"acceptance\":{\"kind\":\"range\",\"min\":80.0,\"max\":null,\"number\":null,\"unit\":\"kN\",\"allowed\":[],\"text\":null},\"acceptance_source\":{\"doc\":\"URS-TP202\",\"rev\":0,\"page\":1,\"quote\":\"Gaya tekan utama Minimal 80 kN. Ya\"}}"
+  }
+}
