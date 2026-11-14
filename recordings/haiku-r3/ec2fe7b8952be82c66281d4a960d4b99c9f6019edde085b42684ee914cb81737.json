@@ -1,0 +1,85 @@
+{
+  "doc_sha256": "00fae3509f8199088287711a049583a1d400cfa4817a91a3ba7ea01e952b90f2",
+  "key": "ec2fe7b8952be82c66281d4a960d4b99c9f6019edde085b42684ee914cb81737",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "extract",
+  "prompt_hash": "d912733cc3accb664f0f9c09838ecec4caa05bf8d967e4b513ea0786c352dc70",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "range",
+            "number",
+            "one_of",
+            "text",
+            "present",
+            "none"
+          ],
+          "type": "string"
+        },
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "number": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quote": {
+          "type": "string"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "min",
+        "max",
+        "number",
+        "unit",
+        "allowed",
+        "text",
+        "quote"
+      ],
+      "type": "object"
+    },
+    "system": "You extract the required value of one URS requirement for pharmaceutical equipment. Answer from the requirement and the page text only.\nkind:\n- range: a limit or interval; set min and/or max ('at least 5' has only min, 'at most 5' only max, '2-8' both).\n- number: one exact required number.\n- one_of: a required material, type or option; list the accepted texts in allowed, exactly as printed.\n- text: a required text value that is none of the above.\n- present: a feature or document that must exist, with no number.\n- none: the requirement states no value you can read with certainty.\nNumbers are plain JSON numbers: read the document's decimal and thousands separators (Indonesian documents write 1.000 for one thousand and 0,5 for one half). unit: a short English unit symbol such as mm, kN, rpm, min, bar or °C; null when there is none.\nquote: a verbatim excerpt of the page, at most 200 characters, that states the value with its numbers as printed. Copy characters exactly; never paraphrase. If a value is ambiguous, answer kind none rather than guess.",
+    "user": "{\"id\": \"URS-TP201-037\", \"requirement\": \"URS-TP201-037 Tidak Deklarasi kesesuaian keselamatan mesin tersedia.\"}\n\nDocument URS-TP201, revision 1, page 2.\n\n<page>\nNo. Kritis Persyaratan\nURS-TP201-024 Tidak Resep produk dapat di-backup dan dipulihkan.\nURS-TP201-025 Tidak Jam sistem HMI disinkronkan dengan sumber waktu pabrik.\n5. Utilitas dan lingkungan\nNo. Kritis Persyaratan\nURS-TP201-026 Tidak Mesin beroperasi dengan suplai listrik 380 V, 3 fase.\nURS-TP201-027 Tidak Mesin beroperasi dengan udara tekan 6–7 bar.\nURS-TP201-028 Tidak Sambungan dust extraction kompatibel dengan sistem pabrik minimal 300 m³/jam.\nURS-TP201-029 Tidak Tingkat kebisingan di posisi operator maksimal 85 dBA.\nURS-TP201-030 Tidak Dimensi mesin muat di ruang cetak dengan tinggi plafon 3.000 mm.\nURS-TP201-031 Tidak Mesin beroperasi normal pada suhu ruang 18–25 °C.\n6. Pembersihan\nNo. Kritis Persyaratan\nURS-TP201-032 Tidak Waktu changeover dan pembersihan antar produk maksimal 120 menit.\nURS-TP201-033 Tidak Bagian kontak produk dapat dilepas untuk dibersihkan tanpa alat khusus.\n7. Dokumentasi\nNo. Kritis Persyaratan\nURS-TP201-034 Tidak Manual operasi dan perawatan tersedia dalam bahasa Indonesia atau Inggris.\nURS-TP201-035 Tidak Sertifikat material 3.1 tersedia untuk semua bagian kontak produk.\nURS-TP201-036 Tidak Sertifikat kalibrasi sensor gaya tekan tersedia dan masih berlaku.\nURS-TP201-037 Tidak Deklarasi kesesuaian keselamatan mesin tersedia.\nURS-TP201-038 Tidak Daftar suku cadang dan gambar teknis as-built tersedia.\nRiwayat revisi\nRev. Tanggal Keterangan\n0 14/09/2025 Terbitan pertama.\n1 29/10/2025 URS-TP201-003: kapasitas produksi minimal dinaikkan sesuai revisi proyeksi volume.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 29/10/2025\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 29/10/2025\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 29/10/2025\n</page>"
+  },
+  "response": {
+    "input_tokens": 1880,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 86,
+    "text": "{\"kind\":\"present\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"allowed\":[],\"text\":null,\"quote\":\"URS-TP201-037 Tidak Deklarasi kesesuaian keselamatan mesin tersedia.\"}"
+  }
+}

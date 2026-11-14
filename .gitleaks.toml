@@ -1,0 +1,11 @@
+# gitleaks: the default rules, plus one allowlist entry.
+# Recorded runs (recordings/) and reports carry SHA-256 hex digests (document hashes,
+# recording keys, answer-key hashes) under names like "key" or "*_sha256"; the
+# generic-api-key rule reads them as secrets. Only an exact 64-hex-digit value is
+# allowed, so a real API key in a recording is still caught.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "SHA-256 hex digests"
+regexes = ['''^[0-9a-f]{64}$''']

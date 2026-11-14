@@ -1,0 +1,332 @@
+{
+ "doc_sha256": "00fae3509f8199088287711a049583a1d400cfa4817a91a3ba7ea01e952b90f2",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  25.07,
+  25.07
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1205366784,
+ "pages": [
+  {
+   "number": 1,
+   "text": "Spesifikasi Kebutuhan Pengguna (SKP)\nNomor dokumen URS-TP201\nRevisi 1\nTanggal berlaku 29/10/2025\nPeralatan TP-201 – Rotary tablet press (single-sided)\nTujuan\nDokumen ini menetapkan kebutuhan pengguna untuk TP-201. Persyaratan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\n1. Kinerja\nNo. Kritis Persyaratan\nURS-TP201-001 Tidak Mesin memiliki 36 stasiun punch.\nURS-TP201-002 Ya Kecepatan turret dapat diatur pada rentang 20–70 rpm.\nURS-TP201-003 Ya Kapasitas produksi minimal 120.000 tablet/jam.\nURS-TP201-004 Ya Gaya tekan utama yang dapat dicapai minimal 100 kN.\nURS-TP201-005 Tidak Gaya pra-kompresi yang dapat dicapai minimal 20 kN.\nURS-TP201-006 Tidak Diameter tablet maksimal 25 mm.\nURS-TP201-007 Tidak Kedalaman pengisian maksimal 18 mm.\nURS-TP201-008 Tidak Mesin menggunakan tooling tipe EU D.\n2. Material dan konstruksi\nNo. Kritis Persyaratan\nURS-TP201-009 Ya Semua bagian yang kontak dengan produk terbuat dari SS 316L.\nURS-TP201-010 Tidak Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm.\nURS-TP201-011 Tidak Bagian yang tidak kontak dengan produk terbuat dari SS 304.\nURS-TP201-012 Tidak Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone.\nURS-TP201-013 Tidak Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade.\n3. Kontrol dan keselamatan\nNo. Kritis Persyaratan\nURS-TP201-014 Ya Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan.\nURS-TP201-015 Ya Tablet di luar batas berat ditolak otomatis.\nURS-TP201-016 Ya Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh.\nURS-TP201-017 Tidak Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm.\nURS-TP201-018 Ya Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka.\nURS-TP201-019 Ya Tombol emergency stop tersedia dan berfungsi.\nURS-TP201-020 Tidak Mesin berhenti otomatis saat terjadi overload pada punch.\n4. Integritas data HMI\nNo. Kritis Persyaratan\nURS-TP201-021 Ya HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin).\nURS-TP201-022 Ya HMI merekam audit trail untuk setiap perubahan parameter dan resep.\nURS-TP201-023 Tidak HMI menyimpan log alarm beserta waktu dan pengguna.",
+   "tables": [
+    [
+     [
+      "Nomor dokumen",
+      "URS-TP201"
+     ],
+     [
+      "Revisi",
+      "1"
+     ],
+     [
+      "Tanggal berlaku",
+      "29/10/2025"
+     ],
+     [
+      "Peralatan",
+      "TP-201 – Rotary tablet press (single-sided)"
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-001",
+      "Tidak",
+      "Mesin memiliki 36 stasiun punch."
+     ],
+     [
+      "URS-TP201-002",
+      "Ya",
+      "Kecepatan turret dapat diatur pada rentang 20–70 rpm."
+     ],
+     [
+      "URS-TP201-003",
+      "Ya",
+      "Kapasitas produksi minimal 120.000 tablet/jam."
+     ],
+     [
+      "URS-TP201-004",
+      "Ya",
+      "Gaya tekan utama yang dapat dicapai minimal 100 kN."
+     ],
+     [
+      "URS-TP201-005",
+      "Tidak",
+      "Gaya pra-kompresi yang dapat dicapai minimal 20 kN."
+     ],
+     [
+      "URS-TP201-006",
+      "Tidak",
+      "Diameter tablet maksimal 25 mm."
+     ],
+     [
+      "URS-TP201-007",
+      "Tidak",
+      "Kedalaman pengisian maksimal 18 mm."
+     ],
+     [
+      "URS-TP201-008",
+      "Tidak",
+      "Mesin menggunakan tooling tipe EU D."
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-009",
+      "Ya",
+      "Semua bagian yang kontak dengan produk terbuat dari SS 316L."
+     ],
+     [
+      "URS-TP201-010",
+      "Tidak",
+      "Kekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm."
+     ],
+     [
+      "URS-TP201-011",
+      "Tidak",
+      "Bagian yang tidak kontak dengan produk terbuat dari SS 304."
+     ],
+     [
+      "URS-TP201-012",
+      "Tidak",
+      "Gasket dan seal yang kontak dengan produk terbuat dari EPDM atau silicone."
+     ],
+     [
+      "URS-TP201-013",
+      "Tidak",
+      "Pelumas yang berpotensi kontak dengan produk adalah pelumas food-grade."
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-014",
+      "Ya",
+      "Mesin dilengkapi kontrol berat tablet otomatis berbasis gaya tekan."
+     ],
+     [
+      "URS-TP201-015",
+      "Ya",
+      "Tablet di luar batas berat ditolak otomatis."
+     ],
+     [
+      "URS-TP201-016",
+      "Ya",
+      "Akurasi pengukuran gaya tekan maksimal ±1% dari skala penuh."
+     ],
+     [
+      "URS-TP201-017",
+      "Tidak",
+      "Kecepatan paddle feeder dapat diatur pada rentang 10–60 rpm."
+     ],
+     [
+      "URS-TP201-018",
+      "Ya",
+      "Pintu pelindung dilengkapi interlock yang menghentikan mesin saat dibuka."
+     ],
+     [
+      "URS-TP201-019",
+      "Ya",
+      "Tombol emergency stop tersedia dan berfungsi."
+     ],
+     [
+      "URS-TP201-020",
+      "Tidak",
+      "Mesin berhenti otomatis saat terjadi overload pada punch."
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-021",
+      "Ya",
+      "HMI memiliki level akses pengguna yang berbeda (operator, supervisor, admin)."
+     ],
+     [
+      "URS-TP201-022",
+      "Ya",
+      "HMI merekam audit trail untuk setiap perubahan parameter dan resep."
+     ],
+     [
+      "URS-TP201-023",
+      "Tidak",
+      "HMI menyimpan log alarm beserta waktu dan pengguna."
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 2,
+   "text": "No. Kritis Persyaratan\nURS-TP201-024 Tidak Resep produk dapat di-backup dan dipulihkan.\nURS-TP201-025 Tidak Jam sistem HMI disinkronkan dengan sumber waktu pabrik.\n5. Utilitas dan lingkungan\nNo. Kritis Persyaratan\nURS-TP201-026 Tidak Mesin beroperasi dengan suplai listrik 380 V, 3 fase.\nURS-TP201-027 Tidak Mesin beroperasi dengan udara tekan 6–7 bar.\nURS-TP201-028 Tidak Sambungan dust extraction kompatibel dengan sistem pabrik minimal 300 m³/jam.\nURS-TP201-029 Tidak Tingkat kebisingan di posisi operator maksimal 85 dBA.\nURS-TP201-030 Tidak Dimensi mesin muat di ruang cetak dengan tinggi plafon 3.000 mm.\nURS-TP201-031 Tidak Mesin beroperasi normal pada suhu ruang 18–25 °C.\n6. Pembersihan\nNo. Kritis Persyaratan\nURS-TP201-032 Tidak Waktu changeover dan pembersihan antar produk maksimal 120 menit.\nURS-TP201-033 Tidak Bagian kontak produk dapat dilepas untuk dibersihkan tanpa alat khusus.\n7. Dokumentasi\nNo. Kritis Persyaratan\nURS-TP201-034 Tidak Manual operasi dan perawatan tersedia dalam bahasa Indonesia atau Inggris.\nURS-TP201-035 Tidak Sertifikat material 3.1 tersedia untuk semua bagian kontak produk.\nURS-TP201-036 Tidak Sertifikat kalibrasi sensor gaya tekan tersedia dan masih berlaku.\nURS-TP201-037 Tidak Deklarasi kesesuaian keselamatan mesin tersedia.\nURS-TP201-038 Tidak Daftar suku cadang dan gambar teknis as-built tersedia.\nRiwayat revisi\nRev. Tanggal Keterangan\n0 14/09/2025 Terbitan pertama.\n1 29/10/2025 URS-TP201-003: kapasitas produksi minimal dinaikkan sesuai revisi proyeksi volume.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 29/10/2025\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 29/10/2025\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 29/10/2025",
+   "tables": [
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-024",
+      "Tidak",
+      "Resep produk dapat di-backup dan dipulihkan."
+     ],
+     [
+      "URS-TP201-025",
+      "Tidak",
+      "Jam sistem HMI disinkronkan dengan sumber waktu pabrik."
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-026",
+      "Tidak",
+      "Mesin beroperasi dengan suplai listrik 380 V, 3 fase."
+     ],
+     [
+      "URS-TP201-027",
+      "Tidak",
+      "Mesin beroperasi dengan udara tekan 6–7 bar."
+     ],
+     [
+      "URS-TP201-028",
+      "Tidak",
+      "Sambungan dust extraction kompatibel dengan sistem pabrik minimal 300 m³/jam."
+     ],
+     [
+      "URS-TP201-029",
+      "Tidak",
+      "Tingkat kebisingan di posisi operator maksimal 85 dBA."
+     ],
+     [
+      "URS-TP201-030",
+      "Tidak",
+      "Dimensi mesin muat di ruang cetak dengan tinggi plafon 3.000 mm."
+     ],
+     [
+      "URS-TP201-031",
+      "Tidak",
+      "Mesin beroperasi normal pada suhu ruang 18–25 °C."
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-032",
+      "Tidak",
+      "Waktu changeover dan pembersihan antar produk maksimal 120 menit."
+     ],
+     [
+      "URS-TP201-033",
+      "Tidak",
+      "Bagian kontak produk dapat dilepas untuk dibersihkan tanpa alat khusus."
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Kritis",
+      "Persyaratan"
+     ],
+     [
+      "URS-TP201-034",
+      "Tidak",
+      "Manual operasi dan perawatan tersedia dalam bahasa Indonesia atau Inggris."
+     ],
+     [
+      "URS-TP201-035",
+      "Tidak",
+      "Sertifikat material 3.1 tersedia untuk semua bagian kontak produk."
+     ],
+     [
+      "URS-TP201-036",
+      "Tidak",
+      "Sertifikat kalibrasi sensor gaya tekan tersedia dan masih berlaku."
+     ],
+     [
+      "URS-TP201-037",
+      "Tidak",
+      "Deklarasi kesesuaian keselamatan mesin tersedia."
+     ],
+     [
+      "URS-TP201-038",
+      "Tidak",
+      "Daftar suku cadang dan gambar teknis as-built tersedia."
+     ]
+    ],
+    [
+     [
+      "Rev.",
+      "Tanggal",
+      "Keterangan"
+     ],
+     [
+      "0",
+      "14/09/2025",
+      "Terbitan pertama."
+     ],
+     [
+      "1",
+      "29/10/2025",
+      "URS-TP201-003: kapasitas produksi minimal dinaikkan sesuai revisi proyeksi volume."
+     ]
+    ],
+    [
+     [
+      "Peran",
+      "Nama",
+      "Tanda tangan",
+      "Tanggal"
+     ],
+     [
+      "Disusun oleh",
+      "Rina Wulandari",
+      "Ditandatangani elektronik",
+      "29/10/2025"
+     ],
+     [
+      "Diperiksa oleh",
+      "Bayu Pratama",
+      "Ditandatangani elektronik",
+      "29/10/2025"
+     ],
+     [
+      "Disetujui oleh",
+      "Dewi Anggraini",
+      "Ditandatangani elektronik",
+      "29/10/2025"
+     ]
+    ]
+   ]
+  }
+ ]
+}

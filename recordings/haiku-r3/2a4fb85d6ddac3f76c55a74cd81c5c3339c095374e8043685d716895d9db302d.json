@@ -1,0 +1,133 @@
+{
+  "doc_sha256": "4d27b43bc0324b87705709ef20cadb15a23ace9e0af34bd000db4f0d600334a4",
+  "key": "2a4fb85d6ddac3f76c55a74cd81c5c3339c095374e8043685d716895d9db302d",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "draft",
+  "prompt_hash": "73f1a5e017d18b1ebec0e78811f4abf8f9b37796434ac0658f6afa0d80d058e6",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "enum": [
+                "range",
+                "number",
+                "one_of",
+                "text",
+                "present",
+                "none"
+              ],
+              "type": "string"
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "number": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max",
+            "number",
+            "unit",
+            "allowed",
+            "text"
+          ],
+          "type": "object"
+        },
+        "acceptance_source": {
+          "additionalProperties": false,
+          "properties": {
+            "doc": {
+              "type": "string"
+            },
+            "page": {
+              "type": "integer"
+            },
+            "quote": {
+              "type": "string"
+            },
+            "rev": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "doc",
+            "rev",
+            "page",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "instrument": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "method",
+        "instrument",
+        "acceptance",
+        "acceptance_source"
+      ],
+      "type": "object"
+    },
+    "system": "You draft one IQ/OQ Test Step for one URS requirement of pharmaceutical equipment. You get the requirement with its verified value and Coverage class, the vendor Evidence linked to it with why it does not prove the requirement, and the pages of the source documents.\ndescription: what the step verifies, one sentence.\nmethod: how to perform it, executable at the site; test the upper and lower limits or the worst case where the requirement has them.\ninstrument: the measuring instrument to use; null when the step measures nothing.\nacceptance: the Acceptance Criterion, only when a source page prints it. kind: range (min and/or max), number, one_of (accepted texts in allowed, exactly as printed), text, present (a feature that must exist), or none. Numbers are plain JSON numbers (Indonesian documents write 1.000 for one thousand and 0,5 for one half); unit: a short English unit symbol such as mm, kN, rpm or °C.\nacceptance_source: where the AC is printed: doc and rev of one of the given sources, the page number and a verbatim quote, at most 200 characters, that states the AC with its numbers as printed. Copy characters exactly.\nNever invent, round or tighten a limit. If no source prints an AC for this requirement, answer kind none and acceptance_source null: a human sets it.",
+    "user": "{\n \"requirement\": {\n  \"id\": \"URS-TP201-027\",\n  \"text\": \"URS-TP201-027 Tidak Mesin beroperasi dengan udara tekan 6–7 bar.\",\n  \"value\": {\n   \"type\": \"range\",\n   \"min\": 6.0,\n   \"max\": 7.0,\n   \"unit\": \"bar\"\n  },\n  \"value_citation\": {\n   \"doc\": \"URS-TP201\",\n   \"rev\": 1,\n   \"page\": 2,\n   \"quote\": \"URS-TP201-027 Tidak Mesin beroperasi dengan udara tekan 6–7 bar.\"\n  },\n  \"coverage\": \"site_only\",\n  \"reason\": \"cannot be tested by the vendor\"\n },\n \"evidence\": [],\n \"sources\": [\n  {\n   \"doc\": \"URS-TP201\",\n   \"rev\": 1,\n   \"page\": 2,\n   \"text\": \"No. Kritis Persyaratan\\nURS-TP201-024 Tidak Resep produk dapat di-backup dan dipulihkan.\\nURS-TP201-025 Tidak Jam sistem HMI disinkronkan dengan sumber waktu pabrik.\\n5. Utilitas dan lingkungan\\nNo. Kritis Persyaratan\\nURS-TP201-026 Tidak Mesin beroperasi dengan suplai listrik 380 V, 3 fase.\\nURS-TP201-027 Tidak Mesin beroperasi dengan udara tekan 6–7 bar.\\nURS-TP201-028 Tidak Sambungan dust extraction kompatibel dengan sistem pabrik minimal 300 m³/jam.\\nURS-TP201-029 Tidak Tingkat kebisingan di posisi operator maksimal 85 dBA.\\nURS-TP201-030 Tidak Dimensi mesin muat di ruang cetak dengan tinggi plafon 3.000 mm.\\nURS-TP201-031 Tidak Mesin beroperasi normal pada suhu ruang 18–25 °C.\\n6. Pembersihan\\nNo. Kritis Persyaratan\\nURS-TP201-032 Tidak Waktu changeover dan pembersihan antar produk maksimal 120 menit.\\nURS-TP201-033 Tidak Bagian kontak produk dapat dilepas untuk dibersihkan tanpa alat khusus.\\n7. Dokumentasi\\nNo. Kritis Persyaratan\\nURS-TP201-034 Tidak Manual operasi dan perawatan tersedia dalam bahasa Indonesia atau Inggris.\\nURS-TP201-035 Tidak Sertifikat material 3.1 tersedia untuk semua bagian kontak produk.\\nURS-TP201-036 Tidak Sertifikat kalibrasi sensor gaya tekan tersedia dan masih berlaku.\\nURS-TP201-037 Tidak Deklarasi kesesuaian keselamatan mesin tersedia.\\nURS-TP201-038 Tidak Daftar suku cadang dan gambar teknis as-built tersedia.\\nRiwayat revisi\\nRev. Tanggal Keterangan\\n0 14/09/2025 Terbitan pertama.\\n1 29/10/2025 URS-TP201-003: kapasitas produksi minimal dinaikkan sesuai revisi proyeksi volume.\\nPengesahan\\nPeran Nama Tanda tangan Tanggal\\nDisusun oleh Rina Wulandari Ditandatangani elektronik 29/10/2025\\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 29/10/2025\\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 29/10/2025\"\n  },\n  {\n   \"doc\": \"DS-TP201\",\n   \"rev\": 0,\n   \"page\": 1,\n   \"text\": \"Technical Datasheet\\nRTP 36 rotary tablet press (single-sided)\\nManufacturer Pressora Maschinenbau GmbH Document no. DS-TP201\\nModel RTP 36 Revision 0\\nMachine serial no. RTP36-25-0417 Issue date 08-Nov-2025\\nCustomer PT Arunika Farma Lestari Customer equipment tag TP-201\\nPerformance\\nNumber of punch stations 36 stations\\nTurret speed 20–70 rpm\\nMaximum output 151,200 tablets/h\\nMaximum main compression force 100 kN\\nMaximum pre-compression force 20 kN\\nTooling\\nMaximum tablet diameter 25 mm\\nMaximum fill depth 18 mm\\nTooling standard EU B\\nMaterials and finish SS 316L\\nProduct-contact parts\\nSurface roughness Ra, product-contact parts (max.) 0.8 µm\\nFrame and covers SS 304\\nControl and safety\\nAutomatic tablet weight control (force-based) Yes\\nAutomatic rejection of out-of-limit tablets Yes\\nCompression force measurement accuracy (max. ±) 1 % FS\\nFeeder paddle speed 10–60 rpm\\nEmergency stop Yes\\nPunch overload protection Yes\\nDesign values for machine serial no. RTP36-25-0417, as built for the customer's order. Values marked max. are limits of the machine.\\nPrepared by Markus Brandt Signed electronically 08-Nov-2025\\nHMI and data\\nUser access levels (operator, supervisor, admin) Yes\\nAudit trail of parameter and recipe changes Yes\\nAlarm log with time and user Yes\\nUtilities\\nPower supply (3 phase, 50 Hz) 380 V\\nCompressed air 6–7 bar\\nDust extraction flow (required) 300 m3/h\"\n  }\n ]\n}"
+  },
+  "response": {
+    "input_tokens": 3191,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 941,
+    "text": "{\"description\":\"Verifies that the tablet press operates with compressed air supply within 6–7 bar.\",\"method\":\"With the machine in normal operation, connect a calibrated pressure gauge or transmitter at the compressed air inlet of the machine. Adjust the site supply regulator to the lower limit of 6.0 bar and confirm the machine runs without air-pressure alarms. Then adjust to the upper limit of 7.0 bar and confirm the same. Record the gauge readings at both limits and the machine's operating status.\",\"instrument\":\"Calibrated pressure gauge or pressure transmitter (0–10 bar range) at the compressed air inlet\",\"acceptance\":{\"kind\":\"range\",\"min\":6.0,\"max\":7.0,\"number\":null,\"unit\":\"bar\",\"allowed\":[],\"text\":null},\"acceptance_source\":{\"doc\":\"URS-TP201\",\"rev\":1,\"page\":2,\"quote\":\"URS-TP201-027 Tidak Mesin beroperasi dengan udara tekan 6–7 bar.\"}}"
+  }
+}
