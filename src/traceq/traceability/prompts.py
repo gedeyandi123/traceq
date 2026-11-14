@@ -202,38 +202,65 @@ FACTS = Prompt(
     max_tokens=16000,
 )
 
+_LINK_BEFORE = (
+    "You trace one URS requirement for pharmaceutical equipment to vendor Evidence. You"
+    " get the requirement and lists of vendor test steps and design values, each with an"
+    " id.\n"
+    "steps: ids of the test steps whose result tests what the requirement asks. A step"
+    " that checks something else (another part, a document about a different property)"
+    " is not Evidence.\n"
+    "rows: ids of the design or certified values that state what the requirement asks"
+    " about (the same parameter, material or feature).\n"
+    "site_only: true when the vendor cannot test the requirement because it depends on"
+    " the site (utility connections, the production room, plant systems).\n"
+)
+_LINK_AFTER = (
+    "area: the one area, from the areas given, whose vendor activities the requirement"
+    " belongs to, copied exactly; null when no area fits or none is given.\n"
+    "Use only the ids given; return empty lists when nothing fits."
+)
+_LINK_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["steps", "rows", "site_only", "transport_sensitive", "area"],
+    "properties": {
+        "steps": {"type": "array", "items": {"type": "string"}},
+        "rows": {"type": "array", "items": {"type": "string"}},
+        "site_only": {"type": "boolean"},
+        "transport_sensitive": {"type": "boolean"},
+        "area": {"type": ["string", "null"]},
+    },
+}
+
 LINK = Prompt(
     name="link",
-    system=(
-        "You trace one URS requirement for pharmaceutical equipment to vendor Evidence. You"
-        " get the requirement and lists of vendor test steps and design values, each with an"
-        " id.\n"
-        "steps: ids of the test steps whose result tests what the requirement asks. A step"
-        " that checks something else (another part, a document about a different property)"
-        " is not Evidence.\n"
-        "rows: ids of the design or certified values that state what the requirement asks"
-        " about (the same parameter, material or feature).\n"
-        "site_only: true when the vendor cannot test the requirement because it depends on"
-        " the site (utility connections, the production room, plant systems).\n"
+    system=_LINK_BEFORE
+    + (
         "transport_sensitive: true when transport or installation can change the result, so"
         " a factory test alone does not prove it (calibration, alignment, measurement"
         " accuracy).\n"
-        "area: the one area, from the areas given, whose vendor activities the requirement"
-        " belongs to, copied exactly; null when no area fits or none is given.\n"
-        "Use only the ids given; return empty lists when nothing fits."
-    ),
-    schema={
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["steps", "rows", "site_only", "transport_sensitive", "area"],
-        "properties": {
-            "steps": {"type": "array", "items": {"type": "string"}},
-            "rows": {"type": "array", "items": {"type": "string"}},
-            "site_only": {"type": "boolean"},
-            "transport_sensitive": {"type": "boolean"},
-            "area": {"type": ["string", "null"]},
-        },
-    },
+    )
+    + _LINK_AFTER,
+    schema=_LINK_SCHEMA,
+    max_tokens=2000,
+)
+
+TRANSPORT = Prompt(
+    name="transport",
+    # ``link`` with its transport_sensitive definition replaced by one by category, so the
+    # votes (#90) ask exactly what probe 2 measured. Only transport_sensitive is read.
+    system=_LINK_BEFORE
+    + (
+        "transport_sensitive: true when transport, installation or connection on site can"
+        " change the result, so a factory test alone does not prove it: safety functions and"
+        " interlocks, control and software functions, performance under load, calibration"
+        " and measurement accuracy (also when only the calibration certificate is asked)."
+        " False for what the machine is built with and cannot lose in transport:"
+        " dimensions, materials, surface finish, design features, and documents supplied"
+        " with it.\n"
+    )
+    + _LINK_AFTER,
+    schema=_LINK_SCHEMA,
     max_tokens=2000,
 )
 
@@ -287,4 +314,4 @@ ASSESSMENT = Prompt(
     max_tokens=4000,
 )
 
-PROMPTS = (SEGMENT, EXTRACT, FACTS, LINK, ASSESSMENT)
+PROMPTS = (SEGMENT, EXTRACT, FACTS, LINK, TRANSPORT, ASSESSMENT)

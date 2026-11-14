@@ -192,7 +192,7 @@ def _link(area: str | None) -> Answer:
 
 def _linked(assessment: Assessment | None, area: str | None) -> tuple[Any, list[Dropped], FakeLLM]:
     dropped: list[Dropped] = []
-    llm = FakeLLM(link=_link(area))
+    llm = FakeLLM(link=_link(area), transport=_link(area))
     requirements = [("URS-X-001", "Turret speed 20-70 rpm", SPEED)]
     out = link(requirements, _facts(), "u", llm, dropped, assessment)
     return out["URS-X-001"], dropped, llm

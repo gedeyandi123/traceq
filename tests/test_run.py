@@ -407,7 +407,7 @@ class ScriptedLLM:
             return json.dumps(REVIEW[r.prompt.name](r))
         if r.prompt.name == "facts":
             return json.dumps(_facts(r))
-        if r.prompt.name == "link":
+        if r.prompt.name in ("link", "transport"):
             return json.dumps(_link(r))
         if r.prompt.name == "segment":
             page = _page(r)
@@ -681,6 +681,7 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
         "extract",
         "facts",
         "link",
+        "transport",
         "record",
         "required_documents",
         "site_rules",
@@ -695,8 +696,8 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
     # the SAT (2) and the three calibration certificates (3, scans); one call each for the
     # Vendor Assessment, the VMP and the SOP; one AI review over the current documents;
     # one draft per requirement the vendor did not cover. The one requirement FAT steps
-    # alone cover (URS-TP201-001) asks its link request again for the transport votes (#88).
-    votes = len(COVERED) * (TRANSPORT_VOTES - 1)
+    # alone cover (URS-TP201-001) asks the transport prompt for its votes (#88, #90).
+    votes = len(COVERED) * TRANSPORT_VOTES
     calls = 2 + 38 + 38 + votes + 7 + 8 + 3 + 1 + DRAFTED
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls

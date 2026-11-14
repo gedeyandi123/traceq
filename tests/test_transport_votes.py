@@ -1,8 +1,9 @@
-"""Votes on ``transport_sensitive`` before a FAT-only ``covered_by_vendor`` (#88).
+"""Votes on ``transport_sensitive`` before a FAT-only ``covered_by_vendor`` (#88, #90).
 
 The ``link`` answer's ``transport_sensitive`` bit is noisy. When it alone lets FAT steps
-cover a requirement, the same request is asked again until there are ``TRANSPORT_VOTES``
-answers; any ``true`` makes the requirement transport-sensitive.
+cover a requirement, the ``transport`` prompt is asked ``TRANSPORT_VOTES`` times with the
+same user text; any ``true`` makes the requirement transport-sensitive. The ``link`` bit
+only selects the candidates.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from traceq.traceability.evidence import (
     _Value,  # pyright: ignore[reportPrivateUsage]
     link,
 )
-from traceq.traceability.prompts import LINK
+from traceq.traceability.prompts import LINK, PROMPTS, TRANSPORT
 from traceq.traceability.values import Range
 
 AREA = "Mechanical"
@@ -68,7 +69,8 @@ def _answer(sensitive: bool, steps: Sequence[str] = ("FAT-X/FAT-01",)) -> str:
 
 
 class Scripted:
-    """Answers each requirement's ``link`` request by its sample index."""
+    """Answers each requirement's ``link`` request with the first answer of its script, and
+    its ``transport`` votes with the rest, by sample index."""
 
     model = "scripted"
 
@@ -81,7 +83,8 @@ class Scripted:
         out: list[Response] = []
         for r in requests:
             rid = json.loads(r.user)["requirement"]["id"]
-            out.append(Response(self.script[rid][r.sample], "scripted", 1, 1))
+            n = 0 if r.prompt is LINK else 1 + r.sample
+            out.append(Response(self.script[rid][n], "scripted", 1, 1))
         return out
 
 
@@ -96,30 +99,63 @@ def test_three_votes_in_all() -> None:
     assert TRANSPORT_VOTES == 3
 
 
+def test_link_is_unchanged_so_its_recordings_replay() -> None:
+    assert LINK.hash == "914fa1a4844c574d28fc05a8c7de5dcd336f59e55c523935f45e6bc0dc356828"
+
+
+def test_transport_is_link_with_only_the_transport_definition_replaced() -> None:
+    assert TRANSPORT.name == "transport"
+    assert TRANSPORT in PROMPTS
+    assert (TRANSPORT.schema, TRANSPORT.max_tokens) == (LINK.schema, LINK.max_tokens)
+    lines = zip(LINK.system.splitlines(), TRANSPORT.system.splitlines(), strict=True)
+    changed = [(a, b) for a, b in lines if a != b]
+    assert len(changed) == 1
+    assert changed[0][0].startswith("transport_sensitive: ")
+    assert changed[0][1].startswith(
+        "transport_sensitive: true when transport, installation or connection on site"
+    )
+
+
 def test_one_true_vote_makes_the_requirement_transport_sensitive() -> None:
-    out, dropped, llm = _run({"R": [_answer(False), _answer(False), _answer(True)]})
+    out, dropped, llm = _run({"R": [_answer(False), _answer(False), _answer(False), _answer(True)]})
     r = out["R"]
     assert (r.coverage.coverage, r.coverage.reason) == ("partial", CONDITION_4)
     assert r.facts.transport_sensitive is True
     assert dropped == []
     assert len(llm.batches) == 2
     first, votes = llm.batches
-    assert [v.sample for v in votes] == [1, 2]
+    assert [v.prompt for v in first] == [LINK]
+    assert [(v.prompt, v.sample) for v in votes] == [(TRANSPORT, 0), (TRANSPORT, 1), (TRANSPORT, 2)]
     assert all(v.user == first[0].user and v.doc_sha256 == first[0].doc_sha256 for v in votes)
 
 
+def test_the_link_bit_does_not_vote() -> None:
+    """The ``link`` answer only selects the candidate: three ``false`` votes keep it."""
+    out, _, _ = _run({"R": [_answer(False)] * 4})
+    assert out["R"].coverage.coverage == "covered_by_vendor"
+
+
 def test_all_votes_false_keeps_covered_by_vendor() -> None:
-    out, _, llm = _run({"R": [_answer(False)] * 3})
+    out, _, llm = _run({"R": [_answer(False)] * 4})
     assert (out["R"].coverage.coverage, out["R"].coverage.reason) == (
         "covered_by_vendor",
         "proved by FAT-X",
     )
     assert out["R"].facts.transport_sensitive is False
-    assert [len(b) for b in llm.batches] == [1, 2]
+    assert [len(b) for b in llm.batches] == [1, 3]
 
 
 def test_only_the_bit_is_taken_from_a_vote() -> None:
-    out, _, _ = _run({"R": [_answer(False), _answer(False, ["SAT-X/SAT-01"]), _answer(False, [])]})
+    out, _, _ = _run(
+        {
+            "R": [
+                _answer(False),
+                _answer(False, ["SAT-X/SAT-01"]),
+                _answer(False, []),
+                _answer(False),
+            ]
+        }
+    )
     assert [s.id for s in out["R"].steps] == ["FAT-X/FAT-01"]
     assert out["R"].coverage.coverage == "covered_by_vendor"
 
@@ -130,8 +166,8 @@ def test_no_vote_when_sat_qualifies_or_the_class_is_not_covered_by_vendor() -> N
             "sat": [_answer(False, ["FAT-X/FAT-01", "SAT-X/SAT-01"])],
             "partial": [_answer(True)],
             "gap": [_answer(False, [])],
-            "fat-a": [_answer(False)] * 3,
-            "fat-b": [_answer(False)] * 3,
+            "fat-a": [_answer(False)] * 4,
+            "fat-b": [_answer(False)] * 4,
         }
     )
     assert out["sat"].coverage.coverage == "covered_by_vendor"
@@ -139,7 +175,15 @@ def test_no_vote_when_sat_qualifies_or_the_class_is_not_covered_by_vendor() -> N
     assert out["gap"].coverage.coverage == "gap"
     assert len(llm.batches) == 2
     voted = [(json.loads(r.user)["requirement"]["id"], r.sample) for r in llm.batches[1]]
-    assert voted == [("fat-a", 1), ("fat-a", 2), ("fat-b", 1), ("fat-b", 2)]
+    assert voted == [
+        ("fat-a", 0),
+        ("fat-a", 1),
+        ("fat-a", 2),
+        ("fat-b", 0),
+        ("fat-b", 1),
+        ("fat-b", 2),
+    ]
+    assert all(r.prompt is TRANSPORT for r in llm.batches[1])
 
 
 def test_no_vote_batch_when_nothing_needs_one() -> None:
@@ -148,9 +192,9 @@ def test_no_vote_batch_when_nothing_needs_one() -> None:
 
 
 def test_an_unparsable_vote_counts_as_true_and_is_dropped() -> None:
-    out, dropped, _ = _run({"R": [_answer(False), "not json", _answer(False)]})
+    out, dropped, _ = _run({"R": [_answer(False), _answer(False), "not json", _answer(False)]})
     assert (out["R"].coverage.coverage, out["R"].coverage.reason) == ("partial", CONDITION_4)
-    assert dropped == [Dropped("link", "R vote 1", "bad answer")]
+    assert dropped == [Dropped("link", "R vote 2", "bad answer")]
 
 
 # --- Recording keys ----------------------------------------------------------------------
