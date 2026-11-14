@@ -22,8 +22,8 @@ from traceq.traceability.values import Number, OneOf, Present, Range, Text, Valu
 
 MAX_QUOTE = 200
 UNCERTAIN_OCR = 0.9
-"""An OCR entry scored below this is an uncertain reading. On the TP-201 scans the only entry
-below it is a misread handwritten id (0.817); the next lowest is 0.918 (#78)."""
+"""An OCR entry scored below this is an uncertain reading. On the dev corpus scans the only
+entry below it is a misread handwritten id (0.817); the next lowest is 0.918 (#78)."""
 UNCERTAIN = "uncertain OCR reading"
 """The reason a claim resting on one is dropped."""
 
