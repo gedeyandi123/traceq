@@ -23,9 +23,9 @@
       "better": "higher"
     },
     "citations.verified_rate": {
-      "k": 125,
-      "n": 126,
-      "rate": 0.9921,
+      "k": 123,
+      "n": 124,
+      "rate": 0.9919,
       "better": "higher"
     },
     "defects.recall": {
@@ -36,8 +36,8 @@
     },
     "fabrication.rate": {
       "k": 1,
-      "n": 184,
-      "rate": 0.0054,
+      "n": 182,
+      "rate": 0.0055,
       "better": "lower"
     },
     "probes.fabrication_rate": {
@@ -103,15 +103,15 @@
     }
   },
   "fabrication": {
-    "claims": 184,
+    "claims": 182,
     "fabricated": 1,
-    "rate": 0.0054
+    "rate": 0.0055
   },
   "citations": {
-    "total": 126,
-    "verified_rate": 0.9921,
+    "total": 124,
+    "verified_rate": 0.9919,
     "by_status": {
-      "verified": 125,
+      "verified": 123,
       "value_not_in_quote": 0,
       "too_long": 0,
       "unknown_document": 0,
@@ -606,10 +606,10 @@
   "defects": {
     "metrics": {
       "defects": 7,
-      "findings": 11,
+      "findings": 10,
       "recall": 0.7143,
-      "precision": 0.4545,
-      "f1": 0.5555,
+      "precision": 0.5,
+      "f1": 0.5882,
       "recall_by_layer": {
         "llm": 0.6667,
         "rule": 1.0,
@@ -621,7 +621,7 @@
         "minor": 1.0
       },
       "mislabelled": 0,
-      "false_positives": 6,
+      "false_positives": 5,
       "false_positives_on_clean_documents": 2,
       "severity_agreement": 0.0
     },
@@ -675,7 +675,7 @@
         "scenario": "S7",
         "type": "ambiguous_value",
         "found_by": [
-          11
+          10
         ]
       }
     ],
@@ -746,7 +746,7 @@
       },
       {
         "n": 8,
-        "type": "inconsistent_data",
+        "type": "ac_deviates_from_urs",
         "severity": null,
         "status": "false_positive",
         "defects": [],
@@ -762,14 +762,6 @@
       },
       {
         "n": 10,
-        "type": "ac_deviates_from_urs",
-        "severity": null,
-        "status": "false_positive",
-        "defects": [],
-        "on_clean_document": false
-      },
-      {
-        "n": 11,
         "type": "ambiguous_value",
         "severity": null,
         "status": "match",
