@@ -23,9 +23,9 @@
       "better": "higher"
     },
     "citations.verified_rate": {
-      "k": 122,
-      "n": 124,
-      "rate": 0.9839,
+      "k": 120,
+      "n": 121,
+      "rate": 0.9917,
       "better": "higher"
     },
     "defects.recall": {
@@ -35,9 +35,9 @@
       "better": "higher"
     },
     "fabrication.rate": {
-      "k": 2,
-      "n": 187,
-      "rate": 0.0107,
+      "k": 1,
+      "n": 184,
+      "rate": 0.0054,
       "better": "lower"
     },
     "probes.fabrication_rate": {
@@ -74,7 +74,7 @@
       "items": []
     },
     "fabricated_citation": {
-      "count": 2,
+      "count": 1,
       "floor": 0,
       "passed": false,
       "items": [
@@ -86,15 +86,6 @@
           "quote": "Materials and finish SS 316L",
           "status": "quote_not_found",
           "ratio": 0.75
-        },
-        {
-          "where": "finding 8 citation",
-          "doc": "SAT-TP201",
-          "rev": 0,
-          "page": 1,
-          "quote": "TACH-07 SW-03 122.400 tablets/h Lulus",
-          "status": "quote_not_found",
-          "ratio": 0.8108
         }
       ]
     },
@@ -112,20 +103,20 @@
     }
   },
   "fabrication": {
-    "claims": 187,
-    "fabricated": 2,
-    "rate": 0.0107
+    "claims": 184,
+    "fabricated": 1,
+    "rate": 0.0054
   },
   "citations": {
-    "total": 124,
-    "verified_rate": 0.9839,
+    "total": 121,
+    "verified_rate": 0.9917,
     "by_status": {
-      "verified": 122,
+      "verified": 120,
       "value_not_in_quote": 0,
       "too_long": 0,
       "unknown_document": 0,
       "unknown_page": 0,
-      "quote_not_found": 2
+      "quote_not_found": 1
     },
     "failed": [
       {
@@ -136,15 +127,6 @@
         "quote": "Materials and finish SS 316L",
         "status": "quote_not_found",
         "ratio": 0.75
-      },
-      {
-        "where": "finding 8 citation",
-        "doc": "SAT-TP201",
-        "rev": 0,
-        "page": 1,
-        "quote": "TACH-07 SW-03 122.400 tablets/h Lulus",
-        "status": "quote_not_found",
-        "ratio": 0.8108
       }
     ]
   },
@@ -627,10 +609,10 @@
   "defects": {
     "metrics": {
       "defects": 7,
-      "findings": 11,
+      "findings": 10,
       "recall": 0.7143,
-      "precision": 0.4545,
-      "f1": 0.5555,
+      "precision": 0.5,
+      "f1": 0.5882,
       "recall_by_layer": {
         "llm": 0.6667,
         "rule": 1.0,
@@ -642,7 +624,7 @@
         "minor": 1.0
       },
       "mislabelled": 0,
-      "false_positives": 6,
+      "false_positives": 5,
       "false_positives_on_clean_documents": 2,
       "severity_agreement": 0.0
     },
@@ -696,7 +678,7 @@
         "scenario": "S7",
         "type": "ambiguous_value",
         "found_by": [
-          12
+          11
         ]
       }
     ],
@@ -767,7 +749,7 @@
       },
       {
         "n": 8,
-        "type": "inconsistent_data",
+        "type": "ac_deviates_from_urs",
         "severity": null,
         "status": "false_positive",
         "defects": [],
@@ -782,15 +764,7 @@
         "on_clean_document": false
       },
       {
-        "n": 10,
-        "type": "ac_deviates_from_urs",
-        "severity": null,
-        "status": "false_positive",
-        "defects": [],
-        "on_clean_document": false
-      },
-      {
-        "n": 12,
+        "n": 11,
         "type": "ambiguous_value",
         "severity": null,
         "status": "match",

@@ -5,10 +5,10 @@ corrections on scans, outdated references.
 One call reads every current document the slice can read, with the register of every
 document and revision held, so a reference to a superseded revision can be seen. Each
 finding the model returns is kept only when every one of its citations names a document
-given in the call and quotes its cited page (the citation check); otherwise the whole
-finding is dropped and listed for the run metadata. A finding is a proposal for a human
-(ADR 0002): ``findings.json`` carries its model, prompt hash, time and a ``pending``
-reviewer action.
+given in the call and quotes its cited page (the citation check), and none rests on an
+uncertain OCR reading (#78); otherwise the whole finding is dropped and listed for the run
+metadata. A finding is a proposal for a human (ADR 0002): ``findings.json`` carries its
+model, prompt hash, time and a ``pending`` reviewer action.
 """
 
 from __future__ import annotations
@@ -21,10 +21,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from traceq.ai import LLM, Request
 from traceq.ai.port import sha256
-from traceq.documents import Corpus, CorpusDocument
+from traceq.documents import Corpus, CorpusDocument, Page
 from traceq.review.prompts import AI_REVIEW
 from traceq.traceability import Citation, Dropped
-from traceq.traceability.citations import verified
+from traceq.traceability.citations import UNCERTAIN, uncertain, verified
 
 AiType = Literal[
     "inconsistent_data",
@@ -63,8 +63,8 @@ class _Findings(_Answer):
     findings: list[_Finding]
 
 
-Pages = Mapping[tuple[str, int], list[str]]
-"""Page text per document given to the model, keyed by ``(doc_id, rev)``."""
+Pages = Mapping[tuple[str, int], Sequence[Page]]
+"""The pages of each document given to the model, keyed by ``(doc_id, rev)``."""
 
 
 def verify_findings(text: str, pages: Pages, dropped: list[Dropped]) -> list[AiFinding]:
@@ -80,8 +80,10 @@ def verify_findings(text: str, pages: Pages, dropped: list[Dropped]) -> list[AiF
         what = f"{f.type} {n}"
         if any((c.doc, c.rev) not in pages for c in cites):
             dropped.append(Dropped("ai_finding", what, "document not given"))
-        elif not all(verified(c, pages[(c.doc, c.rev)]) for c in cites):
+        elif not all(verified(c, [p.text for p in pages[(c.doc, c.rev)]]) for c in cites):
             dropped.append(Dropped("ai_finding", what, "quote not on page"))
+        elif any(uncertain(c, pages[(c.doc, c.rev)]) for c in cites):
+            dropped.append(Dropped("ai_finding", what, UNCERTAIN))
         elif not f.detail.strip():
             dropped.append(Dropped("ai_finding", what, "no detail"))
         else:
@@ -104,8 +106,8 @@ def _register(corpus: Corpus) -> str:
     return "\n".join(lines)
 
 
-def _document(doc: CorpusDocument, pages: Sequence[str]) -> str:
-    body = "\n".join(f'<page n="{n}">\n{text}\n</page>' for n, text in enumerate(pages, 1))
+def _document(doc: CorpusDocument, pages: Sequence[Page]) -> str:
+    body = "\n".join(f'<page n="{n}">\n{p.text}\n</page>' for n, p in enumerate(pages, 1))
     return f'<document doc="{doc.doc_id}" rev="{doc.rev}" type="{doc.type}">\n{body}\n</document>'
 
 
@@ -115,7 +117,7 @@ def ai_review(corpus: Corpus, llm: LLM, dropped: list[Dropped]) -> list[AiFindin
     docs = [d for t in types for d in corpus.current(t) if corpus.readable(d)]
     if not docs:
         return []
-    pages: dict[tuple[str, int], list[str]] = {(d.doc_id, d.rev): corpus.pages(d) for d in docs}
+    pages: Pages = {(d.doc_id, d.rev): corpus.read(d) for d in docs}
     user = "\n\n".join([_register(corpus), *(_document(d, pages[(d.doc_id, d.rev)]) for d in docs)])
     key = sha256(",".join(sorted(d.sha256 for d in docs)))
     (answer,) = llm.complete([Request(AI_REVIEW, user, key)])

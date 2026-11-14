@@ -3,9 +3,10 @@ protocol and calibration certificate the slice can read.
 
 The model lists signature rows, calibration validities, instruments per step, deviations
 and calculations, each with a quote. A fact is kept only when its quote is on the page and
-holds what it claims (the name, the date, the instrument id, the numbers as printed);
-otherwise it is dropped and listed for the run metadata. Dates and numbers are read from
-the print by code (the ambiguity rule), not from the model's reading.
+holds what it claims (the name, the date, the instrument id, the numbers as printed), and
+does not rest on an uncertain OCR reading (#78); otherwise it is dropped and listed for the
+run metadata. Dates and numbers are read from the print by code (the ambiguity rule), not
+from the model's reading.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from collections.abc import Sequence
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from traceq.ai import LLM, Request
-from traceq.documents import Corpus, CorpusDocument, normalise
+from traceq.documents import Corpus, CorpusDocument, Page, normalise
 from traceq.review.facts import (
     Calculation,
     Calibration,
@@ -30,7 +31,7 @@ from traceq.review.facts import (
 from traceq.review.prompts import RECORD
 from traceq.traceability import Citation, Dropped
 from traceq.traceability.ambiguity import parse_date, read_number
-from traceq.traceability.citations import verified
+from traceq.traceability.citations import UNCERTAIN, uncertain, verified
 from traceq.traceability.evidence import Claim
 
 RECORD_TYPES = ("fat", "sat", "calibration_certificate")
@@ -107,17 +108,22 @@ def _decimals(printed: str) -> int:
 
 
 class _Reader:
-    def __init__(self, doc: CorpusDocument, pages: list[str], dropped: list[Dropped]) -> None:
+    def __init__(self, doc: CorpusDocument, pages: Sequence[Page], dropped: list[Dropped]) -> None:
         self.doc, self.pages, self.dropped = doc, pages, dropped
+        self.texts = [p.text for p in pages]
         self.record = Record(doc.doc_id, doc.rev, doc.type)
 
     def cite(
         self, page: int, quote: str, claim: Claim, what: str, *printed: str
     ) -> Citation | None:
         c = Citation(self.doc.doc_id, self.doc.rev, page, quote)
-        if verified(c, self.pages) and _holds(quote, *printed):
+        if not (verified(c, self.texts) and _holds(quote, *printed)):
+            reason = "quote check"
+        elif uncertain(c, self.pages):
+            reason = UNCERTAIN
+        else:
             return c
-        self.dropped.append(Dropped(claim, f"{self.doc.doc_id} p{page} {what}", "quote check"))
+        self.dropped.append(Dropped(claim, f"{self.doc.doc_id} p{page} {what}", reason))
         return None
 
     def page(self, n: int, a: _Record) -> None:
@@ -181,15 +187,15 @@ def read_records(
             if not corpus.readable(doc):
                 not_read.append(doc)
                 continue
-            records.append(_read(doc, corpus.pages(doc), llm, dropped))
+            records.append(_read(doc, corpus.read(doc), llm, dropped))
     return records, not_read
 
 
-def _read(doc: CorpusDocument, pages: Sequence[str], llm: LLM, dropped: list[Dropped]) -> Record:
+def _read(doc: CorpusDocument, pages: Sequence[Page], llm: LLM, dropped: list[Dropped]) -> Record:
     answers = llm.complete(
-        [Request(RECORD, _page_prompt(doc, n, text), doc.sha256) for n, text in enumerate(pages, 1)]
+        [Request(RECORD, _page_prompt(doc, n, p.text), doc.sha256) for n, p in enumerate(pages, 1)]
     )
-    reader = _Reader(doc, list(pages), dropped)
+    reader = _Reader(doc, pages, dropped)
     for n, answer in enumerate(answers, 1):
         try:
             reader.page(n, _Record.model_validate_json(answer.text))

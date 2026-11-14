@@ -2,9 +2,9 @@
 document's hash and the reader's version.
 
 One JSON file per document, ``<sha256>-<version>.json``: page text, tables and OCR entries
-with their quads, plus the engine, seconds per page and peak RAM of the run that read it.
-It is committed with the recordings, so a replay in CI runs neither Docling nor the OCR
-model.
+with their quads and scores, plus the engine, seconds per page and peak RAM of the run that
+read it. It is committed with the recordings, so a replay in CI runs neither Docling nor the
+OCR model.
 """
 
 from __future__ import annotations
@@ -58,7 +58,9 @@ def _page(d: dict[str, Any]) -> Page:
         tables=tuple(
             Table(tuple(tuple(str(c) for c in row) for row in t)) for t in d.get("tables", [])
         ),
-        ocr=tuple(OcrLine(str(o["text"]), _quad(o["quad"])) for o in d.get("ocr", [])),
+        ocr=tuple(
+            OcrLine(str(o["text"]), _quad(o["quad"]), float(o["score"])) for o in d.get("ocr", [])
+        ),
     )
 
 
@@ -69,7 +71,10 @@ def to_json(i: Ingested) -> dict[str, Any]:
         if p.tables:
             page["tables"] = [[list(row) for row in t.rows] for t in p.tables]
         if p.ocr:
-            page["ocr"] = [{"text": o.text, "quad": [list(pt) for pt in o.quad]} for o in p.ocr]
+            page["ocr"] = [
+                {"text": o.text, "quad": [list(pt) for pt in o.quad], "score": o.score}
+                for o in p.ocr
+            ]
         pages.append(page)
     return {
         "doc_sha256": i.doc_sha256,

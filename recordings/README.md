@@ -23,10 +23,10 @@ Total $0.128883 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 ru
 | coverage | 24/38 | 23/38 | 29/38 |
 | value | 24/38 | 23/38 | 25/38 |
 | defect recall | 5/7 | 5/7 | 5/7 |
-| defect findings matched | 5/11 | 5/10 | 5/11 |
+| defect findings matched | 5/10 | 5/9 | 5/10 |
 | missing docs | 2/2 | 2/2 | 2/2 |
 | probes fabricated | 0/6 | 0/6 | 0/6 |
-| fabrication | 1/184 | 2/169 | 2/187 |
+| fabrication | 1/182 | 1/166 | 1/184 |
 | gates | FAIL | FAIL | FAIL |
 | vendor_reuse | True | True | True |
 | calls (live) | 130 (130) | 130 (130) | 128 (128) |
@@ -47,7 +47,7 @@ Items that change across runs: 15 of 94
 - coverage URS-TP201-019: partial (expected covered_by_vendor) / gap (expected covered_by_vendor) / partial (expected covered_by_vendor)
 - coverage URS-TP201-029: site_only (ok) / gap (expected site_only) / site_only (ok)
 - coverage URS-TP201-032: site_only (expected gap) / site_only (expected gap) / gap (ok)
-- defect false positives: 6 / 5 / 6
+- defect false positives: 5 / 4 / 5
 - value URS-TP201-010: wrong / wrong / ok
 - value URS-TP201-011: ok / wrong / ok
 
@@ -83,6 +83,8 @@ TP-202 is held out: n = 13, one item is about 8 points, a direction signal only;
 
 ## Open: the `fabricated_citation` gate fails on every TP-201 run
 
-The failures (1, 2, 2) are systematic, not noise: in all three runs `URS-TP201-009` cites `DS-TP201` p1 "Materials and finish SS 316L", and in r2 and r3 an AI Finding cites the SAT scan ("TACH-07 SW-03 122.400 tablets/h Lulus"). The system's own check passed each quote against its ingest text (Docling or OCR reading order: the first quote is verbatim in the ingest cache); the scorer matches against the rendered page text (pypdf), where table cells come in another order, at ratio 0.75–0.81 below the 0.9 floor. Whether the scorer's page text, the system's quoting, or the gate changes is an owner decision (gates and scoring rules). Until then no TP-201 run can become a baseline.
+The failure (1 per run) is systematic, not noise: in all three runs `URS-TP201-009` cites `DS-TP201` p1 "Materials and finish SS 316L". The system's own check passed the quote against its ingest text (Docling reading order: the quote is verbatim in the ingest cache); the scorer matches against the rendered page text (pypdf), where table cells come in another order, at ratio 0.75, below the 0.9 floor. Whether the scorer's page text, the system's quoting, or the gate changes is an owner decision (gates and scoring rules). Until then no TP-201 run can become a baseline.
 
 The calibration certificates no longer fail (#76): OCR joined the signature row and the stamp beside it into one line ("Calibrated by Markus Brandt Brandt CALIBRATED"), and a signature citation is now trimmed to the span from the printed role to the last printed field ("Calibrated by Markus Brandt"). The three TP-201 reports were re-scored for this; only those three citations per run changed, from `quote_not_found` to verified.
+
+The SAT scan no longer fails (#78). OCR reads the handwritten stopwatch id `SW-03` as `E0-MS` (recognition score 0.817, the only TP-201 entry below 0.9), and every run reported a false `inconsistent_data` AI Finding on it; in r2 and r3 that finding also cited "TACH-07 SW-03 122.400 tablets/h Lulus" (ratio 0.81). A claim whose quote rests on an OCR entry scored below 0.9 is now dropped ("uncertain OCR reading"). The scan ingest cache moved to `PP-OCRv6-small-rapidocr-3.10.0-2`, which adds each entry's score; page text is unchanged, so every LLM call still replays (timings and RAM are those of the original read). Re-scored TP-201 reports: in each run the `E0-MS` finding and the SAT calibration fact for `E0-MS` are dropped. Defect findings 11→10, 10→9, 11→10 (one false positive fewer each); fabrication 1/184→1/182, 2/169→1/166, 2/187→1/184. TP-202 has no scans and is unchanged.

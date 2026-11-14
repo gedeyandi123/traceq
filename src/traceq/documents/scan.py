@@ -10,7 +10,9 @@ Each page is rendered at the scan's own resolution. RapidOCR returns one box per
 so lines that sit in the same table cell (``TACH-07`` above ``SW-03``) are joined into one
 entry: a line joins the one above it when they overlap horizontally, the gap between them is
 less than half a line, and no ruled line runs between them. Page text is the entries in
-reading order, one visual row per line.
+reading order, one visual row per line. Each entry keeps the model's recognition score, the
+lowest of its lines for a joined cell, so a claim resting on an uncertain reading can be
+dropped (``traceq.traceability.citations.uncertain``, #78).
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ from traceq.documents.pages import OcrLine, Page, Quad
 OCR_VERSION = "PP-OCRv6"
 MODEL_TYPE = "small"
 RAPIDOCR = "3.10.0"
-SCAN_VERSION = f"{OCR_VERSION}-{MODEL_TYPE}-rapidocr-{RAPIDOCR}-1"
+SCAN_VERSION = f"{OCR_VERSION}-{MODEL_TYPE}-rapidocr-{RAPIDOCR}-2"
 """Part of the ingest cache key: bump the last part when a change alters the output."""
 ENGINE = f"{OCR_VERSION} {MODEL_TYPE} via RapidOCR {RAPIDOCR}"
 
@@ -173,7 +175,7 @@ def join_cells(lines: Sequence[OcrLine], gray: Gray, dpi: float) -> list[OcrLine
                 max(b[2] for b in boxes),
                 max(b[3] for b in boxes),
             )
-        out.append(OcrLine(" ".join(x.text for x in cell), quad))
+        out.append(OcrLine(" ".join(x.text for x in cell), quad, min(x.score for x in cell)))
     return out
 
 
@@ -245,9 +247,10 @@ def read_scan(path: Path) -> ScanRead:
         result = engine(np.asarray(image))
         boxes: Sequence[Sequence[Sequence[float]]] = [] if result.boxes is None else result.boxes
         texts: Sequence[str] = result.txts or ()
+        scores: Sequence[float] = result.scores or ()
         lines = [
-            OcrLine(str(text), _pt(b, dpi))
-            for b, text in zip(boxes, texts, strict=True)
+            OcrLine(str(text), _pt(b, dpi), round(float(score), 4))
+            for b, text, score in zip(boxes, texts, scores, strict=True)
             if str(text).strip()
         ]
         gray: Gray = np.asarray(image.convert("L"), dtype=np.uint8)

@@ -3,7 +3,8 @@ the LLM proposes from each requirement to them, and the Coverage the decision ta
 
 1. Facts: one call per page of each current vendor document reads its test steps (AC,
    observed result, pass/fail), its site approval and execution dates, and its design rows.
-   A fact whose quote is not on the page, or does not hold the printed value, is dropped.
+   A fact whose quote is not on the page, does not hold the printed value, or rests on an
+   uncertain OCR reading (#78) is dropped.
    Numbers and dates are read from the printed text by code (the ambiguity rule), not from
    the model's reading.
 2. Links: one call per requirement proposes which steps and design rows concern it,
@@ -26,9 +27,16 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from traceq.ai import LLM, Request
 from traceq.ai.port import sha256
-from traceq.documents import Corpus, CorpusDocument, normalise
+from traceq.documents import Corpus, CorpusDocument, Page, normalise
 from traceq.traceability.ambiguity import Ambiguous, parse_date, read_number
-from traceq.traceability.citations import Citation, quote_on_page, value_in_quote, verified
+from traceq.traceability.citations import (
+    UNCERTAIN,
+    Citation,
+    quote_on_page,
+    uncertain,
+    value_in_quote,
+    verified,
+)
 from traceq.traceability.coverage import (
     Coverage,
     Date,
@@ -214,12 +222,16 @@ def _page_prompt(doc: CorpusDocument, page: int, text: str) -> str:
 
 
 def _date(
-    d: _Date | None, doc: CorpusDocument, page: int, text: str, dropped: list[Dropped]
+    d: _Date | None, doc: CorpusDocument, page: int, pages: Sequence[Page], dropped: list[Dropped]
 ) -> Date:
     if d is None:
         return None
-    if not (quote_on_page(d.quote, text) and _contains(d.date, d.quote)):
+    c = Citation(doc.doc_id, doc.rev, page, d.quote)
+    if not (quote_on_page(d.quote, pages[page - 1].text) and _contains(d.date, d.quote)):
         dropped.append(Dropped("date", f"{doc.doc_id} p{page}", "quote not on page"))
+        return None
+    if uncertain(c, pages):
+        dropped.append(Dropped("date", f"{doc.doc_id} p{page}", UNCERTAIN))
         return None
     return parse_date(d.date)
 
@@ -232,7 +244,8 @@ def read_vendor_facts(corpus: Corpus, llm: LLM, dropped: list[Dropped]) -> Vendo
                 out.not_read.append(doc)
                 continue
             out.read.append(doc)
-            pages = corpus.pages(doc)
+            read = corpus.read(doc)
+            pages = [p.text for p in read]
             answers = llm.complete(
                 [
                     Request(FACTS, _page_prompt(doc, n, text), doc.sha256)
@@ -248,12 +261,11 @@ def read_vendor_facts(corpus: Corpus, llm: LLM, dropped: list[Dropped]) -> Vendo
                 except ValidationError:
                     dropped.append(Dropped("step", f"{doc.doc_id} p{n}", "bad answer"))
                     continue
-                text = pages[n - 1]
-                approved = approved or _date(a.site_approved_on, doc, n, text, dropped)
-                executed = executed or _date(a.executed_on, doc, n, text, dropped)
+                approved = approved or _date(a.site_approved_on, doc, n, read, dropped)
+                executed = executed or _date(a.executed_on, doc, n, read, dropped)
                 steps += [(n, s) for s in a.steps]
                 for i, r in enumerate(a.rows if doc.type in DESIGN_TYPES else [], 1):
-                    _add_row(out, doc, n, i, r, pages, dropped)
+                    _add_row(out, doc, n, i, r, read, dropped)
             stage = PROTOCOL_TYPES.get(doc.type)
             if stage is None:
                 continue
@@ -266,6 +278,9 @@ def read_vendor_facts(corpus: Corpus, llm: LLM, dropped: list[Dropped]) -> Vendo
                     and _contains(s.observed, s.quote)
                 ):
                     dropped.append(Dropped("step", f"{doc.doc_id}/{s.step}", "quote not on page"))
+                    continue
+                if uncertain(c, read):
+                    dropped.append(Dropped("step", f"{doc.doc_id}/{s.step}", UNCERTAIN))
                     continue
                 result = None if s.result == "none" else s.result
                 out.steps.append(
@@ -290,14 +305,16 @@ def _add_row(
     page: int,
     i: int,
     r: _Row,
-    pages: list[str],
+    pages: Sequence[Page],
     dropped: list[Dropped],
 ) -> None:
     rid = f"{doc.doc_id}#p{page}.{i}"
     c = Citation(doc.doc_id, doc.rev, page, r.quote)
     value = _observation(r.value, r.printed, doc.language)
-    if not (verified(c, pages) and _contains(r.printed, r.quote)):
+    if not (verified(c, [p.text for p in pages]) and _contains(r.printed, r.quote)):
         dropped.append(Dropped("row", rid, "quote not on page"))
+    elif uncertain(c, pages):
+        dropped.append(Dropped("row", rid, UNCERTAIN))
     elif value is None or isinstance(value, Ambiguous):
         dropped.append(Dropped("row", rid, "value not read from the print"))
     else:

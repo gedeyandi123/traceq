@@ -96,11 +96,11 @@ def _page() -> np.ndarray:
 
 def test_lines_of_one_cell_join_and_rows_do_not() -> None:
     lines = [
-        OcrLine("TACH-07", _quad(30, 60, 90, 76)),
-        OcrLine("SW-03", _quad(30, 80, 80, 96)),  # same cell, no rule between
-        OcrLine("SW-11", _quad(30, 102, 80, 118)),  # the next row, below the rule
-        OcrLine("5. Deviations", _quad(30, 160, 130, 176)),  # outside the table
-        OcrLine("Tidak ada", _quad(30, 180, 100, 196)),
+        OcrLine("TACH-07", _quad(30, 60, 90, 76), 0.99),
+        OcrLine("SW-03", _quad(30, 80, 80, 96), 0.99),  # same cell, no rule between
+        OcrLine("SW-11", _quad(30, 102, 80, 118), 0.99),  # the next row, below the rule
+        OcrLine("5. Deviations", _quad(30, 160, 130, 176), 0.99),  # outside the table
+        OcrLine("Tidak ada", _quad(30, 180, 100, 196), 0.99),
     ]
     joined = scan.join_cells(lines, _page(), 72.0)
     assert [(e.text, e.quad) for e in joined] == [
@@ -111,16 +111,27 @@ def test_lines_of_one_cell_join_and_rows_do_not() -> None:
     ]
 
 
+def test_a_joined_cell_takes_the_lowest_score_of_its_lines() -> None:
+    """#78: a cell is only as certain as its least certain line."""
+    lines = [
+        OcrLine("TACH-07", _quad(30, 60, 90, 76), 0.98),
+        OcrLine("E0-MS", _quad(30, 80, 80, 96), 0.82),  # same cell, no rule between
+        OcrLine("SW-11", _quad(30, 102, 80, 118), 0.95),  # the next row, below the rule
+    ]
+    joined = scan.join_cells(lines, _page(), 72.0)
+    assert [(e.text, e.score) for e in joined] == [("TACH-07 E0-MS", 0.82), ("SW-11", 0.95)]
+
+
 def test_reading_order_follows_rows_through_the_skew() -> None:
     slope = 0.02  # about 1.1 degrees, downhill to the right
     entries = [
-        OcrLine("SAT-05", _quad(50, 100, 90, 115)),
-        OcrLine("Lulus", _quad(500, 109, 540, 124)),  # same row, 9 pt lower by the skew
-        OcrLine("SAT-06", _quad(50, 130, 90, 145)),
+        OcrLine("SAT-05", _quad(50, 100, 90, 115), 0.99),
+        OcrLine("Lulus", _quad(500, 109, 540, 124), 0.99),  # same row, 9 pt lower by the skew
+        OcrLine("SAT-06", _quad(50, 130, 90, 145), 0.99),
     ]
     assert scan.reading_order(entries) == "SAT-05\nLulus\nSAT-06"
     assert scan.reading_order(entries, slope) == "SAT-05 Lulus\nSAT-06"
-    assert scan.skew([OcrLine("x", ((0, 10), (100, 12), (100, 27), (0, 25)))]) == 0.02
+    assert scan.skew([OcrLine("x", ((0, 10), (100, 12), (100, 27), (0, 25)), 0.99)]) == 0.02
 
 
 # --- The ingest cache ------------------------------------------------------------------

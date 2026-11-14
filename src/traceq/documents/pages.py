@@ -23,6 +23,8 @@ class OcrLine:
 
     text: str
     quad: Quad
+    score: float
+    """The OCR model's recognition score (0 to 1); a joined cell takes its lowest line's."""
 
 
 @dataclass(frozen=True)
