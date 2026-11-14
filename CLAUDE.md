@@ -30,7 +30,7 @@ The user-only Matt skills (to-spec, to-tickets, implement-spec, retro, setup) ru
 
 ## Eval loop (prompts and models)
 
-A prompt or model change is an experiment, not a ticket: change it, run live (Batch API), score with `traceq_eval`, and open a PR that updates `baselines/<Equipment>.json` and links the run. CI replays recorded outputs at tolerance 0. Report rates with k/n and the split (dev TP-201 vs held-out). Log the cost of each live run. API calls only within the prepaid budget.
+A prompt or model change is an experiment, not a ticket: change it, run live (Batch API), score with `traceq_eval`, and open a PR that updates `baselines/<Equipment>.json` and links the run. CI replays recorded outputs at tolerance 0. Report rates with k/n and the split (dev TP-201 vs held-out). Log the cost of each live run. API calls only within the prepaid budget. A prompt change stops the committed recordings from replaying: the same PR records a new live run, points the replay tests at it, and keeps the old run's figures in `recordings/README.md`. A held-out run that fails a gate is reported as it is and is not re-run until the cause is fixed on dev; re-running until it passes picks the result.
 
 ## Models
 
@@ -48,7 +48,8 @@ How implement-spec's roles map here:
 - **Implementer subagents (step 4):** `implementer`, at most **two at a time**. The delegation message holds only pointers: ticket number, spec issue, integration branch, and the commit co-author line (subagents do not receive it otherwise).
 - **Merger subagent (step 5):** none. The main session merges the ticket PR into the integration branch (`gh pr merge <n> --squash`), then comments on the ticket and closes it, so native blocking edges unblock the next tickets. GitHub closes issues only from PRs into the default branch. On a merge conflict, a fresh implementer resolves it.
 - **Integration PR (steps 3 and 8):** a draft PR into `main` that closes the spec issue, listing every ticket. The owner merges it.
-- **Standalone ticket (no spec):** one `implementer` in its own worktree, branch from `main`, PR into `main` with `Closes #<n>` in the body; the owner merges it. After the merge the main session checks that the issue closed, and closes it with a comment if not.
+- **Standalone ticket (no spec):** only for a ticket that does not build on another unmerged PR. One `implementer` in its own worktree, branch `<prefix>/<n>-<slug>` from `main`, PR into `main` with `Closes #<n>` in the body; the owner merges it. After the merge the main session checks that the issue closed, and closes it with a comment if not.
+- **Ticket chain (no spec):** tickets that build on each other share an integration branch `fix/<topic>` (or `feat/<topic>`) from `main`, as in implement-spec: the agent merges each ticket PR into it after CI and closes the ticket, and one PR goes to `main` for the owner. Stacked PRs into `main` conflict after every squash merge.
 - **Cleanup (step 9):** `git worktree prune` and delete leftover local `worktree-agent-*` and ticket branches.
 
 Quality checks on the agents themselves: the main session reads the `path:line` an `explorer` answer cites before relying on it; `reviewer` Bash is limited by `.claude/hooks/readonly-bash.mjs` (tests: `node .claude/hooks/readonly-bash.test.mjs`); every implementer PR still passes CI and the integration-branch code review.
