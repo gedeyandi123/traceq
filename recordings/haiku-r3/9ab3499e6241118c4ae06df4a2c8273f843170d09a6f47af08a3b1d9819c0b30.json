@@ -1,0 +1,81 @@
+{
+  "doc_sha256": "c3147692d40ab06b5c71b1e654e088be697563136c1f28a9408291717ae3c5cc",
+  "key": "9ab3499e6241118c4ae06df4a2c8273f843170d09a6f47af08a3b1d9819c0b30",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "ai_review",
+  "prompt_hash": "82c5edcac961d401ce77a8a416298cd67ca8fa491f8ae639b362608529153dea",
+  "request": {
+    "max_tokens": 8000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "findings": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "citations": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "doc": {
+                      "type": "string"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "quote": {
+                      "type": "string"
+                    },
+                    "rev": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "doc",
+                    "rev",
+                    "page",
+                    "quote"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "inconsistent_data",
+                  "ac_deviates_from_urs",
+                  "gdp_correction",
+                  "outdated_reference"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "detail",
+              "citations"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "findings"
+      ],
+      "type": "object"
+    },
+    "system": "You pre-review the qualification documents of one pharmaceutical equipment item for a human reviewer. Deterministic rules already check signatures, dates, segregation of duties, results against their acceptance criteria, deviations, protocol approval, calibration validity and calculations; do not report those. Report only issues of these types:\n- inconsistent_data: the same fact (a serial number, a model, a material, a capacity) is printed differently in two documents.\n- ac_deviates_from_urs: a vendor test uses an acceptance criterion that is looser than, or different from, what the URS requires.\n- gdp_correction: a handwritten entry on a scan was corrected against good documentation practice: overwritten or made illegible, without initials, date and reason.\n- outdated_reference: a document refers to a revision of another document that is not the current one in the register.\nFor each issue: type; detail: one or two sentences a reviewer can act on; citations: every place that shows it (for inconsistent data, both sides), each with doc and rev as given, the page number and a quote.\nquote: a verbatim excerpt of the page, at most 200 characters, holding what the item states. Copy characters exactly; never paraphrase or translate.\nCite only the documents given. Report nothing you cannot quote; return an empty list when there is no such issue.",
+    "user": "Equipment TP-202. Documents held (doc, revisions, type):\n- FAT-TP202: rev 0 (current 0); fat\n- URS-TP202: rev 0 (current 0); urs\n- VA-2025-008: rev 0 (current 0); vendor_assessment\n- VMP-TP202: rev 0 (current 0); vmp\n\n<document doc=\"FAT-TP202\" rev=\"0\" type=\"fat\">\n<page n=\"1\">\nFACTORY ACCEPTANCE TEST RECORD\nMechanical and control functions\nRecord no. FAT-TP202 Customer PT Arunika Farma Lestari\nRevision 0 Machine Rotary tablet press (double-sided),\nDate of issue 16-Feb-2026 customer tag TP-202\nA. Machine data (as built)\nSerial number TRXD-24-0932\nModel TRX-D 41\nNumber of punch stations 41 stations\nB. Release of the test procedure\nStep Name Company Signature Date\nIssued Luca Bertoni Rotaforma Macchine S.r.l. Signed electronically 16-Feb-2026\nReviewed (customer) Bayu Pratama PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nReleased for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nC. Test records\nTest case TC-01\nProcedure Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed.\nRequired 10–80 rpm\nMeasured 10–80 rpm\nVerdict PASS\nTest case TC-02\nProcedure Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour.\nRequired ≥ 300,000 tablets/h\nMeasured 312,000 tablets/h\nVerdict PASS\nTest case TC-03\nProcedure Apply main compression with the test tooling; record the highest force reached.\nRequired ≥ 80 kN\nMeasured 76 kN\nVerdict FAIL\nTest case TC-04\nProcedure Set pre-compression to maximum; record the force shown by the force channel.\nRequired ≥ 20 kN\nMeasured 22 kN\nVerdict PASS\nTest case TC-05\nProcedure Check the material certificates of the product-contact parts against the parts list.\nRequired SS 316L\nMeasured SS 316L\nVerdict PASS\n</page>\n<page n=\"2\">\nTest case TC-06\nProcedure Measure surface roughness Ra on the die table and feeder.\nRequired ≤ 0.8 µm\nMeasured 0.5 µm\nVerdict PASS\nTest case TC-07\nProcedure Load the product recipe on the HMI, simulate a weight drift and confirm that the force-based weight control corrects it.\nRequired Present and functional\nMeasured Present and functional\nVerdict PASS\nTest case TC-08\nProcedure Press each emergency stop button while the turret is running; the machine must stop.\nRequired Present and functional\nMeasured Present and functional\nVerdict PASS\nD. Deviations\nNo deviations were raised during the test.\nE. Attachments\nAttachment 1: Noise level measurement at 1 m from the machine\nF. Test execution\nRole Name Company Signature Date\nTested by Luca Bertoni Rotaforma Macchine S.r.l. Signed electronically 13-Mar-2026\nWitnessed by Agus Setiawan PT Arunika Farma Lestari Signed electronically 13-Mar-2026\n</page>\n</document>\n\n<document doc=\"URS-TP202\" rev=\"0\" type=\"urs\">\n<page n=\"1\">\nSpesifikasi Kebutuhan Pengguna\nTP-202 – Rotary tablet press (double-sided)\nNomor dokumen URS-TP202, revisi 0, berlaku sejak 16/07/2025.\nPendahuluan\nDokumen ini menguraikan kebutuhan PT Arunika Farma Lestari terhadap rotary tablet press (doublesided) TP-202. Kebutuhan dalam tabel yang ditandai Kritis = Ya berdampak langsung pada mutu produk atau keselamatan.\n1. Kinerja mesin\nMesin akan digunakan untuk produksi tablet lepas cepat dengan volume tinggi di ruang cetak tablet.\nAspek Kebutuhan Kritis\nJumlah stasiun punch Minimal 45 stasiun punch. Tidak\nKecepatan turret Dapat diatur pada rentang 10–80 rpm. Ya\nKapasitas produksi Minimal 300.000 tablet/jam pada kecepatan turret maksimum. Ya\nGaya tekan utama Minimal 80 kN. Ya\nGaya pra-kompresi Minimal 20 kN. Tidak\n2. Material dan permukaan\nBagian ini berlaku untuk semua komponen yang bersentuhan langsung dengan serbuk atau tablet.\nAspek Kebutuhan Kritis\nMaterial bagian kontak produk Baja tahan karat SS 316L. Ya\nKekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm. Tidak\n3. Sistem kendali dan data\nMesin dikendalikan melalui PLC dengan panel HMI layar sentuh di sisi operator. Mesin dilengkapi kontrol bobot tablet otomatis berdasarkan gaya tekan. Data batch dan resep dicadangkan otomatis ke server site setiap hari.\n4. Keselamatan dan lingkungan kerja\nMesin dipasang di ruang cetak tablet bersama dua mesin lain dan dioperasikan oleh satu operator per shift. Tingkat kebisingan pada jarak 1 m dari mesin tidak lebih dari 80 dB(A). Pintu pelindung dilengkapi interlock yang menghentikan mesin ketika pintu dibuka. Tombol henti darurat tersedia di panel operator dan di sisi belakang mesin.\n5. Utilitas\nUtilitas disediakan oleh site sampai titik sambung di samping mesin. Mesin beroperasi dengan udara tekan site pada tekanan 6–7 bar.\nRiwayat dokumen\nRevisi 0, 16/07/2025: Terbitan pertama.\n</page>\n<page n=\"2\">\nPersetujuan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 16/07/2025\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 16/07/2025\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 16/07/2025\n</page>\n</document>\n\n<document doc=\"VA-2025-008\" rev=\"0\" type=\"vendor_assessment\">\n<page n=\"1\">\nLaporan Penilaian Pemasok (Vendor Assessment)\nNomor dokumen VA-2025-008\nRevisi 0\nTanggal berlaku 24/09/2025\nLokasi PT Arunika Farma Lestari\n1. Tujuan\nLaporan ini mencatat penilaian site terhadap pemasok Rotaforma Macchine S.r.l. dan menetapkan area kegiatan pemasok yang hasilnya dapat diandalkan site dalam kualifikasi peralatan (CPOB Bab 12).\n2. Pengadaan terkait\nPeralatan TP-202 – Rotary tablet press (double-sided), model TRX-D 41.\n3. Metode penilaian\nKuesioner pemasok, tinjauan sistem mutu pemasok, dan audit di lokasi pemasok oleh Qualification Supervisor dan QA.\n4. Ruang lingkup yang dinilai\nHasil uji pemasok (FAT/SAT) dapat digunakan sebagai Bukti kualifikasi hanya untuk area dengan hasil Ya.\nArea Dapat diandalkan Kegiatan yang dinilai\nMekanik (mechanical) Ya Desain dan fabrikasi mekanik, material bagian kontak produk, uji fungsi mekanik.\nSistem kendali dan perangkat lunak (control system/software) Tidak PLC, HMI, perangkat lunak kendali dan uji fungsi kendali.\nIntegritas data (data integrity) Tidak Hak akses, audit trail, log alarm, cadangan data dan sinkronisasi waktu.\nDokumentasi (documentation) Ya Pengendalian dokumen, sertifikat material dan kalibrasi, protokol FAT/SAT.\n5. Kesimpulan\nPemasok disetujui dengan ruang lingkup terbatas: area dengan hasil Tidak belum dinilai, sehingga hasil uji pemasok untuk area tersebut tidak dapat digunakan sebagai Bukti dan diuji oleh site.\nRiwayat revisi\nRev. Tanggal Keterangan\n0 24/09/2025 Terbitan pertama.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 24/09/2025\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 24/09/2025\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 24/09/2025\n</page>\n</document>\n\n<document doc=\"VMP-TP202\" rev=\"0\" type=\"vmp\">\n<page n=\"1\">\nRencana Induk Validasi (Validation Master Plan)\nNomor dokumen VMP-TP202\nRevisi 0\nTanggal berlaku 02/04/2026\nLokasi PT Arunika Farma Lestari\n1. Tujuan\nRencana Induk Validasi ini menetapkan pendekatan kualifikasi peralatan di PT Arunika Farma Lestari: tahapan kualifikasi, tanggung jawab, dan dokumen yang dipersyaratkan untuk setiap peralatan.\n2. Ruang lingkup\nPeralatan produksi sediaan padat oral beserta sistem kendalinya. Kualifikasi kinerja (PQ) dilaksanakan bersama validasi proses dan diatur dalam protokol validasi proses, di luar paket dokumen kualifikasi peralatan.\n3. Tahapan kualifikasi\nTahap Kegiatan\nDesain SKP, penilaian risiko, data desain vendor, dan Kualifikasi Desain (DQ).\nFAT Uji penerimaan di pabrik vendor dengan protokol vendor.\nSAT Uji penerimaan di site setelah instalasi.\nIQ Kualifikasi instalasi dengan protokol yang disusun site.\nOQ Kualifikasi operasional dengan protokol yang disusun site.\n4. Tanggung jawab dan dokumentasi\nPenandatangan, pemisahan tugas, koreksi catatan, dan Saksi diatur dalam Protap kualifikasi peralatan.\n5. Penomoran dokumen\nDokumen kualifikasi site diberi nomor jenis dokumen diikuti tag peralatan tanpa tanda hubung, misalnya SKP URSTP202. Dokumen vendor dan sertifikat memakai nomor penerbitnya.\n6. Lampiran 1. Dokumen yang dipersyaratkan: TP-202 – Rotary tablet press (double-sided)\nPeralatan baru TP-202 tidak dirilis untuk penggunaan produksi sebelum seluruh dokumen berikut tersedia dan disetujui.\nNo. dokumen Jenis dokumen Tahap\nURS-TP202 Spesifikasi Kebutuhan Pengguna (SKP) Desain\nFAT-TP202 Protokol dan laporan FAT (Mechanical and control functions) FAT\nIQ-TP202 Protokol IQ IQ\nOQ-TP202 Protokol OQ OQ\nRiwayat revisi\nRev. Tanggal Keterangan\n0 02/04/2026 Terbitan pertama.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 02/04/2026\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 02/04/2026\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 02/04/2026\n</page>\n</document>"
+  },
+  "response": {
+    "input_tokens": 5288,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 1486,
+    "text": "{\"findings\":[]}"
+  }
+}

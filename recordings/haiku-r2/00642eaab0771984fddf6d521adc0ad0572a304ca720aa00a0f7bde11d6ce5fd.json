@@ -1,0 +1,256 @@
+{
+  "doc_sha256": "8cbf6c1710dc97487c19e1ceb582c8139b80058a67d479013031eca5ed4853cb",
+  "key": "00642eaab0771984fddf6d521adc0ad0572a304ca720aa00a0f7bde11d6ce5fd",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "facts",
+  "prompt_hash": "38a59b8b647ab5af9a63b1ce9bfa05a0ab1d2db5a545b5c064e5f1cedafb128d",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "executed_on": {
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "printed": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "range",
+                      "number",
+                      "text",
+                      "present",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "present": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "min",
+                  "max",
+                  "number",
+                  "unit",
+                  "text",
+                  "present"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "name",
+              "printed",
+              "value",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "site_approved_on": {
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "steps": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "acceptance": {
+                "type": "string"
+              },
+              "observed": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "result": {
+                "enum": [
+                  "pass",
+                  "fail",
+                  "none"
+                ],
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              },
+              "test": {
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "range",
+                      "number",
+                      "text",
+                      "present",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "present": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "min",
+                  "max",
+                  "number",
+                  "unit",
+                  "text",
+                  "present"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "step",
+              "test",
+              "acceptance",
+              "observed",
+              "result",
+              "value",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "site_approved_on",
+        "executed_on",
+        "steps",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a vendor document for pharmaceutical equipment: a FAT or SAT protocol and report, a datasheet or a certificate. Report only what the page prints.\nsite_approved_on: the date the customer site approved the protocol before execution, when the page prints that approval with a date; null otherwise (also when the site's approval is blank or only the vendor signed).\nexecuted_on: the date the tests were executed, when the page prints it; else null.\nFor both: date exactly as printed, and a quote that holds it.\nsteps: every test step on the page. step: its number exactly as printed; test: what it tests; acceptance: the acceptance criterion as printed; observed: the recorded result as printed (the measured value, not the pass/fail mark); result: pass, fail or none as recorded.\nrows: every design or certified value on a datasheet or certificate. name: the row label as printed; printed: the value as printed.\nvalue: the value as normalised data.\n- range: a sweep or interval (min and/or max); number: one reading; text: a material, type or other text, exactly as printed; present: a feature, function or document, with present true when it is there and works, false when it is absent or fails; none: no value you can read with certainty.\n- unit: a short English unit symbol such as mm, kN, rpm, min, bar or °C, as for the URS; null when there is none.\nquote: a verbatim excerpt of the page, at most 200 characters, holding the step number and its observed result, or the row label and its value. Copy characters exactly; never paraphrase or translate. If the page has none, return empty lists.",
+    "user": "Document FAT-TP202, revision 0, page 1.\n\n<page>\nFACTORY ACCEPTANCE TEST RECORD\nMechanical and control functions\nRecord no. FAT-TP202 Customer PT Arunika Farma Lestari\nRevision 0 Machine Rotary tablet press (double-sided),\nDate of issue 16-Feb-2026 customer tag TP-202\nA. Machine data (as built)\nSerial number TRXD-24-0932\nModel TRX-D 41\nNumber of punch stations 41 stations\nB. Release of the test procedure\nStep Name Company Signature Date\nIssued Luca Bertoni Rotaforma Macchine S.r.l. Signed electronically 16-Feb-2026\nReviewed (customer) Bayu Pratama PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nReleased for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nC. Test records\nTest case TC-01\nProcedure Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed.\nRequired 10–80 rpm\nMeasured 10–80 rpm\nVerdict PASS\nTest case TC-02\nProcedure Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour.\nRequired ≥ 300,000 tablets/h\nMeasured 312,000 tablets/h\nVerdict PASS\nTest case TC-03\nProcedure Apply main compression with the test tooling; record the highest force reached.\nRequired ≥ 80 kN\nMeasured 76 kN\nVerdict FAIL\nTest case TC-04\nProcedure Set pre-compression to maximum; record the force shown by the force channel.\nRequired ≥ 20 kN\nMeasured 22 kN\nVerdict PASS\nTest case TC-05\nProcedure Check the material certificates of the product-contact parts against the parts list.\nRequired SS 316L\nMeasured SS 316L\nVerdict PASS\n</page>"
+  },
+  "response": {
+    "input_tokens": 2683,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 904,
+    "text": "{\"site_approved_on\":{\"date\":\"26-Feb-2026\",\"quote\":\"Released for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 26-Feb-2026\"},\"executed_on\":null,\"steps\":[{\"step\":\"TC-01\",\"test\":\"Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed.\",\"acceptance\":\"10–80 rpm\",\"observed\":\"10–80 rpm\",\"result\":\"pass\",\"value\":{\"kind\":\"range\",\"min\":10,\"max\":80,\"number\":null,\"unit\":\"rpm\",\"text\":null,\"present\":null},\"quote\":\"Test case TC-01 Procedure Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed.\"},{\"step\":\"TC-02\",\"test\":\"Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour.\",\"acceptance\":\"≥ 300,000 tablets/h\",\"observed\":\"312,000 tablets/h\",\"result\":\"pass\",\"value\":{\"kind\":\"number\",\"min\":null,\"max\":null,\"number\":312000,\"unit\":\"tablets/h\",\"text\":null,\"present\":null},\"quote\":\"Test case TC-02 Procedure Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour.\"},{\"step\":\"TC-03\",\"test\":\"Apply main compression with the test tooling; record the highest force reached.\",\"acceptance\":\"≥ 80 kN\",\"observed\":\"76 kN\",\"result\":\"fail\",\"value\":{\"kind\":\"number\",\"min\":null,\"max\":null,\"number\":76,\"unit\":\"kN\",\"text\":null,\"present\":null},\"quote\":\"Test case TC-03 Procedure Apply main compression with the test tooling; record the highest force reached.\"},{\"step\":\"TC-04\",\"test\":\"Set pre-compression to maximum; record the force shown by the force channel.\",\"acceptance\":\"≥ 20 kN\",\"observed\":\"22 kN\",\"result\":\"pass\",\"value\":{\"kind\":\"number\",\"min\":null,\"max\":null,\"number\":22,\"unit\":\"kN\",\"text\":null,\"present\":null},\"quote\":\"Test case TC-04 Procedure Set pre-compression to maximum; record the force shown by the force channel.\"},{\"step\":\"TC-05\",\"test\":\"Check the material certificates of the product-contact parts against the parts list.\",\"acceptance\":\"SS 316L\",\"observed\":\"SS 316L\",\"result\":\"pass\",\"value\":{\"kind\":\"text\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"text\":\"SS 316L\",\"present\":null},\"quote\":\"Test case TC-05 Procedure Check the material certificates of the product-contact parts against the parts list.\"}],\"rows\":[]}"
+  }
+}

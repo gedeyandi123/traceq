@@ -1,0 +1,100 @@
+{
+ "doc_sha256": "d94ea49192a71ca1b2fe8904f197c8cc66ed04856f4d6e6f877e1400e9f847af",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  33.61,
+  33.61
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1152917504,
+ "pages": [
+  {
+   "number": 1,
+   "text": "Spesifikasi Kebutuhan Pengguna\nTP-202 – Rotary tablet press (double-sided)\nNomor dokumen URS-TP202, revisi 0, berlaku sejak 16/07/2025.\nPendahuluan\nDokumen ini menguraikan kebutuhan PT Arunika Farma Lestari terhadap rotary tablet press (doublesided) TP-202. Kebutuhan dalam tabel yang ditandai Kritis = Ya berdampak langsung pada mutu produk atau keselamatan.\n1. Kinerja mesin\nMesin akan digunakan untuk produksi tablet lepas cepat dengan volume tinggi di ruang cetak tablet.\nAspek Kebutuhan Kritis\nJumlah stasiun punch Minimal 45 stasiun punch. Tidak\nKecepatan turret Dapat diatur pada rentang 10–80 rpm. Ya\nKapasitas produksi Minimal 300.000 tablet/jam pada kecepatan turret maksimum. Ya\nGaya tekan utama Minimal 80 kN. Ya\nGaya pra-kompresi Minimal 20 kN. Tidak\n2. Material dan permukaan\nBagian ini berlaku untuk semua komponen yang bersentuhan langsung dengan serbuk atau tablet.\nAspek Kebutuhan Kritis\nMaterial bagian kontak produk Baja tahan karat SS 316L. Ya\nKekasaran permukaan bagian kontak produk Ra maksimal 0,8 µm. Tidak\n3. Sistem kendali dan data\nMesin dikendalikan melalui PLC dengan panel HMI layar sentuh di sisi operator. Mesin dilengkapi kontrol bobot tablet otomatis berdasarkan gaya tekan. Data batch dan resep dicadangkan otomatis ke server site setiap hari.\n4. Keselamatan dan lingkungan kerja\nMesin dipasang di ruang cetak tablet bersama dua mesin lain dan dioperasikan oleh satu operator per shift. Tingkat kebisingan pada jarak 1 m dari mesin tidak lebih dari 80 dB(A). Pintu pelindung dilengkapi interlock yang menghentikan mesin ketika pintu dibuka. Tombol henti darurat tersedia di panel operator dan di sisi belakang mesin.\n5. Utilitas\nUtilitas disediakan oleh site sampai titik sambung di samping mesin. Mesin beroperasi dengan udara tekan site pada tekanan 6–7 bar.\nRiwayat dokumen\nRevisi 0, 16/07/2025: Terbitan pertama.",
+   "tables": [
+    [
+     [
+      "Aspek",
+      "Kebutuhan",
+      "Kritis"
+     ],
+     [
+      "Jumlah stasiun punch",
+      "Minimal 45 stasiun punch.",
+      "Tidak"
+     ],
+     [
+      "Kecepatan turret",
+      "Dapat diatur pada rentang 10–80 rpm.",
+      "Ya"
+     ],
+     [
+      "Kapasitas produksi",
+      "Minimal 300.000 tablet/jam pada kecepatan turret maksimum.",
+      "Ya"
+     ],
+     [
+      "Gaya tekan utama",
+      "Minimal 80 kN.",
+      "Ya"
+     ],
+     [
+      "Gaya pra-kompresi",
+      "Minimal 20 kN.",
+      "Tidak"
+     ]
+    ],
+    [
+     [
+      "Aspek",
+      "Kebutuhan",
+      "Kritis"
+     ],
+     [
+      "Material bagian kontak produk",
+      "Baja tahan karat SS 316L.",
+      "Ya"
+     ],
+     [
+      "Kekasaran permukaan bagian kontak produk",
+      "Ra maksimal 0,8 µm.",
+      "Tidak"
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 2,
+   "text": "Persetujuan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 16/07/2025\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 16/07/2025\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 16/07/2025",
+   "tables": [
+    [
+     [
+      "Peran",
+      "Nama",
+      "Tanda tangan",
+      "Tanggal"
+     ],
+     [
+      "Disusun oleh",
+      "Rina Wulandari",
+      "Ditandatangani elektronik",
+      "16/07/2025"
+     ],
+     [
+      "Diperiksa oleh",
+      "Bayu Pratama",
+      "Ditandatangani elektronik",
+      "16/07/2025"
+     ],
+     [
+      "Disetujui oleh",
+      "Dewi Anggraini",
+      "Ditandatangani elektronik",
+      "16/07/2025"
+     ]
+    ]
+   ]
+  }
+ ]
+}

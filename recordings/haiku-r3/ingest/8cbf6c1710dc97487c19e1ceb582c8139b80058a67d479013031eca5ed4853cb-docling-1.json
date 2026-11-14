@@ -1,0 +1,293 @@
+{
+ "doc_sha256": "8cbf6c1710dc97487c19e1ceb582c8139b80058a67d479013031eca5ed4853cb",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  17.15,
+  17.15
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1191530496,
+ "pages": [
+  {
+   "number": 1,
+   "text": "FACTORY ACCEPTANCE TEST RECORD\nMechanical and control functions\nRecord no. FAT-TP202 Customer PT Arunika Farma Lestari\nRevision 0 Machine Rotary tablet press (double-sided),\nDate of issue 16-Feb-2026 customer tag TP-202\nA. Machine data (as built)\nSerial number TRXD-24-0932\nModel TRX-D 41\nNumber of punch stations 41 stations\nB. Release of the test procedure\nStep Name Company Signature Date\nIssued Luca Bertoni Rotaforma Macchine S.r.l. Signed electronically 16-Feb-2026\nReviewed (customer) Bayu Pratama PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nReleased for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nC. Test records\nTest case TC-01\nProcedure Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed.\nRequired 10–80 rpm\nMeasured 10–80 rpm\nVerdict PASS\nTest case TC-02\nProcedure Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour.\nRequired ≥ 300,000 tablets/h\nMeasured 312,000 tablets/h\nVerdict PASS\nTest case TC-03\nProcedure Apply main compression with the test tooling; record the highest force reached.\nRequired ≥ 80 kN\nMeasured 76 kN\nVerdict FAIL\nTest case TC-04\nProcedure Set pre-compression to maximum; record the force shown by the force channel.\nRequired ≥ 20 kN\nMeasured 22 kN\nVerdict PASS\nTest case TC-05\nProcedure Check the material certificates of the product-contact parts against the parts list.\nRequired SS 316L\nMeasured SS 316L\nVerdict PASS",
+   "tables": [
+    [
+     [
+      "Record no.",
+      "FAT-TP202",
+      "Customer",
+      "PT Arunika Farma Lestari"
+     ],
+     [
+      "Revision",
+      "0",
+      "Machine",
+      "Rotary tablet press (double-sided),"
+     ],
+     [
+      "Date of issue",
+      "16-Feb-2026",
+      "",
+      "customer tag TP-202"
+     ]
+    ],
+    [
+     [
+      "A. Machine data (as built)"
+     ]
+    ],
+    [
+     [
+      "Serial number",
+      "TRXD-24-0932"
+     ],
+     [
+      "Model",
+      "TRX-D 41"
+     ],
+     [
+      "Number of punch stations",
+      "41 stations"
+     ]
+    ],
+    [
+     [
+      "Step",
+      "Name",
+      "Company",
+      "Signature",
+      "Date"
+     ],
+     [
+      "Issued",
+      "Luca Bertoni",
+      "Rotaforma Macchine S.r.l.",
+      "Signed electronically",
+      "16-Feb-2026"
+     ],
+     [
+      "Reviewed (customer)",
+      "Bayu Pratama",
+      "PT Arunika Farma Lestari",
+      "Signed electronically",
+      "26-Feb-2026"
+     ],
+     [
+      "Released for test (customer)",
+      "Dewi Anggraini",
+      "PT Arunika Farma Lestari",
+      "Signed electronically",
+      "26-Feb-2026"
+     ]
+    ],
+    [
+     [
+      "C. Test records"
+     ]
+    ],
+    [
+     [
+      "Test case TC-01"
+     ],
+     [
+      "Procedure",
+      "Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed."
+     ],
+     [
+      "Required",
+      "10–80 rpm"
+     ],
+     [
+      "Measured",
+      "10–80 rpm"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case TC-02"
+     ],
+     [
+      "Procedure",
+      "Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour."
+     ],
+     [
+      "Required",
+      "≥ 300,000 tablets/h"
+     ],
+     [
+      "Measured",
+      "312,000 tablets/h"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case TC-03"
+     ],
+     [
+      "Procedure",
+      "Apply main compression with the test tooling; record the highest force reached."
+     ],
+     [
+      "Required",
+      "≥ 80 kN"
+     ],
+     [
+      "Measured",
+      "76 kN"
+     ],
+     [
+      "Verdict",
+      "FAIL"
+     ]
+    ],
+    [
+     [
+      "Test case TC-04",
+      ""
+     ],
+     [
+      "Procedure",
+      "Set pre-compression to maximum; record the force shown by the force channel."
+     ],
+     [
+      "Required",
+      "≥ 20 kN"
+     ],
+     [
+      "Measured",
+      "22 kN"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case TC-05"
+     ],
+     [
+      "Procedure",
+      "Check the material certificates of the product-contact parts against the parts list."
+     ],
+     [
+      "Required",
+      "SS 316L"
+     ],
+     [
+      "Measured",
+      "SS 316L"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 2,
+   "text": "Test case TC-06\nProcedure Measure surface roughness Ra on the die table and feeder.\nRequired ≤ 0.8 µm\nMeasured 0.5 µm\nVerdict PASS\nTest case TC-07\nProcedure Load the product recipe on the HMI, simulate a weight drift and confirm that the force-based weight control corrects it.\nRequired Present and functional\nMeasured Present and functional\nVerdict PASS\nTest case TC-08\nProcedure Press each emergency stop button while the turret is running; the machine must stop.\nRequired Present and functional\nMeasured Present and functional\nVerdict PASS\nD. Deviations\nNo deviations were raised during the test.\nE. Attachments\nAttachment 1: Noise level measurement at 1 m from the machine\nF. Test execution\nRole Name Company Signature Date\nTested by Luca Bertoni Rotaforma Macchine S.r.l. Signed electronically 13-Mar-2026\nWitnessed by Agus Setiawan PT Arunika Farma Lestari Signed electronically 13-Mar-2026",
+   "tables": [
+    [
+     [
+      "Test case TC-06",
+      ""
+     ],
+     [
+      "Procedure",
+      "Measure surface roughness Ra on the die table and feeder."
+     ],
+     [
+      "Required",
+      "≤ 0.8 µm"
+     ],
+     [
+      "Measured",
+      "0.5 µm"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case TC-07"
+     ],
+     [
+      "Procedure",
+      "Load the product recipe on the HMI, simulate a weight drift and confirm that the force-based weight control corrects it."
+     ],
+     [
+      "Required",
+      "Present and functional"
+     ],
+     [
+      "Measured",
+      "Present and functional"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case TC-08",
+      ""
+     ],
+     [
+      "Procedure",
+      "Press each emergency stop button while the turret is running; the machine must stop."
+     ],
+     [
+      "Required",
+      "Present and functional"
+     ],
+     [
+      "Measured",
+      "Present and functional"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Role",
+      "Name",
+      "Company",
+      "Signature",
+      "Date"
+     ],
+     [
+      "Tested by",
+      "Luca Bertoni",
+      "Rotaforma Macchine S.r.l.",
+      "Signed electronically",
+      "13-Mar-2026"
+     ],
+     [
+      "Witnessed by",
+      "Agus Setiawan",
+      "PT Arunika Farma Lestari",
+      "Signed electronically",
+      "13-Mar-2026"
+     ]
+    ]
+   ]
+  }
+ ]
+}
