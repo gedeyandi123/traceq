@@ -140,7 +140,15 @@ def test_a_run_its_recordings_do_not_reproduce_is_not_promoted(
 
 
 def test_recordings_missing_a_call_are_not_promoted(live_run: Path, recordings: Path) -> None:
-    next(recordings.glob("*.json")).unlink()
+    # A call this run makes (its `transport` votes are TP-202's only), not the first file
+    # the glob lists: that order differs by OS and may be another Equipment's call.
+    voted = [
+        p
+        for p in sorted(recordings.glob("*.json"))
+        if _json(p).get("prompt") == "transport" and "TP202" in _json(p)["request"]["user"]
+    ]
+    assert voted
+    voted[0].unlink()
 
     with pytest.raises(promote.PromoteError, match="does not hold every call"):
         promote.promote(live_run, recordings, corpus=MANIFEST, world=WORLD, key=KEY)
