@@ -48,6 +48,7 @@ How implement-spec's roles map here:
 - **Implementer subagents (step 4):** `implementer`, at most **two at a time**. The delegation message holds only pointers: ticket number, spec issue, integration branch, and the commit co-author line (subagents do not receive it otherwise).
 - **Merger subagent (step 5):** none. The main session merges the ticket PR into the integration branch (`gh pr merge <n> --squash`), then comments on the ticket and closes it, so native blocking edges unblock the next tickets. GitHub closes issues only from PRs into the default branch. On a merge conflict, a fresh implementer resolves it.
 - **Integration PR (steps 3 and 8):** a draft PR into `main` that closes the spec issue, listing every ticket. The owner merges it.
+- **Standalone ticket (no spec):** one `implementer` in its own worktree, branch from `main`, PR into `main` with `Closes #<n>` in the body; the owner merges it. After the merge the main session checks that the issue closed, and closes it with a comment if not.
 - **Cleanup (step 9):** `git worktree prune` and delete leftover local `worktree-agent-*` and ticket branches.
 
 Quality checks on the agents themselves: the main session reads the `path:line` an `explorer` answer cites before relying on it; `reviewer` Bash is limited by `.claude/hooks/readonly-bash.mjs` (tests: `node .claude/hooks/readonly-bash.test.mjs`); every implementer PR still passes CI and the integration-branch code review.
