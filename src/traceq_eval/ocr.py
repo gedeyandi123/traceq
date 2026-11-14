@@ -37,6 +37,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from traceq_eval.citations import norm
+from traceq_eval.headline import COUNTS, Count
 from traceq_eval.submission import OcrEntry, Submission
 
 MIN_IOU = 0.5
@@ -193,15 +194,18 @@ def score_ocr(sub: Submission, key: Mapping[str, list[dict[str, Any]]]) -> dict[
     cer_by_kind, exact_by_kind = group("kind", KINDS)
     cer_by_level, _ = group("level", levels)
     n = len(items)
+    recall = Count(len(matched), n)
+    exact = Count(sum(i["exact"] for i in items), n)
+    errors = Count(sum(i["edits"] for i in items), sum(i["chars"] for i in items))
     return {
         "metrics": {
             "entries": n,
             "submitted": len(sub.ocr),
-            "matched": len(matched),
-            "entry_recall": _ratio(len(matched), n),
+            "matched": recall.k,
+            "entry_recall": recall.rate,
             "localisation_rate": _ratio(sum(i["matched_by"] == "quad" for i in items), n),
-            "exact_match_rate": _ratio(sum(i["exact"] for i in items), n),
-            "cer": _ratio(sum(i["edits"] for i in items), sum(i["chars"] for i in items)),
+            "exact_match_rate": exact.rate,
+            "cer": errors.rate,
             "cer_by_kind": cer_by_kind,
             "exact_match_by_kind": exact_by_kind,
             "cer_by_level": cer_by_level,
@@ -209,4 +213,9 @@ def score_ocr(sub: Submission, key: Mapping[str, list[dict[str, Any]]]) -> dict[
             "read_overwritten_original": sum(i["read_overwritten_original"] for i in items),
         },
         "items": items,
+        COUNTS: {
+            "ocr.entry_recall": recall,
+            "ocr.exact_match_rate": exact,
+            "ocr.cer": errors,
+        },
     }

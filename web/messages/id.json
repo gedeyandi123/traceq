@@ -123,14 +123,16 @@
       "lower": "Lebih rendah lebih baik"
     },
     "metrics": {
-      "extraction_accuracy": "Akurasi ekstraksi nilai",
-      "citation_groundedness": "Kutipan terverifikasi pada halaman",
-      "defect_recall": "Recall cacat yang ditanam",
-      "fabrication_rate": "Tingkat fabrikasi klaim",
-      "probe_fabrication_rate": "Fabrikasi pada probe halusinasi",
-      "ocr_exact_match": "OCR: entri terbaca persis",
-      "ocr_entry_recall": "OCR: entri ditemukan",
-      "ocr_cer": "OCR: tingkat kesalahan karakter (CER)"
+      "requirements": { "value_accuracy": "Akurasi ekstraksi nilai" },
+      "citations": { "verified_rate": "Kutipan terverifikasi pada halaman" },
+      "defects": { "recall": "Recall cacat yang ditanam" },
+      "fabrication": { "rate": "Tingkat fabrikasi klaim" },
+      "probes": { "fabrication_rate": "Fabrikasi pada probe halusinasi" },
+      "ocr": {
+        "exact_match_rate": "OCR: entri terbaca persis",
+        "entry_recall": "OCR: entri ditemukan",
+        "cer": "OCR: tingkat kesalahan karakter (CER)"
+      }
     }
   }
 }
