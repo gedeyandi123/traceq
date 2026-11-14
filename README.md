@@ -8,6 +8,7 @@ Status: the synthetic dataset v0 (TP-201 package and its answer key) and the eva
 - [`docs/adr/`](docs/adr/): architecture decisions
 - [`CLAUDE.md`](CLAUDE.md): development protocol for coding agents
 - [`docs/design/synthetic-dataset.md`](docs/design/synthetic-dataset.md): dataset design
+- [`docs/pilot-readiness.md`](docs/pilot-readiness.md): what running at a real plant would take (skeleton)
 - [`DATASHEET.md`](DATASHEET.md), [`CHANGELOG.md`](CHANGELOG.md): dataset documentation and versions
 
 ## Licence

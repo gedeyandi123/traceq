@@ -26,6 +26,7 @@ One dataset serves four consumers. A document or defect that none of them needs 
    Real vendor brochures are not cited: the denylist keeps real vendor names out of the repository (principle 6), and literature plus practitioner review give the same evidence of realism.
 6. **Everything is fictional:** plant, vendors, people, serial numbers. Vendor names are checked against registered trademarks before they are frozen, and a denylist check in CI blocks real equipment vendor names.
 7. **No LLM-chosen number is frozen without human review.** For TP-201 and PW-001, a quoted value is copied from a cited source (principle 5): an LLM may do the copying, the schema checks that the value appears in its quote, and `scripts/verify_quotes.py` checks the quote against the live page. A site decision is a judgement; when an LLM drafts it (`drafted_by: llm`) it blocks freeze until a human signs it off (`reviewed_by: owner | practitioner`). Human review therefore goes to judged values, not to quotes the machine already checked. The same holds for other numbers no source fixes, such as the readings on a calibration certificate (`results.drafted_by`) or the scores and criticality threshold of the risk assessment (`risk_assessment.drafted_by`): they are drafted and block freeze until reviewed. Datasheet values need no review of their own: they are copied from the URS spec, and the intended-Coverage test fails if one stops meeting it. Other Equipment may be drafted with an LLM, then edited and frozen.
+8. **Claims rest on human-decided labels** (decided 14 Nov 2026, ADR 0009). A rate published as a claim (gate, baseline, README, demo video) is scored only against labels a human decided: the owner now, the practitioner when available. Labels still drafted by an LLM may be scored, but the datasheet lists them and they are not claimed as domain accuracy. No bulk LLM-generated synthetic set is made in the ten-week plan; if one is made later, it tests robustness only (the parser does not fail, citations stay valid) and never produces a Coverage rate. The practitioner reviews structure and realism (document types, vendor formats, site decisions), not plant data (ADR 0001).
 
 ## 3. Regulatory references
 
@@ -102,11 +103,13 @@ URS, approved IQ/OQ/PQ Protocols, Execution records, Qualification Reports, Devi
 
 ### PW-001 (purified water)
 
+PW-001 is the v1 held-out Equipment (section 11): its URS and vendor package are written by a separate session and are not described here. The phased-PQ content below is for the Registry and monitoring features. Because it is written here, it can never be held out.
+
 At T0 the system is in **Phase 3, month 7**: Phases 1–2 complete, two quarterly trending points, the 12-month clock running. The corpus contains Protocol rev 1 (cites the outdated WHO TRS 970) and its replacement rev 2.
 
 Monitoring data is LIMS-style, per sampling point and parameter, with an Indonesian seasonal pattern (feed-water bioburden rises in the rainy season). Planted events: one excursion handled correctly, one not followed up, and one use of water for production during Phase 1 (not allowed by TRS 1033 §11.3).
 
-Specification values come from Farmakope Indonesia VI and supplements (verified against the official PDF when v2 is written; fallback USP <645>/<643>). Microbial alert/action levels are internal limits set in the VMP (USP <1231> guidance), not pharmacopoeial specifications. Evaluation against levels is done by deterministic rules.
+Specification values come from Farmakope Indonesia VI and supplements (verified against the official PDF when the phased-PQ set is written; fallback USP <645>/<643>). Microbial alert/action levels are internal limits set in the VMP (USP <1231> guidance), not pharmacopoeial specifications. Evaluation against levels is done by deterministic rules.
 
 ## 6. Answer key
 
@@ -314,7 +317,7 @@ world/*.yaml ──Pydantic──▶ renderer ──▶ degrader (scans) ──�
   Python formats every string (numbers and dates in the document language); templates in `src/traceq_dataset/templates/` only lay it out, so the expected text is known exactly. Document number, revision, issue date and signatories are world data (`documents:`).
 - **Paper documents** (SAT, material and calibration certificates) are split in two steps, so content and pixels stay apart:
   - The **renderer** decides *what is on the page*. It draws the printed form, the handwritten entries (Caveat, OFL, in pen ink), overwritten entries, signatures and stamps as a born-digital PDF, and records each handwritten string with its page and bounding box (`Placed.box`). The validator checks every handwritten string inside its box. Stamps belong here, not in the degrader, because they are content: their text and position matter to the answer key and they can cover other text.
-  - The **degrader** (`traceq_dataset.degrade`) decides *how the scan looks*. It only transforms pixels: rasterise, skew 0.5–2° about the page centre, paper tone, blur, sensor noise, JPEG in an image-only PDF (no text layer). Each handwritten box becomes a quad rotated the same way (`ScannedPlaced.quad`, pt, top-left origin), so the OCR answer key follows the pixels. Level is set per document (`Document.scan`: `light`, `medium`, `heavy`), not globally random; random draws come from the corpus seed plus document id and revision, so a scan is byte-identical for the same seed. The validator checks that a scan has no text layer and that every quad lies on its page and holds ink; a unit test checks the quad geometry against Pillow's rotation. Nameplate photos will be rendered synthetically when IQ records join the corpus (v1); until then `Equipment.serial_no` stands for the nameplate.
+  - The **degrader** (`traceq_dataset.degrade`) decides *how the scan looks*. It only transforms pixels: rasterise, skew 0.5–2° about the page centre, paper tone, blur, sensor noise, JPEG in an image-only PDF (no text layer). Each handwritten box becomes a quad rotated the same way (`ScannedPlaced.quad`, pt, top-left origin), so the OCR answer key follows the pixels. Level is set per document (`Document.scan`: `light`, `medium`, `heavy`), not globally random; random draws come from the corpus seed plus document id and revision, so a scan is byte-identical for the same seed. The validator checks that a scan has no text layer and that every quad lies on its page and holds ink; a unit test checks the quad geometry against Pillow's rotation. Nameplate photos will be rendered synthetically when IQ records join the corpus (an optional set, section 11); until then `Equipment.serial_no` stands for the nameplate.
 - **Binary files are not committed.** The corpus is built in a container with pinned versions and published as a GitHub Release asset per dataset version. The release bytes are canonical, including for extraction cache keys (document hash + pipeline version).
 - **Spreadsheets** (the risk assessment) are written with openpyxl as values, not formulas, so a reader needs no cached results. Each placed string records its sheet and cell; zip-entry and document-property dates are set to the issue date, so the bytes are identical per T0.
 - **CI** re-renders and runs a semantic validator, not a byte-hash comparison (`validate.answer_key_problems`): the committed answer key equals the re-derived one; every answer-key value appears on the page it cites (for a scan, in the born-digital render behind the pixels; for a spreadsheet, in the cell the renderer placed it in); every handwritten location carries the scan's quad; a `planned` location names a document that is really not rendered; the required-document list matches the corpus; the denylist finds nothing.
@@ -324,7 +327,9 @@ world/*.yaml ──Pydantic──▶ renderer ──▶ degrader (scans) ──�
 
 ### Split
 
-Held out: TP-202 in full (different vendor and layout). A `generate --variant <seed>` command for random new Equipment follows in v2. Because TP-201 is the development set (prompts are built against it), a small held-out slice of TP-202 is rendered before the first Claude Haiku run, so the first published score is not only a development-set score; the full TP-202 package follows in v2.
+Held out: TP-202 in full (different vendor and layout). A `generate --variant <seed>` command for random new Equipment is an optional later set (section 11). Because TP-201 is the development set (prompts are built against it), a small held-out slice of TP-202 is rendered before the first Claude Haiku run, so the first published score is not only a development-set score; the full TP-202 package is an optional later set.
+
+v1 adds a second held-out Equipment, PW-001, at full size (about 30–40 requirements). A separate session that shares no context with development writes it. The development session reads only the scorer's report on it, and the isolation test covers its files once they exist. Every other Equipment is dev unless named held-out here.
 
 The sets are small (TP-201: 38 requirements, 7 defects, 6 probes, 37 handwritten entries), so one item moves defect recall by 14 points. Every reported rate carries its count (k/n) and its split (dev or held-out); a difference of one item is not evidence for choosing a model or for a portfolio claim.
 
@@ -384,11 +389,16 @@ The baseline file is `baselines/<Equipment>.json`, one per Equipment: the datase
 
 ## 11. Stages
 
+Revised 14 Nov 2026 (ADR 0009): v1 is cut to one clean held-out Equipment. The other Equipment stay optional behind a gate.
+
 | Version | Weeks | Contents | Unlocks |
 |---|---|---|---|
 | v0 | 1–2 | TP-201 package, 35–40 requirements, 8 planted scenarios; a small TP-202 held-out slice before the first Haiku run | Thin end-to-end slice (weeks 3–4) |
-| v1 | 3–5 | HSMG-101, FBD-101, CP-301: history, ~25-row registry, missing documents, Change Control | Registry, Requalification, missing-document recall |
-| v2 | 5–6 | PW-001 phased PQ; the full TP-202 held-out package; `generate --variant` | Held-out eval, Mode Cloud vs Mode Pabrik |
+| — | after the 25 Nov freeze | Coverage quality on TP-201, timeboxed to one week or three prompt experiments, whichever comes first | A stronger system before it is measured on new data |
+| v1 | from week 4 | PW-001 as a held-out Equipment at full size (about 30–40 requirements): URS and vendor package written by a separate session; the owner reviews its labels | A clean held-out score at a usable n; a test that the data model is generic (a utility, not an OSD machine) |
+| optional | decided at the end-of-week-4 retro | Further Equipment (HSMG-101, FBD-101, CP-301, the full TP-202 package, `generate --variant`) | Registry, Requalification, missing-document recall; more variation |
+
+Optional sets start only when (1) v1 is scored, (2) the core demo and the practitioner session are done, and (3) the owner's measured label-review time on v1 shows that the next set fits the schedule. Each set is chosen by the variation it adds (a new vendor format, a handwritten scan, an English-only vendor package), not by the next item on the Equipment list. One machine with a new vendor format is worth more than three machines in the same style. Variation in real formats comes from public real documents (ADR 0001), not from more synthetic Equipment.
 
 ## 12. Discovery parameters [D]
 
