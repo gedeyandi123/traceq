@@ -1,12 +1,33 @@
 # Recorded live runs
 
-`haiku-r6` holds one live Haiku run per Equipment on corpus release 0.1.0 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `cbd88f90a040`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.0/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` is this TP-201 run.
+`haiku-r7` holds one live Haiku run per Equipment on corpus release 0.1.0 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `7b9b0d1f8dbd`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.0/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
-r6 is a top-up of r5: the folder is r5's (renamed), and the live run sent only the calls r5 had not recorded, the `transport_sensitive` votes of #88 (a repeated request has its own key, so every r5 answer kept its key). Its `cost_usd` counts all calls; `live_cost_usd` is what was paid.
+r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
 
 The dataset is not frozen (freeze 2026-11-25): the baseline is redone at the freeze.
 
-## r6 (current): `transport_sensitive` votes (#88)
+## r7 (current): a `transport` prompt for the votes (#90)
+
+| | TP-201 (dev) | TP-202 (held-out) |
+|---|---|---|
+| run id | 20261114T091047Z-d65805 | 20261114T091315Z-dcd2d1 |
+| coverage | 25/38 | 6/13 |
+| value | 26/38 | 10/13 |
+| defect recall | 5/7 | 1/3 |
+| probes fabricated | 0/6 | 0/2 |
+| fabrication | 0/179 | 0/53 |
+| gates | PASS | **PASS** |
+| calls (live) | 149 (21) | 68 (11) |
+| tokens in/out | 533319/62030 | 131379/16068 |
+| cost USD (live) | 0.042173 (0.006559) | 0.010586 (0.001267) |
+
+Why (#85): the `link` prompt defines `transport_sensitive` as "(calibration, alignment, measurement accuracy)" and the model reads it literally. On TP-201, r1–r5, it said `true` in 23 of 75 answers for the 15 requirements world data marks transport-sensitive (0 of 40 for safety, control and software functions) and never for the 17 marked `false`. Probe 2 (32 items × 3, $0.032230) with a definition by category: 45/45 right where world says `true`, 0/21 `true` for the seven FAT-only `covered_by_vendor` items; it said `true` 3/3 for the speed ranges 002 and 017, which world marks `false`. Putting that definition into `link` (run 20261114T084413Z-f87bc4, $0.018768, discarded, not recorded) passed the gates but regressed the ratchet (`evidence_precision` 1.000 → 0.783, `evidence_recall` 0.929 → 0.857): the new words changed step selection. #90 asks it as its own prompt, `transport` (the `link` text with that one line replaced), 3 times per FAT-only `covered_by_vendor` candidate; `link` is unchanged.
+
+TP-201: the 21 votes all said `false`; every score equals r6 (ratchet: same on every metric).
+
+TP-202: the gate passes and becomes `baselines/TP-202.json`. URS-TP202-012 is now `partial` (3 of 3 `true`); URS-TP202-002 (a turret speed range) went from `covered_by_vendor` to `partial` (3 of 3 `true`), the same disagreement probe 2 showed on TP-201's speed ranges, so coverage stays 6/13. Two caveats: n = 13 is a direction signal only; and 012 is not a clean held-out result, because its text (an emergency stop) was read while investigating r5's failure, before the category definition was written. The definition rests on the TP-201 evidence above. Whether a speed range is transport-sensitive is a world-data question for the freeze review.
+
+## r6
 
 | | TP-201 (dev) | TP-202 (held-out) |
 |---|---|---|
@@ -61,8 +82,11 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | r5 | $0.035615 | $0.009319 |
 | probe (#85, `link` ×180, TP-201 only) | $0.058814 | – |
 | r6 (top-up, live calls only) | $0.004510 | $0.000507 |
+| probe 2 (#85, `link` variant ×96, TP-201 only) | $0.032230 | – |
+| `link` variant run (discarded, ratchet FAIL) | $0.018768 | – |
+| r7 (top-up, live calls only) | $0.006559 | $0.001267 |
 
-Total $0.270658 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run).
+Total $0.329482 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 
