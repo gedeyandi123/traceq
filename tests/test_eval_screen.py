@@ -2,8 +2,9 @@
 
 Scoring is a harness step; the system's API serves run folders and never a score
 (``tests/test_api.py``). This API reads the scorer report written beside a run, and the
-run's cost, and serves only rates with k/n and split: no per-item expected value, no
-baseline. ``tests/fixtures/eval/summary.json`` is the aggregate the web render test uses.
+run's cost, and serves only the report's headline rates with k/n and its split (#74): no
+per-item expected value, no baseline. ``tests/fixtures/eval/summary.json`` is the aggregate
+the web render test uses.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from traceq_eval import screen
 from traceq_eval.citations import PageTexts
 from traceq_eval.oracle import perfect
 from traceq_eval.report import write
-from traceq_eval.score import score
+from traceq_eval.score import score, split_of
 from traceq_eval.submission import Submission, System
 
 ROOT = Path(__file__).parents[1]
@@ -31,15 +32,16 @@ RUN_ID = "20261113T090000Z-f1a2b3"
 RUN_JSON = ROOT / "tests" / "fixtures" / "run" / "runs" / RUN_ID / "run.json"
 SUMMARY = ROOT / "tests" / "fixtures" / "eval" / "summary.json"
 OPENAPI = ROOT / "web" / "eval-openapi.json"
+RECORDED = ROOT / "recordings" / "haiku-r1"
 RATES = [
-    "extraction_accuracy",
-    "citation_groundedness",
-    "defect_recall",
-    "fabrication_rate",
-    "probe_fabrication_rate",
-    "ocr_exact_match",
-    "ocr_entry_recall",
-    "ocr_cer",
+    "requirements.value_accuracy",
+    "citations.verified_rate",
+    "defects.recall",
+    "fabrication.rate",
+    "probes.fabrication_rate",
+    "ocr.exact_match_rate",
+    "ocr.entry_recall",
+    "ocr.cer",
 ]
 
 
@@ -73,14 +75,14 @@ def test_perfect_run_every_rate_with_k_of_n(
     n_req = len(key["requirements.yaml"])
     n_defects = len(key["defects.yaml"])
     n_ocr = sum(len(d["entries"]) for d in key["ocr.yaml"])
-    assert rates["extraction_accuracy"] == (n_req, n_req, 1.0)
-    assert rates["defect_recall"] == (n_defects, n_defects, 1.0)
-    assert rates["probe_fabrication_rate"] == (0, 6, 0.0)
-    assert rates["fabrication_rate"][0] == 0 and rates["fabrication_rate"][1] > 0
-    k, n, rate = rates["citation_groundedness"]
+    assert rates["requirements.value_accuracy"] == (n_req, n_req, 1.0)
+    assert rates["defects.recall"] == (n_defects, n_defects, 1.0)
+    assert rates["probes.fabrication_rate"] == (0, 6, 0.0)
+    assert rates["fabrication.rate"][0] == 0 and rates["fabrication.rate"][1] > 0
+    k, n, rate = rates["citations.verified_rate"]
     assert k == n > 0 and rate == 1.0
-    assert rates["ocr_entry_recall"][1] <= n_ocr
-    assert {r.metric: r.better for r in s.rates}["ocr_cer"] == "lower"
+    assert rates["ocr.entry_recall"][1] <= n_ocr
+    assert {r.metric: r.better for r in s.rates}["ocr.cer"] == "lower"
 
 
 def test_empty_run_rates_and_no_cost_without_run_metadata(
@@ -88,18 +90,60 @@ def test_empty_run_rates_and_no_cost_without_run_metadata(
 ) -> None:
     s = screen.summarise("x", reports["empty"], None)
     rates = _rates(s)
-    assert rates["extraction_accuracy"][:2] == (0, rates["extraction_accuracy"][1])
-    assert rates["fabrication_rate"] == (0, 0, None)
-    assert rates["citation_groundedness"] == (0, 0, None)
+    assert rates["requirements.value_accuracy"][:2] == (
+        0,
+        rates["requirements.value_accuracy"][1],
+    )
+    assert rates["fabrication.rate"] == (0, 0, None)
+    assert rates["citations.verified_rate"] == (0, 0, None)
     assert (s.cost_usd, s.model, s.mode) == (None, None, None)
 
 
+def _recount(report: dict[str, Any]) -> dict[str, tuple[int, int]]:
+    """k/n recounted from the report's items, independently of the scorer's headline."""
+    reqs, defects, ocr = (report[s]["items"] for s in ("requirements", "defects", "ocr"))
+    cites, fab, probes = report["citations"], report["fabrication"], report["probes"]
+    return {
+        "requirements.value_accuracy": (sum(i["value_ok"] for i in reqs), len(reqs)),
+        "citations.verified_rate": (cites["by_status"]["verified"], cites["total"]),
+        "defects.recall": (sum(bool(d["found_by"]) for d in defects), len(defects)),
+        "fabrication.rate": (fab["fabricated"], fab["claims"]),
+        "probes.fabrication_rate": (probes["metrics"]["fabricated"], len(probes["items"])),
+        "ocr.exact_match_rate": (sum(i["exact"] for i in ocr), len(ocr)),
+        "ocr.entry_recall": (sum(i["matched_by"] is not None for i in ocr), len(ocr)),
+        "ocr.cer": (sum(i["edits"] for i in ocr), sum(i["chars"] for i in ocr)),
+    }
+
+
+def _section_rate(report: dict[str, Any], metric: str) -> float | None:
+    section, name = metric.split(".")
+    return report[section].get("metrics", report[section])[name]
+
+
+@pytest.mark.parametrize(
+    ("recorded", "split"),
+    [(RECORDED / "report-TP-201.json", "dev"), (RECORDED / "report-TP-202.json", "held_out")],
+)
+def test_screen_rates_are_the_recorded_reports_metrics(recorded: Path, split: str) -> None:
+    report = json.loads(recorded.read_text(encoding="utf-8"))
+    s = screen.summarise("x", report, None)
+    assert report["split"] == s.split == split
+    assert [r.metric for r in s.rates] == RATES == list(report["headline"])
+    recount = _recount(report)
+    for r in s.rates:
+        assert r.rate == _section_rate(report, r.metric), r.metric
+        assert (r.k, r.n) == recount[r.metric], r.metric
+        assert report["headline"][r.metric] == {
+            "k": r.k,
+            "n": r.n,
+            "rate": r.rate,
+            "better": r.better,
+        }
+
+
 @pytest.mark.parametrize(("equipment", "split"), [("TP-201", "dev"), ("TP-202", "held_out")])
-def test_split_follows_the_equipment(
-    reports: dict[str, dict[str, Any]], equipment: str, split: str
-) -> None:
-    report = {**reports["empty"], "equipment": equipment}
-    assert screen.summarise("x", report, None).split == split
+def test_split_follows_the_equipment(equipment: str, split: str) -> None:
+    assert split_of(equipment) == split
 
 
 @pytest.fixture
@@ -137,6 +181,11 @@ def test_never_serves_items_expected_values_or_baselines(
     assert {m for item in schema["paths"].values() for m in item} == {"get"}
     assert all(w not in json.dumps(schema).lower() for w in ("expected", "baseline"))
     assert "items" not in schema["components"]["schemas"]["EvalSummary"]["properties"]
+
+
+def test_the_openapi_schema_names_the_headline_metrics() -> None:
+    rate = screen.openapi_schema()["components"]["schemas"]["Rate"]
+    assert rate["properties"]["metric"]["enum"] == RATES
 
 
 def test_the_fixture_summary_is_a_summary() -> None:

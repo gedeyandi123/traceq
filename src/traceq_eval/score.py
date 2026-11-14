@@ -41,7 +41,7 @@ import math
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from traceq_dataset.schema import CoverageClass
 from traceq_eval.citations import (
@@ -52,12 +52,22 @@ from traceq_eval.citations import (
     Verdict,
     partial_ratio,
 )
+from traceq_eval.headline import COUNTS, Count, headline
 from traceq_eval.judge import Criterion, Judge, NoJudge, UrsRequirement
 from traceq_eval.ocr import score_ocr
 from traceq_eval.segmentation import Alignment, align
 from traceq_eval.submission import Citation, Submission
 
-SCORER_VERSION = "0.5.0"
+SCORER_VERSION = "0.6.0"
+
+Split = Literal["dev", "held_out"]
+DEV = frozenset({"TP-201"})
+"""Equipment prompts are developed on; every other Equipment is held out (design section 9)."""
+
+
+def split_of(equipment: str) -> Split:
+    return "dev" if equipment in DEV else "held_out"
+
 
 CLAIMS_A_TEST = frozenset({"covered_by_vendor", "partial"})
 """Coverage classes that say a vendor step tested the requirement."""
@@ -162,11 +172,13 @@ class Ledger:
 
     def summary(self) -> dict[str, Any]:
         counts = Counter(str(r.verdict.status) for r in self.rows)
+        verified = Count(counts[Status.VERIFIED], len(self.rows))
         return {
-            "total": len(self.rows),
-            "verified_rate": _ratio(counts[Status.VERIFIED], len(self.rows)),
+            "total": verified.n,
+            "verified_rate": verified.rate,
             "by_status": {str(s): counts[s] for s in Status},
             "failed": [r.row() for r in self.rows if r.verdict.status is not Status.VERIFIED],
+            COUNTS: {"citations.verified_rate": verified},
         }
 
 
@@ -262,13 +274,14 @@ def score_requirements(
         p, rec = _ratio(tp, predicted), _ratio(tp, support)
         per_class[c] = {"precision": p, "recall": rec, "f1": _f1(p, rec), "support": support}
     f1s = [v["f1"] for v in per_class.values() if v["support"] and v["f1"] is not None]
+    values = Count(sum(i["value_ok"] for i in items), n)
     return {
         "metrics": {
             "requirements": n,
             "answered": sum(i["got"] is not None for i in items),
             "coverage_accuracy": _ratio(sum(i["coverage_ok"] for i in items), n),
             "coverage_macro_f1": round(sum(f1s) / len(f1s), 4) if f1s else None,
-            "value_accuracy": _ratio(sum(i["value_ok"] for i in items), n),
+            "value_accuracy": values.rate,
             "superseded_values": sum(i["superseded_value"] for i in items),
             "source_citation_rate": _ratio(sum(i["source_cited"] for i in items), n),
             "evidence_precision": _ratio(ev_right, ev_submitted),
@@ -283,6 +296,7 @@ def score_requirements(
         "items": items,
         "_unsafe": unsafe,
         "_fabricated_evidence": fabricated_evidence,
+        COUNTS: {"requirements.value_accuracy": values},
     }
 
 
@@ -337,7 +351,8 @@ def score_defects(sub: Submission, key: Key, ledger: Ledger) -> dict[str, Any]:
         if d["id"] in f["defects"]
     ]
     p = _ratio(sum(f["status"] == "match" for f in findings), len(findings))
-    r = _ratio(sum(bool(v) for v in matched.values()), len(defects))
+    found = Count(sum(bool(v) for v in matched.values()), len(defects))
+    r = found.rate
     return {
         "metrics": {
             "defects": len(defects),
@@ -365,6 +380,7 @@ def score_defects(sub: Submission, key: Key, ledger: Ledger) -> dict[str, Any]:
         ],
         "findings": findings,
         "_asking": asking,
+        COUNTS: {"defects.recall": found},
     }
 
 
@@ -429,17 +445,18 @@ def score_probes(sub: Submission, key: Key, ledger: Ledger) -> dict[str, Any]:
     by_kind: dict[str, list[bool]] = {}
     for i in items:
         by_kind.setdefault(i["absent"], []).append(i["status"] == "fabricated")
-    fabricated = sum(i["status"] == "fabricated" for i in items)
+    fabricated = Count(sum(i["status"] == "fabricated" for i in items), len(items))
     return {
         "metrics": {
-            "probes": len(items),
-            "fabricated": fabricated,
-            "fabrication_rate": _ratio(fabricated, len(items)),
+            "probes": fabricated.n,
+            "fabricated": fabricated.k,
+            "fabrication_rate": fabricated.rate,
             "fabrication_rate_by_kind": {
                 k: _ratio(sum(v), len(v)) for k, v in sorted(by_kind.items())
             },
         },
         "items": items,
+        COUNTS: {"probes.fabrication_rate": fabricated},
     }
 
 
@@ -587,22 +604,29 @@ def score(
         )
         + len(requirements["metrics"]["unknown_requirements"])
     )
+    fabrication = Count(fabricated, claims)
+    citations, ocr = ledger.summary(), score_ocr(sub, key)
+    counts = {"fabrication.rate": fabrication}
+    for section in (citations, requirements, defects, probes, ocr):
+        counts.update(section.pop(COUNTS))
     return {
         "scorer_version": SCORER_VERSION,
         "equipment": tag,
+        "split": split_of(tag),
+        "headline": headline(counts),
         "gates": {"passed": all(g["passed"] for g in gates.values()), **gates},
         "fabrication": {
-            "claims": claims,
-            "fabricated": fabricated,
-            "rate": _ratio(fabricated, claims),
+            "claims": fabrication.n,
+            "fabricated": fabrication.k,
+            "rate": fabrication.rate,
         },
-        "citations": ledger.summary(),
+        "citations": citations,
         "requirements": requirements,
         "defects": defects,
         "ambiguous": ambiguous,
         "probes": probes,
         "documents": documents,
         "test_steps": test_steps,
-        "ocr": score_ocr(sub, key),
+        "ocr": ocr,
         "not_scored": ["witness_matches_sop (no SOP in world data yet)"],
     }

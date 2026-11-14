@@ -12,8 +12,59 @@
     "prompt": "aa1ff77e168f",
     "run_id": "20261113T230021Z-37b062"
   },
-  "scorer_version": "0.5.0",
+  "scorer_version": "0.6.0",
   "equipment": "TP-202",
+  "split": "held_out",
+  "headline": {
+    "requirements.value_accuracy": {
+      "k": 10,
+      "n": 13,
+      "rate": 0.7692,
+      "better": "higher"
+    },
+    "citations.verified_rate": {
+      "k": 23,
+      "n": 23,
+      "rate": 1.0,
+      "better": "higher"
+    },
+    "defects.recall": {
+      "k": 0,
+      "n": 3,
+      "rate": 0.0,
+      "better": "higher"
+    },
+    "fabrication.rate": {
+      "k": 0,
+      "n": 40,
+      "rate": 0.0,
+      "better": "lower"
+    },
+    "probes.fabrication_rate": {
+      "k": 0,
+      "n": 2,
+      "rate": 0.0,
+      "better": "lower"
+    },
+    "ocr.exact_match_rate": {
+      "k": 0,
+      "n": 0,
+      "rate": null,
+      "better": "higher"
+    },
+    "ocr.entry_recall": {
+      "k": 0,
+      "n": 0,
+      "rate": null,
+      "better": "higher"
+    },
+    "ocr.cer": {
+      "k": 0,
+      "n": 0,
+      "rate": null,
+      "better": "lower"
+    }
+  },
   "gates": {
     "passed": true,
     "fabricated_acceptance_criterion": {

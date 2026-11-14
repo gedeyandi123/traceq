@@ -12,8 +12,59 @@
     "prompt": "aa1ff77e168f",
     "run_id": "20261113T222445Z-4d6395"
   },
-  "scorer_version": "0.5.0",
+  "scorer_version": "0.6.0",
   "equipment": "TP-201",
+  "split": "dev",
+  "headline": {
+    "requirements.value_accuracy": {
+      "k": 24,
+      "n": 38,
+      "rate": 0.6316,
+      "better": "higher"
+    },
+    "citations.verified_rate": {
+      "k": 122,
+      "n": 126,
+      "rate": 0.9683,
+      "better": "higher"
+    },
+    "defects.recall": {
+      "k": 5,
+      "n": 7,
+      "rate": 0.7143,
+      "better": "higher"
+    },
+    "fabrication.rate": {
+      "k": 4,
+      "n": 184,
+      "rate": 0.0217,
+      "better": "lower"
+    },
+    "probes.fabrication_rate": {
+      "k": 0,
+      "n": 6,
+      "rate": 0.0,
+      "better": "lower"
+    },
+    "ocr.exact_match_rate": {
+      "k": 35,
+      "n": 36,
+      "rate": 0.9722,
+      "better": "higher"
+    },
+    "ocr.entry_recall": {
+      "k": 36,
+      "n": 36,
+      "rate": 1.0,
+      "better": "higher"
+    },
+    "ocr.cer": {
+      "k": 4,
+      "n": 371,
+      "rate": 0.0108,
+      "better": "lower"
+    }
+  },
   "gates": {
     "passed": false,
     "fabricated_acceptance_criterion": {

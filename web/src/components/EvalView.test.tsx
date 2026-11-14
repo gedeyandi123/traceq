@@ -21,17 +21,17 @@ test("renders every rate with k/n and its split, the gates and the cost", () => 
     expect(within(row).getByTestId("kn").textContent).toMatch(/^\d+\/\d+$/);
   }
 
-  const extraction = within(screen.getByTestId("extraction_accuracy"));
+  const extraction = within(screen.getByTestId("requirements.value_accuracy"));
   expect(extraction.getByText("Akurasi ekstraksi nilai")).toBeDefined();
   expect(extraction.getByText("31/38")).toBeDefined();
   expect(extraction.getByText("81,6%")).toBeDefined();
 
-  const cer = within(screen.getByTestId("ocr_cer"));
+  const cer = within(screen.getByTestId("ocr.cer"));
   expect(cer.getByText("41/371")).toBeDefined();
   expect(cer.getByText("Lebih rendah lebih baik")).toBeDefined();
-  expect(within(screen.getByTestId("fabrication_rate")).getByText("0/129")).toBeDefined();
-  expect(within(screen.getByTestId("citation_groundedness")).getByText("84/91")).toBeDefined();
-  expect(within(screen.getByTestId("defect_recall")).getByText("5/7")).toBeDefined();
+  expect(within(screen.getByTestId("fabrication.rate")).getByText("0/129")).toBeDefined();
+  expect(within(screen.getByTestId("citations.verified_rate")).getByText("84/91")).toBeDefined();
+  expect(within(screen.getByTestId("defects.recall")).getByText("5/7")).toBeDefined();
 
   expect(screen.getByText("Gerbang fabrikasi: lulus")).toBeDefined();
   expect(screen.getByText(/0,0012 USD/)).toBeDefined();
@@ -42,14 +42,14 @@ test("a rate over nothing shows a dash, not zero", () => {
     ...(fixture as EvalSummary),
     split: "held_out",
     equipment: "TP-202",
-    rates: [{ metric: "ocr_cer", k: 0, n: 0, rate: null, better: "lower" }],
+    rates: [{ metric: "ocr.cer", k: 0, n: 0, rate: null, better: "lower" }],
   } satisfies EvalSummary;
   render(
     <NextIntlClientProvider locale="id" messages={messages}>
       <EvalView summary={empty} />
     </NextIntlClientProvider>,
   );
-  const cer = within(screen.getByTestId("ocr_cer"));
+  const cer = within(screen.getByTestId("ocr.cer"));
   expect(cer.getByText("0/0")).toBeDefined();
   expect(cer.getByText("–")).toBeDefined();
   expect(cer.getByText("Held-out (TP-202)")).toBeDefined();

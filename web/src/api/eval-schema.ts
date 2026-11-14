@@ -77,10 +77,16 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** Rate */
+        /**
+         * Rate
+         * @description One headline metric of the report (``traceq_eval.headline``), as the scorer wrote it.
+         */
         Rate: {
-            /** Metric */
-            metric: string;
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric: "requirements.value_accuracy" | "citations.verified_rate" | "defects.recall" | "fabrication.rate" | "probes.fabrication_rate" | "ocr.exact_match_rate" | "ocr.entry_recall" | "ocr.cer";
             /** K */
             k: number;
             /** N */

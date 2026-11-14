@@ -2,8 +2,8 @@
 
 Scoring is a harness step: ``python -m traceq_eval ... --out runs/<run id>`` writes
 ``report.json`` beside the run's files. This API reads that report and the run's cost from
-``run.json`` and serves, per scored run, each rate with k/n and its split (dev TP-201,
-held-out otherwise), the gate verdict and the cost. It never serves report items (per-item
+``run.json`` and serves, per scored run, the report's headline rates with k/n and its split
+(both written by the scorer), the gate verdict and the cost. It never serves report items (per-item
 expected values) or baseline contents; the system's API (``traceq.runs.api``) serves no
 score at all.
 
@@ -26,16 +26,19 @@ from typing import Any, Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 
+from traceq_eval.headline import Metric
+from traceq_eval.score import Split
+
 REPORT_FILE = "report.json"
 RUN_FILE = "run.json"
-DEV = frozenset({"TP-201"})
-"""Equipment prompts are developed on; every other Equipment is held out."""
 _RUN_ID = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_-]{0,63}$")
 
 
 class Rate(BaseModel):
+    """One headline metric of the report (``traceq_eval.headline``), as the scorer wrote it."""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
-    metric: str
+    metric: Metric
     k: int
     n: int
     rate: float | None
@@ -49,7 +52,7 @@ class EvalSummary(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     run_id: str
     equipment: str
-    split: Literal["dev", "held_out"]
+    split: Split
     scorer_version: str
     gates_passed: bool
     rates: list[Rate]
@@ -59,35 +62,16 @@ class EvalSummary(BaseModel):
     """From the run's metadata; none when the run folder has no ``run.json``."""
 
 
-def _rate(metric: str, k: int, n: int, better: Literal["higher", "lower"] = "higher") -> Rate:
-    return Rate(metric=metric, k=k, n=n, rate=round(k / n, 4) if n else None, better=better)
-
-
 def summarise(run_id: str, report: dict[str, Any], run: dict[str, Any] | None) -> EvalSummary:
-    """Aggregate a scorer report (``traceq_eval.score``) and the run's metadata."""
-    reqs = report["requirements"]["items"]
-    cites = report["citations"]
-    defects = report["defects"]["items"]
-    fab = report["fabrication"]
-    probes = report["probes"]["metrics"]
-    ocr = report["ocr"]["items"]
-    equipment = str(report["equipment"])
+    """A scorer report's split and headline (``traceq_eval.score``) and the run's metadata.
+    Counts nothing itself."""
     return EvalSummary(
         run_id=run_id,
-        equipment=equipment,
-        split="dev" if equipment in DEV else "held_out",
+        equipment=str(report["equipment"]),
+        split=report["split"],
         scorer_version=str(report["scorer_version"]),
         gates_passed=bool(report["gates"]["passed"]),
-        rates=[
-            _rate("extraction_accuracy", sum(bool(i["value_ok"]) for i in reqs), len(reqs)),
-            _rate("citation_groundedness", int(cites["by_status"]["verified"]), cites["total"]),
-            _rate("defect_recall", sum(bool(d["found_by"]) for d in defects), len(defects)),
-            _rate("fabrication_rate", fab["fabricated"], fab["claims"], "lower"),
-            _rate("probe_fabrication_rate", probes["fabricated"], probes["probes"], "lower"),
-            _rate("ocr_exact_match", sum(bool(i["exact"]) for i in ocr), len(ocr)),
-            _rate("ocr_entry_recall", sum(i["matched_by"] is not None for i in ocr), len(ocr)),
-            _rate("ocr_cer", sum(i["edits"] for i in ocr), sum(i["chars"] for i in ocr), "lower"),
-        ],
+        rates=[Rate(metric=m, **v) for m, v in report["headline"].items()],
         model=None if run is None else str(run["model"]),
         mode=None if run is None else run["mode"],
         cost_usd=None if run is None else float(run["cost_usd"]),
