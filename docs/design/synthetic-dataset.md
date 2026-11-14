@@ -377,7 +377,7 @@ The baseline file is `baselines/<Equipment>.json`, one per Equipment: the datase
 ## 10. Governance
 
 - **Versioning:** SemVer in [`CHANGELOG.md`](../../CHANGELOG.md). MAJOR = answer-key semantics or schema change; MINOR = new Equipment or documents, or weight changes after discovery; PATCH = fixes. Every eval run records the dataset version.
-- **Answer-key changes** go through their own PR with written rationale, a reference to the decision table, and a CHANGELOG entry. They are never combined with prompt changes. The TP-202 answer key changes only after the prompt is frozen.
+- **Answer-key changes** go through their own PR with written rationale, a reference to the decision table, and a CHANGELOG entry. They are never combined with prompt changes. Exception: an answer-key change and a scorer change may share one PR when an oracle test needs both at once (as in #65); a change to the system under test still goes in its own PR. The TP-202 answer key changes only after the prompt is frozen.
 - **Documentation:** [`DATASHEET.md`](../../DATASHEET.md) follows Datasheets for Datasets (Gebru et al.).
 - **Licences:** code Apache-2.0; dataset and rendered documents CC BY 4.0.
 - **Domain review:** one 30-minute session with the design partner after v0, covering the TP-201 URS and FAT, the Coverage decision table, and ambiguous judge labels.
