@@ -1,8 +1,31 @@
 # Recorded live runs
 
-Three live Haiku runs (#45) with the same prompt on corpus release 0.1.0 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `aa1ff77e168f`, pipeline 0.3.0, Batch API, `vendor_reuse` true in every `run.json`. Each `haiku-r<n>` holds one run per Equipment: the LLM recordings (`<key>.json`), the ingest cache (`ingest/`), the scorer report (`report-<tag>.json`, scorer 0.5.0) and the run metadata (`run-<tag>.json`). Each run has its own folder because recordings are keyed by document, prompt and input, so a shared folder would replay run 1. `corpus-0.1.0/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays all six at tolerance 0 (same scores, zero live calls, same cost).
+`haiku-r5` holds one live Haiku run per Equipment on corpus release 0.1.0 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `cbd88f90a040`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.0/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` is this TP-201 run.
 
-The dataset is not frozen: these runs are redone at the freeze. They measure run-to-run noise before a comparison rule is set (spec #29, user story 25); they are not a baseline.
+The dataset is not frozen (freeze 2026-11-25): the baseline is redone at the freeze.
+
+## r5 (current)
+
+| | TP-201 (dev) | TP-202 (held-out) |
+|---|---|---|
+| run id | 20261114T024517Z-4a9ed2 | 20261114T042443Z-4e5583 |
+| coverage | 25/38 | 6/13 |
+| value | 26/38 | 10/13 |
+| defect recall | 5/7 | 1/3 |
+| defect findings matched | 5/10 | 1/2 |
+| missing docs | 2/2 | 2/2 |
+| probes fabricated | 0/6 | 0/2 |
+| fabrication | 0/179 | 0/51 |
+| gates | PASS | FAIL (`unsafe_covered_by_vendor`: 1) |
+| calls (live) | 128 (128) | 57 (57) |
+| tokens in/out | 431979/56064 | 111960/14883 |
+| cost USD | 0.035615 | 0.009319 |
+
+The prompt change from r1–r3 is one sentence of the `facts` prompt: a datasheet row is quoted by its value's own cell, not joined to its row label. Docling had put `SS 316L` in the row of the heading `Materials and finish`, so the old quote "Materials and finish SS 316L" was not printed (the last `fabricated_citation` failure of r1–r3). Together with #76 (signature quotes) and #78 (uncertain OCR readings) the TP-201 gate passes.
+
+**TP-202 has no baseline.** Its gate fails on `unsafe_covered_by_vendor` (URS-TP202-012 claimed `covered_by_vendor`, expected `partial`). The same gate failed once on TP-201 in the r4 experiment (URS-TP201-036) and passed in the other six runs, so it is investigated on TP-201 (dev) only; no prompt change may be justified by a TP-202 item. TP-202 is not re-run until then (re-running until it passes would pick the result).
+
+**SAT correction (left as is, owner decision).** The SAT scan prints a struck-through value next to its correction (`121.400 tablets/h` struck, `122.400 tablets/h` written). The scorer's page text (pypdf) keeps both, so a quote that skips the struck value can fall below the 0.9 ratio. The shorter quotes of r5 do not hit it; if a later run does, the scorer's handling of struck text is a scoring-rule change for the owner.
 
 ## Cost
 
@@ -11,12 +34,18 @@ The dataset is not frozen: these runs are redone at the freeze. They measure run
 | r1 | $0.035300 | $0.009037 |
 | r2 | $0.033902 | $0.008352 |
 | r3 | $0.033866 | $0.008426 |
+| r4 (experiment, not kept) | $0.033010 | – |
+| r5 | $0.035615 | $0.009319 |
 
-Total $0.128883 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run; upper-bound estimate before sending ≈ $0.35 per run pair).
+Total $0.206827 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run).
 
-## Noise
+r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 
-### TP-201 (dev)
+## Noise (r1–r3, previous prompt)
+
+r1–r3 ran prompt `aa1ff77e168f` (#45) and no longer replay after the `facts` change; their recordings were removed and stay in the git history (last at commit 8523555). Scores below are as last re-scored there (scorer 0.6.0, with #76 and #78). They measured run-to-run noise before a comparison rule is set (spec #29, user story 25).
+
+### r1–r3, TP-201 (dev)
 
 | | 20261113T222445Z-4d6395 | 20261113T231958Z-c4bceb | 20261114T001513Z-4d2f3d |
 |---|---|---|---|
@@ -51,7 +80,7 @@ Items that change across runs: 15 of 94
 - value URS-TP201-010: wrong / wrong / ok
 - value URS-TP201-011: ok / wrong / ok
 
-### TP-202 (held-out)
+### r1–r3, TP-202 (held-out)
 
 | | 20261113T214025Z-2c5590 | 20261113T230021Z-37b062 | 20261113T235619Z-063c77 |
 |---|---|---|---|
@@ -80,11 +109,3 @@ Items that change across runs: 8 of 34
 - value URS-TP202-005: wrong / ok / wrong
 
 TP-202 is held out: n = 13, one item is about 8 points, a direction signal only; no prompt change may be justified by a TP-202 item.
-
-## Open: the `fabricated_citation` gate fails on every TP-201 run
-
-The failure (1 per run) is systematic, not noise: in all three runs `URS-TP201-009` cites `DS-TP201` p1 "Materials and finish SS 316L". The system's own check passed the quote against its ingest text (Docling reading order: the quote is verbatim in the ingest cache); the scorer matches against the rendered page text (pypdf), where table cells come in another order, at ratio 0.75, below the 0.9 floor. Whether the scorer's page text, the system's quoting, or the gate changes is an owner decision (gates and scoring rules). Until then no TP-201 run can become a baseline.
-
-The calibration certificates no longer fail (#76): OCR joined the signature row and the stamp beside it into one line ("Calibrated by Markus Brandt Brandt CALIBRATED"), and a signature citation is now trimmed to the span from the printed role to the last printed field ("Calibrated by Markus Brandt"). The three TP-201 reports were re-scored for this; only those three citations per run changed, from `quote_not_found` to verified.
-
-The SAT scan no longer fails (#78). OCR reads the handwritten stopwatch id `SW-03` as `E0-MS` (recognition score 0.817, the only TP-201 entry below 0.9), and every run reported a false `inconsistent_data` AI Finding on it; in r2 and r3 that finding also cited "TACH-07 SW-03 122.400 tablets/h Lulus" (ratio 0.81). A claim whose quote rests on an OCR entry scored below 0.9 is now dropped ("uncertain OCR reading"). The scan ingest cache moved to `PP-OCRv6-small-rapidocr-3.10.0-2`, which adds each entry's score; page text is unchanged, so every LLM call still replays (timings and RAM are those of the original read). Re-scored TP-201 reports: in each run the `E0-MS` finding and the SAT calibration fact for `E0-MS` are dropped. Defect findings 11→10, 10→9, 11→10 (one false positive fewer each); fabrication 1/184→1/182, 2/169→1/166, 2/187→1/184. TP-202 has no scans and is unchanged.

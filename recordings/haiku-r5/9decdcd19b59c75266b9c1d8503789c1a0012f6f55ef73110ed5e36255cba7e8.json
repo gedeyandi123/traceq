@@ -1,0 +1,112 @@
+{
+  "doc_sha256": "e0f99561a9201b7a1d5f91daa12d84b82a015bb7167684c72bb63f3108079609",
+  "key": "9decdcd19b59c75266b9c1d8503789c1a0012f6f55ef73110ed5e36255cba7e8",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "required_documents",
+  "prompt_hash": "604b82ae801d7b99efb51e81b285ddaad30c9e1e0ce89e08465f8a196b7ebfad",
+  "request": {
+    "max_tokens": 8000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "annexes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "equipment": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "rows": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "doc_id": {
+                      "type": "string"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "quote": {
+                      "type": "string"
+                    },
+                    "stage": {
+                      "enum": [
+                        "design",
+                        "FAT",
+                        "SAT",
+                        "IQ",
+                        "OQ"
+                      ],
+                      "type": "string"
+                    },
+                    "stage_printed": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "enum": [
+                        "urs",
+                        "risk_assessment",
+                        "datasheet",
+                        "functional_spec",
+                        "dq_report",
+                        "material_certificate",
+                        "calibration_certificate",
+                        "fat",
+                        "sat",
+                        "iq_protocol",
+                        "oq_protocol",
+                        "other"
+                      ],
+                      "type": "string"
+                    },
+                    "type_printed": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "doc_id",
+                    "type_printed",
+                    "type",
+                    "stage_printed",
+                    "stage",
+                    "page",
+                    "quote"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "equipment",
+              "page",
+              "quote",
+              "rows"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "annexes"
+      ],
+      "type": "object"
+    },
+    "system": "You read a site Validation Master Plan (VMP) for pharmaceutical equipment. List each annex that names the documents required for one equipment item.\nequipment: the equipment tag exactly as printed; page and quote: where the annex names it.\nrows: one per required document. doc_id, type_printed, stage_printed: the document number, document type and qualification stage exactly as printed (the VMP may be in Indonesian); type: the code of that document type, from the list given; stage: the code of the stage (design, FAT, SAT, IQ, OQ); page: the page that prints the row.\nquote: a verbatim excerpt of the page, at most 200 characters, holding what the item states. Copy characters exactly; never paraphrase or translate.\nReturn an empty list when the document has no such annex.",
+    "user": "Document VMP-001, revision 3, 2 pages.\n\n<page n=\"1\">\nRencana Induk Validasi (Validation Master Plan)\nNomor dokumen VMP-001\nRevisi 3\nTanggal berlaku 22/05/2026\nLokasi PT Arunika Farma Lestari\n1. Tujuan\nRencana Induk Validasi ini menetapkan pendekatan kualifikasi peralatan di PT Arunika Farma Lestari: tahapan kualifikasi, tanggung jawab, dan dokumen yang dipersyaratkan untuk setiap peralatan.\n2. Ruang lingkup\nPeralatan produksi sediaan padat oral beserta sistem kendalinya. Kualifikasi kinerja (PQ) dilaksanakan bersama validasi proses dan diatur dalam protokol validasi proses, di luar paket dokumen kualifikasi peralatan.\n3. Tahapan kualifikasi\nTahap Kegiatan\nDesain SKP, penilaian risiko, data desain vendor, dan Kualifikasi Desain (DQ).\nFAT Uji penerimaan di pabrik vendor dengan protokol vendor.\nSAT Uji penerimaan di site setelah instalasi.\nIQ Kualifikasi instalasi dengan protokol yang disusun site.\nOQ Kualifikasi operasional dengan protokol yang disusun site.\n4. Tanggung jawab dan dokumentasi\nPenandatangan, pemisahan tugas, koreksi catatan, dan Saksi diatur dalam Protap SOP-VAL-002.\n5. Penomoran dokumen\nDokumen kualifikasi site diberi nomor jenis dokumen diikuti tag peralatan tanpa tanda hubung, misalnya SKP URSTP201. Dokumen vendor dan sertifikat memakai nomor penerbitnya.\n6. Lampiran 1. Dokumen yang dipersyaratkan: TP-201 – Rotary tablet press (single-sided)\nPeralatan baru TP-201 tidak dirilis untuk penggunaan produksi sebelum seluruh dokumen berikut tersedia dan disetujui.\nNo. dokumen Jenis dokumen Tahap\nURS-TP201 Spesifikasi Kebutuhan Pengguna (SKP) Desain\nRA-TP201 Penilaian risiko (FMEA) Desain\nDS-TP201 Lembar data teknis vendor Desain\nFDS-TP201 Spesifikasi desain fungsional (FDS) Desain\nDQ-TP201 Laporan Kualifikasi Desain (DQ) Desain\nMTC-TP201-01 Sertifikat material 3.1 bagian kontak produk FAT\nCAL-TP201-01 Sertifikat kalibrasi: Compression force measuring system (FMS- TP201) FAT\nFAT-TP201-M Protokol dan laporan FAT (Mechanical) FAT\nFAT-TP201-C Protokol dan laporan FAT (Control system) FAT\nKAL-2025-0412 Sertifikat kalibrasi: Digital tachometer (TACH-07) SAT\nKAL-2026-0057 Sertifikat kalibrasi: Stopwatch (SW-03) SAT\nSAT-TP201 Protokol dan laporan SAT SAT\nIQ-TP201 Protokol IQ IQ\n</page>\n\n<page n=\"2\">\nNo. dokumen Jenis dokumen Tahap\nOQ-TP201 Protokol OQ OQ\nRiwayat revisi\nRev. Tanggal Keterangan\n3 22/05/2026 Lampiran 1 diperbarui: dokumen yang dipersyaratkan untuk TP-201.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 22/05/2026\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 22/05/2026\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 22/05/2026\n</page>"
+  },
+  "response": {
+    "input_tokens": 2446,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 2481,
+    "text": "{\"annexes\":[{\"equipment\":\"TP-201\",\"page\":1,\"quote\":\"6. Lampiran 1. Dokumen yang dipersyaratkan: TP-201 – Rotary tablet press (single-sided)\",\"rows\":[{\"doc_id\":\"URS-TP201\",\"type_printed\":\"Spesifikasi Kebutuhan Pengguna (SKP)\",\"type\":\"urs\",\"stage_printed\":\"Desain\",\"stage\":\"design\",\"page\":1,\"quote\":\"URS-TP201 Spesifikasi Kebutuhan Pengguna (SKP) Desain\"},{\"doc_id\":\"RA-TP201\",\"type_printed\":\"Penilaian risiko (FMEA)\",\"type\":\"risk_assessment\",\"stage_printed\":\"Desain\",\"stage\":\"design\",\"page\":1,\"quote\":\"RA-TP201 Penilaian risiko (FMEA) Desain\"},{\"doc_id\":\"DS-TP201\",\"type_printed\":\"Lembar data teknis vendor\",\"type\":\"datasheet\",\"stage_printed\":\"Desain\",\"stage\":\"design\",\"page\":1,\"quote\":\"DS-TP201 Lembar data teknis vendor Desain\"},{\"doc_id\":\"FDS-TP201\",\"type_printed\":\"Spesifikasi desain fungsional (FDS)\",\"type\":\"functional_spec\",\"stage_printed\":\"Desain\",\"stage\":\"design\",\"page\":1,\"quote\":\"FDS-TP201 Spesifikasi desain fungsional (FDS) Desain\"},{\"doc_id\":\"DQ-TP201\",\"type_printed\":\"Laporan Kualifikasi Desain (DQ)\",\"type\":\"dq_report\",\"stage_printed\":\"Desain\",\"stage\":\"design\",\"page\":1,\"quote\":\"DQ-TP201 Laporan Kualifikasi Desain (DQ) Desain\"},{\"doc_id\":\"MTC-TP201-01\",\"type_printed\":\"Sertifikat material 3.1 bagian kontak produk\",\"type\":\"material_certificate\",\"stage_printed\":\"FAT\",\"stage\":\"FAT\",\"page\":1,\"quote\":\"MTC-TP201-01 Sertifikat material 3.1 bagian kontak produk FAT\"},{\"doc_id\":\"CAL-TP201-01\",\"type_printed\":\"Sertifikat kalibrasi: Compression force measuring system (FMS- TP201)\",\"type\":\"calibration_certificate\",\"stage_printed\":\"FAT\",\"stage\":\"FAT\",\"page\":1,\"quote\":\"CAL-TP201-01 Sertifikat kalibrasi: Compression force measuring system (FMS- TP201) FAT\"},{\"doc_id\":\"FAT-TP201-M\",\"type_printed\":\"Protokol dan laporan FAT (Mechanical)\",\"type\":\"fat\",\"stage_printed\":\"FAT\",\"stage\":\"FAT\",\"page\":1,\"quote\":\"FAT-TP201-M Protokol dan laporan FAT (Mechanical) FAT\"},{\"doc_id\":\"FAT-TP201-C\",\"type_printed\":\"Protokol dan laporan FAT (Control system)\",\"type\":\"fat\",\"stage_printed\":\"FAT\",\"stage\":\"FAT\",\"page\":1,\"quote\":\"FAT-TP201-C Protokol dan laporan FAT (Control system) FAT\"},{\"doc_id\":\"KAL-2025-0412\",\"type_printed\":\"Sertifikat kalibrasi: Digital tachometer (TACH-07)\",\"type\":\"calibration_certificate\",\"stage_printed\":\"SAT\",\"stage\":\"SAT\",\"page\":1,\"quote\":\"KAL-2025-0412 Sertifikat kalibrasi: Digital tachometer (TACH-07) SAT\"},{\"doc_id\":\"KAL-2026-0057\",\"type_printed\":\"Sertifikat kalibrasi: Stopwatch (SW-03)\",\"type\":\"calibration_certificate\",\"stage_printed\":\"SAT\",\"stage\":\"SAT\",\"page\":1,\"quote\":\"KAL-2026-0057 Sertifikat kalibrasi: Stopwatch (SW-03) SAT\"},{\"doc_id\":\"SAT-TP201\",\"type_printed\":\"Protokol dan laporan SAT\",\"type\":\"sat\",\"stage_printed\":\"SAT\",\"stage\":\"SAT\",\"page\":1,\"quote\":\"SAT-TP201 Protokol dan laporan SAT SAT\"},{\"doc_id\":\"IQ-TP201\",\"type_printed\":\"Protokol IQ\",\"type\":\"iq_protocol\",\"stage_printed\":\"IQ\",\"stage\":\"IQ\",\"page\":1,\"quote\":\"IQ-TP201 Protokol IQ IQ\"},{\"doc_id\":\"OQ-TP201\",\"type_printed\":\"Protokol OQ\",\"type\":\"oq_protocol\",\"stage_printed\":\"OQ\",\"stage\":\"OQ\",\"page\":2,\"quote\":\"OQ-TP201 Protokol OQ OQ\"}]}]}"
+  }
+}

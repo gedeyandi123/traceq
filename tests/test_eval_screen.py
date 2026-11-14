@@ -32,7 +32,7 @@ RUN_ID = "20261113T090000Z-f1a2b3"
 RUN_JSON = ROOT / "tests" / "fixtures" / "run" / "runs" / RUN_ID / "run.json"
 SUMMARY = ROOT / "tests" / "fixtures" / "eval" / "summary.json"
 OPENAPI = ROOT / "web" / "eval-openapi.json"
-RECORDED = ROOT / "recordings" / "haiku-r1"
+RECORDED = ROOT / "recordings" / "haiku-r5"
 RATES = [
     "requirements.value_accuracy",
     "citations.verified_rate",

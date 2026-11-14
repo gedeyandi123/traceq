@@ -144,9 +144,12 @@ FACTS = Prompt(
         "rows: every design or certified value on a datasheet or certificate. name: the row"
         " label as printed; printed: the value as printed.\n"
         + _VALUE_RULES
-        + "quote: a verbatim excerpt of the page, at most 200 characters, holding the step"
-        " number and its observed result, or the row label and its value. Copy characters"
-        " exactly; never paraphrase or translate. If the page has none, return empty lists."
+        + "quote: the shortest verbatim excerpt of the page, at most 200 characters: for a"
+        " step, from its number to its observed result; for a row, the value's own cell"
+        " alone (for a row 'Bowl volume | 600 L', quote '600 L'), since name already says"
+        " which row it is. Never join text from cells of another row, a stamp or a"
+        " correction. Copy characters exactly; never paraphrase or translate. If the page"
+        " has none, return empty lists."
     ),
     schema={
         "type": "object",

@@ -29,7 +29,7 @@ RECORDINGS = ROOT / "recordings"
 MANIFEST = RECORDINGS / "corpus-0.1.0"
 MODEL = "claude-haiku-5-5"
 WORLDS = {"TP-201": ROOT / "world" / "tp201.yaml", "TP-202": ROOT / "world" / "tp202.yaml"}
-RUNS = ("haiku-r1", "haiku-r2", "haiku-r3")
+RUNS = ("haiku-r5",)
 
 
 @cache
