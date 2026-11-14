@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -433,26 +434,29 @@ Seed = Callable[[Path, Path], None]
 
 
 @pytest.fixture(scope="module")
-def seeded(corpus_dir: Path, seed_scans: Seed) -> Callable[[Path], Path]:
-    """A recordings directory whose ingest cache holds the recorded OCR output of the
-    scans, so no test here needs the OCR model."""
-
-    def seed(recordings: Path) -> Path:
-        seed_scans(corpus_dir, recordings / "ingest")
-        return recordings
-
-    return seed
-
-
-@pytest.fixture(scope="module")
 def recorded(
-    corpus_dir: Path, seeded: Callable[[Path], Path], tmp_path_factory: pytest.TempPathFactory
+    corpus_dir: Path, seed_scans: Seed, tmp_path_factory: pytest.TempPathFactory
 ) -> RunOutput:
+    """The one run here that reads the born-digital PDFs with Docling; the scans come from the
+    recorded OCR output."""
     tmp = tmp_path_factory.mktemp("live")
-    seeded(tmp / "recordings")
+    seed_scans(corpus_dir, tmp / "recordings" / "ingest")
     return run(
         corpus_dir, tmp / "runs", tmp / "recordings", MODEL, live=ScriptedLLM(), prices=PRICES
     )
+
+
+@pytest.fixture(scope="module")
+def seeded(recorded: RunOutput) -> Callable[[Path], Path]:
+    """A recordings directory whose ingest cache is a copy of the one `recorded` filled, so no
+    other test here runs Docling or the OCR model."""
+    warm = recorded.folder.parents[1] / "recordings" / "ingest"
+
+    def seed(recordings: Path) -> Path:
+        shutil.copytree(warm, recordings / "ingest")
+        return recordings
+
+    return seed
 
 
 def _req(sub: dict[str, Any], rid: str) -> dict[str, Any]:
