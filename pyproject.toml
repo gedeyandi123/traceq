@@ -60,6 +60,14 @@ ocr = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers"]
+# Two DeprecationWarnings come from Docling's own defaults (third-party code; we set neither
+# field): its default OCR options set `force_full_page_ocr`, which pydantic warns about when it
+# serialises them, and its table pipeline reads `generate_table_images`. Matched by message and
+# module; no blanket filter.
+filterwarnings = [
+    'ignore:`force_full_page_ocr` is deprecated:DeprecationWarning:pydantic\.main',
+    'ignore:This field is deprecated. Use `generate_page_images=True`:DeprecationWarning:docling\.pipeline\.standard_pdf_pipeline',
+]
 
 [tool.pyright]
 # ADR 0008: typing is checked in CI. The dataset and eval packages run in standard mode;
