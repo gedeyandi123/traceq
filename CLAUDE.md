@@ -61,6 +61,6 @@ The session's own effort changes only by the owner typing `/effort`. The agent s
 - The owner decides: grilling answers, spec approval, merging code into `main`, gates, scoring rules and claims, ADRs, money, contacting people.
 - The agent pushes branches with a standard prefix (`feat/`, `fix/`, `docs/`, `chore/`, `test/`, `refactor/`), never `main`, and never force-pushes. It merges, after CI is green, `docs/*` and `chore/*` PRs into `main` and ticket PRs into an integration branch; code reaches `main` only through the owner. A local hook (github-guard) and branch protection enforce this.
 - The system under test never reads world data, the answer key or baselines (`tests/test_isolation.py`); prompt examples never come from TP-201.
-- No `noqa`, skip, `pyright: ignore` or loosened tolerance without a written reason. Answer-key changes go in their own PR (design §10). New product packages go in pyright `strict`.
+- No `noqa`, skip, `pyright: ignore` or loosened tolerance without a written reason. Answer-key changes go in their own PR (design §10); the key and the scorer may share one when an oracle test needs both, but a system change never does. New product packages go in pyright `strict`.
 - A new task must pass: "if the result is A versus B, what do we build differently?" Ports only where a second implementation exists.
 - Public repo: no private names, documents or plant details in code, issues, PRs or commits; the denylist checks all of them. A new worktree needs `.denylist.local` copied from the main checkout, or the denylist check fails.
