@@ -1,10 +1,33 @@
 # Recorded live runs
 
-`haiku-r5` holds one live Haiku run per Equipment on corpus release 0.1.0 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `cbd88f90a040`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.0/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` is this TP-201 run.
+`haiku-r6` holds one live Haiku run per Equipment on corpus release 0.1.0 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `cbd88f90a040`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.0/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` is this TP-201 run.
+
+r6 is a top-up of r5: the folder is r5's (renamed), and the live run sent only the calls r5 had not recorded, the `transport_sensitive` votes of #88 (a repeated request has its own key, so every r5 answer kept its key). Its `cost_usd` counts all calls; `live_cost_usd` is what was paid.
 
 The dataset is not frozen (freeze 2026-11-25): the baseline is redone at the freeze.
 
-## r5 (current)
+## r6 (current): `transport_sensitive` votes (#88)
+
+| | TP-201 (dev) | TP-202 (held-out) |
+|---|---|---|
+| run id | 20261114T081401Z-b8a6c4 | 20261114T081635Z-ee9c8f |
+| coverage | 25/38 | 6/13 |
+| value | 26/38 | 10/13 |
+| defect recall | 5/7 | 1/3 |
+| probes fabricated | 0/6 | 0/2 |
+| fabrication | 0/179 | 0/51 |
+| gates | PASS | FAIL (`unsafe_covered_by_vendor`: 1) |
+| calls (live) | 142 (14) | 63 (6) |
+| tokens in/out | 498419/60817 | 120210/15261 |
+| cost USD (live) | 0.040125 (0.004510) | 0.009826 (0.000507) |
+
+Why (#85): URS-TP201-036 was `covered_by_vendor` in r4 and `partial` in r5 with the same Evidence and the same `link` prompt; only the model's `transport_sensitive` bit differed. A probe sent r5's `link` request 10 times per item: 036 said `false` 3/10; the seven items expected `covered_by_vendor` from FAT alone said `false` 70/70; 016 said `true` 10/10. A prompt that defaulted to `true` fixed 036 but turned four covered items `true` 10/10, so it was dropped. With #88 a FAT-only `covered_by_vendor` asks the same request until there are 3 answers, and any `true` applies condition 4. On the probe's rate that puts 036 near 0.3^3 ≈ 3 % per run; 3/10 is a small sample, so the bound is loose. Probe cost $0.058814 (180 calls, not recorded).
+
+TP-201: the 14 votes (7 items × 2) all said `false`, so every score equals r5's (ratchet: same on every metric). r5 had answered 036 `true`, so this run asks it no votes; the fix's evidence on 036 is the probe and the unit tests.
+
+**TP-202 still has no baseline.** Its one run fails the same gate on URS-TP202-012, and the votes do not change it: the item said `false` in 3 of 3 answers, so it is a consistent judgement, not the noise #88 handles. Reported as it is and not re-run; no change is justified by a TP-202 item.
+
+## r5
 
 | | TP-201 (dev) | TP-202 (held-out) |
 |---|---|---|
@@ -36,8 +59,10 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | r3 | $0.033866 | $0.008426 |
 | r4 (experiment, not kept) | $0.033010 | – |
 | r5 | $0.035615 | $0.009319 |
+| probe (#85, `link` ×180, TP-201 only) | $0.058814 | – |
+| r6 (top-up, live calls only) | $0.004510 | $0.000507 |
 
-Total $0.206827 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run).
+Total $0.270658 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 

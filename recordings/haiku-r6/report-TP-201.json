@@ -10,7 +10,7 @@
     "name": "traceq",
     "model": "claude-haiku-5-5",
     "prompt": "cbd88f90a040",
-    "run_id": "20261114T024517Z-4a9ed2"
+    "run_id": "20261114T081401Z-b8a6c4"
   },
   "scorer_version": "0.6.0",
   "equipment": "TP-201",
@@ -1911,5 +1911,445 @@
   },
   "not_scored": [
     "witness_matches_sop (no SOP in world data yet)"
-  ]
+  ],
+  "ratchet": {
+    "passed": true,
+    "comparable": true,
+    "baseline": {
+      "dataset": {
+        "version": "0.1.0",
+        "t0": "2026-06-01",
+        "seed": 0,
+        "answer_key_sha256": "2e33a9a8caf41b9965f42fcebe1496831d4399dcb9d3f37872ee30a8f150e7b3"
+      },
+      "scorer_version": "0.6.0",
+      "submission": {
+        "name": "traceq",
+        "model": "claude-haiku-5-5",
+        "prompt": "cbd88f90a040",
+        "run_id": "20261114T024517Z-4a9ed2"
+      }
+    },
+    "reasons": [],
+    "warnings": [],
+    "failing": [],
+    "metrics": [
+      {
+        "metric": "fabrication.rate",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "citations.verified_rate",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "citations.by_status.value_not_in_quote",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "citations.by_status.too_long",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.coverage_accuracy",
+        "direction": "higher",
+        "baseline": 0.6579,
+        "run": 0.6579,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.coverage_macro_f1",
+        "direction": "higher",
+        "baseline": 0.6898,
+        "run": 0.6898,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.value_accuracy",
+        "direction": "higher",
+        "baseline": 0.6842,
+        "run": 0.6842,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.superseded_values",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.source_citation_rate",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.evidence_precision",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.evidence_recall",
+        "direction": "higher",
+        "baseline": 0.9286,
+        "run": 0.9286,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.unknown_requirements",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "requirements.segmentation_recall",
+        "direction": "higher",
+        "baseline": null,
+        "run": null,
+        "delta": null,
+        "status": "n/a"
+      },
+      {
+        "metric": "requirements.segmentation_precision",
+        "direction": "higher",
+        "baseline": null,
+        "run": null,
+        "delta": null,
+        "status": "n/a"
+      },
+      {
+        "metric": "defects.recall",
+        "direction": "higher",
+        "baseline": 0.7143,
+        "run": 0.7143,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.precision",
+        "direction": "higher",
+        "baseline": 0.5,
+        "run": 0.5,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.f1",
+        "direction": "higher",
+        "baseline": 0.5882,
+        "run": 0.5882,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.recall_by_layer.llm",
+        "direction": "higher",
+        "baseline": 0.6667,
+        "run": 0.6667,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.recall_by_layer.rule",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.recall_by_layer.vision",
+        "direction": "higher",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.recall_by_severity.critical",
+        "direction": "higher",
+        "baseline": 0.5,
+        "run": 0.5,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.recall_by_severity.major",
+        "direction": "higher",
+        "baseline": 0.6667,
+        "run": 0.6667,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.recall_by_severity.minor",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.mislabelled",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.false_positives",
+        "direction": "lower",
+        "baseline": 5.0,
+        "run": 5.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "defects.false_positives_on_clean_documents",
+        "direction": "lower",
+        "baseline": 2.0,
+        "run": 2.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ambiguous.asked_rate",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ambiguous.silently_resolved",
+        "direction": "lower",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "probes.fabrication_rate",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "probes.fabrication_rate_by_kind.acceptance",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "probes.fabrication_rate_by_kind.evidence",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "documents.precision",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "documents.recall",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "documents.f1",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "documents.flagged_but_in_corpus",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "test_steps.site_test_recall",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "test_steps.criteria_pass_rate.ac_sourced_or_empty",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "test_steps.criteria_pass_rate.executable_method",
+        "direction": "higher",
+        "baseline": null,
+        "run": null,
+        "delta": null,
+        "status": "n/a"
+      },
+      {
+        "metric": "test_steps.criteria_pass_rate.limits_or_worst_case",
+        "direction": "higher",
+        "baseline": null,
+        "run": null,
+        "delta": null,
+        "status": "n/a"
+      },
+      {
+        "metric": "test_steps.criteria_pass_rate.names_instrument",
+        "direction": "higher",
+        "baseline": null,
+        "run": null,
+        "delta": null,
+        "status": "n/a"
+      },
+      {
+        "metric": "test_steps.criteria_pass_rate.traces_to_requirement",
+        "direction": "higher",
+        "baseline": 0.7742,
+        "run": 0.7742,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "test_steps.criteria_pass_rate.witness_matches_sop",
+        "direction": "higher",
+        "baseline": null,
+        "run": null,
+        "delta": null,
+        "status": "n/a"
+      },
+      {
+        "metric": "ocr.entry_recall",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.localisation_rate",
+        "direction": "higher",
+        "baseline": 1.0,
+        "run": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.exact_match_rate",
+        "direction": "higher",
+        "baseline": 0.9722,
+        "run": 0.9722,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.cer",
+        "direction": "lower",
+        "baseline": 0.0108,
+        "run": 0.0108,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.cer_by_kind.date",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.cer_by_kind.id",
+        "direction": "lower",
+        "baseline": 0.044,
+        "run": 0.044,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.cer_by_kind.number",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.cer_by_kind.text",
+        "direction": "lower",
+        "baseline": 0.0,
+        "run": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "metric": "ocr.cer_by_level.light",
+        "direction": "lower",
+        "baseline": null,
+        "run": null,
+        "delta": null,
+        "status": "n/a"
+      },
+      {
+        "metric": "ocr.cer_by_level.medium",
+        "direction": "lower",
+        "baseline": 0.0108,
+        "run": 0.0108,
+        "delta": 0.0,
+        "status": "same"
+      }
+    ]
+  }
 }
