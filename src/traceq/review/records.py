@@ -89,6 +89,14 @@ def _holds(quote: str, *printed: str) -> bool:
     return all(normalise(p) in q for p in printed if p.strip())
 
 
+def _span(quote: str, *printed: str) -> str:
+    """The normalised quote from the first printed field to the end of the last one, so
+    text OCR joined onto the line (a stamp beside a signature) is not cited (#76)."""
+    q = normalise(quote)
+    found = [(q.find(f), len(f)) for f in map(normalise, printed) if f]
+    return q[min(i for i, _ in found) : max(i + n for i, n in found)] if found else q
+
+
 def _page_prompt(doc: CorpusDocument, page: int, text: str) -> str:
     return f"Document {doc.doc_id}, revision {doc.rev}, page {page}.\n\n<page>\n{text}\n</page>"
 
@@ -116,6 +124,16 @@ class _Reader:
         r = self.record
         for s in a.signatures:
             c = self.cite(n, s.quote, "signature", s.role_printed, s.role_printed, s.name, s.date)
+            if c is not None:
+                c = self.cite(
+                    n,
+                    _span(s.quote, s.role_printed, s.name, s.date),
+                    "signature",
+                    s.role_printed,
+                    s.role_printed,
+                    s.name,
+                    s.date,
+                )
             if c is not None:
                 date = parse_date(s.date) if s.date.strip() else None
                 r.signatures.append(
