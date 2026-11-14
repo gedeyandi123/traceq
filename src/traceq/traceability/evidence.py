@@ -10,7 +10,10 @@ the LLM proposes from each requirement to them, and the Coverage the decision ta
 2. Links: one call per requirement proposes which steps and design rows concern it,
    judges whether only the site can test it and whether transport can affect it, and names
    the area of the Vendor Assessment (``traceability.assessment``) it belongs to. An id or
-   an area the model invents is dropped.
+   an area the model invents is dropped. The ``transport_sensitive`` bit is noisy: when it
+   alone lets FAT steps cover a requirement, the same request is asked again until there
+   are ``TRANSPORT_VOTES`` answers, and any ``true`` (or unparsable) answer makes the
+   requirement transport-sensitive (#88).
 3. Coverage: ``traceability.coverage.classify``. Condition 1 holds only when the named area
    is one the verified assessment lets the site rely on; with no assessment in the corpus it
    fails for every step.
@@ -20,7 +23,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -57,6 +60,8 @@ if TYPE_CHECKING:
 
 PROTOCOL_TYPES: dict[str, Stage] = {"fat": "FAT", "sat": "SAT"}
 DESIGN_TYPES = ("datasheet", "material_certificate")
+TRANSPORT_VOTES = 3
+"""Answers to the ``link`` request before FAT steps alone may cover a requirement (#88)."""
 
 
 class _Answer(BaseModel):
@@ -209,6 +214,10 @@ class Linked:
     """The Vendor Assessment area named for the requirement, with its verified rating."""
 
 
+_LinkInputs = tuple[Request, Sequence[StepFact], Sequence[RowFact]]
+"""A requirement's first ``link`` request and the steps and rows its answer linked."""
+
+
 @dataclass
 class VendorFacts:
     steps: list[StepFact] = field(default_factory=list[StepFact])
@@ -359,16 +368,16 @@ def link(
         shas.append(assessment.sha256)
     key = sha256(",".join(sorted(shas)))
     areas = [] if assessment is None else [a.name for a in assessment.areas]
-    answers = llm.complete(
-        [
-            Request(LINK, _link_prompt(rid, text, value, facts, areas), key)
-            for rid, text, value in requirements
-        ]
-    )
+    requests = [
+        Request(LINK, _link_prompt(rid, text, value, facts, areas), key)
+        for rid, text, value in requirements
+    ]
+    answers = llm.complete(requests)
     steps = {s.id: s for s in facts.steps}
     rows = {r.id: r for r in facts.rows}
     out: dict[str, Linked] = {}
-    for (rid, _text, value), answer in zip(requirements, answers, strict=True):
+    inputs: dict[str, _LinkInputs] = {}
+    for (rid, _text, value), request, answer in zip(requirements, requests, answers, strict=True):
         try:
             a = _Link.model_validate_json(answer.text)
         except ValidationError:
@@ -385,10 +394,68 @@ def link(
             dropped.append(Dropped("link", f"{rid} {a.area}", "unknown area"))
         scope = None if area is None else area.name
         req = RequirementFacts(rid, value, a.site_only, a.transport_sensitive, scope)
-        pairs = [(s, s.as_step()) for s in linked_steps]
-        decision = None if assessment is None else assessment.decision
-        coverage = classify(req, [p[1] for p in pairs], [r.fact for r in linked_rows], decision)
-        used = [next(f for f, s in pairs if s is v.step) for v in coverage.verdicts]
-        compared = [r for r in linked_rows if any(r.fact is d for d in coverage.design)]
-        out[rid] = Linked(req, coverage, tuple(used), tuple(compared), area)
+        out[rid] = _classify(req, linked_steps, linked_rows, area, assessment)
+        inputs[rid] = (request, linked_steps, linked_rows)
+    _vote_on_transport(out, inputs, llm, dropped, assessment)
     return out
+
+
+def _classify(
+    req: RequirementFacts,
+    linked_steps: Sequence[StepFact],
+    linked_rows: Sequence[RowFact],
+    area: Area | None,
+    assessment: Assessment | None,
+) -> Linked:
+    pairs = [(s, s.as_step()) for s in linked_steps]
+    decision = None if assessment is None else assessment.decision
+    coverage = classify(req, [p[1] for p in pairs], [r.fact for r in linked_rows], decision)
+    used = [next(f for f, s in pairs if s is v.step) for v in coverage.verdicts]
+    compared = [r for r in linked_rows if any(r.fact is d for d in coverage.design)]
+    return Linked(req, coverage, tuple(used), tuple(compared), area)
+
+
+def _fat_only(linked: Linked) -> bool:
+    """``covered_by_vendor`` that rests on the ``transport_sensitive`` bit alone."""
+    return (
+        linked.coverage.coverage == "covered_by_vendor"
+        and not linked.facts.transport_sensitive
+        and not any(
+            v.failure is None and v.step.protocol.stage == "SAT" for v in linked.coverage.verdicts
+        )
+    )
+
+
+def _vote_on_transport(
+    out: dict[str, Linked],
+    inputs: dict[str, _LinkInputs],
+    llm: LLM,
+    dropped: list[Dropped],
+    assessment: Assessment | None,
+) -> None:
+    """Ask a FAT-only ``covered_by_vendor`` requirement's ``link`` request again, in one
+    batch, until there are ``TRANSPORT_VOTES`` answers. Any answer that says
+    ``transport_sensitive``, or does not parse, makes the requirement transport-sensitive.
+    Only the bit is taken from the extra answers."""
+    voters = [rid for rid, linked in out.items() if _fat_only(linked)]
+    votes = [
+        (rid, n, replace(inputs[rid][0], sample=n))
+        for rid in voters
+        for n in range(1, TRANSPORT_VOTES)
+    ]
+    if not votes:
+        return
+    answers = llm.complete([r for _, _, r in votes])
+    sensitive: set[str] = set()
+    for (rid, n, _), answer in zip(votes, answers, strict=True):
+        try:
+            if _Link.model_validate_json(answer.text).transport_sensitive:
+                sensitive.add(rid)
+        except ValidationError:
+            dropped.append(Dropped("link", f"{rid} vote {n}", "bad answer"))
+            sensitive.add(rid)
+    for rid in voters:
+        if rid in sensitive:
+            _, linked_steps, linked_rows = inputs[rid]
+            req = replace(out[rid].facts, transport_sensitive=True)
+            out[rid] = _classify(req, linked_steps, linked_rows, out[rid].area, assessment)

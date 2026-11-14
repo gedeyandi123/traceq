@@ -19,6 +19,7 @@ from traceq.documents import OcrUnavailable, pdf
 from traceq.runs import cli
 from traceq.runs.api import create_app
 from traceq.runs.run import RunOutput, run
+from traceq.traceability.evidence import TRANSPORT_VOTES
 from traceq_dataset import render
 from traceq_dataset.answer_key import load_key
 from traceq_dataset.corpus import build_corpus
@@ -693,8 +694,10 @@ def test_run_metadata_records_model_prompts_tokens_and_cost(recorded: RunOutput)
     # DS-TP201 (1) and MTC-TP201-01 (1, a scan); one record call per page of the FATs (3),
     # the SAT (2) and the three calibration certificates (3, scans); one call each for the
     # Vendor Assessment, the VMP and the SOP; one AI review over the current documents;
-    # one draft per requirement the vendor did not cover.
-    calls = 2 + 38 + 38 + 7 + 8 + 3 + 1 + DRAFTED
+    # one draft per requirement the vendor did not cover. The one requirement FAT steps
+    # alone cover (URS-TP201-001) asks its link request again for the transport votes (#88).
+    votes = len(COVERED) * (TRANSPORT_VOTES - 1)
+    calls = 2 + 38 + 38 + votes + 7 + 8 + 3 + 1 + DRAFTED
     assert meta["calls"] == {"total": calls, "replayed": 0, "live": calls}
     assert meta["tokens"]["output"] == 40 * calls
     expected = (meta["tokens"]["input"] * 1.0 + meta["tokens"]["output"] * 2.0) / 1e6 * 0.5
