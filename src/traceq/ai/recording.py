@@ -1,7 +1,9 @@
 """Record and replay of LLM calls (spec #29, "Recording, replay and cost").
 
 A call is keyed by document hash + pipeline version + prompt hash, plus the model and the
-request text, so two requests on the same document never share a recording. A recording
+request text, so two requests on the same document never share a recording. A request asked
+again carries a sample index, which enters the key only when it is not 0: the first answer
+keeps the key it always had. A recording
 holds the request, the response, the tokens and the model. Without a live adapter every
 call must already be recorded; with one, only the calls not yet recorded are sent, after the
 budget has authorised them.
@@ -57,18 +59,16 @@ class Recorder:
         return self._model
 
     def key(self, r: Request) -> str:
-        return sha256(
-            json.dumps(
-                {
-                    "doc": r.doc_sha256,
-                    "pipeline": self.pipeline_version,
-                    "prompt": r.prompt.hash,
-                    "model": self._model,
-                    "input": r.input_hash,
-                },
-                sort_keys=True,
-            )
-        )
+        fields: dict[str, Any] = {
+            "doc": r.doc_sha256,
+            "pipeline": self.pipeline_version,
+            "prompt": r.prompt.hash,
+            "model": self._model,
+            "input": r.input_hash,
+        }
+        if r.sample:
+            fields["sample"] = r.sample
+        return sha256(json.dumps(fields, sort_keys=True))
 
     def _path(self, r: Request) -> Path:
         return self.store / f"{self.key(r)}.json"
@@ -104,7 +104,7 @@ class Recorder:
 
     def _save(self, r: Request, a: Response) -> None:
         self.store.mkdir(parents=True, exist_ok=True)
-        record = {
+        record: dict[str, Any] = {
             "key": self.key(r),
             "doc_sha256": r.doc_sha256,
             "pipeline_version": self.pipeline_version,
@@ -124,5 +124,7 @@ class Recorder:
                 "output_tokens": a.output_tokens,
             },
         }
+        if r.sample:
+            record["sample"] = r.sample
         text = json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         self._path(r).write_text(text, encoding="utf-8", newline="\n")

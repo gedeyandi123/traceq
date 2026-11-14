@@ -37,6 +37,9 @@ class Request:
     user: str
     doc_sha256: str
     """Hash of the document the request reads: part of the recording key."""
+    sample: int = 0
+    """Which answer to the same request this is. The answer varies, so a request may be
+    asked again (#88); each sample after the first has its own recording."""
 
     @property
     def input_hash(self) -> str:

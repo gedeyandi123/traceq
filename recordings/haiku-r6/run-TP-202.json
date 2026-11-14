@@ -1,6 +1,6 @@
 {
-  "run_id": "20261114T042443Z-4e5583",
-  "created": "2026-11-14T04:24:43.380627+00:00",
+  "run_id": "20261114T081635Z-ee9c8f",
+  "created": "2026-11-14T08:16:35.944449+00:00",
   "system": "traceq",
   "pipeline_version": "0.3.0",
   "mode": "live",
@@ -46,16 +46,16 @@
     ]
   },
   "calls": {
-    "total": 57,
-    "replayed": 0,
-    "live": 57
+    "total": 63,
+    "replayed": 57,
+    "live": 6
   },
   "tokens": {
-    "input": 111960,
-    "output": 14883
+    "input": 120210,
+    "output": 15261
   },
-  "cost_usd": 0.009319,
-  "live_cost_usd": 0.009319,
+  "cost_usd": 0.009826,
+  "live_cost_usd": 0.000507,
   "max_usd": 0.25,
   "price_table": {
     "batch_discount": 0.5
