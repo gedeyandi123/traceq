@@ -2,6 +2,9 @@
 
 Usage::
 
+    uv run python -m traceq_eval promote runs/<run id> --recordings recordings/haiku-r<n>
+        [--baseline [PATH]]  (see ``traceq_eval.promote``)
+
     uv run python -m traceq_eval world/tp201.yaml submission.json [--key answer_key]
         [--out report] [--baseline baselines/TP-201.json] [--write-baseline PATH]
 
@@ -31,6 +34,10 @@ from traceq_eval.submission import Submission
 
 
 def main(argv: list[str]) -> int:
+    if argv[:1] == ["promote"]:
+        from traceq_eval import promote
+
+        return promote.main(argv[1:])
     parser = argparse.ArgumentParser(prog="traceq_eval")
     parser.add_argument("world", type=Path)
     parser.add_argument("submission", type=Path)
