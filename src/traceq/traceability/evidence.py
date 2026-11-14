@@ -11,9 +11,9 @@ the LLM proposes from each requirement to them, and the Coverage the decision ta
    judges whether only the site can test it and whether transport can affect it, and names
    the area of the Vendor Assessment (``traceability.assessment``) it belongs to. An id or
    an area the model invents is dropped. The ``transport_sensitive`` bit is noisy: when it
-   alone lets FAT steps cover a requirement, the same request is asked again until there
-   are ``TRANSPORT_VOTES`` answers, and any ``true`` (or unparsable) answer makes the
-   requirement transport-sensitive (#88).
+   alone lets FAT steps cover a requirement, the ``transport`` prompt, which defines the
+   bit by category, is asked ``TRANSPORT_VOTES`` times with the same user text, and any
+   ``true`` (or unparsable) answer makes the requirement transport-sensitive (#88, #90).
 3. Coverage: ``traceability.coverage.classify``. Condition 1 holds only when the named area
    is one the verified assessment lets the site rely on; with no assessment in the corpus it
    fails for every step.
@@ -52,7 +52,7 @@ from traceq.traceability.coverage import (
     Step,
     classify,
 )
-from traceq.traceability.prompts import FACTS, LINK
+from traceq.traceability.prompts import FACTS, LINK, TRANSPORT
 from traceq.traceability.values import Number, Present, Range, Text, Value
 
 if TYPE_CHECKING:
@@ -61,7 +61,8 @@ if TYPE_CHECKING:
 PROTOCOL_TYPES: dict[str, Stage] = {"fat": "FAT", "sat": "SAT"}
 DESIGN_TYPES = ("datasheet", "material_certificate")
 TRANSPORT_VOTES = 3
-"""Answers to the ``link`` request before FAT steps alone may cover a requirement (#88)."""
+"""Answers to the ``transport`` request before FAT steps alone may cover a requirement
+(#88, #90)."""
 
 
 class _Answer(BaseModel):
@@ -433,15 +434,16 @@ def _vote_on_transport(
     dropped: list[Dropped],
     assessment: Assessment | None,
 ) -> None:
-    """Ask a FAT-only ``covered_by_vendor`` requirement's ``link`` request again, in one
-    batch, until there are ``TRANSPORT_VOTES`` answers. Any answer that says
-    ``transport_sensitive``, or does not parse, makes the requirement transport-sensitive.
-    Only the bit is taken from the extra answers."""
+    """Ask each FAT-only ``covered_by_vendor`` requirement the ``transport`` prompt
+    ``TRANSPORT_VOTES`` times, in one batch, with its ``link`` request's user text. Any
+    answer that says ``transport_sensitive``, or does not parse, makes the requirement
+    transport-sensitive. Only the bit is taken from the votes; the ``link`` answer's own
+    bit only selects the candidates."""
     voters = [rid for rid, linked in out.items() if _fat_only(linked)]
     votes = [
-        (rid, n, replace(inputs[rid][0], sample=n))
+        (rid, n, replace(inputs[rid][0], prompt=TRANSPORT, sample=n))
         for rid in voters
-        for n in range(1, TRANSPORT_VOTES)
+        for n in range(TRANSPORT_VOTES)
     ]
     if not votes:
         return
@@ -452,7 +454,7 @@ def _vote_on_transport(
             if _Link.model_validate_json(answer.text).transport_sensitive:
                 sensitive.add(rid)
         except ValidationError:
-            dropped.append(Dropped("link", f"{rid} vote {n}", "bad answer"))
+            dropped.append(Dropped("link", f"{rid} vote {n + 1}", "bad answer"))
             sensitive.add(rid)
     for rid in voters:
         if rid in sensitive:

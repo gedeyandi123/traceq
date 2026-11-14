@@ -9,8 +9,8 @@
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",
-    "prompt": "cbd88f90a040",
-    "run_id": "20261114T081635Z-ee9c8f"
+    "prompt": "7b9b0d1f8dbd",
+    "run_id": "20261114T091315Z-dcd2d1"
   },
   "scorer_version": "0.6.0",
   "equipment": "TP-202",
@@ -23,8 +23,8 @@
       "better": "higher"
     },
     "citations.verified_rate": {
-      "k": 29,
-      "n": 29,
+      "k": 31,
+      "n": 31,
       "rate": 1.0,
       "better": "higher"
     },
@@ -36,7 +36,7 @@
     },
     "fabrication.rate": {
       "k": 0,
-      "n": 51,
+      "n": 53,
       "rate": 0.0,
       "better": "lower"
     },
@@ -66,7 +66,7 @@
     }
   },
   "gates": {
-    "passed": false,
+    "passed": true,
     "fabricated_acceptance_criterion": {
       "count": 0,
       "floor": 0,
@@ -86,28 +86,22 @@
       "items": []
     },
     "unsafe_covered_by_vendor": {
-      "count": 1,
+      "count": 0,
       "floor": 0,
-      "passed": false,
-      "items": [
-        {
-          "requirement": "URS-TP202-012",
-          "expected": "partial",
-          "got": "covered_by_vendor"
-        }
-      ]
+      "passed": true,
+      "items": []
     }
   },
   "fabrication": {
-    "claims": 51,
+    "claims": 53,
     "fabricated": 0,
     "rate": 0.0
   },
   "citations": {
-    "total": 29,
+    "total": 31,
     "verified_rate": 1.0,
     "by_status": {
-      "verified": 29,
+      "verified": 31,
       "value_not_in_quote": 0,
       "too_long": 0,
       "unknown_document": 0,
@@ -121,7 +115,7 @@
       "requirements": 13,
       "answered": 13,
       "coverage_accuracy": 0.4615,
-      "coverage_macro_f1": 0.42,
+      "coverage_macro_f1": 0.4438,
       "value_accuracy": 0.7692,
       "superseded_values": 0,
       "source_citation_rate": 1.0,
@@ -139,15 +133,15 @@
     },
     "per_class": {
       "covered_by_vendor": {
-        "precision": 0.6667,
-        "recall": 0.4,
-        "f1": 0.5,
+        "precision": 1.0,
+        "recall": 0.2,
+        "f1": 0.3333,
         "support": 5
       },
       "partial": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
+        "precision": 0.25,
+        "recall": 0.3333,
+        "f1": 0.2857,
         "support": 3
       },
       "site_only": {
@@ -171,16 +165,16 @@
     },
     "confusion": {
       "covered_by_vendor": {
-        "covered_by_vendor": 2,
-        "partial": 2,
+        "covered_by_vendor": 1,
+        "partial": 3,
         "site_only": 0,
         "gap": 1,
         "conflict": 0,
         "missing": 0
       },
       "partial": {
-        "covered_by_vendor": 1,
-        "partial": 0,
+        "covered_by_vendor": 0,
+        "partial": 1,
         "site_only": 0,
         "gap": 2,
         "conflict": 0,
@@ -228,8 +222,8 @@
       {
         "id": "URS-TP202-002",
         "expected": "covered_by_vendor",
-        "got": "covered_by_vendor",
-        "coverage_ok": true,
+        "got": "partial",
+        "coverage_ok": false,
         "value_ok": true,
         "superseded_value": false,
         "source_cited": true,
@@ -360,8 +354,8 @@
       {
         "id": "URS-TP202-012",
         "expected": "partial",
-        "got": "covered_by_vendor",
-        "coverage_ok": false,
+        "got": "partial",
+        "coverage_ok": true,
         "value_ok": true,
         "superseded_value": false,
         "source_cited": true,
@@ -509,12 +503,10 @@
   },
   "test_steps": {
     "metrics": {
-      "steps": 14,
+      "steps": 16,
       "requirements_needing_site_test": 7,
-      "site_test_recall": 0.8571,
-      "untested_requirements": [
-        "URS-TP202-012"
-      ],
+      "site_test_recall": 1.0,
+      "untested_requirements": [],
       "criteria_pass_rate": {
         "traces_to_requirement": 0.5,
         "ac_sourced_or_empty": 1.0,
@@ -545,6 +537,20 @@
         "requirement": "URS-TP202-001",
         "criteria": {
           "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-URS-TP202-p1-03",
+        "requirement": "URS-TP202-002",
+        "criteria": {
+          "traces_to_requirement": false,
           "ac_sourced_or_empty": true,
           "witness_matches_sop": null,
           "limits_or_worst_case": null,
@@ -692,6 +698,20 @@
           "executable_method": null
         },
         "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-URS-TP202-p1-15",
+        "requirement": "URS-TP202-012",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
         "critiques": {}
       },
       {
