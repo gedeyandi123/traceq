@@ -25,6 +25,8 @@ export default async function MatrixPage({ params }: { params: Promise<{ runId: 
         {" · "}
         <Link href={`/runs/${encodeURIComponent(runId)}/findings`}>{t("toFindings")}</Link>
         {" · "}
+        <Link href={`/runs/${encodeURIComponent(runId)}/left-out`}>{t("toLeftOut")}</Link>
+        {" · "}
         <Link href={`/runs/${encodeURIComponent(runId)}/eval`}>{t("toEval")}</Link>
       </p>
       <MatrixTable matrix={matrix.data} runId={runId} />

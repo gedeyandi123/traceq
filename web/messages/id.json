@@ -37,6 +37,7 @@
     "ambiguous": "Terbaca ganda ({readings}): minta konfirmasi",
     "toFindings": "Temuan pra-tinjauan",
     "toEval": "Hasil evaluasi",
+    "toLeftOut": "Yang tidak dimasukkan sistem",
     "notRead": "Dokumen vendor yang tidak terbaca",
     "classes": {
       "covered_by_vendor": "Dicakup vendor",
@@ -78,6 +79,7 @@
     "stage": "Tahap",
     "required": "Diwajibkan oleh",
     "status": "Status",
+    "toLeftOut": "Yang tidak dimasukkan sistem",
     "trace": "Model {model} · prompt {prompt} · {created}",
     "actions": {
       "pending": "Menunggu tinjauan"
@@ -98,6 +100,27 @@
       "gdp_correction": "Koreksi GDP",
       "outdated_reference": "Referensi kedaluwarsa"
     }
+  },
+  "leftOut": {
+    "title": "Yang tidak dimasukkan sistem",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Matriks ketertelusuran",
+    "dropped": "Klaim yang dibuang pemeriksaan kutipan",
+    "droppedNote": "Isinya gagal pemeriksaan kutipan, jadi hanya jenis, subjek, dan alasannya yang ditampilkan.",
+    "group": "Jenis: {kind}",
+    "humanAc": "Kriteria penerimaan yang diserahkan ke manusia",
+    "humanAcNote": "Langkah penyusunan tidak menemukan nilai bersumber, jadi kriteria ini harus ditetapkan manusia.",
+    "kind": "Jenis",
+    "subject": "Subjek",
+    "reason": "Alasan",
+    "none": "Tidak ada.",
+    "completeness": "Pemeriksaan kelengkapan URS",
+    "notRun": "Pemeriksaan kelengkapan tidak dijalankan untuk run ini (run ditulis sebelum pemeriksaan ada).",
+    "numbersNotApplicable": "Nomor persyaratan: tidak berlaku (URS ini tidak mencetak nomor).",
+    "numbersFound": "Nomor persyaratan tercetak: {found} ditemukan, {missed} tidak menjadi persyaratan.",
+    "missedNumber": "{number} (hlm. {page}) tidak menjadi persyaratan",
+    "unquoted": "Teks URS yang tidak dikutip persyaratan mana pun",
+    "page": "hlm. {page}"
   },
   "eval": {
     "title": "Hasil evaluasi",
