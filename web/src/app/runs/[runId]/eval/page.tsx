@@ -1,11 +1,18 @@
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { api, evalApi } from "@/api/client";
 import { EvalView } from "@/components/EvalView";
+import { EmptyState } from "@/components/ui/ui";
+
+import { RunHeader } from "@/components/RunHeader";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("eval"))("title") };
+}
 
 /** The eval screen: the run comes from the system's API, its scores from the harness's. */
 export default async function EvalPage({ params }: { params: Promise<{ runId: string }> }) {
@@ -19,10 +26,12 @@ export default async function EvalPage({ params }: { params: Promise<{ runId: st
   if (!run.data) notFound();
   return (
     <>
-      <Link href={`/runs/${encodeURIComponent(runId)}`}>{t("back")}</Link>
-      <h1>{t("title")}</h1>
-      <p className="muted">{t("subtitle", { equipment: run.data.equipment, runId })}</p>
-      {summary.data ? <EvalView summary={summary.data} /> : <p>{t("notScored")}</p>}
+      <RunHeader run={run.data} current="eval" />
+      {summary.data ? (
+        <EvalView summary={summary.data} />
+      ) : (
+        <EmptyState title={t("notScoredTitle")}>{t("notScored")}</EmptyState>
+      )}
     </>
   );
 }

@@ -2,6 +2,10 @@ import { useTranslations } from "next-intl";
 
 import type { Completeness, DroppedClaim } from "@/api/client";
 
+import { EmptyState } from "./ui/ui";
+import s from "./LeftOutView.module.css";
+import tbl from "./ui/table.module.css";
+
 /** The reason the drafting step gives for an Acceptance Criterion it leaves empty. */
 const HUMAN_REASON = "to be set by a human";
 
@@ -18,24 +22,28 @@ function groupByKind(dropped: readonly DroppedClaim[]): [string, DroppedClaim[]]
 function DroppedTable({ items }: { items: readonly DroppedClaim[] }) {
   const t = useTranslations("leftOut");
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>{t("kind")}</th>
-          <th>{t("subject")}</th>
-          <th>{t("reason")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((d, i) => (
-          <tr key={`${d.claim}/${d.id}/${i}`}>
-            <td>{d.claim}</td>
-            <td>{d.id}</td>
-            <td>{d.reason}</td>
+    <div className={tbl.wrap}>
+      <table className={tbl.table}>
+        <thead>
+          <tr>
+            <th className={s.colKind}>{t("kind")}</th>
+            <th className={s.colSubject}>{t("subject")}</th>
+            <th>{t("reason")}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {items.map((d, i) => (
+            <tr key={`${d.claim}/${d.id}/${i}`}>
+              <td>
+                <span className={s.kind}>{d.claim}</span>
+              </td>
+              <td className={tbl.id}>{d.id}</td>
+              <td>{d.reason}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -53,16 +61,20 @@ export function LeftOutView({
   const t = useTranslations("leftOut");
   const human = dropped.filter(isHumanAc);
   const groups = groupByKind(dropped.filter((d) => !isHumanAc(d)));
+  const droppedCount = groups.reduce((n, [, items]) => n + items.length, 0);
   return (
     <>
-      <section aria-labelledby="dropped-claims">
-        <h2 id="dropped-claims">{t("dropped")}</h2>
-        <p className="muted">{t("droppedNote")}</p>
+      <section className={s.section} aria-labelledby="dropped-claims">
+        <div className={s.head}>
+          <h2 id="dropped-claims">{t("dropped")}</h2>
+          <span className={s.count}>{droppedCount}</span>
+        </div>
+        <p className={s.note}>{t("droppedNote")}</p>
         {groups.length === 0 ? (
-          <p>{t("none")}</p>
+          <EmptyState title={t("none")} />
         ) : (
           groups.map(([kind, items]) => (
-            <section key={kind} aria-label={t("group", { kind })}>
+            <section key={kind} aria-label={t("group", { kind })} className={s.group}>
               <h3>{t("group", { kind })}</h3>
               <DroppedTable items={items} />
             </section>
@@ -70,27 +82,32 @@ export function LeftOutView({
         )}
       </section>
 
-      <section aria-labelledby="human-ac">
-        <h2 id="human-ac">{t("humanAc")}</h2>
-        <p className="muted">{t("humanAcNote")}</p>
-        {human.length === 0 ? <p>{t("none")}</p> : <DroppedTable items={human} />}
+      <section className={s.section} aria-labelledby="human-ac">
+        <div className={s.head}>
+          <h2 id="human-ac">{t("humanAc")}</h2>
+          <span className={s.count}>{human.length}</span>
+        </div>
+        <p className={s.note}>{t("humanAcNote")}</p>
+        {human.length === 0 ? <EmptyState title={t("none")} /> : <DroppedTable items={human} />}
       </section>
 
-      <section aria-labelledby="completeness">
-        <h2 id="completeness">{t("completeness")}</h2>
+      <section className={s.section} aria-labelledby="completeness">
+        <div className={s.head}>
+          <h2 id="completeness">{t("completeness")}</h2>
+        </div>
         {completeness === null ? (
-          <p>{t("notRun")}</p>
+          <EmptyState title={t("notRun")} />
         ) : (
           completeness.urs.map((u) => (
-            <section key={`${u.doc}/${u.rev}`} aria-label={`${u.doc} rev ${u.rev}`}>
+            <section key={`${u.doc}/${u.rev}`} aria-label={`${u.doc} rev ${u.rev}`} className={s.urs}>
               <h3>{`${u.doc} rev ${u.rev}`}</h3>
               {u.numbers === "not_applicable" ? (
-                <p>{t("numbersNotApplicable")}</p>
+                <p className={s.numbers}>{t("numbersNotApplicable")}</p>
               ) : (
                 <>
-                  <p>{t("numbersFound", { found: u.found, missed: u.missed.length })}</p>
+                  <p className={s.numbers}>{t("numbersFound", { found: u.found, missed: u.missed.length })}</p>
                   {u.missed.length > 0 && (
-                    <ul>
+                    <ul className={s.missed}>
                       {u.missed.map((m) => (
                         <li key={`${m.number}/${m.page}`}>
                           {t("missedNumber", { number: m.number, page: m.page })}
@@ -100,14 +117,16 @@ export function LeftOutView({
                   )}
                 </>
               )}
-              <h4>{t("unquoted")}</h4>
+              <h4 className={s.h4}>
+                {t("unquoted")} <span className={s.count}>{u.unquoted.length}</span>
+              </h4>
               {u.unquoted.length === 0 ? (
-                <p>{t("none")}</p>
+                <p className="muted">{t("none")}</p>
               ) : (
-                <ul>
+                <ul className={s.unquoted}>
                   {u.unquoted.map((x) => (
                     <li key={`${x.page}/${x.text}`}>
-                      <span className="muted">{t("page", { page: x.page })}</span>
+                      <span className={s.page}>{t("page", { page: x.page })}</span>
                       <pre>{x.text}</pre>
                     </li>
                   ))}

@@ -1,0 +1,55 @@
+.appbar {
+  background: var(--color-appbar);
+  color: var(--color-appbar-text);
+}
+.appbarInner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: inherit;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: -0.01em;
+}
+.brand:hover {
+  color: #fff;
+}
+.mark {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.tagline {
+  color: var(--color-appbar-muted);
+  font-size: var(--text-sm);
+  padding-left: var(--space-4);
+  border-left: 1px solid color-mix(in srgb, var(--color-appbar-muted) 35%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.session {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.main {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter) var(--space-7);
+}
+
+@media (max-width: 900px) {
+  .tagline {
+    display: none;
+  }
+}

@@ -1,0 +1,74 @@
+.page {
+  display: grid;
+  place-items: start center;
+  padding-top: var(--space-6);
+}
+.card {
+  width: min(100%, 40rem);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5);
+}
+.lead {
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--color-text-2);
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.list li + li {
+  border-top: 1px solid var(--color-border);
+}
+.persona {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--color-ink-soft);
+  color: var(--color-ink);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.name {
+  font-weight: 650;
+}
+.roleDecide,
+.roleRead {
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.roleDecide {
+  color: var(--color-pass);
+}
+.roleRead {
+  color: var(--color-text-3);
+}
+
+@media (max-width: 640px) {
+  .persona {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .persona button {
+    grid-column: 1 / -1;
+  }
+}

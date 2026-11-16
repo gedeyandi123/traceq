@@ -15,7 +15,8 @@
     "readOnly": "Hanya membaca",
     "link": "Masuk (identitas demo)",
     "signedInAs": "Masuk sebagai {name} (identitas demo)",
-    "out": "Keluar"
+    "out": "Keluar",
+    "lead": "Pilih siapa yang memakai aplikasi. Perannya menentukan apakah keputusan dapat dibuat."
   },
   "runs": {
     "title": "Run analisis",
@@ -27,7 +28,11 @@
     "mode": "Mode",
     "replay": "Putar ulang",
     "live": "Langsung",
-    "open": "Buka matriks"
+    "open": "Buka matriks",
+    "lead": "Setiap run membaca dokumen vendor satu peralatan dan mengusulkan matriks, temuan dan klaim yang dibuang. Semua usulan menunggu keputusan manusia.",
+    "run": "Run",
+    "emptyTitle": "Belum ada run",
+    "unavailableTitle": "API tidak dapat dihubungi"
   },
   "matrix": {
     "title": "Matriks ketertelusuran",
@@ -180,7 +185,9 @@
     "numbersFound": "Nomor persyaratan tercetak: {found} ditemukan, {missed} tidak menjadi persyaratan.",
     "missedNumber": "{number} (hlm. {page}) tidak menjadi persyaratan",
     "unquoted": "Teks URS yang tidak dikutip persyaratan mana pun",
-    "page": "hlm. {page}"
+    "page": "hlm. {page}",
+    "found": "ditemukan",
+    "missed": "tidak menjadi persyaratan"
   },
   "eval": {
     "title": "Hasil evaluasi",
@@ -206,16 +213,28 @@
       "lower": "Lebih rendah lebih baik"
     },
     "metrics": {
-      "requirements": { "value_accuracy": "Akurasi ekstraksi nilai" },
-      "citations": { "verified_rate": "Kutipan terverifikasi pada halaman" },
-      "defects": { "recall": "Recall cacat yang ditanam" },
-      "fabrication": { "rate": "Tingkat fabrikasi klaim" },
-      "probes": { "fabrication_rate": "Fabrikasi pada probe halusinasi" },
+      "requirements": {
+        "value_accuracy": "Akurasi ekstraksi nilai"
+      },
+      "citations": {
+        "verified_rate": "Kutipan terverifikasi pada halaman"
+      },
+      "defects": {
+        "recall": "Recall cacat yang ditanam"
+      },
+      "fabrication": {
+        "rate": "Tingkat fabrikasi klaim"
+      },
+      "probes": {
+        "fabrication_rate": "Fabrikasi pada probe halusinasi"
+      },
       "ocr": {
         "exact_match_rate": "OCR: entri terbaca persis",
         "entry_recall": "OCR: entri ditemukan",
         "cer": "OCR: tingkat kesalahan karakter (CER)"
       }
-    }
+    },
+    "notScoredTitle": "Belum ada hasil evaluasi",
+    "gatesNote": "Gerbang fabrikasi: tidak satu pun klaim yang dikarang lolos ke keluaran."
   }
 }

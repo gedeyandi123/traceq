@@ -4,10 +4,13 @@ import type { Cite, Findings, Proposal } from "@/api/client";
 import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
+import { EmptyState } from "./ui/ui";
+import s from "./FindingsView.module.css";
+import tbl from "./ui/table.module.css";
 
 function Citations({ cites, runId }: { cites: readonly Cite[]; runId: string }) {
   return (
-    <ul className="citations">
+    <ul className={tbl.cites}>
       {cites.map((c) => (
         <li key={`${c.doc}/${c.rev}/${c.page}/${c.quote}`}>
           <CiteLink runId={runId} cite={c} />
@@ -45,14 +48,22 @@ export function FindingsView({
   return (
     <>
       <DecisionNotice view={decisions} />
-      <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
-      <section className="findings findings-check" aria-labelledby="check-findings">
-        <h2 id="check-findings">{t("check")}</h2>
-        <p className="muted">{t("checkNote")}</p>
+      {decisions.counts && (
+        <div className={s.tally}>
+          <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
+        </div>
+      )}
+      <section className={s.section} aria-labelledby="check-findings">
+        <div className={s.head}>
+          <h2 id="check-findings">{t("check")}</h2>
+          <span className={s.count}>{findings.check_findings.length}</span>
+        </div>
+        <p className={s.note}>{t("checkNote")}</p>
         {findings.check_findings.length === 0 ? (
-          <p>{t("none")}</p>
+          <EmptyState title={t("none")} />
         ) : (
-          <table>
+          <div className={tbl.wrap}>
+          <table className={tbl.table}>
             <thead>
               <tr>
                 <th>{t("type")}</th>
@@ -65,13 +76,13 @@ export function FindingsView({
             <tbody>
               {findings.check_findings.map((f, i) => (
                 <tr key={`${f.type}/${f.doc}/${i}`}>
-                  <td>{t(`checkTypes.${f.type}`)}</td>
-                  <td>{f.doc}</td>
+                  <td className={s.type}>{t(`checkTypes.${f.type}`)}</td>
+                  <td className={tbl.id}>{f.doc}</td>
                   <td>{f.detail}</td>
                   <td>
                     <Citations cites={f.citations} runId={runId} />
                     {f.rule && (
-                      <div>
+                      <div className={s.rule}>
                         {t("rule")}: <CiteLink runId={runId} cite={f.rule} />
                       </div>
                     )}
@@ -90,16 +101,21 @@ export function FindingsView({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
-      <section className="findings findings-ai" aria-labelledby="ai-findings">
-        <h2 id="ai-findings">{t("ai")}</h2>
-        <p className="muted">{t("aiNote")}</p>
+      <section className={`${s.section} ${s.ai}`} aria-labelledby="ai-findings">
+        <div className={s.head}>
+          <h2 id="ai-findings">{t("ai")}</h2>
+          <span className={s.count}>{findings.ai_findings.length}</span>
+        </div>
+        <p className={s.note}>{t("aiNote")}</p>
         {findings.ai_findings.length === 0 ? (
-          <p>{t("none")}</p>
+          <EmptyState title={t("none")} />
         ) : (
-          <table>
+          <div className={tbl.wrap}>
+          <table className={tbl.table}>
             <thead>
               <tr>
                 <th>{t("type")}</th>
@@ -111,10 +127,10 @@ export function FindingsView({
             <tbody>
               {findings.ai_findings.map((f, i) => (
                 <tr key={`${f.type}/${i}`}>
-                  <td>{t(`aiTypes.${f.type}`)}</td>
+                  <td className={s.type}>{t(`aiTypes.${f.type}`)}</td>
                   <td>
                     {f.detail}
-                    <div className="muted">
+                    <div className={s.trace}>
                       {t("trace", { model: f.model, prompt: f.prompt.slice(0, 12), created: f.created })}
                     </div>
                   </td>
@@ -130,23 +146,28 @@ export function FindingsView({
                         access={decisions.access}
                       />
                     ) : (
-                      <span className="pending">{t(`actions.${f.reviewer_action}`)}</span>
+                      <span className={s.pending}>{t(`actions.${f.reviewer_action}`)}</span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
-      <section className="findings findings-missing" aria-labelledby="missing-documents">
-        <h2 id="missing-documents">{t("missing")}</h2>
-        <p className="muted">{t("missingNote")}</p>
+      <section className={s.section} aria-labelledby="missing-documents">
+        <div className={s.head}>
+          <h2 id="missing-documents">{t("missing")}</h2>
+          <span className={s.count}>{findings.missing_documents.length}</span>
+        </div>
+        <p className={s.note}>{t("missingNote")}</p>
         {findings.missing_documents.length === 0 ? (
-          <p>{t("none")}</p>
+          <EmptyState title={t("none")} />
         ) : (
-          <table>
+          <div className={tbl.wrap}>
+          <table className={tbl.table}>
             <thead>
               <tr>
                 <th>{t("document")}</th>
@@ -158,7 +179,7 @@ export function FindingsView({
             <tbody>
               {findings.missing_documents.map((d) => (
                 <tr key={d.doc_id}>
-                  <td>{d.doc_id}</td>
+                  <td className={tbl.id}>{d.doc_id}</td>
                   <td>{d.type}</td>
                   <td>{d.stage}</td>
                   <td>
@@ -168,6 +189,7 @@ export function FindingsView({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </>

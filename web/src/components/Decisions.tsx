@@ -3,6 +3,9 @@ import { useTranslations } from "next-intl";
 import type { CoverageClass, Decision, DecisionCounts, Proposal } from "@/api/client";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 
+import { Callout } from "./ui/ui";
+import s from "./Decisions.module.css";
+
 /** Why a run shows read-only: not signed in, signed in without the deciding role, the run is
  * not imported, or the API refused the token or has no database. */
 export type ReadOnlyReason = "signedOut" | "noRole" | "notImported" | "unavailable";
@@ -55,7 +58,7 @@ function Made({ t, classes, d }: { t: T; classes: ClassT; d: Decision }) {
   return (
     <>
       <span>{summary(t, classes, d)}</span>
-      {d.reason && <div className="reason">{d.reason}</div>}
+      {d.reason && <div className={s.reason}>{d.reason}</div>}
     </>
   );
 }
@@ -66,12 +69,14 @@ export function DecisionNotice({ view }: { view: DecisionView }) {
   return (
     <>
       {view.access.mode === "readOnly" && (
-        <p className="read-only">{t(`readOnly.${view.access.why}`)}</p>
+        <Callout tone="info">
+          <p>{t(`readOnly.${view.access.why}`)}</p>
+        </Callout>
       )}
       {view.error && (
-        <p role="alert" className="failure">
-          {t(`errors.${view.error}`)}
-        </p>
+        <Callout tone="alert" role="alert">
+          <p>{t(`errors.${view.error}`)}</p>
+        </Callout>
       )}
     </>
   );
@@ -89,7 +94,8 @@ export function DecisionTally({
   const t = useTranslations("decisions");
   if (!counts) return null;
   return (
-    <table className="tally">
+    <div className={s.tallyWrap}>
+    <table className={s.tally}>
       <caption>{t("counts.title")}</caption>
       <thead>
         <tr>
@@ -106,21 +112,25 @@ export function DecisionTally({
       <tbody>
         {kinds.map((k) => {
           const c = counts[k];
+          const cell = (n: number, strong = false) => (
+            <td className={n === 0 ? s.zero : strong ? s.strong : undefined}>{n}</td>
+          );
           return (
             <tr key={k}>
               <th scope="row">{t(`kinds.${k}`)}</th>
-              <td>{c.total}</td>
-              <td>{c.undecided}</td>
-              <td>{c.accepted}</td>
-              <td>{c.edited}</td>
-              <td>{c.rejected}</td>
-              <td>{c.changed}</td>
-              <td>{c.decided_not_proposed}</td>
+              {cell(c.total)}
+              {cell(c.undecided, true)}
+              {cell(c.accepted)}
+              {cell(c.edited)}
+              {cell(c.rejected)}
+              {cell(c.changed, true)}
+              {cell(c.decided_not_proposed)}
             </tr>
           );
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -146,7 +156,9 @@ function Hidden({
 }
 
 function Reason({ t }: { t: T }) {
-  return <textarea name="reason" required aria-label={t("reason")} placeholder={t("reason")} />;
+  return (
+    <textarea name="reason" required aria-label={t("reason")} placeholder={t("reason")} rows={2} />
+  );
 }
 
 /** One decision per form: accept, reject (findings) or change the class (Coverage rows). A
@@ -172,16 +184,20 @@ function Forms({
   const replacing = proposal.state === "decided";
   const coverage = proposal.kind === "coverage";
   return (
-    <div className="decide">
+    <div className={s.decide}>
       {!(coverage && proposed == null) && (
-        <form action={action}>
+        <form action={action} className={s.form}>
           <Hidden runId={runId} proposal={proposal} screen={screen} decision="accepted" />
           {replacing && <Reason t={t} />}
-          <button type="submit">{t("accept")}</button>
+          <button type="submit" data-variant="primary">
+            {t("accept")}
+          </button>
         </form>
       )}
+      <details className={s.more}>
+        <summary>{coverage ? t("edit") : t("reject")}…</summary>
       {coverage ? (
-        <form action={action}>
+        <form action={action} className={s.form}>
           <Hidden runId={runId} proposal={proposal} screen={screen} decision="edited" />
           <select name="coverage" required aria-label={t("toClass")} defaultValue="">
             <option value="" disabled>
@@ -197,12 +213,15 @@ function Forms({
           <button type="submit">{t("edit")}</button>
         </form>
       ) : (
-        <form action={action}>
+        <form action={action} className={s.form}>
           <Hidden runId={runId} proposal={proposal} screen={screen} decision="rejected" />
           <Reason t={t} />
-          <button type="submit">{t("reject")}</button>
+          <button type="submit" data-variant="danger">
+            {t("reject")}
+          </button>
         </form>
       )}
+      </details>
     </div>
   );
 }
@@ -229,15 +248,18 @@ export function DecisionCell({
   if (proposal === undefined) return null;
   const [current, ...earlier] = proposal.decisions;
   return (
-    <div className={`decision decision-${proposal.state}`}>
-      <strong>{t(`states.${proposal.state}`)}</strong>
+    <div className={s.cell}>
+      <span className={`${s.state} ${s[`state_${proposal.state}`]}`}>
+        <span className={s.dot} aria-hidden="true" />
+        <strong>{t(`states.${proposal.state}`)}</strong>
+      </span>
       {current && (
-        <div>
+        <div className={s.made}>
           <Made t={t} classes={classes} d={current} />
         </div>
       )}
       {earlier.length > 0 && (
-        <div className="muted">
+        <div className={s.history}>
           {t("earlier")}
           <ul>
             {earlier.map((d) => (
@@ -249,9 +271,9 @@ export function DecisionCell({
         </div>
       )}
       {proposal.previous && (
-        <div className="muted">
+        <div className={s.history}>
           <span>{t("previous", { summary: summary(t, classes, proposal.previous) })}</span>
-          {proposal.previous.reason && <div className="reason">{proposal.previous.reason}</div>}
+          {proposal.previous.reason && <div className={s.reason}>{proposal.previous.reason}</div>}
         </div>
       )}
       {access.mode === "decide" && (

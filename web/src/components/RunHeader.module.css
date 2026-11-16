@@ -1,0 +1,88 @@
+.header {
+  margin-bottom: var(--space-5);
+}
+.crumbs {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-3);
+  margin-bottom: var(--space-2);
+}
+.crumbs a {
+  color: var(--color-text-3);
+  text-decoration: none;
+}
+.crumbs a:hover {
+  color: var(--color-ink);
+  text-decoration: underline;
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.title {
+  font-size: var(--text-xl);
+}
+.mode {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 0.125rem var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink-soft);
+  color: var(--color-ink);
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+}
+.meta div {
+  display: flex;
+  gap: var(--space-2);
+}
+.meta dt {
+  color: var(--color-text-3);
+}
+.meta dd {
+  margin: 0;
+  color: var(--color-text-2);
+  font-weight: 500;
+}
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab {
+  position: relative;
+  padding: var(--space-2) var(--space-3) calc(var(--space-2) + 2px);
+  color: var(--color-text-2);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--text-base);
+  white-space: nowrap;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.tab:hover {
+  color: var(--color-text);
+  background: var(--color-sunken);
+}
+.tab[aria-current="page"] {
+  color: var(--color-ink);
+}
+.tab[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-ink);
+}

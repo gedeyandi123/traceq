@@ -2,14 +2,18 @@ import { useTranslations } from "next-intl";
 
 import type { Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
 import { CiteLink } from "./CiteLink";
+import { CoverageBadge } from "./ui/ui";
+import type { CoverageKey } from "./ui/ui";
+import s from "./MatrixTable.module.css";
+import tbl from "./ui/table.module.css";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
 
-export type T = ReturnType<typeof useTranslations<"matrix">>;
+type T = ReturnType<typeof useTranslations<"matrix">>;
 
 const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
 
-export function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
+function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
   switch (v.type) {
     case "range":
       if (v.min != null && v.max != null) {
@@ -32,38 +36,95 @@ export function formatValue(t: T, v: Value | ObservedValue, observed = false): s
   }
 }
 
-export function Evidence({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
+/** Riskiest first: the order of the coverage summary. */
+const RISK: readonly CoverageKey[] = ["conflict", "gap", "partial", "site_only", "covered_by_vendor", "none"];
+
+function EvidenceChips({ row, t }: { row: MatrixRow; t: T }) {
+  return (
+    <span className={s.chips}>
+      {row.evidence.map((e) => (
+        <span key={`${e.doc}/${e.step}`} className={`${s.chip} ${s[`chip_${e.result ?? "none"}`]}`}>
+          <span aria-hidden="true">{e.result === "pass" ? "✓" : e.result === "fail" ? "✕" : "·"}</span>
+          {e.step}
+        </span>
+      ))}
+      {row.design.length > 0 && (
+        <span className={s.chip}>
+          {t("design")} ×{row.design.length}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function Evidence({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
   if (row.evidence.length === 0 && row.design.length === 0) {
     return <span className="muted">{t("noEvidence")}</span>;
   }
   return (
-    <ul className="evidence">
-      {row.evidence.map((e) => (
-        <li key={`${e.doc}/${e.step}`}>
-          <strong>
-            {e.stage} {e.step}
-          </strong>{" "}
-          {e.test}
-          <div>
-            {t("observed", {
-              observed: e.observed_value ? formatValue(t, e.observed_value, true) : e.observed,
-            })}
-            {" · "}
-            {t("result", { result: t(`results.${e.result ?? "none"}`) })}
-          </div>
-          {e.failure && <div className="failure">{e.failure}</div>}
-          <CiteLink runId={runId} cite={e.citation} />
-        </li>
-      ))}
-      {row.design.map((d) => (
-        <li key={`${d.doc}/${d.name}`}>
-          <strong>{t("design")}</strong> {d.name}: {t("printed", { printed: d.printed })}
-          <div>
+    <details className={s.ev}>
+      <summary>
+        <EvidenceChips row={row} t={t} />
+      </summary>
+      <ul className={s.evList}>
+        {row.evidence.map((e) => (
+          <li key={`${e.doc}/${e.step}`}>
+            <div className={s.evHead}>
+              <span className={s.stage}>{e.stage}</span>
+              <strong>{e.step}</strong>
+            </div>
+            <div>{e.test}</div>
+            <div className={s.obs}>
+              {t("observed", {
+                observed: e.observed_value ? formatValue(t, e.observed_value, true) : e.observed,
+              })}
+              {" · "}
+              {t("result", { result: t(`results.${e.result ?? "none"}`) })}
+            </div>
+            {e.failure && <div className="failure">{e.failure}</div>}
+            <CiteLink runId={runId} cite={e.citation} />
+          </li>
+        ))}
+        {row.design.map((d) => (
+          <li key={`${d.doc}/${d.name}`}>
+            <div className={s.evHead}>
+              <span className={s.stage}>{t("design")}</span>
+            </div>
+            <div>
+              {d.name}: {t("printed", { printed: d.printed })}
+            </div>
             <CiteLink runId={runId} cite={d.citation} />
-          </div>
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function CoverageSummary({ rows, t }: { rows: readonly MatrixRow[]; t: T }) {
+  const counts = new Map<CoverageKey, number>();
+  for (const r of rows) counts.set(r.coverage ?? "none", (counts.get(r.coverage ?? "none") ?? 0) + 1);
+  const present = RISK.filter((k) => (counts.get(k) ?? 0) > 0);
+  return (
+    <div className={s.summary}>
+      <div className={s.summaryHead}>
+        <span className={s.total}>{rows.length}</span>
+        <span className={s.totalLabel}>{t("requirement")}</span>
+      </div>
+      <div className={s.bar} aria-hidden="true">
+        {present.map((k) => (
+          <span key={k} className={s[`seg_${k}`]} style={{ flexGrow: counts.get(k) }} />
+        ))}
+      </div>
+      <ul className={s.legend}>
+        {present.map((k) => (
+          <li key={k}>
+            <span className={s.legendN}>{counts.get(k)}</span>
+            <CoverageBadge cls={k} label={t(`classes.${k}`)} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -90,60 +151,12 @@ export function MatrixTable({
   return (
     <>
       <DecisionNotice view={decisions} />
-      <DecisionTally counts={decisions.counts} kinds={["coverage"]} />
-      <table className="matrix">
-        <thead>
-          <tr>
-            <th>{t("requirement")}</th>
-            <th>{t("value")}</th>
-            <th>{t("coverage")}</th>
-            <th>{t("reason")}</th>
-            <th>{t("evidence")}</th>
-            {decided && <th>{td("column")}</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.requirements.map((row) => (
-            <tr key={row.id} data-testid={row.id}>
-              <td>
-                <strong>{row.id}</strong>
-                <p>{row.text}</p>
-                <CiteLink runId={runId} cite={row.source} />
-              </td>
-              <td>
-                {row.value ? formatValue(t, row.value) : <span className="muted">{t("noValue")}</span>}
-                {row.value_citation && (
-                  <div>
-                    <CiteLink runId={runId} cite={row.value_citation} />
-                  </div>
-                )}
-              </td>
-              <td>
-                <span className={`coverage coverage-${row.coverage ?? "none"}`}>
-                  {t(`classes.${row.coverage ?? "none"}`)}
-                </span>
-              </td>
-              <td>{row.reason}</td>
-              <td>
-                <Evidence row={row} runId={runId} t={t} />
-              </td>
-              {decided && (
-                <td>
-                  <DecisionCell
-                    proposal={byRequirement.get(row.id)}
-                    runId={runId}
-                    screen="matrix"
-                    access={decisions.access}
-                    proposed={row.coverage}
-                  />
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className={s.overview}>
+        <CoverageSummary rows={matrix.requirements} t={t} />
+        <DecisionTally counts={decisions.counts} kinds={["coverage"]} />
+      </div>
       {matrix.not_read.length > 0 && (
-        <section>
+        <section className={s.notRead}>
           <h2>{t("notRead")}</h2>
           <ul>
             {matrix.not_read.map((d) => (
@@ -154,6 +167,62 @@ export function MatrixTable({
           </ul>
         </section>
       )}
+      <div className={tbl.wrap}>
+        <table className={`${tbl.table} ${s.matrix}`}>
+          <thead>
+            <tr>
+              <th className={s.colReq}>{t("requirement")}</th>
+              <th className={s.colVal}>{t("value")}</th>
+              <th className={s.colCov}>{t("coverage")}</th>
+              <th className={s.colEv}>{t("evidence")}</th>
+              {decided && <th className={s.colDec}>{td("column")}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.requirements.map((row) => (
+              <tr key={row.id} data-testid={row.id} className={s[`row_${row.coverage ?? "none"}`]}>
+                <td>
+                  <div className={tbl.id}>{row.id}</div>
+                  <p className={s.text}>{row.text}</p>
+                  <div className={s.cite}>
+                    <CiteLink runId={runId} cite={row.source} />
+                  </div>
+                </td>
+                <td>
+                  {row.value ? (
+                    <span className={s.value}>{formatValue(t, row.value)}</span>
+                  ) : (
+                    <span className="muted">{t("noValue")}</span>
+                  )}
+                  {row.value_citation && (
+                    <div className={s.cite}>
+                      <CiteLink runId={runId} cite={row.value_citation} />
+                    </div>
+                  )}
+                </td>
+                <td>
+                  <CoverageBadge cls={row.coverage ?? "none"} label={t(`classes.${row.coverage ?? "none"}`)} />
+                  <p className={s.reason}>{row.reason}</p>
+                </td>
+                <td>
+                  <Evidence row={row} runId={runId} t={t} />
+                </td>
+                {decided && (
+                  <td>
+                    <DecisionCell
+                      proposal={byRequirement.get(row.id)}
+                      runId={runId}
+                      screen="matrix"
+                      access={decisions.access}
+                      proposed={row.coverage}
+                    />
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

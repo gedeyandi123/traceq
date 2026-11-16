@@ -77,3 +77,13 @@ Round 1 prototype verdict: structure B (triage) and C (board) cannot hold the "z
 2. **Typeface**: system Segoe UI (zero risk, no network at build) or bundled Inter via `next/font/local` (more distinctive; adds an OFL font file of roughly 100–350 KB, depending on subset, to the repo; no network at build or run time).
 3. **Decision cell**: fold "Ubah kelas"/"Tolak" behind a disclosure (rows about half as tall; one extra click, runbook K4/K5/K6/K8 steps gain "buka") or keep every form open as now.
 4. **Timing vs the 25 Nov freeze**: redesign lands after the freeze release (recommended: the runbook was rehearsed on today's UI) or before it.
+
+## 5. Owner decisions so far (17 Nov 2026)
+
+- Round 1 (structure variants A Ledger, B Triage, C Board on the matrix, commit 897e042): not satisfying visually. The structure was not the problem; the missing visual system was.
+- Scope: all six pages.
+- Typeface: bundled Inter (`@fontsource-variable/inter` 5.3.0, OFL-1.1, Latin subset 48 KB, loaded with `next/font/local`; no font request at build or run time).
+- Decision cell: fold "Ubah kelas"/"Tolak" behind a disclosure; "Terima" stays visible.
+- Timing versus the 25 Nov freeze: open (owner asked whether it conflicts).
+
+Round 2 (this branch): tokens in `globals.css`, CSS Modules per component, the shell, `RunHeader` with tabs on the four run screens, and all six pages restyled, with two palettes (1 Navy, 2 Teal) switchable in development only. `npm test` 14/14 with no test file changed against `main`.

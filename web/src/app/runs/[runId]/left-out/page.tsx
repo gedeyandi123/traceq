@@ -1,15 +1,20 @@
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
 import { LeftOutView } from "@/components/LeftOutView";
 
+import { RunHeader } from "@/components/RunHeader";
+
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("leftOut"))("title") };
+}
 
 export default async function LeftOutPage({ params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params;
-  const t = await getTranslations("leftOut");
   const path = { params: { path: { run_id: runId } } };
   const [run, dropped, completeness] = await Promise.all([
     api.GET("/runs/{run_id}", path),
@@ -19,9 +24,7 @@ export default async function LeftOutPage({ params }: { params: Promise<{ runId:
   if (!run.data || !dropped.data) notFound();
   return (
     <>
-      <Link href={`/runs/${encodeURIComponent(runId)}`}>{t("back")}</Link>
-      <h1>{t("title")}</h1>
-      <p className="muted">{t("subtitle", { equipment: run.data.equipment, runId })}</p>
+      <RunHeader run={run.data} current="leftOut" />
       <LeftOutView dropped={dropped.data} completeness={completeness.data ?? null} />
     </>
   );

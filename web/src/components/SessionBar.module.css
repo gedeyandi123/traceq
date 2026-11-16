@@ -1,0 +1,42 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-appbar-text) 16%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.who {
+  color: var(--color-appbar-text);
+}
+.out {
+  background: transparent;
+  color: var(--color-appbar-text);
+  border-color: color-mix(in srgb, var(--color-appbar-muted) 50%, transparent);
+}
+.out:hover {
+  background: color-mix(in srgb, var(--color-appbar-text) 12%, transparent);
+  border-color: var(--color-appbar-muted);
+}
+.signin {
+  color: var(--color-appbar-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.signin:hover {
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .who {
+    display: none;
+  }
+}
