@@ -53,6 +53,25 @@ Pemilik menyetujui nilai-nilai ini berdasarkan logika dan cek fakta umum. Prakti
 
 **Perubahan 16 Nov 2026 (pemilik, setelah grilling scope, ADR 0010):** D1–D3, D9, D10 (sekaligus D6) dan D11 ditanyakan lewat satu form lanjutan pendek sebelum freeze 25 Nov, bersama beberapa pertanyaan umum tentang praktik review. Jawabannya masuk sebagai perubahan kunci di PR sendiri sebelum freeze; kalau form belum kembali, freeze memakai default. Sesi dimulai dengan tanya jawab lanjutan atas jawaban form, lalu demo dan penilaian beberapa temuan, lalu sisa agenda di bawah (A10, D13, D14; D5, D8, D4, D7, C2 kalau ada waktu). Paragraf berikut adalah rencana sebelum perubahan itu.
 
+**Hasil form lanjutan (16 Nov 2026, satu praktisi):**
+
+- **D1:** kapasitas produksi "biasanya kritis". Sama dengan default; tidak ada perubahan.
+- **D2:** ketiganya (pelumas food-grade, proteksi overload punch, dust extraction) dicentang kritis. **D3:** dokumen bukti "sama kritisnya" dengan fungsinya. Diubah di #128: URS-TP201-013, -020, -028 S = 4; -035 S = 5 (seperti -009); -036 S = 4 (seperti -016); kelimanya kritis. Aspek kritis 11 menjadi 16; kelas Coverage tidak berubah.
+- **D11:** "wajib diuji ulang di lokasi" untuk fungsi keselamatan, kontrol dan software HMI, kinerja, rentang kecepatan tanpa produk, dan kalibrasi; "tergantung" untuk dimensi, material dan kekasaran permukaan. Yang berbeda dari default hanya rentang kecepatan: -002 dan -017 menjadi sensitif transportasi di #128 (kelasnya tetap `partial` lewat syarat 3). HMI tetap sensitif, jadi catatan "fungsi dasar software" dari discovery tidak mengubah flag.
+- **D9:** "tergantung kekritisan parameternya". Kunci tidak diubah sebelum sesi (keputusan pemilik). Jawaban ini membelah dua temuan salah r7 di #100: FAT-M-02 menyangkut -002 (kritis), FAT-M-09 menyangkut -017 (tidak kritis).
+- **D10 (sekaligus D6):** yang dicentang: tes disaksikan wakil pabrik, alat ukur vendor terkalibrasi dan berlaku saat tes, protokol vendor disetujui sebelum dijalankan, seluruh rentang URS diuji. Tidak dicentang: vendor sudah dinilai, fungsi tidak terpengaruh pengiriman. Decision table tidak diubah sebelum freeze (keputusan pemilik): di TP-201 kedua syarat tambahan tidak menggeser kelas mana pun (semua protokol disaksikan; -003 sudah `partial` sejak #53 karena hasil SAT-01 terbaca dua arah).
+
+**Tanya jawab lanjutan di awal sesi (sebelum demo, sekitar 8 menit):**
+
+| # | Dari | Pertanyaan |
+|---|---|---|
+| F1 | D9 | Untuk parameter kritis, rentang FAT yang lebih sempit dicatat sebagai temuan terhadap FAT (oleh siapa, di dokumen apa), atau cukup ditandai dan diuji ulang di OQ? Untuk parameter tidak kritis, cukup dicatat? |
+| F2 | D10 | "Vendor sudah dinilai" dan "tidak terpengaruh pengiriman" tidak dicentang: memang bukan syarat, atau dianggap sudah pasti? Saksi dan kalibrasi alat vendor dicek di dokumen mana? |
+| F3 | D11 | "Diuji ulang di lokasi": SAT oleh vendor di lokasi sudah cukup, atau harus di OQ oleh pabrik? |
+| F4 | Arah, AC | Ketidakcocokan AC 3–5 kali setahun, sedangkan deviasi di bawah 10% dari 20–50 kegiatan. Apakah hampir semua deviasi berasal dari AC yang tidak cocok, atau ketidakcocokan sering dikoreksi tanpa deviasi formal? Pada contoh di form (AC dari spesifikasi brosur dan uji skala kecil, gagal di skala penuh karena beban bahan), adakah dokumen vendor yang menyebut batas beban atau daya penggerak? |
+| F5 | Arah, review | Komentar reviewer "pembahasan laporan" dan "update regulasi terbaru": contohnya seperti apa? Apakah rujukan ke regulasi yang sudah diganti sering lolos ke reviewer? |
+| F6 | D2, D11 | Hampir semua pilihan dicentang kritis atau wajib diuji ulang. Satu contoh: kenapa sambungan dust extraction dinilai kritis terhadap mutu produk? |
+
 Bagian A–C sudah dikirim sebagai Google Form dan sudah dijawab. Bagian D tidak dikirim sebagai form kedua agar praktisi tidak menerima kiriman berulang; isinya dibahas lisan di sesi review 30 menit (Q16), yang digabung dengan demo minggu 3–4. Isi bagian ini menyangkut penilaian, bukan nilai URS. Kriteria kritis (D1–D3) memblokir sign-off RA (`risk_assessment.reviewed_by`). Dengan aturan RA sekarang (Aspek kritis = Ya bila S ≥ 4), mengubah kritis sebuah requirement berarti mengubah `critical` di URS dan skor S-nya di RA sekaligus. Kelas Coverage tidak ikut berubah.
 
 Urutannya mengikuti apa yang memblokir freeze dan klaim. Nomor D1–D11 tetap, supaya rujukan di dokumen lain tidak putus. Kalau waktu habis, topik di bawah garis memakai default dan ditandai "belum direview praktisi" di DATASHEET, atau dibahas di sesi kedua sekitar minggu 5–6.
@@ -80,7 +99,7 @@ Urutannya mengikuti apa yang memblokir freeze dan klaim. Nomor D1–D11 tetap, s
 
 | # | Topik | Keadaan sekarang | Pertanyaan | Menit |
 |---|---|---|---|---|
-| D6 | Evidence dari alat kedaluwarsa (S2) | SAT-01 memakai tachometer yang kalibrasinya kedaluwarsa sehari sebelumnya, tetapi URS-TP201-003 tetap dihitung *covered_by_vendor* lewat SAT-01 | Apakah hasil uji dari alat ukur yang kedaluwarsa masih dihitung sebagai bukti? | 1 |
+| D6 | Evidence dari alat kedaluwarsa (S2) | SAT-01 memakai tachometer yang kalibrasinya kedaluwarsa sehari sebelumnya. Sejak #53 URS-TP201-003 `partial` karena hasil SAT-01 terbaca dua arah, jadi kedaluwarsa tidak menentukan kelasnya. Dijawab lewat form lanjutan (D10): alat ukur harus terkalibrasi dan berlaku; lanjutannya F2 | Apakah hasil uji dari alat ukur yang kedaluwarsa masih dihitung sebagai bukti? | 1 |
 | D9 | AC vendor lebih sempit dari URS | FAT-M-02 menguji 20–60 rpm terhadap URS 20–70 rpm. Dihitung *partial* (rentang URS tidak teruji penuh), bukan cacat "AC menyimpang dari URS" | Apakah pabrik menganggapnya cukup dicatat dan diuji ulang di OQ, atau sudah termasuk temuan? | 1 |
 | D5 | Sertifikat sensor gaya (CAL-TP201-01) | Diterbitkan vendor, dua kanal (gaya utama dan pra-kompresi), dikalibrasi sebelum FAT, berlaku 12 bulan | Apakah sertifikat dari vendor diterima, atau pabrik meminta lab terakreditasi? Apakah sensor gaya dikalibrasi ulang setelah instalasi? | 1 |
 | D8 | Severity cacat | S5 dan S6 critical; S1, S2, S4 major; S3 dan S7 minor (lihat `answer_key/TP-201/defects.yaml`) | Apakah pembagian ini sesuai cara pabrik menilai temuan? | 2 |
