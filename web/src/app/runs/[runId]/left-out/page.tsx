@@ -1,11 +1,17 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
 import { LeftOutView } from "@/components/LeftOutView";
+import { RunHeader } from "@/components/RunHeader";
 
 export const dynamic = "force-dynamic";
+
+/** The browser tab reads "<screen> · TraceQ" (the root layout's template); translations only, no fetch. */
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("leftOut"))("title") };
+}
 
 export default async function LeftOutPage({ params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params;
@@ -19,9 +25,7 @@ export default async function LeftOutPage({ params }: { params: Promise<{ runId:
   if (!run.data || !dropped.data) notFound();
   return (
     <>
-      <Link href={`/runs/${encodeURIComponent(runId)}`}>{t("back")}</Link>
-      <h1>{t("title")}</h1>
-      <p className="muted">{t("subtitle", { equipment: run.data.equipment, runId })}</p>
+      <RunHeader run={run.data} current="leftOut" intro={t("intro")} />
       <LeftOutView dropped={dropped.data} completeness={completeness.data ?? null} />
     </>
   );
