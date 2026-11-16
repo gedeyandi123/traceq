@@ -1,92 +1,377 @@
+/* Design tokens and base element rules (ADR 0011). Component styles live in a CSS Module
+ * next to each component and use only these variables; a module never writes a colour.
+ * Palette: teal ink on warm neutrals (owner's choice, prototype round 2). Light theme only.
+ *
+ * Breakpoints. Custom properties cannot be used in media queries, so the modules write
+ * these three widths as numbers. A new width needs a reason here.
+ *   max-width: 640px   phone: tighter gutter, secondary text hides
+ *   max-width: 900px   the app bar stacks (the tagline hides)
+ *   max-width: 1199px  wide tables fold: they scroll inside their own frame
+ */
+
+:root {
+  /* Neutrals */
+  --color-canvas: #f5f5f2;
+  --color-surface: #ffffff;
+  --color-sunken: #efefea;
+  --color-border: #e1e0d8;
+  --color-border-strong: #c9c7bc;
+  --color-text: #171a19;
+  --color-text-2: #3d4342;
+  --color-text-3: #5f6664;
+
+  /* Ink: navigation, primary action, focus */
+  --color-ink: #0b5d63;
+  --color-ink-hover: #084a4f;
+  --color-ink-soft: #e2f0f0;
+  --color-on-ink: #ffffff;
+  --color-focus: #0b7d86;
+
+  /* App bar */
+  --color-appbar: #102a2c;
+  --color-appbar-text: #e8f0ef;
+  --color-appbar-muted: #9cb5b3;
+  --color-appbar-strong: #ffffff;
+
+  /* Semantic */
+  --color-pass: #1b6a36;
+  --color-pass-soft: #e4f3e9;
+  --color-fail: #b42318;
+  --color-fail-soft: #fdecea;
+  --color-warn: #8a5300;
+  --color-warn-soft: #fdf1d8;
+  --color-info: #2b5a8a;
+  --color-info-soft: #e6eef8;
+
+  /* Coverage classes: foreground, background, edge */
+  --cov-covered-fg: #1b6a36;
+  --cov-covered-bg: #e4f3e9;
+  --cov-covered-edge: #6fbf8a;
+  --cov-partial-fg: #8a5300;
+  --cov-partial-bg: #fdf1d8;
+  --cov-partial-edge: #e3b04f;
+  --cov-site-fg: #2b5a8a;
+  --cov-site-bg: #e6eef8;
+  --cov-site-edge: #8cb0d6;
+  --cov-gap-fg: #b42318;
+  --cov-gap-bg: #fdecea;
+  --cov-gap-edge: #ec8a80;
+  --cov-conflict-fg: #ffffff;
+  --cov-conflict-bg: #a51d12;
+  --cov-conflict-edge: #a51d12;
+  --cov-none-fg: #47515e;
+  --cov-none-bg: #eceff3;
+  --cov-none-edge: #c3ccd7;
+
+  /* Type: Inter from the build (--font-inter, set by the root layout), system fallback */
+  --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --leading: 1.5;
+  --leading-tight: 1.25;
+
+  /* Space (4 px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --gutter: 1.5rem;
+  --content-max: 1440px;
+
+  /* Shape and depth */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.08);
+  --shadow-sticky: 0 1px 0 var(--color-border), 0 4px 8px -6px rgb(16 24 40 / 0.18);
+
+  /* Controls */
+  --control-h: 2rem;
+  --control-h-sm: 1.75rem;
+  --appbar-h: 3rem;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 120ms;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gutter: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 0ms;
+  }
+}
+
+/* Base elements */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  font-family: system-ui, sans-serif;
   margin: 0;
-  color: #1a1a1a;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading);
+  color: var(--color-text);
+  background: var(--color-canvas);
+  -webkit-font-smoothing: antialiased;
 }
-header {
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid #ddd;
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 var(--space-3);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.011em;
 }
-main {
-  padding: 1.5rem;
+h1 {
+  font-size: var(--text-xl);
+  font-weight: 700;
 }
-.muted {
-  color: #666;
+h2 {
+  font-size: var(--text-lg);
+  font-weight: 650;
 }
-table.matrix {
+h3 {
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+h4 {
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+p {
+  margin: 0 0 var(--space-2);
+}
+
+a {
+  color: var(--color-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  transition:
+    color var(--dur) var(--ease),
+    text-decoration-color var(--dur) var(--ease);
+}
+a:hover {
+  color: var(--color-ink-hover);
+  text-decoration-color: currentColor;
+}
+
+/* The focus ring: every link, button, summary and field shows where the keyboard is. */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+summary {
+  cursor: pointer;
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* A button without a variant: neutral. The variants (primary, soft, quiet) are in ui.module.css. */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+button:hover {
+  background: var(--color-sunken);
+  border-color: var(--color-text-3);
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+select,
+textarea,
+input[type="text"] {
+  max-width: 100%;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+select {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+}
+textarea {
+  min-height: 3.5rem;
+  padding: var(--space-2);
+  line-height: var(--leading);
+  resize: vertical;
+}
+textarea::placeholder {
+  color: var(--color-text-3);
+}
+
+table {
   border-collapse: collapse;
-  width: 100%;
+  font-size: var(--text-sm);
 }
-table.matrix th,
-table.matrix td {
-  border: 1px solid #ddd;
-  padding: 0.5rem;
+th,
+td {
+  padding: var(--space-2) var(--space-3);
   text-align: left;
   vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+th {
+  color: var(--color-text-2);
+  font-weight: 600;
+}
+caption {
+  text-align: left;
+  font-weight: 650;
+  padding-bottom: var(--space-2);
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Utilities shared by every component. */
+.muted {
+  color: var(--color-text-3);
+}
+.failure {
+  color: var(--color-fail);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Slice 1 classes, restyled on the tokens. Each ticket of spec #135 moves its screen's
+ * classes into the component's module and deletes them here. */
+table.matrix {
+  width: 100%;
+  background: var(--color-surface);
 }
 table.matrix p {
-  margin: 0.25rem 0;
+  margin: var(--space-1) 0;
 }
 ul.evidence {
   margin: 0;
-  padding-left: 1rem;
+  padding-left: var(--space-4);
 }
 ul.evidence li + li {
-  margin-top: 0.5rem;
-}
-.failure {
-  color: #8a1c1c;
+  margin-top: var(--space-2);
 }
 .coverage {
-  padding: 0.1rem 0.4rem;
-  border-radius: 0.25rem;
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 600;
   white-space: nowrap;
 }
 .coverage-covered_by_vendor {
-  background: #dcefdc;
+  color: var(--cov-covered-fg);
+  background: var(--cov-covered-bg);
+  border-color: var(--cov-covered-edge);
 }
 .coverage-partial {
-  background: #fdf0c8;
+  color: var(--cov-partial-fg);
+  background: var(--cov-partial-bg);
+  border-color: var(--cov-partial-edge);
 }
 .coverage-site_only {
-  background: #dde8f6;
+  color: var(--cov-site-fg);
+  background: var(--cov-site-bg);
+  border-color: var(--cov-site-edge);
 }
 .coverage-gap {
-  background: #f6dada;
+  color: var(--cov-gap-fg);
+  background: var(--cov-gap-bg);
+  border-color: var(--cov-gap-edge);
 }
 .coverage-conflict {
-  background: #f2c8c8;
+  color: var(--cov-conflict-fg);
+  background: var(--cov-conflict-bg);
+  border-color: var(--cov-conflict-edge);
 }
 .coverage-none {
-  background: #eee;
+  color: var(--cov-none-fg);
+  background: var(--cov-none-bg);
+  border-color: var(--cov-none-edge);
 }
 .read-only {
-  padding: 0.5rem 0.75rem;
-  background: #f4f4f4;
-  border-left: 3px solid #999;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-info-soft);
+  border-left: 3px solid var(--color-info);
+  border-radius: var(--radius-sm);
 }
 table.tally {
-  border-collapse: collapse;
-  margin-bottom: 1rem;
-}
-table.tally caption {
-  text-align: left;
-  font-weight: bold;
-}
-table.tally th,
-table.tally td {
-  border: 1px solid #ddd;
-  padding: 0.25rem 0.5rem;
+  margin-bottom: var(--space-4);
+  background: var(--color-surface);
 }
 .decision-changed > strong {
-  color: #8a5a00;
+  color: var(--color-warn);
 }
 .decision .reason {
   font-style: italic;
 }
 .decide form {
-  margin-top: 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
 }
