@@ -1,7 +1,10 @@
 {
   "app": {
     "title": "TraceQ",
-    "tagline": "Ketertelusuran kualifikasi peralatan. AI hanya memberi saran."
+    "tagline": "Ketertelusuran kualifikasi peralatan. AI hanya memberi saran.",
+    "notFoundTitle": "Halaman tidak ditemukan",
+    "notFoundBody": "Run atau halaman dengan alamat ini tidak ada. Periksa alamatnya, atau buka daftar run.",
+    "toRuns": "Kembali ke daftar run"
   },
   "common": {
     "cite": "{doc} rev {rev}, hlm. {page}"
