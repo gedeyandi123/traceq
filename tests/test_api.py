@@ -68,6 +68,35 @@ def test_serves_the_findings_as_written(client: TestClient) -> None:
     assert [d["doc_id"] for d in r.json()["missing_documents"]] == ["IQ-TP201", "OQ-TP201"]
 
 
+def test_serves_the_dropped_claims_with_their_reasons(client: TestClient) -> None:
+    r = client.get(f"/runs/{RUN_ID}/dropped")
+    assert r.status_code == 200
+    assert r.json() == [
+        {"claim": "requirement", "id": "URS-TP201 p2", "reason": "bad answer"},
+        {"claim": "value", "id": "URS-TP201-005", "reason": "quote not on page or value not in it"},
+    ]
+    reason = openapi_schema()["components"]["schemas"]["DroppedClaim"]["properties"]["reason"]
+    assert reason["type"] == "string" and "enum" not in reason
+
+
+def test_serves_the_completeness_check_as_written(client: TestClient) -> None:
+    r = client.get(f"/runs/{RUN_ID}/completeness")
+    assert r.status_code == 200
+    written = json.loads((RUNS / RUN_ID / "completeness.json").read_text(encoding="utf-8"))
+    assert r.json() == written
+    assert r.json()["urs"][0]["missed"] == [{"number": "URS-TP201-003", "page": 1}]
+
+
+def test_a_run_written_before_the_completeness_check_has_none(tmp_path: Path) -> None:
+    folder = tmp_path / RUN_ID
+    folder.mkdir()
+    for name in ("run.json", "matrix.json", "findings.json"):
+        (folder / name).write_bytes((RUNS / RUN_ID / name).read_bytes())
+    r = TestClient(create_app(tmp_path)).get(f"/runs/{RUN_ID}/completeness")
+    assert r.status_code == 404
+    assert "did not run" in r.json()["detail"]
+
+
 def test_opens_the_cited_document_as_released(client: TestClient) -> None:
     r = client.get(f"/runs/{RUN_ID}/documents/FAT-TP201-M/0")
     assert r.status_code == 200
@@ -103,6 +132,8 @@ def test_a_document_the_run_did_not_read_is_not_served(client: TestClient, tmp_p
         "/runs/nope",
         "/runs/nope/matrix",
         "/runs/nope/findings",
+        "/runs/nope/dropped",
+        "/runs/nope/completeness",
         "/runs/..%2F..%2Ffixtures/matrix",
         f"/runs/{RUN_ID}/report.json",
         f"/runs/{RUN_ID}/report",
@@ -128,11 +159,20 @@ def test_never_exposes_scorer_output_answer_key_or_baselines(client: TestClient)
         "/runs/{run_id}",
         "/runs/{run_id}/matrix",
         "/runs/{run_id}/findings",
+        "/runs/{run_id}/dropped",
+        "/runs/{run_id}/completeness",
         "/runs/{run_id}/documents/{doc_id}/{rev}",
     }
     schema = json.dumps(openapi_schema()).lower()
     assert all(w not in schema for w in ("score", "answer", "baseline", "gate", "report"))
-    for path in ["/runs", f"/runs/{RUN_ID}", f"/runs/{RUN_ID}/matrix", f"/runs/{RUN_ID}/findings"]:
+    for path in [
+        "/runs",
+        f"/runs/{RUN_ID}",
+        f"/runs/{RUN_ID}/matrix",
+        f"/runs/{RUN_ID}/findings",
+        f"/runs/{RUN_ID}/dropped",
+        f"/runs/{RUN_ID}/completeness",
+    ]:
         assert NEVER not in client.get(path).text
     for d in ("URS-TP201", "FAT-TP201-M", "DS-TP201"):
         assert NEVER.encode() not in client.get(f"/runs/{RUN_ID}/documents/{d}/0").content

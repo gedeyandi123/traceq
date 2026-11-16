@@ -43,7 +43,18 @@
   "price_table": {
     "batch_discount": 0.5
   },
-  "dropped": [],
+  "dropped": [
+    {
+      "claim": "requirement",
+      "id": "URS-TP201 p2",
+      "reason": "bad answer"
+    },
+    {
+      "claim": "value",
+      "id": "URS-TP201-005",
+      "reason": "quote not on page or value not in it"
+    }
+  ],
   "ingest": [],
   "not_read": [
     {

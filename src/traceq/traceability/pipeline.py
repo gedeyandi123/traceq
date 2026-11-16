@@ -27,6 +27,7 @@ from traceq.ai.port import sha256
 from traceq.documents import Corpus, CorpusDocument
 from traceq.traceability.assessment import Assessment, read_vendor_assessment
 from traceq.traceability.citations import Citation, verified
+from traceq.traceability.completeness import UrsCompleteness, check
 from traceq.traceability.evidence import Dropped, Linked, VendorFacts, link, read_vendor_facts
 from traceq.traceability.prompts import EXTRACT, SEGMENT
 from traceq.traceability.values import Number, OneOf, Present, Range, Text, Value
@@ -41,6 +42,8 @@ class Requirement:
     text: str
     citation: Citation
     """Verified: the requirement as printed in the URS."""
+    printed: bool
+    """Whether the id is the number the URS prints, not one ``system_id`` made up."""
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,8 @@ class Traceability:
     assessment: Assessment | None = None
     """The verified Vendor Assessment; ``None`` when the corpus holds none."""
     linked: dict[str, Linked] = field(default_factory=dict[str, Linked])
+    completeness: list[UrsCompleteness] = field(default_factory=list[UrsCompleteness])
+    """Per URS read: printed numbers that did not become a requirement, and unquoted text."""
 
 
 class _Answer(BaseModel):
@@ -121,6 +126,8 @@ def _value(a: _Extracted) -> Value | None:
 def trace(corpus: Corpus, llm: LLM) -> Traceability:
     out = Traceability()
     urs = corpus.current("urs")
+    returned: dict[str, list[Requirement]] = {}
+    """Per URS, every requirement the model listed, kept or dropped."""
     for doc in urs:
         pages = corpus.pages(doc)
         segment_answers = llm.complete(
@@ -139,16 +146,19 @@ def trace(corpus: Corpus, llm: LLM) -> Traceability:
             unnumbered = 0
             for s in segments:
                 rid = (s.id or "").strip()
-                if not rid:
+                printed = bool(rid)
+                if not printed:
                     unnumbered += 1
                     rid = system_id(doc.doc_id, n, unnumbered)
                 c = Citation(doc.doc_id, doc.rev, n, s.quote)
-                if any(r.id == rid for r in [*out.requirements, *found]):
+                r = Requirement(rid, s.text, c, printed=printed)
+                returned.setdefault(doc.doc_id, []).append(r)
+                if any(k.id == rid for k in [*out.requirements, *found]):
                     out.dropped.append(Dropped("requirement", rid, "duplicate id"))
                 elif not verified(c, pages):
                     out.dropped.append(Dropped("requirement", rid, "quote not on page"))
                 else:
-                    found.append(Requirement(rid, s.text, c))
+                    found.append(r)
         out.requirements += found
 
         extract_answers = llm.complete(
@@ -178,6 +188,9 @@ def trace(corpus: Corpus, llm: LLM) -> Traceability:
             else:
                 out.dropped.append(Dropped("value", r.id, "quote not on page or value not in it"))
 
+    out.completeness = [
+        _completeness(corpus, doc, out, returned.get(doc.doc_id, [])) for doc in urs
+    ]
     out.vendor = read_vendor_facts(corpus, llm, out.dropped)
     out.assessment = read_vendor_assessment(corpus, llm, out.dropped)
     requirements = [(r.id, r.text, _claimed(out, r.id)) for r in out.requirements]
@@ -185,6 +198,25 @@ def trace(corpus: Corpus, llm: LLM) -> Traceability:
         key = sha256(",".join(sorted(d.sha256 for d in urs)))
         out.linked = link(requirements, out.vendor, key, llm, out.dropped, out.assessment)
     return out
+
+
+def _completeness(
+    corpus: Corpus, doc: CorpusDocument, t: Traceability, returned: list[Requirement]
+) -> UrsCompleteness:
+    """The shape of a number is learned from the ids the model returned as printed, also
+    those the citation check dropped; a made-up id never teaches it."""
+    kept = [r for r in t.requirements if r.citation.doc == doc.doc_id]
+    quotes = [r.citation for r in kept] + [
+        v.citation for r in kept if (v := t.values.get(r.id)) is not None
+    ]
+    return check(
+        doc.doc_id,
+        doc.rev,
+        corpus.pages(doc),
+        printed=[r.id for r in returned if r.printed],
+        kept=[r.id for r in t.requirements],
+        quotes=quotes,
+    )
 
 
 def _claimed(t: Traceability, rid: str) -> Value | None:
