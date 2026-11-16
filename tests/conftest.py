@@ -1,5 +1,5 @@
-"""Shared fixtures: the recorded OCR output of the TP-201 scans, no OCR model, as in CI, and a
-Postgres database per test session.
+"""Shared fixtures: the recorded OCR output of the TP-201 scans, no OCR model, as in CI, a
+Postgres database per test session, and the demo issuer on a free local port.
 
 ``tests/fixtures/ingest/<doc>_rev<n>.json`` is what PP-OCRv6 small read on each scan, in the
 ingest cache's format. To regenerate them, with the OCR model installed
@@ -11,17 +11,23 @@ from __future__ import annotations
 
 import json
 import os
+import socket
+import threading
+import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
+import uvicorn
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from sqlalchemy import URL, Connection, create_engine, make_url, text
 from sqlalchemy.exc import OperationalError
 
 from traceq.db import APP_ROLE, OWNER_ROLE, ensure_roles, upgrade
 from traceq.documents import Corpus, OcrUnavailable, scan
+from traceq.identity.issuer import create_issuer, new_signing_key
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ingest"
 
@@ -131,3 +137,39 @@ def databases(new_database: Callable[[], Databases]) -> Databases:
 def fresh_database(new_database: Callable[[], Databases]) -> Databases:
     """A database of its own, just migrated from zero."""
     return new_database()
+
+
+# --- Demo issuer ----------------------------------------------------------------------
+# The demo issuer runs as its own application on a free local port, so the JWKS is fetched
+# over HTTP as it will be from Keycloak. The tests hold its signing key to forge the tokens
+# it would never sign (expired, another audience, another issuer).
+@dataclass(frozen=True)
+class DemoIssuer:
+    url: str
+    audience: str
+    key: RSAPrivateKey
+
+
+@pytest.fixture(scope="session")
+def demo_issuer() -> Iterator[DemoIssuer]:
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    url = f"http://127.0.0.1:{sock.getsockname()[1]}"
+    key = new_signing_key()
+    audience = "traceq-test"
+    server = uvicorn.Server(
+        uvicorn.Config(create_issuer(url, audience=audience, key=key), log_level="warning")
+    )
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 10
+    while not server.started:
+        if time.monotonic() > deadline or not thread.is_alive():
+            pytest.fail("the demo issuer did not start")
+        time.sleep(0.01)
+    try:
+        yield DemoIssuer(url=url, audience=audience, key=key)
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+        sock.close()
