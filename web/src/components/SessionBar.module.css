@@ -1,0 +1,34 @@
+/* Who is signed in, on the dark app bar. Tokens only (ADR 0011). */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.who {
+  color: var(--color-appbar-text);
+}
+.out {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-appbar-muted) 50%, transparent);
+  color: var(--color-appbar-text);
+}
+.out:hover {
+  background: color-mix(in srgb, var(--color-appbar-text) 12%, transparent);
+  border-color: var(--color-appbar-muted);
+  color: var(--color-appbar-strong);
+}
+.signin {
+  color: var(--color-appbar-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.signin:hover {
+  color: var(--color-appbar-strong);
+}
+
+@media (max-width: 640px) {
+  .who {
+    display: none;
+  }
+}
