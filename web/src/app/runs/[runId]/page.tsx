@@ -1,12 +1,18 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
 import { MatrixTable } from "@/components/MatrixTable";
+import { RunHeader } from "@/components/RunHeader";
 import { decisionError, loadDecisions } from "@/decisions/load";
 
 export const dynamic = "force-dynamic";
+
+/** The browser tab reads "<screen> · TraceQ" (the root layout's template); translations only, no fetch. */
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("matrix"))("title") };
+}
 
 export default async function MatrixPage({
   params,
@@ -27,17 +33,7 @@ export default async function MatrixPage({
   if (!run.data || !matrix.data) notFound();
   return (
     <>
-      <Link href="/">{t("back")}</Link>
-      <h1>{t("title")}</h1>
-      <p className="muted">
-        {t("subtitle", { equipment: run.data.equipment, runId })}
-        {" · "}
-        <Link href={`/runs/${encodeURIComponent(runId)}/findings`}>{t("toFindings")}</Link>
-        {" · "}
-        <Link href={`/runs/${encodeURIComponent(runId)}/left-out`}>{t("toLeftOut")}</Link>
-        {" · "}
-        <Link href={`/runs/${encodeURIComponent(runId)}/eval`}>{t("toEval")}</Link>
-      </p>
+      <RunHeader run={run.data} current="matrix" intro={t("intro")} />
       <MatrixTable matrix={matrix.data} runId={runId} decisions={decisions} />
     </>
   );

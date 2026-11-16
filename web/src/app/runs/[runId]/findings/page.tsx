@@ -1,12 +1,18 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
 import { FindingsView } from "@/components/FindingsView";
+import { RunHeader } from "@/components/RunHeader";
 import { decisionError, loadDecisions } from "@/decisions/load";
 
 export const dynamic = "force-dynamic";
+
+/** The browser tab reads "<screen> · TraceQ" (the root layout's template); translations only, no fetch. */
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("findings"))("title") };
+}
 
 export default async function FindingsPage({
   params,
@@ -27,13 +33,7 @@ export default async function FindingsPage({
   if (!run.data || !findings.data) notFound();
   return (
     <>
-      <Link href={`/runs/${encodeURIComponent(runId)}`}>{t("back")}</Link>
-      <h1>{t("title")}</h1>
-      <p className="muted">
-        {t("subtitle", { equipment: run.data.equipment, runId })}
-        {" · "}
-        <Link href={`/runs/${encodeURIComponent(runId)}/left-out`}>{t("toLeftOut")}</Link>
-      </p>
+      <RunHeader run={run.data} current="findings" intro={t("intro")} />
       <FindingsView findings={findings.data} runId={runId} decisions={decisions} />
     </>
   );
