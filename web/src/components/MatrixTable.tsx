@@ -5,11 +5,11 @@ import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
 
-type T = ReturnType<typeof useTranslations<"matrix">>;
+export type T = ReturnType<typeof useTranslations<"matrix">>;
 
 const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
 
-function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
+export function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
   switch (v.type) {
     case "range":
       if (v.min != null && v.max != null) {
@@ -32,7 +32,7 @@ function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
   }
 }
 
-function Evidence({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
+export function Evidence({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
   if (row.evidence.length === 0 && row.design.length === 0) {
     return <span className="muted">{t("noEvidence")}</span>;
   }

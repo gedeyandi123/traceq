@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
 import { MatrixTable } from "@/components/MatrixTable";
+import { PrototypeSwitcher } from "@/components/prototype/PrototypeSwitcher";
+import { VariantA } from "@/components/prototype/VariantA";
+import { VariantB } from "@/components/prototype/VariantB";
+import { VariantC } from "@/components/prototype/VariantC";
 import { decisionError, loadDecisions } from "@/decisions/load";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +17,7 @@ export default async function MatrixPage({
   searchParams,
 }: {
   params: Promise<{ runId: string }>;
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ error?: string | string[]; variant?: string; req?: string }>;
 }) {
   const { runId } = await params;
   const t = await getTranslations("matrix");
@@ -23,8 +27,34 @@ export default async function MatrixPage({
     api.GET("/runs/{run_id}/matrix", path),
     loadDecisions(runId),
   ]);
-  decisions.error = decisionError((await searchParams).error);
+  const query = await searchParams;
+  decisions.error = decisionError(query.error);
   if (!run.data || !matrix.data) notFound();
+  // PROTOTYPE (feat/ui-redesign-prototype, never merged): three layouts on ?variant=A|B|C,
+  // the current page as "0". Production builds ignore the parameter and hide the switcher.
+  const prototype = process.env.NODE_ENV !== "production";
+  const variant = prototype ? (query.variant ?? "0") : "0";
+  const props = {
+    matrix: matrix.data,
+    runId,
+    decisions,
+    equipment: run.data.equipment,
+    selected: query.req,
+  };
+  const switcher = prototype && (
+    <PrototypeSwitcher
+      current={variant}
+      variants={[
+        { key: "0", name: "Sekarang" },
+        { key: "A", name: "Ledger" },
+        { key: "B", name: "Triage" },
+        { key: "C", name: "Board" },
+      ]}
+    />
+  );
+  if (variant === "A") return <><VariantA {...props} />{switcher}</>;
+  if (variant === "B") return <><VariantB {...props} />{switcher}</>;
+  if (variant === "C") return <><VariantC {...props} />{switcher}</>;
   return (
     <>
       <Link href="/">{t("back")}</Link>
@@ -39,6 +69,7 @@ export default async function MatrixPage({
         <Link href={`/runs/${encodeURIComponent(runId)}/eval`}>{t("toEval")}</Link>
       </p>
       <MatrixTable matrix={matrix.data} runId={runId} decisions={decisions} />
+      {switcher}
     </>
   );
 }

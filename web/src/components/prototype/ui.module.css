@@ -1,0 +1,97 @@
+/* PROTOTYPE (feat/ui-redesign-prototype, never merged): the design tokens every variant
+ * shares, as CSS variables on the variant's root. */
+.tokens {
+  --c-bg: #ffffff;
+  --c-surface: #f6f6f3;
+  --c-surface-2: #ececE7;
+  --c-border: #d9d9d3;
+  --c-text: #1b1b19;
+  --c-muted: #5e5e58;
+  --c-accent: #1f4e79;
+  --c-accent-soft: #e3ecf6;
+  --c-danger: #9b2222;
+
+  --cov-covered_by_vendor-fg: #22622a;
+  --cov-covered_by_vendor-bg: #e2f0e3;
+  --cov-partial-fg: #7a5600;
+  --cov-partial-bg: #fbefc9;
+  --cov-site_only-fg: #1f4e79;
+  --cov-site_only-bg: #e0e9f5;
+  --cov-gap-fg: #9b2222;
+  --cov-gap-bg: #f8dfdf;
+  --cov-conflict-fg: #ffffff;
+  --cov-conflict-bg: #9b2222;
+  --cov-none-fg: #444;
+  --cov-none-bg: #e6e6e6;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --radius: 6px;
+  --font-xs: 0.75rem;
+  --font-sm: 0.8125rem;
+  --font-md: 0.9375rem;
+  --font-lg: 1.125rem;
+  --font-xl: 1.375rem;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+
+  color: var(--c-text);
+  font-size: var(--font-md);
+  line-height: 1.45;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cov_covered_by_vendor { color: var(--cov-covered_by_vendor-fg); background: var(--cov-covered_by_vendor-bg); }
+.cov_partial { color: var(--cov-partial-fg); background: var(--cov-partial-bg); }
+.cov_site_only { color: var(--cov-site_only-fg); background: var(--cov-site_only-bg); }
+.cov_gap { color: var(--cov-gap-fg); background: var(--cov-gap-bg); }
+.cov_conflict { color: var(--cov-conflict-fg); background: var(--cov-conflict-bg); }
+.cov_none { color: var(--cov-none-fg); background: var(--cov-none-bg); }
+
+.muted {
+  color: var(--c-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+.actions button,
+.actions select {
+  font: inherit;
+  font-size: var(--font-sm);
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--c-border);
+  background: var(--c-bg);
+  cursor: not-allowed;
+}
+.actions .primary {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+  opacity: 0.85;
+}
+.stub {
+  font-size: var(--font-xs);
+  color: var(--c-muted);
+}
+
+.notice {
+  padding: var(--space-2) var(--space-3);
+  background: var(--c-surface);
+  border-left: 3px solid var(--c-muted);
+  border-radius: var(--radius);
+  margin: 0 0 var(--space-3);
+}
