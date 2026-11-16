@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from traceq.runs.api import create_app, openapi_schema
+from traceq.app.api import create_app, openapi_schema
 from traceq.runs.schemas import Findings, Matrix
 
 ROOT = Path(__file__).parents[1]

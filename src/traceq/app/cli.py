@@ -59,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "serve":
         import uvicorn
 
-        from traceq.runs.api import create_app
+        from traceq.app.api import create_app
 
         uvicorn.run(create_app(args.runs, args.corpus), host=args.host, port=args.port)
         return 0
