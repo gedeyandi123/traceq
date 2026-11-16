@@ -2,6 +2,7 @@
 import { cookies } from "next/headers";
 
 import { ISSUER_URL } from "@/api/url";
+import { DECIDING_ROLE } from "@/decisions/vocabulary";
 
 /** The httpOnly cookie holding the demo token. Only the Next.js server reads it. */
 export const TOKEN_COOKIE = "traceq_token";
@@ -11,10 +12,6 @@ export type Persona = { username: string; name: string; roles: string[] };
 /** ``mayDecide``: the token names the deciding role. Read for display only: the API checks
  * the role again on every decision. */
 export type Session = { name: string; mayDecide: boolean };
-
-/** The role that may import a run and record Proposal Decisions (spec #105), as the API
- * names it. */
-const DECIDING_ROLE = "qualification-decider";
 
 /** The claim holding the roles, a dotted path for a nested claim; the same setting as the
  * API's `--role-claim`. */

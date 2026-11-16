@@ -1,4 +1,4 @@
-"""``traceq demo``: refuses without the corpus, resets the database, brings the demo up (#115).
+"""``scripts/demo.py``: refuses without the corpus, resets the database, brings the demo up (#115).
 
 Nothing is sent to an LLM: the run is replayed from the committed recordings. The corpus is
 the release manifest with empty placeholder documents, as replay needs only the document

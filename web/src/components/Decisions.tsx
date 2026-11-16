@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import type { CoverageClass, Decision, DecisionCounts, Proposal } from "@/api/client";
+import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 
 /** Why a run shows read-only: not signed in, signed in without the deciding role, the run is
  * not imported, or the API refused the token or has no database. */
@@ -25,13 +26,6 @@ export type DecisionView = {
 /** The screen a decision form returns to. */
 export type DecisionScreen = "matrix" | "findings";
 
-const CLASSES: readonly CoverageClass[] = [
-  "covered_by_vendor",
-  "partial",
-  "site_only",
-  "gap",
-  "conflict",
-];
 
 type T = ReturnType<typeof useTranslations<"decisions">>;
 type ClassT = ReturnType<typeof useTranslations<"matrix">>;
@@ -193,7 +187,7 @@ function Forms({
             <option value="" disabled>
               {t("toClass")}
             </option>
-            {CLASSES.filter((c) => c !== proposed).map((c) => (
+            {COVERAGE_CLASSES.filter((c) => c !== proposed).map((c) => (
               <option key={c} value={c}>
                 {classes(`classes.${c}`)}
               </option>

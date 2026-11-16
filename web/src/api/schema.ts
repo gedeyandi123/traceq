@@ -327,11 +327,7 @@ export interface components {
         Decision: {
             /** Id */
             id: number;
-            /**
-             * Decision
-             * @enum {string}
-             */
-            decision: "accepted" | "rejected" | "edited";
+            decision: components["schemas"]["Verdict"];
             /** Coverage */
             coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -471,6 +467,8 @@ export interface components {
             /** Already Imported */
             already_imported: boolean;
         };
+        /** @enum {string} */
+        Kind: "coverage" | "check" | "ai";
         /**
          * KindCounts
          * @description The Proposals of one kind in a run, by decision state. ``total`` is the sum of
@@ -574,11 +572,7 @@ export interface components {
          *     decision that replaces an earlier one on the same content.
          */
         NewDecision: {
-            /**
-             * Decision
-             * @enum {string}
-             */
-            decision: "accepted" | "rejected" | "edited";
+            decision: components["schemas"]["Verdict"];
             /** Coverage */
             coverage?: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -638,22 +632,14 @@ export interface components {
         Proposal: {
             /** Id */
             id: number;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "coverage" | "check" | "ai";
+            kind: components["schemas"]["Kind"];
             /** Requirement */
             requirement: string | null;
             /** Position */
             position: number | null;
             /** Content Hash */
             content_hash: string;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "decided" | "changed" | "undecided";
+            state: components["schemas"]["State"];
             /** Decisions */
             decisions: components["schemas"]["Decision"][];
             previous: components["schemas"]["Decision"] | null;
@@ -736,6 +722,8 @@ export interface components {
             /** Rev */
             rev: number;
         };
+        /** @enum {string} */
+        State: "decided" | "changed" | "undecided";
         /** Text */
         Text: {
             /**
@@ -790,6 +778,8 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** @enum {string} */
+        Verdict: "accepted" | "rejected" | "edited";
     };
     responses: never;
     parameters: never;

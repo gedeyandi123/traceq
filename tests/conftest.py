@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from sqlalchemy import URL, Connection, create_engine, make_url, text
 from sqlalchemy.exc import OperationalError
 
+from traceq.app.demo import ADMIN_URL as DEMO_ADMIN_URL
 from traceq.db import APP_ROLE, OWNER_ROLE, ensure_roles, upgrade
 from traceq.documents import Corpus, OcrUnavailable, scan
 from traceq.identity.issuer import create_issuer, new_signing_key
@@ -64,9 +65,7 @@ def no_ocr_model(monkeypatch: pytest.MonkeyPatch) -> None:
 # A superuser connection to a server (Compose locally, the service container in CI). Each
 # session creates databases with unique names and drops them at the end, because two
 # implementers may share one server; the roles belong to the server and are never dropped.
-ADMIN_URL = os.environ.get(
-    "TRACEQ_TEST_ADMIN_URL", "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/postgres"
-)
+ADMIN_URL = os.environ.get("TRACEQ_TEST_ADMIN_URL", DEMO_ADMIN_URL)
 
 
 @dataclass(frozen=True)

@@ -701,13 +701,7 @@
             "title": "Id"
           },
           "decision": {
-            "type": "string",
-            "enum": [
-              "accepted",
-              "rejected",
-              "edited"
-            ],
-            "title": "Decision"
+            "$ref": "#/components/schemas/Verdict"
           },
           "coverage": {
             "anyOf": [
@@ -1149,6 +1143,14 @@
         "title": "ImportedRun",
         "description": "A run imported as Proposals."
       },
+      "Kind": {
+        "type": "string",
+        "enum": [
+          "coverage",
+          "check",
+          "ai"
+        ]
+      },
       "KindCounts": {
         "properties": {
           "total": {
@@ -1423,13 +1425,7 @@
       "NewDecision": {
         "properties": {
           "decision": {
-            "type": "string",
-            "enum": [
-              "accepted",
-              "rejected",
-              "edited"
-            ],
-            "title": "Decision"
+            "$ref": "#/components/schemas/Verdict"
           },
           "coverage": {
             "anyOf": [
@@ -1575,13 +1571,7 @@
             "title": "Id"
           },
           "kind": {
-            "type": "string",
-            "enum": [
-              "coverage",
-              "check",
-              "ai"
-            ],
-            "title": "Kind"
+            "$ref": "#/components/schemas/Kind"
           },
           "requirement": {
             "anyOf": [
@@ -1610,13 +1600,7 @@
             "title": "Content Hash"
           },
           "state": {
-            "type": "string",
-            "enum": [
-              "decided",
-              "changed",
-              "undecided"
-            ],
-            "title": "State"
+            "$ref": "#/components/schemas/State"
           },
           "decisions": {
             "items": {
@@ -1825,6 +1809,14 @@
         "title": "Source",
         "description": "A document and revision an AI Finding cites."
       },
+      "State": {
+        "type": "string",
+        "enum": [
+          "decided",
+          "changed",
+          "undecided"
+        ]
+      },
       "Text": {
         "properties": {
           "type": {
@@ -1954,6 +1946,14 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Verdict": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "rejected",
+          "edited"
+        ]
       }
     },
     "securitySchemes": {

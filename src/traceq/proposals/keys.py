@@ -6,7 +6,7 @@ rests on. Both follow the spec's table:
 - Coverage row: key = Equipment, requirement id. Content = the URS document and revision the
   requirement is printed in, Coverage class, reason, required value, the two judged
   properties, and per Evidence step and design row the document, revision, step or row name,
-  the value read, and (for a step) result and verdict.
+  the value read, and (for a step) result and failure.
 - Check Finding: key = Equipment, layer, type, document, and its citations as a set.
   Content = detail text, cited site rule.
 - AI Finding: key = Equipment, layer, type, and its citations as a set. Content = detail text.
@@ -27,7 +27,7 @@ from typing import Any, Literal
 from traceq.runs.schemas import AiFinding, CheckFinding, Cite, Findings, Matrix, MatrixRow
 
 type Kind = Literal["coverage", "check", "ai"]
-type Json = dict[str, Any]
+type JsonObject = dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -35,12 +35,12 @@ class Proposed:
     """One Proposal as a run proposed it."""
 
     kind: Kind
-    subject: Json
+    subject: JsonObject
     subject_hash: str
     ordinal: int
     """Its order among the run's Proposals with the same subject key, from 0."""
     content_hash: str
-    proposed: Json
+    proposed: JsonObject
     """The item as written in the run's file."""
     requirement: str | None
     """For a Coverage row: the requirement id."""
@@ -57,16 +57,16 @@ def digest(data: Any) -> str:
     return hashlib.sha256(_canonical(data).encode("utf-8")).hexdigest()
 
 
-def _as_set(items: list[Json]) -> list[Json]:
+def _as_set(items: list[JsonObject]) -> list[JsonObject]:
     """Order and repetition removed: equal sets give equal lists."""
     return [json.loads(s) for s in sorted({_canonical(i) for i in items})]
 
 
-def _citations(cites: tuple[Cite, ...]) -> list[Json]:
+def _citations(cites: tuple[Cite, ...]) -> list[JsonObject]:
     return _as_set([c.model_dump(mode="json") for c in cites])
 
 
-def _coverage_content(row: MatrixRow) -> Json:
+def _coverage_content(row: MatrixRow) -> JsonObject:
     def dump(v: Any) -> Any:
         return None if v is None else v.model_dump(mode="json")
 
@@ -85,7 +85,7 @@ def _coverage_content(row: MatrixRow) -> Json:
                     "step": e.step,
                     "value": dump(e.observed_value),
                     "result": e.result,
-                    "verdict": e.failure,
+                    "failure": e.failure,
                 }
                 for e in row.evidence
             ]
@@ -99,7 +99,7 @@ def _coverage_content(row: MatrixRow) -> Json:
     }
 
 
-def _check(equipment: str, f: CheckFinding) -> tuple[Json, Json]:
+def _check(equipment: str, f: CheckFinding) -> tuple[JsonObject, JsonObject]:
     subject = {
         "equipment": equipment,
         "layer": "check",
@@ -111,7 +111,7 @@ def _check(equipment: str, f: CheckFinding) -> tuple[Json, Json]:
     return subject, {"detail": f.detail, "rule": rule}
 
 
-def _ai(equipment: str, f: AiFinding) -> tuple[Json, Json]:
+def _ai(equipment: str, f: AiFinding) -> tuple[JsonObject, JsonObject]:
     subject = {
         "equipment": equipment,
         "layer": "ai",
@@ -129,9 +129,9 @@ def proposals_of(equipment: str, matrix: Matrix, findings: Findings) -> list[Pro
 
     def add(
         kind: Kind,
-        subject: Json,
-        content: Json,
-        item: Json,
+        subject: JsonObject,
+        content: JsonObject,
+        item: JsonObject,
         requirement: str | None = None,
         position: int | None = None,
     ) -> None:

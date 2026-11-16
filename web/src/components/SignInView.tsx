@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
-export type PersonaItem = { username: string; name: string; roles: string[] };
+import type { Persona } from "@/auth/session";
+import { DECIDING_ROLE } from "@/decisions/vocabulary";
 
 /** The sign-in screen: the demo personas, labelled as demo identities. No password. The
  * action runs on the Next.js server; the token never reaches client-side JavaScript. */
@@ -8,7 +9,7 @@ export function SignInView({
   personas,
   action,
 }: {
-  personas: readonly PersonaItem[] | null;
+  personas: readonly Persona[] | null;
   action: (formData: FormData) => void | Promise<void>;
 }) {
   const t = useTranslations("signin");
@@ -23,7 +24,7 @@ export function SignInView({
             <form action={action}>
               <input type="hidden" name="username" value={p.username} />
               <button type="submit">{t("as", { name: p.name })}</button>{" "}
-              <span className="muted">{p.roles.length > 0 ? t("canDecide") : t("readOnly")}</span>
+              <span className="muted">{p.roles.includes(DECIDING_ROLE) ? t("canDecide") : t("readOnly")}</span>
             </form>
           </li>
         ))}

@@ -20,21 +20,25 @@ EQUIPMENT = "TP-201"
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     p.add_argument("corpus", type=Path, help="the extracted corpus release 0.1.0")
-    p.add_argument("--recordings", type=Path, default=Path("recordings/haiku-r7"))
-    p.add_argument("--runs", type=Path, default=Path("runs-demo"))
-    p.add_argument("--issuer-port", type=int, default=9000)
-    p.add_argument("--api-port", type=int, default=8000)
+    # Unset options keep DemoSettings' defaults, so they are written in one place.
+    p.add_argument("--recordings", type=Path)
+    p.add_argument("--runs", type=Path)
+    p.add_argument("--issuer-port", type=int)
+    p.add_argument("--api-port", type=int)
     p.add_argument("--no-compose", action="store_true", help="Postgres already runs")
     a = p.parse_args()
+    given = {
+        "recordings": a.recordings,
+        "runs": a.runs,
+        "issuer_port": a.issuer_port,
+        "api_port": a.api_port,
+    }
     return run_demo(
         DemoSettings(
             corpus=a.corpus,
             equipment=EQUIPMENT,
-            recordings=a.recordings,
-            runs=a.runs,
-            issuer_port=a.issuer_port,
-            api_port=a.api_port,
             compose=not a.no_compose,
+            **{k: v for k, v in given.items() if v is not None},
         )
     )
 
