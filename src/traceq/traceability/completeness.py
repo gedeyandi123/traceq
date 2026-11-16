@@ -4,7 +4,7 @@ No LLM. It runs on the pages of the URS the run read, after the citation check:
 
 - **Printed numbers missed.** The shape of a requirement number is learned from the ids the
   model returned as printed (``Requirement.printed``), each digit run generalised, so
-  ``URS-TP201-001`` gives ``URS-TP<digits>-<digits>``. Ids the system made up for unnumbered
+  ``URS-AB12-001`` gives ``URS-AB<digits>-<digits>``. Ids the system made up for unnumbered
   requirements never teach it. Every token of that shape on the pages that is not the id of
   a kept requirement is missed, so a number whose requirement the citation check dropped is
   missed too. A URS whose requirements carry no printed number gets ``not_applicable``, not
