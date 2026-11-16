@@ -10,7 +10,9 @@ No LLM. It runs on the pages of the URS the run read, after the citation check:
   missed too. A URS whose requirements carry no printed number gets ``not_applicable``, not
   "0 missed".
 - **Unquoted text.** Each line of a page that no kept requirement's quote (its segmentation
-  quote or its value quote) touches, adjacent such lines merged into one entry.
+  quote or its value quote) touches, adjacent such lines merged into one entry. A kept
+  requirement's value quotes count as quoted text: a line only its value quote touches is
+  not listed.
 
 Limit: the shape separates only numbers that look unlike other text. A URS numbered ``1``,
 ``2`` or ``4.1`` makes every such number on its pages a candidate, so the list over-reports.

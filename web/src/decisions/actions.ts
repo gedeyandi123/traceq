@@ -3,17 +3,10 @@
 import { redirect } from "next/navigation";
 
 import { api } from "@/api/client";
-import type { CoverageClass } from "@/api/client";
 import { bearerHeaders } from "@/auth/session";
 import type { DecisionError } from "@/components/Decisions";
+import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 
-const CLASSES: readonly CoverageClass[] = [
-  "covered_by_vendor",
-  "partial",
-  "site_only",
-  "gap",
-  "conflict",
-];
 const DECISIONS = ["accepted", "rejected", "edited"] as const;
 
 function field(form: FormData, name: string): string | undefined {
@@ -40,7 +33,7 @@ export async function decide(form: FormData): Promise<void> {
       headers: await bearerHeaders(),
       body: {
         decision,
-        coverage: CLASSES.find((c) => c === field(form, "coverage")) ?? null,
+        coverage: COVERAGE_CLASSES.find((c) => c === field(form, "coverage")) ?? null,
         reason: field(form, "reason") ?? null,
       },
     });

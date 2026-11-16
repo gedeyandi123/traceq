@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
-type Json = dict[str, Any] | list[Any] | str | int | float | bool | None
+type JsonValue = dict[str, Any] | list[Any] | str | int | float | bool | None
 
 _TABLE = Table(
     "audit_trail",
@@ -56,8 +56,8 @@ class Entry:
     action: str
     record_type: str
     record_id: str
-    old_value: Json
-    new_value: Json
+    old_value: JsonValue
+    new_value: JsonValue
     reason: str | None
 
 
@@ -82,8 +82,8 @@ def append(
     record_type: str,
     record_id: str,
     *,
-    old: Json = None,
-    new: Json = None,
+    old: JsonValue = None,
+    new: JsonValue = None,
     reason: str | None = None,
 ) -> Entry:
     """Adds an entry in the session's transaction, so it commits with the change it records."""

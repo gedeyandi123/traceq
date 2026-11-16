@@ -1,4 +1,4 @@
-"""``traceq demo``: brings the demo to a known state, and resets it when run again (spec #105).
+"""``scripts/demo.py``: brings the demo to a known state, and resets it when run again (spec #105).
 
 In order: Postgres through Docker Compose, the two server roles, the database dropped and
 recreated by the owning role, the migrations, the committed recordings of the dev Equipment
@@ -31,6 +31,7 @@ CORPUS_VERSION = "0.1.0"
 MODEL = "claude-haiku-5-5"
 DATABASE = "traceq"
 DEMO_PERSONA = "ayu"
+# A superuser connection to the local Compose Postgres; the test suite uses it too.
 ADMIN_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/postgres"
 
 

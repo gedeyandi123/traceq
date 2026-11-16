@@ -12,7 +12,7 @@ per-application dependency (``principal``), a local name, at definition time.
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -22,6 +22,8 @@ from traceq.audit import Actor
 from traceq.db import transaction
 from traceq.identity import Principal
 from traceq.proposals import decisions
+from traceq.proposals.decisions import State, Verdict
+from traceq.proposals.keys import Kind
 from traceq.proposals.store import RunFiles, import_run
 from traceq.runs.api import FINDINGS_FILE, MATRIX_FILE, RUN_FILE, find_run, read_served
 from traceq.runs.schemas import Findings, Matrix
@@ -51,7 +53,7 @@ class NewDecision(_Model):
     class). A Reason for Change is required for ``rejected`` and ``edited``, and for any
     decision that replaces an earlier one on the same content."""
 
-    decision: Literal["accepted", "rejected", "edited"]
+    decision: Verdict
     coverage: CoverageClass | None = None
     """For ``edited``: the class the Coverage row is changed to."""
     reason: str | None = None
@@ -62,7 +64,7 @@ class Decision(_Model):
     """A recorded Proposal Decision: what, who, when and why."""
 
     id: int
-    decision: Literal["accepted", "rejected", "edited"]
+    decision: Verdict
     coverage: CoverageClass | None
     """For ``edited``: the class the person chose."""
     reason: str | None
@@ -82,7 +84,7 @@ class Proposal(_Model):
 
     id: int
     """Its identity across runs: the same subject gets the same id in every run."""
-    kind: Literal["coverage", "check", "ai"]
+    kind: Kind
     """A Coverage row, or the layer of a finding (Check Finding, AI Finding)."""
     requirement: str | None
     """For a Coverage row: the requirement id in ``matrix.json``."""
@@ -90,7 +92,7 @@ class Proposal(_Model):
     """For a finding: its position in its layer's list in ``findings.json``, from 0."""
     content_hash: str
     """What this run proposed about it, hashed as the content a decision rests on."""
-    state: Literal["decided", "changed", "undecided"]
+    state: State
     """``decided``: a decision exists for this content, also one made on another run.
     ``changed``: decisions exist only for other content, so it is undecided again.
     ``undecided``: no decision exists."""
