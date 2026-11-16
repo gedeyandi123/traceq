@@ -15,6 +15,7 @@ dependencies = [
     "pillow>=13.0.0",
     "psycopg[binary]>=3.3.9",
     "pydantic>=2.11",
+    "pyjwt[crypto]>=2.15.1",
     "pypdf>=6",
     "pypdfium2>=5.15.2",
     "pyyaml>=6.0.2",
@@ -95,11 +96,11 @@ root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "TraceQ modules are layered: app > audit > db > runs > review, protocols > traceability > documents, ai"
+name = "TraceQ modules are layered: app > audit, identity > db > runs > review, protocols > traceability > documents, ai"
 type = "layers"
 layers = [
     "traceq.app",
-    "traceq.audit",
+    "traceq.audit | traceq.identity",
     "traceq.db",
     "traceq.runs",
     "traceq.review | traceq.protocols",
@@ -108,7 +109,7 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The pipeline and the harness import neither app, the database modules nor a database library"
+name = "The pipeline and the harness import neither app, identity, the database modules nor a database library"
 type = "forbidden"
 source_modules = [
     "traceq.runs",
@@ -120,7 +121,15 @@ source_modules = [
     "traceq_eval",
     "traceq_dataset",
 ]
-forbidden_modules = ["traceq.app", "traceq.audit", "traceq.db", "sqlalchemy", "psycopg", "alembic"]
+forbidden_modules = [
+    "traceq.app",
+    "traceq.audit",
+    "traceq.identity",
+    "traceq.db",
+    "sqlalchemy",
+    "psycopg",
+    "alembic",
+]
 
 [[tool.importlinter.contracts]]
 name = "The system never imports the dataset or the scorer"
