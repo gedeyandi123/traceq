@@ -128,6 +128,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Pre-compression capability of 20% of the 100 kN main compression requirement (URS-TP201-004)."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     intended_coverage: covered_by_vendor
   - id: URS-TP201-006
@@ -140,6 +141,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Largest round tablet in the plant's portfolio and pipeline; EU D tooling (URS-TP201-008) is chosen for this size."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -221,6 +223,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Frame and covers only need corrosion resistance for routine cleaning; 304 is the plant standard."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     transport_sensitive: false
     intended_coverage: covered_by_vendor
@@ -234,6 +237,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Plant standard elastomers for product contact, compatible with its cleaning agents; each needs a food-contact compliance statement."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     transport_sensitive: false
     intended_coverage: gap
@@ -294,6 +298,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "The force signal drives weight control and rejection; ±1% of full scale keeps the 100 kN channel within ±1 kN. No brand-free source found."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: control
     critical: true
     intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
@@ -453,6 +458,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Compressed-air header pressure at the compression-room drop point."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -498,6 +504,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Clear ceiling height of the compression room."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -511,6 +518,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Compression-room HVAC design range."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     site_only: true
     intended_coverage: site_only
@@ -526,6 +534,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Production planning allows a two-hour block per product changeover."
       drafted_by: llm
+      reviewed_by: practitioner
     scope: mechanical
     transport_sensitive: false
     intended_coverage: gap
