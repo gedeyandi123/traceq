@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 
 import type { Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
 import { CiteLink } from "./CiteLink";
-import { CoverageBadge } from "./ui/ui";
+import { CoverageBadge, Panel } from "./ui/ui";
 import type { CoverageKey } from "./ui/ui";
 import s from "./MatrixTable.module.css";
 import tbl from "./ui/table.module.css";
@@ -50,7 +50,8 @@ function EvidenceChips({ row, t }: { row: MatrixRow; t: T }) {
       ))}
       {row.design.length > 0 && (
         <span className={s.chip}>
-          {t("design")} ×{row.design.length}
+          {t("design")}
+          {row.design.length > 1 && ` ×${row.design.length}`}
         </span>
       )}
     </span>
@@ -106,11 +107,14 @@ function CoverageSummary({ rows, t }: { rows: readonly MatrixRow[]; t: T }) {
   for (const r of rows) counts.set(r.coverage ?? "none", (counts.get(r.coverage ?? "none") ?? 0) + 1);
   const present = RISK.filter((k) => (counts.get(k) ?? 0) > 0);
   return (
-    <div className={s.summary}>
-      <div className={s.summaryHead}>
-        <span className={s.total}>{rows.length}</span>
-        <span className={s.totalLabel}>{t("requirement")}</span>
-      </div>
+    <Panel
+      title={t("summaryTitle")}
+      aside={
+        <span className={s.total}>
+          <b>{rows.length}</b> {t("requirement")}
+        </span>
+      }
+    >
       <div className={s.bar} aria-hidden="true">
         {present.map((k) => (
           <span key={k} className={s[`seg_${k}`]} style={{ flexGrow: counts.get(k) }} />
@@ -120,11 +124,24 @@ function CoverageSummary({ rows, t }: { rows: readonly MatrixRow[]; t: T }) {
         {present.map((k) => (
           <li key={k}>
             <span className={s.legendN}>{counts.get(k)}</span>
-            <CoverageBadge cls={k} label={t(`classes.${k}`)} />
+            <CoverageBadge cls={k} label={t(`classes.${k}`)} help={t(`help.${k}`)} />
           </li>
         ))}
       </ul>
-    </div>
+      <details className={s.help}>
+        <summary>{t("legendTitle")}</summary>
+        <dl>
+          {RISK.map((k) => (
+            <div key={k}>
+              <dt>
+                <CoverageBadge cls={k} label={t(`classes.${k}`)} />
+              </dt>
+              <dd>{t(`help.${k}`)}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
+    </Panel>
   );
 }
 
@@ -201,7 +218,11 @@ export function MatrixTable({
                   )}
                 </td>
                 <td>
-                  <CoverageBadge cls={row.coverage ?? "none"} label={t(`classes.${row.coverage ?? "none"}`)} />
+                  <CoverageBadge
+                    cls={row.coverage ?? "none"}
+                    label={t(`classes.${row.coverage ?? "none"}`)}
+                    help={t(`help.${row.coverage ?? "none"}`)}
+                  />
                   <p className={s.reason}>{row.reason}</p>
                 </td>
                 <td>

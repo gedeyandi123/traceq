@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 
 import type { EvalSummary } from "@/api/client";
 
+import { Panel } from "./ui/ui";
 import s from "./EvalView.module.css";
 import tbl from "./ui/table.module.css";
 
@@ -20,6 +21,7 @@ export function EvalView({ summary }: { summary: EvalSummary }) {
   const split = t(`splits.${summary.split}`, { equipment: summary.equipment });
   return (
     <>
+      <Panel title={t("summaryTitle")}>
       <div className={s.top}>
         <div className={`${s.gate} ${summary.gates_passed ? s.pass : s.fail}`}>
           <span className={s.gateIcon} aria-hidden="true">
@@ -48,6 +50,7 @@ export function EvalView({ summary }: { summary: EvalSummary }) {
           </div>
         </dl>
       </div>
+      </Panel>
       <div className={tbl.wrap}>
         <table className={tbl.table}>
           <thead>

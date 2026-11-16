@@ -22,6 +22,7 @@ export default async function FindingsPage({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const { runId } = await params;
+  const t = await getTranslations("findings");
   const path = { params: { path: { run_id: runId } } };
   const [run, findings, decisions] = await Promise.all([
     api.GET("/runs/{run_id}", path),
@@ -31,9 +32,9 @@ export default async function FindingsPage({
   decisions.error = decisionError((await searchParams).error);
   if (!run.data || !findings.data) notFound();
   return (
-    <>
-      <RunHeader run={run.data} current="findings" />
+    <div className="stack">
+      <RunHeader run={run.data} current="findings" intro={t("intro")} />
       <FindingsView findings={findings.data} runId={runId} decisions={decisions} />
-    </>
+    </div>
   );
 }

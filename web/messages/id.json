@@ -74,6 +74,17 @@
       "absentObserved": "Tidak ada",
       "atLeast": "≥ {min} {unit}",
       "atMost": "≤ {max} {unit}"
+    },
+    "intro": "Satu baris per persyaratan URS: kelas cakupan yang diusulkan sistem, alasannya, dan bukti vendor yang dikutip sampai halaman. Setiap kelas hanya usulan sampai Anda menerimanya atau mengubahnya.",
+    "summaryTitle": "Ringkasan cakupan",
+    "legendTitle": "Arti setiap kelas",
+    "help": {
+      "conflict": "Desain atau barang yang dikirim tidak memenuhi URS.",
+      "gap": "Tidak ada bukti sama sekali.",
+      "partial": "Vendor sudah menguji, tetapi belum cukup; uji ulang di OQ.",
+      "site_only": "Tidak dapat diuji oleh vendor.",
+      "covered_by_vendor": "Bukti vendor membuktikan persyaratan sepenuhnya.",
+      "none": "Sistem tidak mengusulkan kelas; tentukan kelasnya."
     }
   },
   "decisions": {
@@ -123,7 +134,8 @@
       "rejected": "Ditolak",
       "changed": "Berubah sejak diputuskan",
       "decidedNotProposed": "Diputuskan sebelumnya, tidak diusulkan run ini"
-    }
+    },
+    "progress": "usulan sudah diputuskan"
   },
   "findings": {
     "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",
@@ -164,7 +176,9 @@
       "ac_deviates_from_urs": "Kriteria penerimaan menyimpang dari URS",
       "gdp_correction": "Koreksi GDP",
       "outdated_reference": "Referensi kedaluwarsa"
-    }
+    },
+    "intro": "Masalah dalam dokumen vendor yang ditemukan sebelum tinjauan: oleh aturan tetap, dan oleh AI sebagai saran. Terima temuan yang benar; tolak yang salah dengan alasan.",
+    "summaryTitle": "Ringkasan temuan"
   },
   "leftOut": {
     "title": "Yang tidak dimasukkan sistem",
@@ -187,7 +201,10 @@
     "unquoted": "Teks URS yang tidak dikutip persyaratan mana pun",
     "page": "hlm. {page}",
     "found": "ditemukan",
-    "missed": "tidak menjadi persyaratan"
+    "missed": "tidak menjadi persyaratan",
+    "intro": "Yang sengaja tidak dimasukkan sistem: klaim yang gagal pemeriksaan kutipan, kriteria penerimaan yang harus ditetapkan manusia, dan teks URS yang tidak dikutip persyaratan mana pun.",
+    "summaryTitle": "Ringkasan",
+    "unquotedTotal": "Teks URS tidak dikutip"
   },
   "eval": {
     "title": "Hasil evaluasi",
@@ -235,6 +252,9 @@
       }
     },
     "notScoredTitle": "Belum ada hasil evaluasi",
-    "gatesNote": "Gerbang fabrikasi: tidak satu pun klaim yang dikarang lolos ke keluaran."
+    "gatesNote": "Gerbang fabrikasi: tidak satu pun klaim yang dikarang lolos ke keluaran.",
+    "intro": "Seberapa tepat run ini dibanding kunci jawaban set data sintetis, sebagai k/n per ukuran. Penilaian dilakukan oleh harness, terpisah dari sistem.",
+    "summaryTitle": "Gerbang dan biaya",
+    "ratesTitle": "Ukuran"
   }
 }

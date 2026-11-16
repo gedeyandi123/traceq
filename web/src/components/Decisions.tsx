@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import type { CoverageClass, Decision, DecisionCounts, Proposal } from "@/api/client";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 
-import { Callout } from "./ui/ui";
+import { Callout, Panel, Progress } from "./ui/ui";
 import s from "./Decisions.module.css";
 
 /** Why a run shows read-only: not signed in, signed in without the deciding role, the run is
@@ -93,7 +93,10 @@ export function DecisionTally({
 }) {
   const t = useTranslations("decisions");
   if (!counts) return null;
+  const total = kinds.reduce((n, k) => n + counts[k].total, 0);
+  const decided = kinds.reduce((n, k) => n + counts[k].accepted + counts[k].edited + counts[k].rejected, 0);
   return (
+    <Panel>
     <div className={s.tallyWrap}>
     <table className={s.tally}>
       <caption>{t("counts.title")}</caption>
@@ -131,6 +134,8 @@ export function DecisionTally({
       </tbody>
     </table>
     </div>
+    <Progress done={decided} total={total} label={t("progress")} />
+    </Panel>
   );
 }
 

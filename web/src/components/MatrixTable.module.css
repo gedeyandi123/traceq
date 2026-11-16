@@ -3,39 +3,21 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-4);
   align-items: stretch;
-  margin-bottom: var(--space-4);
 }
-@media (max-width: 1100px) {
+@media (max-width: 1199px) {
   .overview {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.summary {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-1);
-  padding: var(--space-3) var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  justify-content: center;
-}
-.summaryHead {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
 .total {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
 }
-.totalLabel {
-  color: var(--color-text-3);
-  font-weight: 600;
+.total b {
+  font-size: var(--text-md);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 .bar {
   display: flex;
@@ -73,7 +55,6 @@
 }
 
 .notRead {
-  margin-bottom: var(--space-4);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   background: var(--color-warn-soft);
@@ -92,9 +73,9 @@
   table-layout: fixed;
   min-width: 960px;
 }
-.colReq { width: 27%; }
-.colVal { width: 11%; }
-.colCov { width: 18%; }
+.colReq { width: 26%; }
+.colVal { width: 13%; }
+.colCov { width: 17%; }
 .colEv { width: 24%; }
 .colDec { width: 20%; }
 
@@ -114,6 +95,10 @@
 }
 .cite {
   font-size: var(--text-xs);
+  margin-top: 2px;
+}
+.cite a {
+  white-space: nowrap;
 }
 .value {
   font-weight: 600;
@@ -188,4 +173,28 @@
 table.matrix thead th {
   white-space: normal;
   vertical-align: bottom;
+}
+.help > summary {
+  cursor: pointer;
+  width: fit-content;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.help dl {
+  margin: var(--space-3) 0 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+.help dl > div {
+  display: contents;
+}
+.help dd {
+  margin: 0;
+  color: var(--color-text-2);
+}
+.overview > :only-child {
+  grid-column: 1 / -1;
 }

@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 
 import type { Completeness, DroppedClaim } from "@/api/client";
 
-import { EmptyState } from "./ui/ui";
+import { EmptyState, Panel, SectionHead, StatList } from "./ui/ui";
 import s from "./LeftOutView.module.css";
 import tbl from "./ui/table.module.css";
 
@@ -26,7 +26,6 @@ function DroppedTable({ items }: { items: readonly DroppedClaim[] }) {
       <table className={tbl.table}>
         <thead>
           <tr>
-            <th className={s.colKind}>{t("kind")}</th>
             <th className={s.colSubject}>{t("subject")}</th>
             <th>{t("reason")}</th>
           </tr>
@@ -34,9 +33,6 @@ function DroppedTable({ items }: { items: readonly DroppedClaim[] }) {
         <tbody>
           {items.map((d, i) => (
             <tr key={`${d.claim}/${d.id}/${i}`}>
-              <td>
-                <span className={s.kind}>{d.claim}</span>
-              </td>
               <td className={tbl.id}>{d.id}</td>
               <td>{d.reason}</td>
             </tr>
@@ -62,14 +58,20 @@ export function LeftOutView({
   const human = dropped.filter(isHumanAc);
   const groups = groupByKind(dropped.filter((d) => !isHumanAc(d)));
   const droppedCount = groups.reduce((n, [, items]) => n + items.length, 0);
+  const unquoted = (completeness?.urs ?? []).reduce((n, u) => n + u.unquoted.length, 0);
   return (
     <>
-      <section className={s.section} aria-labelledby="dropped-claims">
-        <div className={s.head}>
-          <h2 id="dropped-claims">{t("dropped")}</h2>
-          <span className={s.count}>{droppedCount}</span>
-        </div>
-        <p className={s.note}>{t("droppedNote")}</p>
+      <Panel title={t("summaryTitle")}>
+        <StatList
+          items={[
+            { n: droppedCount, label: t("dropped"), href: "#dropped-claims" },
+            { n: human.length, label: t("humanAc"), href: "#human-ac" },
+            ...(completeness === null ? [] : [{ n: unquoted, label: t("unquotedTotal"), href: "#completeness" }]),
+          ]}
+        />
+      </Panel>
+      <section aria-labelledby="dropped-claims">
+        <SectionHead id="dropped-claims" title={t("dropped")} count={droppedCount} note={t("droppedNote")} />
         {groups.length === 0 ? (
           <EmptyState title={t("none")} />
         ) : (
@@ -82,19 +84,13 @@ export function LeftOutView({
         )}
       </section>
 
-      <section className={s.section} aria-labelledby="human-ac">
-        <div className={s.head}>
-          <h2 id="human-ac">{t("humanAc")}</h2>
-          <span className={s.count}>{human.length}</span>
-        </div>
-        <p className={s.note}>{t("humanAcNote")}</p>
+      <section aria-labelledby="human-ac">
+        <SectionHead id="human-ac" title={t("humanAc")} count={human.length} note={t("humanAcNote")} />
         {human.length === 0 ? <EmptyState title={t("none")} /> : <DroppedTable items={human} />}
       </section>
 
-      <section className={s.section} aria-labelledby="completeness">
-        <div className={s.head}>
-          <h2 id="completeness">{t("completeness")}</h2>
-        </div>
+      <section aria-labelledby="completeness">
+        <SectionHead id="completeness" title={t("completeness")} />
         {completeness === null ? (
           <EmptyState title={t("notRun")} />
         ) : (

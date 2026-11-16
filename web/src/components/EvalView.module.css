@@ -3,7 +3,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3) var(--space-5);
-  margin-bottom: var(--space-4);
 }
 .gate {
   display: inline-flex;
@@ -108,7 +107,6 @@
   white-space: nowrap;
 }
 .smallN {
-  margin-top: var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-text-3);
   max-width: 80ch;

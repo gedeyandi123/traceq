@@ -1,5 +1,6 @@
 .header {
-  margin-bottom: var(--space-5);
+  display: flex;
+  flex-direction: column;
 }
 .crumbs {
   display: flex;
@@ -85,4 +86,9 @@
   height: 3px;
   border-radius: 3px 3px 0 0;
   background: var(--color-ink);
+}
+.intro {
+  margin-top: var(--space-3);
+  color: var(--color-text-2);
+  max-width: 90ch;
 }

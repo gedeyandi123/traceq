@@ -4,7 +4,7 @@ import type { Cite, Findings, Proposal } from "@/api/client";
 import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
-import { EmptyState } from "./ui/ui";
+import { EmptyState, Panel, SectionHead, StatList } from "./ui/ui";
 import s from "./FindingsView.module.css";
 import tbl from "./ui/table.module.css";
 
@@ -48,17 +48,20 @@ export function FindingsView({
   return (
     <>
       <DecisionNotice view={decisions} />
-      {decisions.counts && (
-        <div className={s.tally}>
-          <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
-        </div>
-      )}
-      <section className={s.section} aria-labelledby="check-findings">
-        <div className={s.head}>
-          <h2 id="check-findings">{t("check")}</h2>
-          <span className={s.count}>{findings.check_findings.length}</span>
-        </div>
-        <p className={s.note}>{t("checkNote")}</p>
+      <div className={s.overview}>
+        <Panel title={t("summaryTitle")}>
+          <StatList
+            items={[
+              { n: findings.check_findings.length, label: t("check"), href: "#check-findings" },
+              { n: findings.ai_findings.length, label: t("ai"), href: "#ai-findings" },
+              { n: findings.missing_documents.length, label: t("missing"), href: "#missing-documents" },
+            ]}
+          />
+        </Panel>
+        <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
+      </div>
+      <section aria-labelledby="check-findings">
+        <SectionHead id="check-findings" title={t("check")} count={findings.check_findings.length} note={t("checkNote")} />
         {findings.check_findings.length === 0 ? (
           <EmptyState title={t("none")} />
         ) : (
@@ -105,12 +108,8 @@ export function FindingsView({
         )}
       </section>
 
-      <section className={`${s.section} ${s.ai}`} aria-labelledby="ai-findings">
-        <div className={s.head}>
-          <h2 id="ai-findings">{t("ai")}</h2>
-          <span className={s.count}>{findings.ai_findings.length}</span>
-        </div>
-        <p className={s.note}>{t("aiNote")}</p>
+      <section aria-labelledby="ai-findings">
+        <SectionHead id="ai-findings" title={t("ai")} count={findings.ai_findings.length} note={t("aiNote")} />
         {findings.ai_findings.length === 0 ? (
           <EmptyState title={t("none")} />
         ) : (
@@ -157,12 +156,8 @@ export function FindingsView({
         )}
       </section>
 
-      <section className={s.section} aria-labelledby="missing-documents">
-        <div className={s.head}>
-          <h2 id="missing-documents">{t("missing")}</h2>
-          <span className={s.count}>{findings.missing_documents.length}</span>
-        </div>
-        <p className={s.note}>{t("missingNote")}</p>
+      <section aria-labelledby="missing-documents">
+        <SectionHead id="missing-documents" title={t("missing")} count={findings.missing_documents.length} note={t("missingNote")} />
         {findings.missing_documents.length === 0 ? (
           <EmptyState title={t("none")} />
         ) : (

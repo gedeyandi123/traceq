@@ -15,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function LeftOutPage({ params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params;
+  const t = await getTranslations("leftOut");
   const path = { params: { path: { run_id: runId } } };
   const [run, dropped, completeness] = await Promise.all([
     api.GET("/runs/{run_id}", path),
@@ -23,9 +24,9 @@ export default async function LeftOutPage({ params }: { params: Promise<{ runId:
   ]);
   if (!run.data || !dropped.data) notFound();
   return (
-    <>
-      <RunHeader run={run.data} current="leftOut" />
+    <div className="stack">
+      <RunHeader run={run.data} current="leftOut" intro={t("intro")} />
       <LeftOutView dropped={dropped.data} completeness={completeness.data ?? null} />
-    </>
+    </div>
   );
 }

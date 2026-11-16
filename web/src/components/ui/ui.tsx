@@ -15,10 +15,11 @@ const SHAPES: Record<CoverageKey, string> = {
   none: "–",
 };
 
-/** A Coverage class as a label with a shape, so the class never rests on colour alone. */
-export function CoverageBadge({ cls, label }: { cls: CoverageKey; label: string }) {
+/** A Coverage class as a label with a shape, so the class never rests on colour alone.
+ * ``help`` is the class's meaning, shown on hover. */
+export function CoverageBadge({ cls, label, help }: { cls: CoverageKey; label: string; help?: string }) {
   return (
-    <span className={`${s.badge} ${s[`cov_${cls}`]}`}>
+    <span className={`${s.badge} ${s[`cov_${cls}`]}`} title={help}>
       <span aria-hidden="true" className={s.shape}>
         {SHAPES[cls]}
       </span>
@@ -27,7 +28,7 @@ export function CoverageBadge({ cls, label }: { cls: CoverageKey; label: string 
   );
 }
 
-/** A note block: info for read-only, alert for an error, success and warning for gates. */
+/** A note block: info for read-only, alert for an error. */
 export function Callout({
   tone,
   children,
@@ -54,30 +55,80 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** A section of a screen: heading, one line of context, a count, then content. */
-export function Section({
-  id,
-  title,
-  note,
-  count,
-  children,
-  label,
+/** A summary card: a small title, then content. Every screen's overview uses it. */
+export function Panel({ title, children, aside }: { title?: string; children: ReactNode; aside?: ReactNode }) {
+  return (
+    <div className={s.panel}>
+      {(title || aside) && (
+        <div className={s.panelHead}>
+          {title && <h2 className={s.panelTitle}>{title}</h2>}
+          {aside}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** A row of counts, each optionally linking to the section it counts. */
+export function StatList({
+  items,
 }: {
-  id?: string;
-  title: string;
-  note?: string;
-  count?: number;
-  children: ReactNode;
-  label?: string;
+  items: readonly { n: number; label: ReactNode; href?: string; tone?: "attention" }[];
 }) {
   return (
-    <section className={s.section} aria-labelledby={label ? undefined : id} aria-label={label}>
-      <div className={s.sectionHead}>
+    <ul className={s.stats}>
+      {items.map((it, i) => {
+        const body = (
+          <>
+            <span className={`${s.statN} ${it.tone === "attention" && it.n > 0 ? s.attention : ""}`}>{it.n}</span>
+            <span className={s.statLabel}>{it.label}</span>
+          </>
+        );
+        return (
+          <li key={i}>
+            {it.href ? (
+              <a href={it.href} className={s.stat}>
+                {body}
+              </a>
+            ) : (
+              <span className={s.stat}>{body}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The heading of a section of a screen: title, count, one line of what it is. The id makes
+ * it the section's accessible name and an anchor target. */
+export function SectionHead({ id, title, count, note }: { id: string; title: string; count?: number; note?: string }) {
+  return (
+    <div className={s.sectionHead}>
+      <div className={s.sectionTitle}>
         <h2 id={id}>{title}</h2>
         {count !== undefined && <span className={s.count}>{count}</span>}
       </div>
       {note && <p className={s.note}>{note}</p>}
-      {children}
-    </section>
+    </div>
+  );
+}
+
+/** A progress bar of decided proposals. */
+export function Progress({ done, total, label }: { done: number; total: number; label: string }) {
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  return (
+    <div className={s.progress}>
+      <div className={s.progressText}>
+        <span className={s.progressN}>
+          {done}/{total}
+        </span>
+        <span>{label}</span>
+      </div>
+      <span className={s.progressTrack} aria-hidden="true">
+        <span className={s.progressFill} style={{ width: `${pct}%` }} />
+      </span>
+    </div>
   );
 }

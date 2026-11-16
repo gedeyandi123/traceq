@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { SessionBar } from "@/components/SessionBar";
-import { PrototypeSwitcher } from "@/components/prototype/PrototypeSwitcher";
 import { LOCALE } from "@/i18n/request";
 
 import "./globals.css";
@@ -52,14 +51,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </div>
         </header>
         <main className={s.main}>{children}</main>
-        {process.env.NODE_ENV !== "production" && (
-          <PrototypeSwitcher
-            variants={[
-              { key: "1", name: "Navy" },
-              { key: "2", name: "Teal" },
-            ]}
-          />
-        )}
       </body>
     </html>
   );

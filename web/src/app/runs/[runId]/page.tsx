@@ -22,6 +22,7 @@ export default async function MatrixPage({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const { runId } = await params;
+  const t = await getTranslations("matrix");
   const path = { params: { path: { run_id: runId } } };
   const [run, matrix, decisions] = await Promise.all([
     api.GET("/runs/{run_id}", path),
@@ -31,9 +32,9 @@ export default async function MatrixPage({
   decisions.error = decisionError((await searchParams).error);
   if (!run.data || !matrix.data) notFound();
   return (
-    <>
-      <RunHeader run={run.data} current="matrix" />
+    <div className="stack">
+      <RunHeader run={run.data} current="matrix" intro={t("intro")} />
       <MatrixTable matrix={matrix.data} runId={runId} decisions={decisions} />
-    </>
+    </div>
   );
 }

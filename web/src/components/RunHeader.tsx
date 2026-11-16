@@ -18,8 +18,8 @@ const created = new Intl.DateTimeFormat("id-ID", {
 
 /** The header every run screen shares: where the viewer is (all runs / equipment), the run's
  * facts, and one tab per screen of the run. Same links as before; the current screen is
- * marked with aria-current. */
-export function RunHeader({ run, current }: { run: RunSummary; current: RunTab }) {
+ * marked with aria-current, and one line says what the screen is for. */
+export function RunHeader({ run, current, intro }: { run: RunSummary; current: RunTab; intro: string }) {
   const t = useTranslations("matrix");
   const tr = useTranslations("runs");
   const base = `/runs/${encodeURIComponent(run.run_id)}`;
@@ -66,6 +66,7 @@ export function RunHeader({ run, current }: { run: RunSummary; current: RunTab }
           </Link>
         ))}
       </nav>
+      <p className={s.intro}>{intro}</p>
     </div>
   );
 }

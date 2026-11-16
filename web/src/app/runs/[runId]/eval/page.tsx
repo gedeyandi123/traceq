@@ -25,13 +25,13 @@ export default async function EvalPage({ params }: { params: Promise<{ runId: st
   ]);
   if (!run.data) notFound();
   return (
-    <>
-      <RunHeader run={run.data} current="eval" />
+    <div className="stack">
+      <RunHeader run={run.data} current="eval" intro={t("intro")} />
       {summary.data ? (
         <EvalView summary={summary.data} />
       ) : (
         <EmptyState title={t("notScoredTitle")}>{t("notScored")}</EmptyState>
       )}
-    </>
+    </div>
   );
 }
