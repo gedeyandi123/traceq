@@ -7,10 +7,13 @@ required documents and those missing, and the site rules read from the SOP, each
 citation; ``drafts.json`` holds the drafted IQ/OQ Test
 Steps as AI Findings pending review; ``run.json`` is the run
 metadata: the run settings, model, prompt hashes, tokens, cost in USD, which calls were
-replayed, which claims the citation check dropped, and per document read its ingest engine,
-seconds per page and peak RAM. Ingest output is cached in ``<recordings>/ingest`` beside the LLM
-recordings, so a replay reads no document whose ingest is cached. Every scan is read by OCR
-before any LLM call, so a run that cannot read one fails before it spends. A live run sends
+replayed, which claims the citation check dropped, the wall-clock duration with the time spent
+waiting for live calls apart (0 for a replayed run), and per document read its ingest engine,
+seconds per page and peak RAM; ``completeness.json`` is the URS completeness check (printed
+requirement numbers that did not become a requirement, and URS text no requirement
+quotes). Ingest output is cached in ``<recordings>/ingest`` beside the LLM recordings, so
+a replay reads no document whose ingest is cached. Every scan is read by OCR before any LLM
+call, so a run that cannot read one fails before it spends. A live run sends
 only calls that are not yet recorded, and refuses before sending when their estimate would
 pass ``max_usd``.
 
@@ -24,17 +27,20 @@ from __future__ import annotations
 import datetime as dt
 import json
 import secrets
+import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from traceq.ai import LLM, Budget, PriceTable, Recorder
-from traceq.ai.port import sha256
+from traceq.ai.port import Request, Response, sha256
 from traceq.documents import Corpus
 from traceq.protocols import PROMPTS as DRAFT_PROMPTS
 from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
 from traceq.review import review
+from traceq.runs.completeness import COMPLETENESS_FILE, completeness
 from traceq.runs.drafts import drafts
 from traceq.runs.findings import findings
 from traceq.runs.matrix import matrix
@@ -44,12 +50,35 @@ from traceq.traceability import PIPELINE_VERSION, PROMPTS, trace
 SYSTEM_NAME = "traceq"
 INGEST_DIR = "ingest"
 
+Clock = Callable[[], float]
+"""Seconds on a monotonic clock."""
+
 
 @dataclass(frozen=True)
 class RunOutput:
     folder: Path
     submission: Submission
     metadata: dict[str, Any]
+
+
+class _Timed:
+    """The live adapter, adding up the seconds spent waiting for it."""
+
+    def __init__(self, live: LLM, clock: Clock) -> None:
+        self._live = live
+        self._clock = clock
+        self.seconds = 0.0
+
+    @property
+    def model(self) -> str:
+        return self._live.model
+
+    def complete(self, requests: Sequence[Request]) -> list[Response]:
+        start = self._clock()
+        try:
+            return self._live.complete(requests)
+        finally:
+            self.seconds += self._clock() - start
 
 
 def _write_json(path: Path, data: Any) -> None:
@@ -69,14 +98,19 @@ def run(
     prices: PriceTable | None = None,
     now: dt.datetime | None = None,
     vendor_reuse: bool = True,
+    clock: Clock = time.perf_counter,
 ) -> RunOutput:
+    """``now``: the start time the run id and ``created`` carry. ``clock``: what the run's
+    duration is measured with."""
+    start = clock()
     prices = prices or PriceTable.load()
     now = now or dt.datetime.now(dt.UTC)
     run_id = f"{now:%Y%m%dT%H%M%SZ}-{secrets.token_hex(3)}"
     corpus = Corpus.load(corpus_dir, equipment, cache=recordings / INGEST_DIR)
     scans = [(d, corpus.read(d)) for d in corpus.documents if d.format == "scan"]
     budget = Budget(max_usd, prices) if live is not None else None
-    llm = Recorder(recordings, model, PIPELINE_VERSION, live=live, budget=budget)
+    timed = _Timed(live, clock) if live is not None else None
+    llm = Recorder(recordings, model, PIPELINE_VERSION, live=timed, budget=budget)
 
     traced = trace(corpus, llm)
     reviewed = review(corpus, llm, traced)
@@ -146,6 +180,10 @@ def run(
             }
             for d, i in corpus.ingested()
         ],
+        "duration": {
+            "total_seconds": round(clock() - start, 3),
+            "live_seconds": round(timed.seconds, 3) if timed else 0.0,
+        },
         "not_read": [
             {"doc_id": d.doc_id, "rev": d.rev, "format": d.format}
             for d in dict.fromkeys((*traced.vendor.not_read, *reviewed.not_read))
@@ -166,5 +204,6 @@ def run(
         folder / "drafts.json",
         drafts(drafted, model=model, prompt=prompt_hashes["draft"], created=metadata["created"]),
     )
+    _write_json(folder / COMPLETENESS_FILE, completeness(traced).model_dump(mode="json"))
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)

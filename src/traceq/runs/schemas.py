@@ -192,3 +192,48 @@ class Findings(_Model):
     missing_documents: tuple[MissingDocument, ...]
     site_rules: tuple[SiteRuleCite, ...]
     governing_documents: tuple[GoverningDocument, ...]
+
+
+class DroppedClaim(_Model):
+    """A claim the citation check dropped, with its reason in plain text."""
+
+    claim: str
+    """What kind of claim: a requirement, a value, a test step, a finding."""
+    id: str
+    """What it was about: a requirement id, a step, a document and page."""
+    reason: str
+
+
+class MissedNumber(_Model):
+    """A printed requirement number that did not become a kept requirement."""
+
+    number: str
+    page: int
+    """The first page it is printed on."""
+
+
+class UnquotedText(_Model):
+    """URS text that no kept requirement quotes: adjacent lines merged."""
+
+    page: int
+    text: str
+
+
+class UrsCompleteness(_Model):
+    """The completeness check of one URS the run read, built without an LLM."""
+
+    doc: str
+    rev: int
+    numbers: Literal["checked", "not_applicable"]
+    """``not_applicable`` when the model returned no printed requirement number for it."""
+    found: int
+    """Distinct printed numbers of the learned shape on its pages."""
+    missed: tuple[MissedNumber, ...]
+    unquoted: tuple[UnquotedText, ...]
+
+
+class Completeness(_Model):
+    """The URS completeness check of a run: printed numbers that did not become a
+    requirement, and URS text no kept requirement quotes."""
+
+    urs: tuple[UrsCompleteness, ...]

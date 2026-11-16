@@ -81,6 +81,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/dropped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dropped
+         * @description The claims the citation check dropped, each with its subject and reason.
+         */
+        get: operations["getDropped"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/completeness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Completeness
+         * @description The URS completeness check; not found for a run written before it existed.
+         */
+        get: operations["getCompleteness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/documents/{doc_id}/{rev}": {
         parameters: {
             query?: never;
@@ -189,6 +229,15 @@ export interface components {
             quote: string;
         };
         /**
+         * Completeness
+         * @description The URS completeness check of a run: printed numbers that did not become a
+         *     requirement, and URS text no kept requirement quotes.
+         */
+        Completeness: {
+            /** Urs */
+            urs: components["schemas"]["UrsCompleteness"][];
+        };
+        /**
          * DesignRow
          * @description A datasheet or certificate value compared with the URS value.
          */
@@ -204,6 +253,18 @@ export interface components {
             /** Value */
             value: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
             citation: components["schemas"]["Cite"];
+        };
+        /**
+         * DroppedClaim
+         * @description A claim the citation check dropped, with its reason in plain text.
+         */
+        DroppedClaim: {
+            /** Claim */
+            claim: string;
+            /** Id */
+            id: string;
+            /** Reason */
+            reason: string;
         };
         /**
          * EvidenceStep
@@ -313,6 +374,16 @@ export interface components {
              * @default []
              */
             design: components["schemas"]["DesignRow"][];
+        };
+        /**
+         * MissedNumber
+         * @description A printed requirement number that did not become a kept requirement.
+         */
+        MissedNumber: {
+            /** Number */
+            number: string;
+            /** Page */
+            page: number;
         };
         /**
          * MissingDocument
@@ -465,6 +536,37 @@ export interface components {
             /** Value */
             value: string;
         };
+        /**
+         * UnquotedText
+         * @description URS text that no kept requirement quotes: adjacent lines merged.
+         */
+        UnquotedText: {
+            /** Page */
+            page: number;
+            /** Text */
+            text: string;
+        };
+        /**
+         * UrsCompleteness
+         * @description The completeness check of one URS the run read, built without an LLM.
+         */
+        UrsCompleteness: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Numbers
+             * @enum {string}
+             */
+            numbers: "checked" | "not_applicable";
+            /** Found */
+            found: number;
+            /** Missed */
+            missed: components["schemas"]["MissedNumber"][];
+            /** Unquoted */
+            unquoted: components["schemas"]["UnquotedText"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -587,6 +689,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Findings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDropped: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DroppedClaim"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getCompleteness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Completeness"];
                 };
             };
             /** @description Validation Error */

@@ -1,10 +1,11 @@
 """The read-only API over run folders (spec #29): what the UI shows, nothing it may not.
 
-A run folder is read through exactly three files, ``run.json``, ``matrix.json`` and
-``findings.json``; nothing else in it is ever opened, so a scorer report written beside
-them stays private. From ``run.json`` only the summary fields are served, never per-item
-scores. A cited page opens from the released corpus, and only for a document the run read,
-with the bytes it read.
+A run folder is read through a named list of files, ``SERVED``: ``run.json``,
+``matrix.json``, ``findings.json`` and ``completeness.json``. Nothing else in it is ever
+opened, so a scorer report written beside them stays private. From ``run.json`` only the
+summary fields and the dropped claims are served, never per-item scores. A cited page
+opens from the released corpus, and only for a document the run read, with the bytes it
+read.
 
 There is no upload and no database: every route is a GET.
 
@@ -24,11 +25,14 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from traceq.documents import Corpus
-from traceq.runs.schemas import Findings, Matrix, RunSummary
+from traceq.runs.completeness import COMPLETENESS_FILE
+from traceq.runs.schemas import Completeness, DroppedClaim, Findings, Matrix, RunSummary
 
 RUN_FILE = "run.json"
 MATRIX_FILE = "matrix.json"
 FINDINGS_FILE = "findings.json"
+SERVED = (RUN_FILE, MATRIX_FILE, FINDINGS_FILE, COMPLETENESS_FILE)
+"""The only files of a run folder the API opens."""
 _RUN_ID = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_-]{0,63}$")
 _MEDIA = {
     ".pdf": "application/pdf",
@@ -37,6 +41,8 @@ _MEDIA = {
 
 
 def _read(path: Path) -> Any:
+    if path.name not in SERVED:
+        raise ValueError(f"{path.name} is not a file the API serves")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -89,6 +95,23 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
     def get_findings(run_id: str) -> Findings:
         """The Pre-review: Check Findings, AI Findings kept apart, and missing documents."""
         return Findings.model_validate(_read(folder(run_id) / FINDINGS_FILE))
+
+    @router.get("/runs/{run_id}/dropped", operation_id="getDropped")
+    def get_dropped(run_id: str) -> list[DroppedClaim]:
+        """The claims the citation check dropped, each with its subject and reason."""
+        meta: dict[str, Any] = _read(folder(run_id) / RUN_FILE)
+        return [
+            DroppedClaim(claim=str(d["claim"]), id=str(d["id"]), reason=str(d["reason"]))
+            for d in meta.get("dropped", [])
+        ]
+
+    @router.get("/runs/{run_id}/completeness", operation_id="getCompleteness")
+    def get_completeness(run_id: str) -> Completeness:
+        """The URS completeness check; not found for a run written before it existed."""
+        path = folder(run_id) / COMPLETENESS_FILE
+        if not path.is_file():
+            raise HTTPException(404, f"the completeness check did not run for {run_id}")
+        return Completeness.model_validate(_read(path))
 
     @router.get(
         "/runs/{run_id}/documents/{doc_id}/{rev}",
