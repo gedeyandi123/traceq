@@ -7,7 +7,8 @@ summary fields and the dropped claims are served, never per-item scores. A cited
 opens from the released corpus, and only for a document the run read, with the bytes it
 read.
 
-There is no upload and no database: every route is a GET.
+There is no upload and no database: every route is a GET. The database routes over the same
+runs are in ``traceq.proposals``.
 
 ``create_router`` returns the routes; the ``app`` module composes them into the application
 (``python -m traceq.app.api OUT`` writes the OpenAPI schema, ADR 0003).
@@ -40,10 +41,17 @@ _MEDIA = {
 }
 
 
-def _read(path: Path) -> Any:
+def read_served(path: Path) -> Any:
+    """A file of a run folder, only if it is one of ``SERVED``."""
     if path.name not in SERVED:
         raise ValueError(f"{path.name} is not a file the API serves")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def find_run(runs: Path, run_id: str) -> Path | None:
+    """The folder of run ``run_id`` in ``runs``; ``None`` for an id that is not a run's."""
+    path = runs / run_id
+    return path if _RUN_ID.match(run_id) and (path / RUN_FILE).is_file() else None
 
 
 def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
@@ -52,13 +60,13 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
     router = APIRouter()
 
     def folder(run_id: str) -> Path:
-        path = runs / run_id
-        if not _RUN_ID.match(run_id) or not (path / RUN_FILE).is_file():
+        path = find_run(runs, run_id)
+        if path is None:
             raise HTTPException(404, f"no run {run_id}")
         return path
 
     def summary(path: Path) -> RunSummary:
-        meta: dict[str, Any] = _read(path / RUN_FILE)
+        meta: dict[str, Any] = read_served(path / RUN_FILE)
         return RunSummary(
             run_id=str(meta["run_id"]),
             created=str(meta["created"]),
@@ -89,17 +97,17 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
     @router.get("/runs/{run_id}/matrix", operation_id="getMatrix")
     def get_matrix(run_id: str) -> Matrix:
         """The traceability matrix: Coverage class and reason, and cited Evidence."""
-        return Matrix.model_validate(_read(folder(run_id) / MATRIX_FILE))
+        return Matrix.model_validate(read_served(folder(run_id) / MATRIX_FILE))
 
     @router.get("/runs/{run_id}/findings", operation_id="getFindings")
     def get_findings(run_id: str) -> Findings:
         """The Pre-review: Check Findings, AI Findings kept apart, and missing documents."""
-        return Findings.model_validate(_read(folder(run_id) / FINDINGS_FILE))
+        return Findings.model_validate(read_served(folder(run_id) / FINDINGS_FILE))
 
     @router.get("/runs/{run_id}/dropped", operation_id="getDropped")
     def get_dropped(run_id: str) -> list[DroppedClaim]:
         """The claims the citation check dropped, each with its subject and reason."""
-        meta: dict[str, Any] = _read(folder(run_id) / RUN_FILE)
+        meta: dict[str, Any] = read_served(folder(run_id) / RUN_FILE)
         return [
             DroppedClaim(claim=str(d["claim"]), id=str(d["id"]), reason=str(d["reason"]))
             for d in meta.get("dropped", [])
@@ -111,7 +119,7 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
         path = folder(run_id) / COMPLETENESS_FILE
         if not path.is_file():
             raise HTTPException(404, f"the completeness check did not run for {run_id}")
-        return Completeness.model_validate(_read(path))
+        return Completeness.model_validate(read_served(path))
 
     @router.get(
         "/runs/{run_id}/documents/{doc_id}/{rev}",
@@ -121,7 +129,7 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
     )
     def get_document(run_id: str, doc_id: str, rev: int) -> Response:
         """A document the run read, as released: a citation links here with ``#page=N``."""
-        meta: dict[str, Any] = _read(folder(run_id) / RUN_FILE)
+        meta: dict[str, Any] = read_served(folder(run_id) / RUN_FILE)
         read = {
             (str(d["doc_id"]), int(d["rev"])): str(d["sha256"]) for d in meta["corpus"]["documents"]
         }

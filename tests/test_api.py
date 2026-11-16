@@ -10,11 +10,14 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from traceq.app.api import create_app, openapi_schema
+from traceq.runs.api import create_router
 from traceq.runs.schemas import Findings, Matrix
 
 ROOT = Path(__file__).parents[1]
@@ -24,6 +27,14 @@ CORPUS = FIXTURE / "corpus"
 RUN_ID = "20261113T090000Z-f1a2b3"
 OPENAPI = ROOT / "web" / "openapi.json"
 NEVER = "SCORER-REPORT-NEVER-SERVED"
+
+
+def run_folder_schema() -> dict[str, Any]:
+    """The read-only run-folder API alone; the composed application adds the database routes
+    (``tests/test_proposals_api.py``)."""
+    app = FastAPI()
+    app.include_router(create_router(RUNS, CORPUS))
+    return app.openapi()
 
 
 @pytest.fixture
@@ -144,16 +155,17 @@ def test_unknown_paths_are_not_found(client: TestClient, path: str) -> None:
     assert client.get(path).status_code == 404
 
 
-def test_no_route_writes(client: TestClient) -> None:
-    methods = {m for item in openapi_schema()["paths"].values() for m in item if m != "parameters"}
+def test_no_run_folder_route_writes(client: TestClient) -> None:
+    paths = run_folder_schema()["paths"]
+    methods = {m for item in paths.values() for m in item if m != "parameters"}
     assert methods == {"get"}
     assert client.post("/runs", json={}).status_code == 405
 
 
 def test_never_exposes_scorer_output_answer_key_or_baselines(client: TestClient) -> None:
     """Every route, over a run folder with a scorer report beside it: nothing of the report,
-    and no route names scores, answer key or baselines."""
-    paths = set(openapi_schema()["paths"])
+    and no route of the composed application names scores, answer key or baselines."""
+    paths = set(run_folder_schema()["paths"])
     assert paths == {
         "/runs",
         "/runs/{run_id}",

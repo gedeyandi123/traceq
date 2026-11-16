@@ -141,6 +141,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import
+         * @description Imports a run folder as Proposals, in one transaction. Importing a run already
+         *     imported changes nothing. Needs the deciding role.
+         */
+        post: operations["importRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The Proposals of an imported run, in the order of its files, with their state.
+         */
+        get: operations["listProposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -331,6 +372,20 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * ImportedRun
+         * @description A run imported as Proposals.
+         */
+        ImportedRun: {
+            /** Run Id */
+            run_id: string;
+            /** Equipment */
+            equipment: string;
+            /** Proposals */
+            proposals: number;
+            /** Already Imported */
+            already_imported: boolean;
+        };
+        /**
          * Matrix
          * @description The traceability matrix of a run.
          */
@@ -447,6 +502,30 @@ export interface components {
             type: "present";
             /** Value */
             value?: boolean | null;
+        };
+        /**
+         * Proposal
+         * @description A Proposal of a run, and where it stands in the run's files.
+         */
+        Proposal: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "coverage" | "check" | "ai";
+            /** Requirement */
+            requirement: string | null;
+            /** Position */
+            position: number | null;
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * State
+             * @constant
+             */
+            state: "undecided";
         };
         /**
          * Range
@@ -785,6 +864,68 @@ export interface operations {
                 content: {
                     "application/pdf": unknown;
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    importRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportedRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listProposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"][];
                 };
             };
             /** @description Validation Error */
