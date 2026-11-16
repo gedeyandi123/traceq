@@ -608,6 +608,7 @@ requirements:
       ref: "VMP TP-201, site decision"
       rationale: "Corporate purchasing standard: imported machines come with a machinery safety declaration of conformity."
       drafted_by: llm
+      reviewed_by: owner
     scope: documentation
     transport_sensitive: false
     intended_coverage: gap

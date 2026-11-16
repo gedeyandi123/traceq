@@ -2,7 +2,7 @@
 
 Daftar ini dipakai saat wawancara praktisi (decision log Q16, sekitar 30 menit). Isinya site decision TP-201 yang dibuat LLM dan belum bisa dinilai pemilik karena butuh pengalaman lapangan. Selama nilai di Bagian A belum direview, dataset belum boleh dibekukan (prinsip 7).
 
-**Status 16 Nov 2026:** Bagian A–C sudah dijawab satu praktisi lewat form (dikirim 13 Nov). Ini cek kewajaran, bukan review penuh: 15 dari 16 nilai dinilai wajar dan 1 dijawab "tidak tahu". Hasilnya dicatat di bawah tiap bagian. Yang masih terbuka adalah agenda lisan D, termasuk URS-TP201-037.
+**Status 16 Nov 2026:** Bagian A–C sudah dijawab satu praktisi lewat form (dikirim 13 Nov). Ini cek kewajaran, bukan review penuh: 15 dari 16 nilai dinilai wajar dan 1 dijawab "tidak tahu". Hasilnya dicatat di bawah tiap bagian. URS-TP201-037 ("tidak tahu") disetujui pemilik pada 16 Nov. Yang masih terbuka adalah agenda lisan D.
 
 **Konteks untuk praktisi:** TP-201 adalah mesin cetak tablet rotary *single-sided* di pabrik farmasi fiktif. Semua dokumennya (URS, FAT, SAT) sintetis. Angka-angkanya tidak harus sama dengan pabrik tertentu, tetapi tidak boleh terasa janggal bagi orang yang pernah mengkualifikasi mesin sejenis.
 
@@ -26,7 +26,7 @@ Daftar ini dipakai saat wawancara praktisi (decision log Q16, sekitar 30 menit).
 | 9 | URS-TP201-032 | Changeover + pembersihan antar produk maksimal **120 menit** | Apakah 2 jam realistis untuk mesin 36 stasiun (ganti tooling, bongkar feeder, bersihkan)? Berapa yang lazim? | Tidak ada uji vendor (sengaja *gap*); bebas diubah. |
 | 10 | URS-TP201-037 | Vendor wajib menyerahkan **deklarasi kesesuaian keselamatan mesin** | Apakah pabrik di Indonesia biasa meminta deklarasi ini (mis. EC Declaration of Conformity) untuk mesin impor? Apakah ini ditulis di URS atau di dokumen pembelian? | Tidak ada uji vendor (sengaja *gap*); bebas diubah. |
 
-**Hasil (form, 13 Nov 2026):** nomor 1–9 "Wajar", jadi URS-TP201-005, -006, -011, -012, -016, -027, -030, -031 dan -032 mendapat `reviewed_by: practitioner` tanpa perubahan nilai. Catatan pada nomor 8: "RH di 40–70" (%RH); menunggu keputusan pemilik apakah RH ditambahkan ke URS. Nomor 10 (URS-TP201-037) dijawab "Tidak tahu": tetap belum direview dan masuk agenda D (A10).
+**Hasil (form, 13 Nov 2026):** nomor 1–9 "Wajar", jadi URS-TP201-005, -006, -011, -012, -016, -027, -030, -031 dan -032 mendapat `reviewed_by: practitioner` tanpa perubahan nilai. Catatan pada nomor 8: "RH di 40–70" (%RH); menunggu keputusan pemilik apakah RH ditambahkan ke URS. Nomor 10 (URS-TP201-037) dijawab "Tidak tahu"; pemilik menyetujuinya pada 16 Nov (`reviewed_by: owner`), dan pertanyaannya tetap di agenda D (A10) untuk realisme.
 
 ## B. Konfirmasi cepat (sudah disetujui pemilik, tanpa kutipan)
 
@@ -69,7 +69,7 @@ Urutannya mengikuti apa yang memblokir freeze dan klaim. Nomor D1–D11 tetap, s
 
 | # | Topik | Keadaan sekarang | Pertanyaan | Menit |
 |---|---|---|---|---|
-| A10 | URS-TP201-037 | Dijawab "Tidak tahu" di form; satu-satunya site decision yang belum direview | Apakah pabrik meminta deklarasi kesesuaian keselamatan (mis. EC Declaration of Conformity) untuk mesin impor? Ditulis di URS atau di dokumen pembelian? | 1 |
+| A10 | URS-TP201-037 | Dijawab "Tidak tahu" di form; disetujui pemilik 16 Nov. Jawaban praktisi hanya menambah realisme, labelnya tetap `gap` | Apakah pabrik meminta deklarasi kesesuaian keselamatan (mis. EC Declaration of Conformity) untuk mesin impor? Ditulis di URS atau di dokumen pembelian? | 1 |
 | D12 | AC versus kemampuan mesin | Discovery menyebut sumber frustrasi: AC yang sudah disetujui di protokol kadang tidak cocok dengan kemampuan aktual mesin atau utilitas, sehingga muncul Deviation dan investigasi. Coverage membandingkan URS dengan Evidence vendor (`partial`, `conflict`), tetapi AC protokol site belum dibandingkan dengan kemampuan mesin. | Dari mana AC biasanya diambil (URS, datasheet vendor, farmakope, protokol alat lain)? Contoh ketidakcocokan yang paling sering? Di dokumen mana hal itu sebenarnya sudah bisa terlihat sebelum eksekusi (datasheet, DQ, FAT)? | 3 |
 | D13 | QA approver dan Witness | Discovery hanya menyebut peran dari bagian kualifikasi. Di TP-201, QA menyetujui protokol dan satu orang site menjadi Witness; SOP melarang pelaksana = Witness. | Siapa yang menyetujui sebagai QA? Siapa yang menjadi Witness saat eksekusi: QA, Produksi, Engineering, atau sesama tim kualifikasi? | 2 |
 | D14 | Alat kerja baru | Belum diketahui; menentukan isi `docs/pilot-readiness.md` | Siapa yang memutuskan alat kerja baru untuk tim (mis. aplikasi untuk dokumen kualifikasi): kepala bagian, QA, IT, atau manajemen? Apa yang diminta sebelum boleh dipakai? | 2 |
