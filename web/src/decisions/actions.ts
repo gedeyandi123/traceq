@@ -1,0 +1,55 @@
+"use server";
+
+import { redirect } from "next/navigation";
+
+import { api } from "@/api/client";
+import type { CoverageClass } from "@/api/client";
+import { bearerHeaders } from "@/auth/session";
+import type { DecisionError } from "@/components/Decisions";
+
+const CLASSES: readonly CoverageClass[] = [
+  "covered_by_vendor",
+  "partial",
+  "site_only",
+  "gap",
+  "conflict",
+];
+const DECISIONS = ["accepted", "rejected", "edited"] as const;
+
+function field(form: FormData, name: string): string | undefined {
+  const v = form.get(name);
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
+}
+
+/** Records one Proposal Decision through the API with the viewer's token, then returns to
+ * the screen the form was on. The API decides whether it is allowed and whether a Reason for
+ * Change is needed; a refusal comes back as the `error` query parameter. */
+export async function decide(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const screen = field(form, "screen") === "findings" ? "/findings" : "";
+  const back = `/runs/${encodeURIComponent(runId)}${screen}`;
+  const decision = DECISIONS.find((d) => d === field(form, "decision"));
+  const proposalId = Number(field(form, "proposal_id"));
+  if (decision === undefined || !Number.isInteger(proposalId)) {
+    redirect(`${back}?error=failed`);
+  }
+  let error: DecisionError | undefined;
+  try {
+    const { response } = await api.POST("/runs/{run_id}/proposals/{proposal_id}/decisions", {
+      params: { path: { run_id: runId, proposal_id: proposalId } },
+      headers: await bearerHeaders(),
+      body: {
+        decision,
+        coverage: CLASSES.find((c) => c === field(form, "coverage")) ?? null,
+        reason: field(form, "reason") ?? null,
+      },
+    });
+    if (response.status === 422) error = "refused";
+    else if (response.status === 401) error = "unauthorized";
+    else if (response.status === 403) error = "forbidden";
+    else if (!response.ok) error = "failed";
+  } catch {
+    error = "failed";
+  }
+  redirect(error ? `${back}?error=${error}` : back);
+}

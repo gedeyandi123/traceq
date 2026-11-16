@@ -2,6 +2,8 @@ import { useTranslations } from "next-intl";
 
 import type { Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
 import { CiteLink } from "./CiteLink";
+import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
+import type { DecisionView } from "./Decisions";
 
 type T = ReturnType<typeof useTranslations<"matrix">>;
 
@@ -66,11 +68,29 @@ function Evidence({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
 }
 
 /** The traceability matrix: one row per requirement, with its Coverage class and reason,
- * and every piece of Evidence linked to the page it cites. */
-export function MatrixTable({ matrix, runId }: { matrix: Matrix; runId: string }) {
+ * and every piece of Evidence linked to the page it cites. For an imported run each row also
+ * shows its decision state and decisions, and the decision forms when the viewer may decide. */
+export function MatrixTable({
+  matrix,
+  runId,
+  decisions,
+}: {
+  matrix: Matrix;
+  runId: string;
+  decisions: DecisionView;
+}) {
   const t = useTranslations("matrix");
+  const td = useTranslations("decisions");
+  const byRequirement = new Map(
+    (decisions.proposals ?? [])
+      .filter((p) => p.kind === "coverage")
+      .map((p) => [p.requirement, p] as const),
+  );
+  const decided = decisions.proposals !== undefined;
   return (
     <>
+      <DecisionNotice view={decisions} />
+      <DecisionTally counts={decisions.counts} kinds={["coverage"]} />
       <table className="matrix">
         <thead>
           <tr>
@@ -79,6 +99,7 @@ export function MatrixTable({ matrix, runId }: { matrix: Matrix; runId: string }
             <th>{t("coverage")}</th>
             <th>{t("reason")}</th>
             <th>{t("evidence")}</th>
+            {decided && <th>{td("column")}</th>}
           </tr>
         </thead>
         <tbody>
@@ -106,6 +127,17 @@ export function MatrixTable({ matrix, runId }: { matrix: Matrix; runId: string }
               <td>
                 <Evidence row={row} runId={runId} t={t} />
               </td>
+              {decided && (
+                <td>
+                  <DecisionCell
+                    proposal={byRequirement.get(row.id)}
+                    runId={runId}
+                    screen="matrix"
+                    access={decisions.access}
+                    proposed={row.coverage}
+                  />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

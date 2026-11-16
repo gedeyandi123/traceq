@@ -8,7 +8,25 @@ export const TOKEN_COOKIE = "traceq_token";
 
 export type Persona = { username: string; name: string; roles: string[] };
 
-export type Session = { name: string };
+/** ``mayDecide``: the token names the deciding role. Read for display only: the API checks
+ * the role again on every decision. */
+export type Session = { name: string; mayDecide: boolean };
+
+/** The role that may import a run and record Proposal Decisions (spec #105), as the API
+ * names it. */
+const DECIDING_ROLE = "qualification-decider";
+
+/** The claim holding the roles, a dotted path for a nested claim; the same setting as the
+ * API's `--role-claim`. */
+const ROLE_CLAIM = process.env.TRACEQ_ROLE_CLAIM ?? "roles";
+
+function roles(payload: unknown): unknown {
+  let at: unknown = payload;
+  for (const part of ROLE_CLAIM.split(".")) {
+    at = typeof at === "object" && at !== null ? (at as Record<string, unknown>)[part] : undefined;
+  }
+  return at;
+}
 
 /** The personas the demo issuer offers, or null when it cannot be reached. */
 export async function listPersonas(): Promise<Persona[] | null> {
@@ -64,7 +82,9 @@ export async function currentSession(): Promise<Session | null> {
   if (!token) return null;
   try {
     const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString());
-    return typeof payload.name === "string" ? { name: payload.name } : null;
+    if (typeof payload.name !== "string") return null;
+    const held = roles(payload);
+    return { name: payload.name, mayDecide: Array.isArray(held) && held.includes(DECIDING_ROLE) };
   } catch {
     return null;
   }
