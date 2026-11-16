@@ -2,7 +2,7 @@
 
 Domain language: `GLOSSARY.md`. Decisions: `docs/adr/`. Dataset and eval design: `docs/design/synthetic-dataset.md`. Commands: `README.md`. Moving to another coding agent: `docs/agents/porting.md`.
 
-Checks before claiming done (show the output): `pre-commit run --all-files`, `uv run pyright`, `uv run pytest -q`.
+Checks before claiming done (show the output): `pre-commit run --all-files`, `uv run pyright`, `uv run pytest -q`. When `web/` changes, also `npm run typecheck`, `npm test` and `npm run build` in `web/` (a new worktree needs `npm ci` there first); a UI change also re-runs the cases of `docs/demo-runbook.md` it touches.
 
 ## Agent skills
 
