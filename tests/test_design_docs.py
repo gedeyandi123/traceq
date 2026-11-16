@@ -208,7 +208,7 @@ def test_risk_assessment_marks_the_urs_critical_aspects(eq: Equipment, ra: Rende
     assert missing_text(ra) == []
     marked = {r.id for r in eq.requirements if ra.placed[f"{r.id}.critical"].text == "Ya"}
     assert marked == {r.id for r in eq.requirements if r.critical}
-    assert len(marked) == 11
+    assert len(marked) == 16  # 11 drafted + 5 from the follow-up form (D2, D3), 2026-11-16
 
 
 def test_risk_assessment_is_values_not_formulas(ra: Rendered) -> None:

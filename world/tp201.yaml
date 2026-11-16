@@ -79,7 +79,6 @@ requirements:
       reviewed_by: owner
     scope: mechanical
     critical: true
-    transport_sensitive: false
     intended_coverage: partial  # FAT tested a narrower range (condition 3)
   - id: URS-TP201-003
     section: "1. Kinerja"
@@ -253,6 +252,7 @@ requirements:
       quote: "misalnya pelumas atau pendingin tidak boleh bersentuhan dengan bahan yang sedang diolah"
       accessed: 2026-11-12
     scope: mechanical
+    critical: true
     transport_sensitive: false
     intended_coverage: gap
 
@@ -317,7 +317,6 @@ requirements:
       drafted_by: llm
       reviewed_by: owner
     scope: control
-    transport_sensitive: false
     intended_coverage: partial  # FAT range too narrow; SAT single reading is ambiguous (S7)
   - id: URS-TP201-018
     section: "3. Kontrol dan keselamatan"
@@ -359,6 +358,7 @@ requirements:
       drafted_by: llm
       reviewed_by: owner
     scope: control
+    critical: true
     intended_coverage: covered_by_vendor
 
   # --- 4. Integritas data HMI (CPOB Aneks 7, decision log Q22) --------------------
@@ -477,6 +477,7 @@ requirements:
       drafted_by: llm
       reviewed_by: owner
     scope: mechanical
+    critical: true
     site_only: true
     intended_coverage: site_only
   - id: URS-TP201-029
@@ -583,6 +584,7 @@ requirements:
       drafted_by: llm
       reviewed_by: owner
     scope: documentation
+    critical: true
     transport_sensitive: false
     intended_coverage: covered_by_vendor
   - id: URS-TP201-036
@@ -597,6 +599,7 @@ requirements:
       quote: "Peralatan untuk mengukur, menimbang, mencatat dan mengendalikan seharusnya dikalibrasi dan diperiksa pada interval waktu tertentu"
       accessed: 2026-11-12
     scope: documentation
+    critical: true
     intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
   - id: URS-TP201-037
     section: "7. Dokumentasi"
@@ -868,14 +871,14 @@ risk_assessment:
     - {requirement: URS-TP201-010, failure_mode: "Permukaan kontak produk terlalu kasar", effect: "Residu tertahan; pembersihan tidak efektif", severity: 3, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-011, failure_mode: "Material rangka dan penutup tidak tahan pembersihan", effect: "Korosi rangka; partikel di ruang produksi", severity: 2, occurrence: 2, detection: 2}
     - {requirement: URS-TP201-012, failure_mode: "Material gasket atau seal tidak sesuai", effect: "Seal terdegradasi; partikel masuk ke produk", severity: 3, occurrence: 2, detection: 3}
-    - {requirement: URS-TP201-013, failure_mode: "Pelumas bukan food-grade", effect: "Kontaminasi produk bila terjadi kontak dengan pelumas", severity: 3, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-013, failure_mode: "Pelumas bukan food-grade", effect: "Kontaminasi produk bila terjadi kontak dengan pelumas", severity: 4, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-014, failure_mode: "Kontrol berat otomatis tidak bekerja", effect: "Bobot tablet di luar batas tidak terkoreksi di antara pemeriksaan IPC", severity: 5, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-015, failure_mode: "Tablet di luar batas tidak ditolak", effect: "Tablet di luar batas bobot masuk ke produk ruahan", severity: 5, occurrence: 2, detection: 4}
     - {requirement: URS-TP201-016, failure_mode: "Pengukuran gaya tekan tidak akurat", effect: "Kontrol berat dan penolakan bekerja dengan sinyal yang salah", severity: 4, occurrence: 2, detection: 4}
     - {requirement: URS-TP201-017, failure_mode: "Kecepatan paddle feeder tidak dapat diatur pada rentangnya", effect: "Pengisian die tidak seragam; variasi bobot tablet", severity: 3, occurrence: 2, detection: 2}
     - {requirement: URS-TP201-018, failure_mode: "Interlock pintu pelindung tidak berfungsi", effect: "Operator cedera oleh bagian yang bergerak", severity: 5, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-019, failure_mode: "Emergency stop tidak menghentikan mesin", effect: "Mesin tidak dapat dihentikan dalam keadaan darurat", severity: 5, occurrence: 1, detection: 2}
-    - {requirement: URS-TP201-020, failure_mode: "Proteksi overload punch tidak bekerja", effect: "Punch, die atau mesin rusak", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-020, failure_mode: "Proteksi overload punch tidak bekerja", effect: "Punch, die atau mesin rusak", severity: 4, occurrence: 2, detection: 2}
     - {requirement: URS-TP201-021, failure_mode: "Level akses pengguna tidak terpisah", effect: "Parameter diubah oleh pengguna yang tidak berwenang", severity: 4, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-022, failure_mode: "Audit trail tidak merekam perubahan", effect: "Perubahan parameter atau resep tidak dapat ditelusuri", severity: 4, occurrence: 2, detection: 4}
     - {requirement: URS-TP201-023, failure_mode: "Log alarm tidak lengkap", effect: "Investigasi penyimpangan terhambat", severity: 3, occurrence: 2, detection: 3}
@@ -883,15 +886,15 @@ risk_assessment:
     - {requirement: URS-TP201-025, failure_mode: "Jam HMI tidak sinkron dengan waktu pabrik", effect: "Waktu di audit trail dan log alarm tidak dapat dikorelasikan", severity: 3, occurrence: 3, detection: 3}
     - {requirement: URS-TP201-026, failure_mode: "Suplai listrik tidak sesuai spesifikasi mesin", effect: "Mesin tidak dapat dioperasikan atau rusak", severity: 2, occurrence: 1, detection: 1}
     - {requirement: URS-TP201-027, failure_mode: "Tekanan udara tekan tidak sesuai", effect: "Fungsi pneumatik tidak andal", severity: 3, occurrence: 2, detection: 2}
-    - {requirement: URS-TP201-028, failure_mode: "Kapasitas dust extraction tidak memadai", effect: "Debu menyebar; risiko kontaminasi silang", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-028, failure_mode: "Kapasitas dust extraction tidak memadai", effect: "Debu menyebar; risiko kontaminasi silang", severity: 4, occurrence: 2, detection: 2}
     - {requirement: URS-TP201-029, failure_mode: "Kebisingan melebihi batas", effect: "Gangguan pendengaran operator", severity: 3, occurrence: 2, detection: 1}
     - {requirement: URS-TP201-030, failure_mode: "Mesin tidak muat di ruang cetak", effect: "Instalasi tertunda", severity: 2, occurrence: 1, detection: 1}
     - {requirement: URS-TP201-031, failure_mode: "Mesin tidak stabil pada suhu ruang", effect: "Gangguan operasi", severity: 2, occurrence: 1, detection: 2}
     - {requirement: URS-TP201-032, failure_mode: "Changeover dan pembersihan melebihi waktu", effect: "Kapasitas efektif turun", severity: 2, occurrence: 2, detection: 1}
     - {requirement: URS-TP201-033, failure_mode: "Bagian kontak produk tidak dapat dilepas tanpa alat", effect: "Pembersihan tidak menyeluruh", severity: 3, occurrence: 2, detection: 2}
     - {requirement: URS-TP201-034, failure_mode: "Manual operasi dan perawatan tidak tersedia", effect: "Kesalahan operasi atau perawatan", severity: 2, occurrence: 1, detection: 1}
-    - {requirement: URS-TP201-035, failure_mode: "Sertifikat material 3.1 tidak tersedia", effect: "Material bagian kontak tidak dapat dibuktikan", severity: 3, occurrence: 1, detection: 1}
-    - {requirement: URS-TP201-036, failure_mode: "Sertifikat kalibrasi sensor gaya tidak tersedia atau kedaluwarsa", effect: "Akurasi pengukuran gaya tekan tidak terbukti", severity: 3, occurrence: 2, detection: 2}
+    - {requirement: URS-TP201-035, failure_mode: "Sertifikat material 3.1 tidak tersedia", effect: "Material bagian kontak tidak dapat dibuktikan", severity: 5, occurrence: 1, detection: 1}
+    - {requirement: URS-TP201-036, failure_mode: "Sertifikat kalibrasi sensor gaya tidak tersedia atau kedaluwarsa", effect: "Akurasi pengukuran gaya tekan tidak terbukti", severity: 4, occurrence: 2, detection: 2}
     - {requirement: URS-TP201-037, failure_mode: "Deklarasi kesesuaian keselamatan tidak tersedia", effect: "Kesesuaian keselamatan mesin tidak terbukti", severity: 2, occurrence: 1, detection: 1}
     - {requirement: URS-TP201-038, failure_mode: "Daftar suku cadang dan gambar as-built tidak tersedia", effect: "Perawatan dan perubahan mesin terhambat", severity: 2, occurrence: 1, detection: 1}
 
