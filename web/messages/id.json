@@ -88,7 +88,8 @@
       "site_only": "Tidak dapat diuji oleh vendor.",
       "covered_by_vendor": "Bukti vendor membuktikan persyaratan sepenuhnya.",
       "none": "Sistem tidak mengusulkan kelas; tentukan kelasnya."
-    }
+    },
+    "decidedClass": "Kelas setelah keputusan"
   },
   "decisions": {
     "column": "Keputusan",
@@ -138,7 +139,8 @@
       "changed": "Berubah sejak diputuskan",
       "decidedNotProposed": "Diputuskan sebelumnya, tidak diusulkan run ini"
     },
-    "progress": "usulan sudah diputuskan"
+    "progress": "usulan sudah diputuskan",
+    "redecide": "Putuskan ulang"
   },
   "findings": {
     "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",

@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import type { Cite, Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
+import type { Cite, Matrix, MatrixRow, ObservedValue, Proposal, Value } from "@/api/client";
 import { CiteLink } from "./CiteLink";
 import { CoverageBadge, Panel } from "./ui/ui";
 import type { CoverageKey } from "./ui/ui";
@@ -34,6 +34,20 @@ function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
     case "ambiguous":
       return t("ambiguous", { readings: v.readings.map((r) => number.format(r)).join(" / ") });
   }
+}
+
+/** The class a human changed this row to, next to the proposed one, so the final class does
+ * not hide in the decision text. */
+function DecidedClass({ proposal, t }: { proposal: Proposal | undefined; t: T }) {
+  const current = proposal?.state === "decided" ? proposal.decisions[0] : undefined;
+  if (current?.decision !== "edited" || current.coverage == null) return null;
+  return (
+    <span className={s.decided} title={t("decidedClass")}>
+      <span aria-hidden="true">→</span>
+      <span className="visually-hidden">{t("decidedClass")}:</span>
+      <CoverageBadge cls={current.coverage} label={t(`classes.${current.coverage}`)} />
+    </span>
+  );
 }
 
 function sameCite(a: Cite, b: Cite): boolean {
@@ -242,6 +256,7 @@ export function MatrixTable({
                     label={t(`classes.${row.coverage ?? "none"}`)}
                     help={t(`help.${row.coverage ?? "none"}`)}
                   />
+                  <DecidedClass proposal={byRequirement.get(row.id)} t={t} />
                   <p className={s.reason}>{row.reason}</p>
                 </td>
                 <td>

@@ -188,44 +188,61 @@ function Forms({
 }) {
   const replacing = proposal.state === "decided";
   const coverage = proposal.kind === "coverage";
+  const accept = !(coverage && proposed == null) && (
+    <form action={action} className={s.form}>
+      <Hidden runId={runId} proposal={proposal} screen={screen} decision="accepted" />
+      {replacing && <Reason t={t} />}
+      <button type="submit" data-variant="soft">
+        {t("accept")}
+      </button>
+    </form>
+  );
+  const other = coverage ? (
+    <form action={action} className={s.form}>
+      <Hidden runId={runId} proposal={proposal} screen={screen} decision="edited" />
+      <select name="coverage" required aria-label={t("toClass")} defaultValue="">
+        <option value="" disabled>
+          {t("toClass")}
+        </option>
+        {COVERAGE_CLASSES.filter((c) => c !== proposed).map((c) => (
+          <option key={c} value={c}>
+            {classes(`classes.${c}`)}
+          </option>
+        ))}
+      </select>
+      <Reason t={t} />
+      <button type="submit">{t("edit")}</button>
+    </form>
+  ) : (
+    <form action={action} className={s.form}>
+      <Hidden runId={runId} proposal={proposal} screen={screen} decision="rejected" />
+      <Reason t={t} />
+      <button type="submit" data-variant="danger">
+        {t("reject")}
+      </button>
+    </form>
+  );
+  // A decided Proposal keeps its forms one click away: deciding again needs a reason and is
+  // the exception, so it does not compete with the decision just made.
+  if (replacing) {
+    return (
+      <div className={s.decide}>
+        <details className={s.more}>
+          <summary>{t("redecide")}…</summary>
+          <div className={s.redecide}>
+            {accept}
+            {other}
+          </div>
+        </details>
+      </div>
+    );
+  }
   return (
     <div className={s.decide}>
-      {!(coverage && proposed == null) && (
-        <form action={action} className={s.form}>
-          <Hidden runId={runId} proposal={proposal} screen={screen} decision="accepted" />
-          {replacing && <Reason t={t} />}
-          <button type="submit" data-variant="soft">
-            {t("accept")}
-          </button>
-        </form>
-      )}
+      {accept}
       <details className={s.more}>
         <summary>{coverage ? t("edit") : t("reject")}…</summary>
-      {coverage ? (
-        <form action={action} className={s.form}>
-          <Hidden runId={runId} proposal={proposal} screen={screen} decision="edited" />
-          <select name="coverage" required aria-label={t("toClass")} defaultValue="">
-            <option value="" disabled>
-              {t("toClass")}
-            </option>
-            {COVERAGE_CLASSES.filter((c) => c !== proposed).map((c) => (
-              <option key={c} value={c}>
-                {classes(`classes.${c}`)}
-              </option>
-            ))}
-          </select>
-          <Reason t={t} />
-          <button type="submit">{t("edit")}</button>
-        </form>
-      ) : (
-        <form action={action} className={s.form}>
-          <Hidden runId={runId} proposal={proposal} screen={screen} decision="rejected" />
-          <Reason t={t} />
-          <button type="submit" data-variant="danger">
-            {t("reject")}
-          </button>
-        </form>
-      )}
+        {other}
       </details>
     </div>
   );

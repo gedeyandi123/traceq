@@ -212,3 +212,11 @@ table.matrix thead th {
 .overview > :only-child {
   grid-column: 1 / -1;
 }
+.decided {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-1);
+  color: var(--color-text-3);
+  font-weight: 700;
+}

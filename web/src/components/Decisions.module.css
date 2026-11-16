@@ -96,6 +96,19 @@
 .more[open] > summary::before {
   content: "▾ ";
 }
+.more[open] > .redecide {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-sunken);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.redecide > .form + .form {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
 .more[open] > .form {
   margin-top: var(--space-2);
   padding: var(--space-3);

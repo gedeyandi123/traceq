@@ -1,0 +1,151 @@
+{
+  "requirements": [
+    {
+      "id": "URS-TP201-002",
+      "text": "Kecepatan turret dapat diatur 20-70 rpm.",
+      "source": {
+        "doc": "URS-TP201",
+        "rev": 0,
+        "page": 1,
+        "quote": "Kecepatan turret dapat diatur 20-70 rpm."
+      },
+      "value": {
+        "type": "range",
+        "min": 20.0,
+        "max": 70.0,
+        "unit": "rpm"
+      },
+      "value_citation": {
+        "doc": "URS-TP201",
+        "rev": 0,
+        "page": 1,
+        "quote": "Kecepatan turret dapat diatur 20-70 rpm."
+      },
+      "coverage": "partial",
+      "reason": "FAT-M-02: result does not meet the URS; FAT-M-05: observation reads two ways",
+      "site_only": false,
+      "transport_sensitive": false,
+      "evidence": [
+        {
+          "doc": "FAT-TP201-M",
+          "rev": 0,
+          "stage": "FAT",
+          "step": "FAT-M-02",
+          "test": "Turret speed range",
+          "acceptance": "20-60 rpm",
+          "observed": "20-60 rpm",
+          "observed_value": {
+            "type": "range",
+            "min": 20.0,
+            "max": 60.0,
+            "unit": "rpm"
+          },
+          "result": "pass",
+          "failure": "result does not meet the URS",
+          "citation": {
+            "doc": "FAT-TP201-M",
+            "rev": 0,
+            "page": 1,
+            "quote": "FAT-M-02 Turret speed range 20-60 rpm 20-60 rpm Pass"
+          }
+        },
+        {
+          "doc": "FAT-TP201-M",
+          "rev": 0,
+          "stage": "FAT",
+          "step": "FAT-M-05",
+          "test": "Main motor speed",
+          "acceptance": "",
+          "observed": "1.500 rpm",
+          "observed_value": {
+            "type": "ambiguous",
+            "readings": [
+              1500.0,
+              1.5
+            ]
+          },
+          "result": "pass",
+          "failure": "observation reads two ways",
+          "citation": {
+            "doc": "FAT-TP201-M",
+            "rev": 0,
+            "page": 2,
+            "quote": "FAT-M-05 Main motor speed 1.500 rpm Pass"
+          }
+        }
+      ],
+      "design": [
+        {
+          "doc": "DS-TP201",
+          "rev": 0,
+          "name": "Turret speed",
+          "printed": "20-70 rpm",
+          "value": {
+            "type": "range",
+            "min": 20.0,
+            "max": 70.0,
+            "unit": "rpm"
+          },
+          "citation": {
+            "doc": "DS-TP201",
+            "rev": 0,
+            "page": 1,
+            "quote": "Turret speed 20-70 rpm"
+          }
+        }
+      ]
+    },
+    {
+      "id": "URS-TP201-026",
+      "text": "Catu daya 380 V, 3 fasa, 50 Hz.",
+      "source": {
+        "doc": "URS-TP201",
+        "rev": 0,
+        "page": 2,
+        "quote": "Catu daya 380 V, 3 fasa, 50 Hz."
+      },
+      "value": {
+        "type": "number",
+        "value": 380.0,
+        "unit": "V"
+      },
+      "value_citation": {
+        "doc": "URS-TP201",
+        "rev": 0,
+        "page": 2,
+        "quote": "Catu daya 380 V, 3 fasa, 50 Hz."
+      },
+      "coverage": "site_only",
+      "reason": "cannot be tested by the vendor",
+      "site_only": true,
+      "transport_sensitive": false,
+      "evidence": [],
+      "design": []
+    },
+    {
+      "id": "URS-TP201-030",
+      "text": "Mesin dilengkapi pencatat data elektronik.",
+      "source": {
+        "doc": "URS-TP201",
+        "rev": 0,
+        "page": 2,
+        "quote": "Mesin dilengkapi pencatat data elektronik."
+      },
+      "value": null,
+      "value_citation": null,
+      "coverage": null,
+      "reason": null,
+      "site_only": null,
+      "transport_sensitive": null,
+      "evidence": [],
+      "design": []
+    }
+  ],
+  "not_read": [
+    {
+      "doc_id": "SAT-TP201",
+      "rev": 0,
+      "format": "scan"
+    }
+  ]
+}

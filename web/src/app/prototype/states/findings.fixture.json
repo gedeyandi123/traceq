@@ -1,0 +1,157 @@
+{
+  "check_findings": [
+    {
+      "layer": "check",
+      "type": "out_of_limit_marked_pass",
+      "doc": "FAT-TP201-M",
+      "detail": "FAT-M-04: observed 52 dB(A) is outside the acceptance criterion <= 50 dB(A) but marked Pass",
+      "citations": [
+        {
+          "doc": "FAT-TP201-M",
+          "rev": 0,
+          "page": 1,
+          "quote": "FAT-M-04 Noise level <= 50 dB(A) 52 dB(A) Pass"
+        }
+      ],
+      "rule": null
+    },
+    {
+      "layer": "check",
+      "type": "vendor_protocol_not_approved",
+      "doc": "FAT-TP201-M",
+      "detail": "Approved by: no name, signature or date before execution",
+      "citations": [
+        {
+          "doc": "FAT-TP201-M",
+          "rev": 0,
+          "page": 2,
+          "quote": "Approved by"
+        }
+      ],
+      "rule": {
+        "doc": "SOP-VAL-002",
+        "rev": 0,
+        "page": 1,
+        "quote": "Protokol vendor harus disetujui sebelum dieksekusi."
+      }
+    }
+  ],
+  "ai_findings": [
+    {
+      "layer": "ai",
+      "type": "inconsistent_data",
+      "detail": "The serial number on the FAT differs from the serial number on the datasheet.",
+      "citations": [
+        {
+          "doc": "FAT-TP201-M",
+          "rev": 0,
+          "page": 1,
+          "quote": "Serial No. TP201-0042"
+        },
+        {
+          "doc": "DS-TP201",
+          "rev": 0,
+          "page": 1,
+          "quote": "Serial No. TP201-0024"
+        }
+      ],
+      "sources": [
+        {
+          "doc": "FAT-TP201-M",
+          "rev": 0
+        },
+        {
+          "doc": "DS-TP201",
+          "rev": 0
+        }
+      ],
+      "model": "claude-haiku-5-5",
+      "prompt": "bbbbbbbbbbbb",
+      "created": "2026-11-13T09:00:00+00:00",
+      "reviewer_action": "pending"
+    }
+  ],
+  "required_documents": [
+    {
+      "doc_id": "URS-TP201",
+      "type": "urs",
+      "stage": "design",
+      "in_corpus": true,
+      "citation": {
+        "doc": "VMP-001",
+        "rev": 0,
+        "page": 2,
+        "quote": "URS-TP201 URS design"
+      }
+    },
+    {
+      "doc_id": "IQ-TP201",
+      "type": "iq_protocol",
+      "stage": "IQ",
+      "in_corpus": false,
+      "citation": {
+        "doc": "VMP-001",
+        "rev": 0,
+        "page": 2,
+        "quote": "IQ-TP201 Protokol IQ IQ"
+      }
+    },
+    {
+      "doc_id": "OQ-TP201",
+      "type": "oq_protocol",
+      "stage": "OQ",
+      "in_corpus": false,
+      "citation": {
+        "doc": "VMP-001",
+        "rev": 0,
+        "page": 2,
+        "quote": "OQ-TP201 Protokol OQ OQ"
+      }
+    }
+  ],
+  "missing_documents": [
+    {
+      "doc_id": "IQ-TP201",
+      "type": "iq_protocol",
+      "stage": "IQ",
+      "citation": {
+        "doc": "VMP-001",
+        "rev": 0,
+        "page": 2,
+        "quote": "IQ-TP201 Protokol IQ IQ"
+      }
+    },
+    {
+      "doc_id": "OQ-TP201",
+      "type": "oq_protocol",
+      "stage": "OQ",
+      "citation": {
+        "doc": "VMP-001",
+        "rev": 0,
+        "page": 2,
+        "quote": "OQ-TP201 Protokol OQ OQ"
+      }
+    }
+  ],
+  "site_rules": [
+    {
+      "rule": "vendor_protocol_approved_before_execution",
+      "citation": {
+        "doc": "SOP-VAL-002",
+        "rev": 0,
+        "page": 1,
+        "quote": "Protokol vendor harus disetujui sebelum dieksekusi."
+      }
+    }
+  ],
+  "governing_documents": [
+    {
+      "doc_id": "VMP-001",
+      "rev": 0
+    },
+    {
+      "doc_id": "SOP-VAL-002",
+      "rev": 0
+    }
+  ]
+}

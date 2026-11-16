@@ -102,3 +102,13 @@ Round 2 (this branch): tokens in `globals.css`, CSS Modules per component, the s
 - Test guard kept: raw labels locked by tests (left-out "Jenis: value", eval "Set" column per row) stay; only lightened visually.
 - Done: styled 404 (Next's built-in one was black, English, no way back; status stays 404); "Belum diputuskan" quieter so decided and changed rows stand out; missing-document types labelled ("Protokol IQ") with the raw value as fallback; unquoted URS text folded behind its count (left-out 2,672 → 1,879 px at 1366).
 - Open for the spec: `error.tsx` for an API failure mid-render (needs a client component and translations on the client); tab counts (2–3 more API reads per page); the decided/changed visuals and the scroll position after a decision are not yet seen with real decisions.
+
+## 8. Round 6 (17 Nov 2026): decision states and scroll, checked without writing data
+
+Method (owner approved): (1) a development-only preview `/prototype/states` renders the real components over the render-test fixtures (copies of `tests/fixtures/run/runs/20261113T090000Z-f1a2b3` matrix and findings, and `decisions.fixture.ts`), with a no-op action; (2) a decision the API refuses (change class with a reason of spaces only) to see where the page lands after the action. The refusal is raised inside the transaction before any insert (`proposals/decisions.py`, `db/database.py` `session.begin()`).
+
+Results:
+- **After a decision the page returns to the top.** Browser at 1366, row URS-TP201-030: `scrollY` 3138 before, 0 after, URL `?error=refused`, banner shown. Database unchanged: `audit_trail` 1 → 1, `proposal_decisions` 0 → 0. Not yet observed: a successful decision (redirect without `?error`); it uses the same redirect path and is checked in the runbook re-run. Keeping the place needs the action to redirect to the row (an anchor), a behaviour change: it goes with the filter spec, which already has to change that redirect.
+- Decided rows were ~300 px tall because the re-decide forms were always open. Now behind "Putuskan ulang…" (same forms and fields). Runbook K8 and K15 gain that click.
+- A changed class showed only the proposed class in the Cakupan column; now "Sebagian → Celah" (from the current decision).
+- Changed (orange), undecided and rejected-with-reason states read clearly; no change.
