@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { SessionBar } from "@/components/SessionBar";
 import { LOCALE } from "@/i18n/request";
 
 import "./globals.css";
@@ -17,7 +18,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={LOCALE}>
       <body>
         <header>
-          <a href="/">{t("title")}</a> <span className="muted">{t("tagline")}</span>
+          <a href="/">{t("title")}</a> <span className="muted">{t("tagline")}</span> <SessionBar />
         </header>
         <main>{children}</main>
       </body>
