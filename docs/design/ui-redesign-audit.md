@@ -87,3 +87,10 @@ Round 1 prototype verdict: structure B (triage) and C (board) cannot hold the "z
 - Timing versus the 25 Nov freeze: open (owner asked whether it conflicts).
 
 Round 2 (this branch): tokens in `globals.css`, CSS Modules per component, the shell, `RunHeader` with tabs on the four run screens, and all six pages restyled, with two palettes (1 Navy, 2 Teal) switchable in development only. `npm test` 14/14 with no test file changed against `main`.
+
+## 6. Rounds 3–4 (17 Nov 2026)
+
+- Owner: Teal palette; timing OK (land before the runbook re-run on the freeze release); "overall better, polish further, align, consistent, data clear".
+- Round 3: one page order on every run screen (header, tabs, intro line, summary panels, tables), one panel and one section-heading pattern, `.stack` rhythm, decision k/n progress, coverage class meanings (from the decision table of the dataset design), sticky table headers fixed.
+- Round 4 (data clarity): evidence chips carry the observed value or the printed design value (required vs observed side by side without opening the row); the value citation shows only when it differs from the requirement's citation; AI finding timestamps formatted; "Keputusan" header on both findings tables; the repeated "Terima" uses a soft variant so 38 identical solid buttons do not outweigh the data.
+- Data observations for the system, not the UI (the UI shows output as it is): requirement texts from URS page 2 carry the ID and the "Kritis" column ("URS-TP201-024 Tidak Resep …"); reasons, design values and enum labels (`iq_protocol`, `ai_finding`) are English.

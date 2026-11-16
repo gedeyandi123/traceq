@@ -194,7 +194,7 @@ function Forms({
         <form action={action} className={s.form}>
           <Hidden runId={runId} proposal={proposal} screen={screen} decision="accepted" />
           {replacing && <Reason t={t} />}
-          <button type="submit" data-variant="primary">
+          <button type="submit" data-variant="soft">
             {t("accept")}
           </button>
         </form>

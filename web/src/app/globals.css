@@ -216,6 +216,17 @@ button[data-variant="primary"]:hover {
   background: var(--color-ink-hover);
   border-color: var(--color-ink-hover);
 }
+/* soft: the primary action when it repeats on every row of a table. */
+button[data-variant="soft"] {
+  background: var(--color-ink-soft);
+  border-color: color-mix(in srgb, var(--color-ink) 35%, transparent);
+  color: var(--color-ink);
+}
+button[data-variant="soft"]:hover {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-on-ink);
+}
 button[data-variant="danger"] {
   color: var(--color-fail);
   border-color: color-mix(in srgb, var(--color-fail) 45%, transparent);

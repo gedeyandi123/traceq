@@ -20,6 +20,21 @@ function Citations({ cites, runId }: { cites: readonly Cite[]; runId: string }) 
   );
 }
 
+const stamp = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "UTC",
+});
+
+/** A timestamp as people read it; the raw value if it does not parse. */
+function when(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : `${stamp.format(d)} UTC`;
+}
+
 function byPosition(view: DecisionView, kind: Proposal["kind"]): Map<number | null, Proposal> {
   return new Map(
     (view.proposals ?? []).filter((p) => p.kind === kind).map((p) => [p.position, p] as const),
@@ -120,7 +135,7 @@ export function FindingsView({
                 <th>{t("type")}</th>
                 <th>{t("detail")}</th>
                 <th>{t("citations")}</th>
-                <th>{t("status")}</th>
+                <th>{decided ? td("column") : t("status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -130,7 +145,7 @@ export function FindingsView({
                   <td>
                     {f.detail}
                     <div className={s.trace}>
-                      {t("trace", { model: f.model, prompt: f.prompt.slice(0, 12), created: f.created })}
+                      {t("trace", { model: f.model, prompt: f.prompt.slice(0, 12), created: when(f.created) })}
                     </div>
                   </td>
                   <td>

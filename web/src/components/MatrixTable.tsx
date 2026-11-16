@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import type { Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
+import type { Cite, Matrix, MatrixRow, ObservedValue, Value } from "@/api/client";
 import { CiteLink } from "./CiteLink";
 import { CoverageBadge, Panel } from "./ui/ui";
 import type { CoverageKey } from "./ui/ui";
@@ -36,24 +36,43 @@ function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
   }
 }
 
+function sameCite(a: Cite, b: Cite): boolean {
+  return a.doc === b.doc && a.rev === b.rev && a.page === b.page && a.quote === b.quote;
+}
+
 /** Riskiest first: the order of the coverage summary. */
 const RISK: readonly CoverageKey[] = ["conflict", "gap", "partial", "site_only", "covered_by_vendor", "none"];
 
+/** An observed value in a few characters, for the one-line evidence summary. A reading that
+ * needs confirmation shows its readings and a question mark; the full sentence is in the
+ * opened detail. */
+function shortObserved(t: T, e: MatrixRow["evidence"][number]): string {
+  const v = e.observed_value;
+  if (!v) return e.observed;
+  if (v.type === "ambiguous") return `${v.readings.map((r) => number.format(r)).join(" / ")} ?`;
+  return formatValue(t, v, true);
+}
+
 function EvidenceChips({ row, t }: { row: MatrixRow; t: T }) {
+  const [design, ...moreDesign] = row.design;
   return (
     <span className={s.chips}>
       {row.evidence.map((e) => (
-        <span key={`${e.doc}/${e.step}`} className={`${s.chip} ${s[`chip_${e.result ?? "none"}`]}`}>
+        <span
+          key={`${e.doc}/${e.step}`}
+          className={`${s.chip} ${s[`chip_${e.result ?? "none"}`]}`}
+          title={`${e.stage} ${e.step}: ${t(`results.${e.result ?? "none"}`)}`}
+        >
           <span aria-hidden="true">{e.result === "pass" ? "✓" : e.result === "fail" ? "✕" : "·"}</span>
-          {e.step}
+          <span className={s.chipText}>{`${e.step} · ${shortObserved(t, e)}`}</span>
         </span>
       ))}
-      {row.design.length > 0 && (
-        <span className={s.chip}>
-          {t("design")}
-          {row.design.length > 1 && ` ×${row.design.length}`}
+      {design && (
+        <span className={s.chip} title={design.name}>
+          <span className={s.chipText}>{`${t("design")} · ${design.printed}`}</span>
         </span>
       )}
+      {moreDesign.length > 0 && <span className={s.chipMore}>{`+${moreDesign.length}`}</span>}
     </span>
   );
 }
@@ -211,7 +230,7 @@ export function MatrixTable({
                   ) : (
                     <span className="muted">{t("noValue")}</span>
                   )}
-                  {row.value_citation && (
+                  {row.value_citation && !sameCite(row.value_citation, row.source) && (
                     <div className={s.cite}>
                       <CiteLink runId={runId} cite={row.value_citation} />
                     </div>
