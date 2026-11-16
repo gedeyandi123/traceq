@@ -1,7 +1,9 @@
 import { useTranslations } from "next-intl";
 
-import type { Cite, Findings } from "@/api/client";
+import type { Cite, Findings, Proposal } from "@/api/client";
 import { CiteLink } from "./CiteLink";
+import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
+import type { DecisionView } from "./Decisions";
 
 function Citations({ cites, runId }: { cites: readonly Cite[]; runId: string }) {
   return (
@@ -15,13 +17,35 @@ function Citations({ cites, runId }: { cites: readonly Cite[]; runId: string }) 
   );
 }
 
+function byPosition(view: DecisionView, kind: Proposal["kind"]): Map<number | null, Proposal> {
+  return new Map(
+    (view.proposals ?? []).filter((p) => p.kind === kind).map((p) => [p.position, p] as const),
+  );
+}
+
 /** The Pre-review of a run: Check Findings (deterministic rules) and AI Findings (advisory,
  * pending a human) in separate sections, then the documents the VMP requires that the corpus
- * lacks. Every finding links to the page it cites. */
-export function FindingsView({ findings, runId }: { findings: Findings; runId: string }) {
+ * lacks. Every finding links to the page it cites. For an imported run each finding shows its
+ * decision state in place of the file's "pending", and the decision forms when the viewer may
+ * decide. */
+export function FindingsView({
+  findings,
+  runId,
+  decisions,
+}: {
+  findings: Findings;
+  runId: string;
+  decisions: DecisionView;
+}) {
   const t = useTranslations("findings");
+  const td = useTranslations("decisions");
+  const decided = decisions.proposals !== undefined;
+  const checks = byPosition(decisions, "check");
+  const ais = byPosition(decisions, "ai");
   return (
     <>
+      <DecisionNotice view={decisions} />
+      <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
       <section className="findings findings-check" aria-labelledby="check-findings">
         <h2 id="check-findings">{t("check")}</h2>
         <p className="muted">{t("checkNote")}</p>
@@ -35,6 +59,7 @@ export function FindingsView({ findings, runId }: { findings: Findings; runId: s
                 <th>{t("document")}</th>
                 <th>{t("detail")}</th>
                 <th>{t("citations")}</th>
+                {decided && <th>{td("column")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -51,6 +76,16 @@ export function FindingsView({ findings, runId }: { findings: Findings; runId: s
                       </div>
                     )}
                   </td>
+                  {decided && (
+                    <td>
+                      <DecisionCell
+                        proposal={checks.get(i)}
+                        runId={runId}
+                        screen="findings"
+                        access={decisions.access}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -87,7 +122,16 @@ export function FindingsView({ findings, runId }: { findings: Findings; runId: s
                     <Citations cites={f.citations} runId={runId} />
                   </td>
                   <td>
-                    <span className="pending">{t(`actions.${f.reviewer_action}`)}</span>
+                    {decided ? (
+                      <DecisionCell
+                        proposal={ais.get(i)}
+                        runId={runId}
+                        screen="findings"
+                        access={decisions.access}
+                      />
+                    ) : (
+                      <span className="pending">{t(`actions.${f.reviewer_action}`)}</span>
+                    )}
                   </td>
                 </tr>
               ))}

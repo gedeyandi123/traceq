@@ -81,6 +81,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/dropped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dropped
+         * @description The claims the citation check dropped, each with its subject and reason.
+         */
+        get: operations["getDropped"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/completeness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Completeness
+         * @description The URS completeness check; not found for a run written before it existed.
+         */
+        get: operations["getCompleteness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/documents/{doc_id}/{rev}": {
         parameters: {
             query?: never;
@@ -93,6 +133,89 @@ export interface paths {
          * @description A document the run read, as released: a citation links here with ``#page=N``.
          */
         get: operations["getDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import
+         * @description Imports a run folder as Proposals, in one transaction. Importing a run already
+         *     imported changes nothing. Needs the deciding role.
+         */
+        post: operations["importRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The Proposals of an imported run, in the order of its files, with their decision
+         *     state and decisions.
+         */
+        get: operations["listProposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/proposals/{proposal_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Decision
+         * @description Records one Proposal Decision on the content this run proposed, with its Audit
+         *     Trail entry. Earlier decisions stay. Needs the deciding role.
+         */
+        post: operations["recordDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/decision-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Decision Counts
+         * @description Per kind of Proposal of an imported run: how many there are and where they stand.
+         */
+        get: operations["decisionCounts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -189,6 +312,55 @@ export interface components {
             quote: string;
         };
         /**
+         * Completeness
+         * @description The URS completeness check of a run: printed numbers that did not become a
+         *     requirement, and URS text no kept requirement quotes.
+         */
+        Completeness: {
+            /** Urs */
+            urs: components["schemas"]["UrsCompleteness"][];
+        };
+        /**
+         * Decision
+         * @description A recorded Proposal Decision: what, who, when and why.
+         */
+        Decision: {
+            /** Id */
+            id: number;
+            decision: components["schemas"]["Verdict"];
+            /** Coverage */
+            coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Reason */
+            reason: string | null;
+            /** Run Id */
+            run_id: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * DecisionCounts
+         * @description Stored decisions counted per kind of Proposal for one run. Counts, not a measure of
+         *     quality.
+         */
+        DecisionCounts: {
+            /** Run Id */
+            run_id: string;
+            coverage: components["schemas"]["KindCounts"];
+            check: components["schemas"]["KindCounts"];
+            ai: components["schemas"]["KindCounts"];
+        };
+        /**
          * DesignRow
          * @description A datasheet or certificate value compared with the URS value.
          */
@@ -204,6 +376,18 @@ export interface components {
             /** Value */
             value: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
             citation: components["schemas"]["Cite"];
+        };
+        /**
+         * DroppedClaim
+         * @description A claim the citation check dropped, with its reason in plain text.
+         */
+        DroppedClaim: {
+            /** Claim */
+            claim: string;
+            /** Id */
+            id: string;
+            /** Reason */
+            reason: string;
         };
         /**
          * EvidenceStep
@@ -270,6 +454,44 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * ImportedRun
+         * @description A run imported as Proposals.
+         */
+        ImportedRun: {
+            /** Run Id */
+            run_id: string;
+            /** Equipment */
+            equipment: string;
+            /** Proposals */
+            proposals: number;
+            /** Already Imported */
+            already_imported: boolean;
+        };
+        /** @enum {string} */
+        Kind: "coverage" | "check" | "ai";
+        /**
+         * KindCounts
+         * @description The Proposals of one kind in a run, by decision state. ``total`` is the sum of
+         *     ``undecided``, ``changed`` and the current decisions ``accepted``, ``edited`` and
+         *     ``rejected``.
+         */
+        KindCounts: {
+            /** Total */
+            total: number;
+            /** Undecided */
+            undecided: number;
+            /** Accepted */
+            accepted: number;
+            /** Edited */
+            edited: number;
+            /** Rejected */
+            rejected: number;
+            /** Changed */
+            changed: number;
+            /** Decided Not Proposed */
+            decided_not_proposed: number;
+        };
+        /**
          * Matrix
          * @description The traceability matrix of a run.
          */
@@ -315,6 +537,16 @@ export interface components {
             design: components["schemas"]["DesignRow"][];
         };
         /**
+         * MissedNumber
+         * @description A printed requirement number that did not become a kept requirement.
+         */
+        MissedNumber: {
+            /** Number */
+            number: string;
+            /** Page */
+            page: number;
+        };
+        /**
          * MissingDocument
          * @description A document the VMP requires that the corpus lacks.
          */
@@ -329,6 +561,22 @@ export interface components {
              */
             stage: "design" | "FAT" | "SAT" | "IQ" | "OQ";
             citation: components["schemas"]["Cite"];
+        };
+        /**
+         * NewDecision
+         * @description A Proposal Decision on the content the run proposed.
+         *
+         *     A Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is
+         *     ``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no
+         *     class). A Reason for Change is required for ``rejected`` and ``edited``, and for any
+         *     decision that replaces an earlier one on the same content.
+         */
+        NewDecision: {
+            decision: components["schemas"]["Verdict"];
+            /** Coverage */
+            coverage?: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Reason */
+            reason?: string | null;
         };
         /**
          * NotRead
@@ -376,6 +624,25 @@ export interface components {
             type: "present";
             /** Value */
             value?: boolean | null;
+        };
+        /**
+         * Proposal
+         * @description A Proposal of a run, where it stands in the run's files, and its decision state.
+         */
+        Proposal: {
+            /** Id */
+            id: number;
+            kind: components["schemas"]["Kind"];
+            /** Requirement */
+            requirement: string | null;
+            /** Position */
+            position: number | null;
+            /** Content Hash */
+            content_hash: string;
+            state: components["schemas"]["State"];
+            /** Decisions */
+            decisions: components["schemas"]["Decision"][];
+            previous: components["schemas"]["Decision"] | null;
         };
         /**
          * Range
@@ -455,6 +722,8 @@ export interface components {
             /** Rev */
             rev: number;
         };
+        /** @enum {string} */
+        State: "decided" | "changed" | "undecided";
         /** Text */
         Text: {
             /**
@@ -464,6 +733,37 @@ export interface components {
             type: "text";
             /** Value */
             value: string;
+        };
+        /**
+         * UnquotedText
+         * @description URS text that no kept requirement quotes: adjacent lines merged.
+         */
+        UnquotedText: {
+            /** Page */
+            page: number;
+            /** Text */
+            text: string;
+        };
+        /**
+         * UrsCompleteness
+         * @description The completeness check of one URS the run read, built without an LLM.
+         */
+        UrsCompleteness: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Numbers
+             * @enum {string}
+             */
+            numbers: "checked" | "not_applicable";
+            /** Found */
+            found: number;
+            /** Missed */
+            missed: components["schemas"]["MissedNumber"][];
+            /** Unquoted */
+            unquoted: components["schemas"]["UnquotedText"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -478,6 +778,8 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** @enum {string} */
+        Verdict: "accepted" | "rejected" | "edited";
     };
     responses: never;
     parameters: never;
@@ -600,6 +902,68 @@ export interface operations {
             };
         };
     };
+    getDropped: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DroppedClaim"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getCompleteness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Completeness"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getDocument: {
         parameters: {
             query?: never;
@@ -621,6 +985,135 @@ export interface operations {
                 content: {
                     "application/pdf": unknown;
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    importRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportedRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listProposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recordDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decision"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decisionCounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionCounts"];
                 };
             };
             /** @description Validation Error */

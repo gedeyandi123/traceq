@@ -6,6 +6,17 @@
   "common": {
     "cite": "{doc} rev {rev}, hlm. {page}"
   },
+  "signin": {
+    "title": "Masuk",
+    "demoNote": "Ini identitas demo, bukan kontrol akses sungguhan: tanpa kata sandi, pilih salah satu tokoh fiktif.",
+    "unavailable": "Penerbit identitas demo tidak dapat dihubungi. Jalankan traceq demo-issuer.",
+    "as": "Masuk sebagai {name}",
+    "canDecide": "Dapat memutuskan",
+    "readOnly": "Hanya membaca",
+    "link": "Masuk (identitas demo)",
+    "signedInAs": "Masuk sebagai {name} (identitas demo)",
+    "out": "Keluar"
+  },
   "runs": {
     "title": "Run analisis",
     "empty": "Belum ada run. Jalankan traceq run lalu traceq serve.",
@@ -37,6 +48,7 @@
     "ambiguous": "Terbaca ganda ({readings}): minta konfirmasi",
     "toFindings": "Temuan pra-tinjauan",
     "toEval": "Hasil evaluasi",
+    "toLeftOut": "Yang tidak dimasukkan sistem",
     "notRead": "Dokumen vendor yang tidak terbaca",
     "classes": {
       "covered_by_vendor": "Dicakup vendor",
@@ -59,6 +71,55 @@
       "atMost": "≤ {max} {unit}"
     }
   },
+  "decisions": {
+    "column": "Keputusan",
+    "states": {
+      "decided": "Sudah diputuskan",
+      "changed": "Berubah sejak diputuskan: belum diputuskan lagi",
+      "undecided": "Belum diputuskan"
+    },
+    "when": "{date} {time} UTC",
+    "made": {
+      "accepted": "Diterima oleh {name}, {when}",
+      "rejected": "Ditolak oleh {name}, {when}",
+      "edited": "Diubah ke {class} oleh {name}, {when}"
+    },
+    "earlier": "Keputusan sebelumnya atas isi ini:",
+    "previous": "Keputusan sebelumnya, atas isi lain: {summary}",
+    "accept": "Terima",
+    "reject": "Tolak",
+    "edit": "Ubah kelas",
+    "toClass": "Pilih kelas cakupan",
+    "reason": "Alasan perubahan",
+    "readOnly": {
+      "signedOut": "Hanya membaca: masuk sebagai orang dengan peran pengambil keputusan untuk memutuskan.",
+      "noRole": "Hanya membaca: identitas ini tidak memiliki peran pengambil keputusan. Masuk sebagai orang yang memilikinya untuk memutuskan.",
+      "notImported": "Hanya membaca: run ini belum diimpor ke basis data. Impor run (perintah demo) untuk memutuskan.",
+      "unavailable": "Hanya membaca: API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
+    },
+    "errors": {
+      "refused": "Keputusan ditolak API. Alasan perubahan wajib untuk menolak, mengubah kelas, atau mengganti keputusan; mengubah kelas perlu kelas yang lain.",
+      "forbidden": "Keputusan ditolak API: identitas ini tidak memiliki peran pengambil keputusan.",
+      "unauthorized": "Keputusan ditolak API: token tidak diterima. Masuk lagi.",
+      "failed": "Keputusan tidak tersimpan. Coba lagi."
+    },
+    "kinds": {
+      "coverage": "Baris cakupan",
+      "check": "Temuan pemeriksaan",
+      "ai": "Temuan AI"
+    },
+    "counts": {
+      "title": "Jumlah keputusan",
+      "kind": "Jenis",
+      "total": "Proposal",
+      "undecided": "Belum diputuskan",
+      "accepted": "Diterima",
+      "edited": "Diubah",
+      "rejected": "Ditolak",
+      "changed": "Berubah sejak diputuskan",
+      "decidedNotProposed": "Diputuskan sebelumnya, tidak diusulkan run ini"
+    }
+  },
   "findings": {
     "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",
     "subtitle": "{equipment} · run {runId}",
@@ -78,6 +139,7 @@
     "stage": "Tahap",
     "required": "Diwajibkan oleh",
     "status": "Status",
+    "toLeftOut": "Yang tidak dimasukkan sistem",
     "trace": "Model {model} · prompt {prompt} · {created}",
     "actions": {
       "pending": "Menunggu tinjauan"
@@ -98,6 +160,27 @@
       "gdp_correction": "Koreksi GDP",
       "outdated_reference": "Referensi kedaluwarsa"
     }
+  },
+  "leftOut": {
+    "title": "Yang tidak dimasukkan sistem",
+    "subtitle": "{equipment} · run {runId}",
+    "back": "Matriks ketertelusuran",
+    "dropped": "Klaim yang dibuang pemeriksaan kutipan",
+    "droppedNote": "Isinya gagal pemeriksaan kutipan, jadi hanya jenis, subjek, dan alasannya yang ditampilkan.",
+    "group": "Jenis: {kind}",
+    "humanAc": "Kriteria penerimaan yang diserahkan ke manusia",
+    "humanAcNote": "Langkah penyusunan tidak menemukan nilai bersumber, jadi kriteria ini harus ditetapkan manusia.",
+    "kind": "Jenis",
+    "subject": "Subjek",
+    "reason": "Alasan",
+    "none": "Tidak ada.",
+    "completeness": "Pemeriksaan kelengkapan URS",
+    "notRun": "Pemeriksaan kelengkapan tidak dijalankan untuk run ini (run ditulis sebelum pemeriksaan ada).",
+    "numbersNotApplicable": "Nomor persyaratan: tidak berlaku (URS ini tidak mencetak nomor).",
+    "numbersFound": "Nomor persyaratan tercetak: {found} ditemukan, {missed} tidak menjadi persyaratan.",
+    "missedNumber": "{number} (hlm. {page}) tidak menjadi persyaratan",
+    "unquoted": "Teks URS yang tidak dikutip persyaratan mana pun",
+    "page": "hlm. {page}"
   },
   "eval": {
     "title": "Hasil evaluasi",

@@ -15,9 +15,9 @@ from fastapi.testclient import TestClient
 
 from traceq.ai import BudgetExceeded, PriceTable, Request, Response
 from traceq.ai.cost import Price
+from traceq.app import cli
+from traceq.app.api import create_app
 from traceq.documents import OcrUnavailable, pdf
-from traceq.runs import cli
-from traceq.runs.api import create_app
 from traceq.runs.run import RunOutput, run
 from traceq.traceability.evidence import TRANSPORT_VOTES
 from traceq_dataset import render
@@ -920,3 +920,71 @@ def test_vendor_reuse_is_a_run_setting_recorded_in_the_run(
     drafts = json.loads((out.folder / "drafts.json").read_text(encoding="utf-8"))
     assert drafts["vendor_reuse"] is False
     assert len(out.submission.test_steps) == len(out.submission.requirements) == 38
+
+
+def test_the_run_checks_the_urs_for_completeness(recorded: RunOutput) -> None:
+    """Every printed number of TP-201 became a requirement; the invented ``URS-TP201-999``
+    is printed nowhere, so it is dropped but not missed. Headings, table heads, the revision
+    history and the approval block are text no requirement quotes."""
+    written = json.loads((recorded.folder / "completeness.json").read_text(encoding="utf-8"))
+    (urs,) = written["urs"]
+    assert (urs["doc"], urs["rev"], urs["numbers"], urs["found"]) == ("URS-TP201", 1, "checked", 38)
+    assert urs["missed"] == []
+    texts = [u["text"] for u in urs["unquoted"]]
+    assert texts[0].startswith("Spesifikasi Kebutuhan Pengguna (SKP)")
+    assert any(t.startswith("Riwayat revisi") for t in texts)
+    assert not any(re.search(r"^URS-TP201-\d{3} ", t, re.M) for t in texts)
+
+
+class _Ticking:
+    """A clock that moves one second each time it is read."""
+
+    def __init__(self) -> None:
+        self.t = 0.0
+
+    def __call__(self) -> float:
+        self.t += 1.0
+        return self.t
+
+
+class _SlowLLM(ScriptedLLM):
+    """Each batch takes ten seconds on ``clock``."""
+
+    def __init__(self, clock: _Ticking) -> None:
+        super().__init__()
+        self.clock = clock
+        self.batches = 0
+
+    def complete(self, requests: Sequence[Request]) -> list[Response]:
+        self.clock.t += 10.0
+        self.batches += 1
+        return super().complete(requests)
+
+
+def test_a_live_run_records_its_duration_with_live_time_apart(
+    corpus_dir: Path, tmp_path: Path, seeded: Callable[[Path], Path]
+) -> None:
+    seeded(tmp_path / "rec")
+    clock = _Ticking()
+    llm = _SlowLLM(clock)
+    out = run(
+        corpus_dir, tmp_path / "runs", tmp_path / "rec", MODEL, live=llm, prices=PRICES, clock=clock
+    )
+    assert llm.batches > 0
+    # Per batch: ten seconds in the call and the tick of the clock read after it.
+    live = 11.0 * llm.batches
+    assert out.metadata["duration"]["live_seconds"] == live
+    # Besides: the tick of the read before each batch, and of the read at the end.
+    assert out.metadata["duration"]["total_seconds"] == live + llm.batches + 1
+    written = json.loads((out.folder / "run.json").read_text(encoding="utf-8"))
+    assert written["duration"] == out.metadata["duration"]
+
+
+@pytest.mark.usefixtures("no_ocr_model")
+def test_a_replayed_run_reports_live_time_zero(
+    recorded: RunOutput, corpus_dir: Path, tmp_path: Path
+) -> None:
+    ticks = iter([100.0, 107.25])
+    recordings = recorded.folder.parents[1] / "recordings"
+    out = run(corpus_dir, tmp_path, recordings, MODEL, clock=lambda: next(ticks))
+    assert out.metadata["duration"] == {"total_seconds": 7.25, "live_seconds": 0.0}

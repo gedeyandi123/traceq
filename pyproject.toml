@@ -6,16 +6,20 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.20.1",
     "anthropic>=2.8.0",
     "docling>=2.150.0",
     "fastapi>=0.162.5",
     "numpy>=2.5.4",
     "openpyxl>=3.1.5",
     "pillow>=13.0.0",
+    "psycopg[binary]>=3.3.9",
     "pydantic>=2.11",
+    "pyjwt[crypto]>=2.15.1",
     "pypdf>=6",
     "pypdfium2>=5.15.2",
     "pyyaml>=6.0.2",
+    "sqlalchemy>=2.1.8",
     "torch>=2.14",
     "torchvision>=0.29",
     "typst==0.15.2",
@@ -49,7 +53,7 @@ build-backend = "hatchling.build"
 packages = ["src/traceq_dataset", "src/traceq_eval", "src/traceq"]
 
 [project.scripts]
-traceq = "traceq.runs.cli:main"
+traceq = "traceq.app.cli:main"
 
 [project.optional-dependencies]
 ocr = [
@@ -92,13 +96,41 @@ root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "TraceQ modules are layered: runs > review, protocols > traceability > documents, ai"
+name = "TraceQ modules are layered: app > proposals > audit, identity > db > runs > review, protocols > traceability > documents, ai"
 type = "layers"
 layers = [
+    "traceq.app",
+    "traceq.proposals",
+    "traceq.audit | traceq.identity",
+    "traceq.db",
     "traceq.runs",
     "traceq.review | traceq.protocols",
     "traceq.traceability",
     "traceq.documents | traceq.ai",
+]
+
+[[tool.importlinter.contracts]]
+name = "The pipeline and the harness import neither app, proposals, identity, the database modules nor a database library"
+type = "forbidden"
+source_modules = [
+    "traceq.runs",
+    "traceq.review",
+    "traceq.protocols",
+    "traceq.traceability",
+    "traceq.documents",
+    "traceq.ai",
+    "traceq_eval",
+    "traceq_dataset",
+]
+forbidden_modules = [
+    "traceq.app",
+    "traceq.proposals",
+    "traceq.audit",
+    "traceq.identity",
+    "traceq.db",
+    "sqlalchemy",
+    "psycopg",
+    "alembic",
 ]
 
 [[tool.importlinter.contracts]]

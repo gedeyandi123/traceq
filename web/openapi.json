@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TraceQ",
-    "summary": "Read-only API over run folders.",
+    "summary": "Run folders read-only; Proposals in the database, behind a token.",
     "version": "0.1.0"
   },
   "paths": {
@@ -148,6 +148,90 @@
         }
       }
     },
+    "/runs/{run_id}/dropped": {
+      "get": {
+        "summary": "Get Dropped",
+        "description": "The claims the citation check dropped, each with its subject and reason.",
+        "operationId": "getDropped",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DroppedClaim"
+                  },
+                  "title": "Response Getdropped"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/completeness": {
+      "get": {
+        "summary": "Get Completeness",
+        "description": "The URS completeness check; not found for a run written before it existed.",
+        "operationId": "getCompleteness",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Completeness"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/runs/{run_id}/documents/{doc_id}/{rev}": {
       "get": {
         "summary": "Get Document",
@@ -188,6 +272,209 @@
             "content": {
               "application/pdf": {},
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/import": {
+      "post": {
+        "summary": "Import ",
+        "description": "Imports a run folder as Proposals, in one transaction. Importing a run already\nimported changes nothing. Needs the deciding role.",
+        "operationId": "importRun",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportedRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/proposals": {
+      "get": {
+        "summary": "List Proposals",
+        "description": "The Proposals of an imported run, in the order of its files, with their decision\nstate and decisions.",
+        "operationId": "listProposals",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Proposal"
+                  },
+                  "title": "Response Listproposals"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/proposals/{proposal_id}/decisions": {
+      "post": {
+        "summary": "Record Decision",
+        "description": "Records one Proposal Decision on the content this run proposed, with its Audit\nTrail entry. Earlier decisions stay. Needs the deciding role.",
+        "operationId": "recordDecision",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/decision-counts": {
+      "get": {
+        "summary": "Decision Counts",
+        "description": "Per kind of Proposal of an imported run: how many there are and where they stand.",
+        "operationId": "decisionCounts",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionCounts"
+                }
+              }
             }
           },
           "422": {
@@ -389,6 +676,132 @@
         "title": "Cite",
         "description": "Where a claim comes from: document, revision, page and the verbatim quote."
       },
+      "Completeness": {
+        "properties": {
+          "urs": {
+            "items": {
+              "$ref": "#/components/schemas/UrsCompleteness"
+            },
+            "type": "array",
+            "title": "Urs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "urs"
+        ],
+        "title": "Completeness",
+        "description": "The URS completeness check of a run: printed numbers that did not become a\nrequirement, and URS text no kept requirement quotes."
+      },
+      "Decision": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "covered_by_vendor",
+                  "partial",
+                  "site_only",
+                  "gap",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "decision",
+          "coverage",
+          "reason",
+          "run_id",
+          "content_hash",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "Decision",
+        "description": "A recorded Proposal Decision: what, who, when and why."
+      },
+      "DecisionCounts": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/KindCounts"
+          },
+          "check": {
+            "$ref": "#/components/schemas/KindCounts"
+          },
+          "ai": {
+            "$ref": "#/components/schemas/KindCounts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "coverage",
+          "check",
+          "ai"
+        ],
+        "title": "DecisionCounts",
+        "description": "Stored decisions counted per kind of Proposal for one run. Counts, not a measure of\nquality."
+      },
       "DesignRow": {
         "properties": {
           "doc": {
@@ -460,6 +873,31 @@
         ],
         "title": "DesignRow",
         "description": "A datasheet or certificate value compared with the URS value."
+      },
+      "DroppedClaim": {
+        "properties": {
+          "claim": {
+            "type": "string",
+            "title": "Claim"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim",
+          "id",
+          "reason"
+        ],
+        "title": "DroppedClaim",
+        "description": "A claim the citation check dropped, with its reason in plain text."
       },
       "EvidenceStep": {
         "properties": {
@@ -675,6 +1113,89 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImportedRun": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "proposals": {
+            "type": "integer",
+            "title": "Proposals"
+          },
+          "already_imported": {
+            "type": "boolean",
+            "title": "Already Imported"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "equipment",
+          "proposals",
+          "already_imported"
+        ],
+        "title": "ImportedRun",
+        "description": "A run imported as Proposals."
+      },
+      "Kind": {
+        "type": "string",
+        "enum": [
+          "coverage",
+          "check",
+          "ai"
+        ]
+      },
+      "KindCounts": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "undecided": {
+            "type": "integer",
+            "title": "Undecided"
+          },
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "edited": {
+            "type": "integer",
+            "title": "Edited"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "decided_not_proposed": {
+            "type": "integer",
+            "title": "Decided Not Proposed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "total",
+          "undecided",
+          "accepted",
+          "edited",
+          "rejected",
+          "changed",
+          "decided_not_proposed"
+        ],
+        "title": "KindCounts",
+        "description": "The Proposals of one kind in a run, by decision state. ``total`` is the sum of\n``undecided``, ``changed`` and the current decisions ``accepted``, ``edited`` and\n``rejected``."
+      },
       "Matrix": {
         "properties": {
           "requirements": {
@@ -845,6 +1366,26 @@
         "title": "MatrixRow",
         "description": "One requirement: its text and value, Coverage class and reason, and Evidence."
       },
+      "MissedNumber": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "page"
+        ],
+        "title": "MissedNumber",
+        "description": "A printed requirement number that did not become a kept requirement."
+      },
       "MissingDocument": {
         "properties": {
           "doc_id": {
@@ -880,6 +1421,49 @@
         ],
         "title": "MissingDocument",
         "description": "A document the VMP requires that the corpus lacks."
+      },
+      "NewDecision": {
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "covered_by_vendor",
+                  "partial",
+                  "site_only",
+                  "gap",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "NewDecision",
+        "description": "A Proposal Decision on the content the run proposed.\n\nA Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is\n``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no\nclass). A Reason for Change is required for ``rejected`` and ``edited``, and for any\ndecision that replaces an earlier one on the same content."
       },
       "NotRead": {
         "properties": {
@@ -979,6 +1563,77 @@
         "type": "object",
         "title": "Present",
         "description": "A feature that must exist; ``value`` is set when an observation states it."
+      },
+      "Proposal": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/Decision"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "requirement",
+          "position",
+          "content_hash",
+          "state",
+          "decisions",
+          "previous"
+        ],
+        "title": "Proposal",
+        "description": "A Proposal of a run, where it stands in the run's files, and its decision state."
       },
       "Range": {
         "properties": {
@@ -1154,6 +1809,14 @@
         "title": "Source",
         "description": "A document and revision an AI Finding cites."
       },
+      "State": {
+        "type": "string",
+        "enum": [
+          "decided",
+          "changed",
+          "undecided"
+        ]
+      },
       "Text": {
         "properties": {
           "type": {
@@ -1173,6 +1836,76 @@
           "value"
         ],
         "title": "Text"
+      },
+      "UnquotedText": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "page",
+          "text"
+        ],
+        "title": "UnquotedText",
+        "description": "URS text that no kept requirement quotes: adjacent lines merged."
+      },
+      "UrsCompleteness": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "numbers": {
+            "type": "string",
+            "enum": [
+              "checked",
+              "not_applicable"
+            ],
+            "title": "Numbers"
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found"
+          },
+          "missed": {
+            "items": {
+              "$ref": "#/components/schemas/MissedNumber"
+            },
+            "type": "array",
+            "title": "Missed"
+          },
+          "unquoted": {
+            "items": {
+              "$ref": "#/components/schemas/UnquotedText"
+            },
+            "type": "array",
+            "title": "Unquoted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "numbers",
+          "found",
+          "missed",
+          "unquoted"
+        ],
+        "title": "UrsCompleteness",
+        "description": "The completeness check of one URS the run read, built without an LLM."
       },
       "ValidationError": {
         "properties": {
@@ -1213,6 +1946,20 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Verdict": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "rejected",
+          "edited"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

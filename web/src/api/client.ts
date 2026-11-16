@@ -8,7 +8,14 @@ export type Matrix = components["schemas"]["Matrix"];
 export type MatrixRow = components["schemas"]["MatrixRow"];
 export type Cite = components["schemas"]["Cite"];
 export type RunSummary = components["schemas"]["RunSummary"];
+export type DroppedClaim = components["schemas"]["DroppedClaim"];
+export type Completeness = components["schemas"]["Completeness"];
 export type Findings = components["schemas"]["Findings"];
+export type Proposal = components["schemas"]["Proposal"];
+export type Decision = components["schemas"]["Decision"];
+export type DecisionCounts = components["schemas"]["DecisionCounts"];
+export type KindCounts = components["schemas"]["KindCounts"];
+export type CoverageClass = NonNullable<MatrixRow["coverage"]>;
 export type Value = NonNullable<MatrixRow["value"]>;
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 
