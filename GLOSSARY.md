@@ -80,6 +80,10 @@ A function or feature of the Equipment that directly affects product quality and
 How well existing Evidence proves a requirement. Exactly one of five classes:
 `covered_by_vendor`, `partial`, `site_only`, `gap`, `conflict`. See the decision table in [`docs/design/synthetic-dataset.md`](docs/design/synthetic-dataset.md).
 
+**Documented Capability**:
+What the Vendor Documents state or show the Equipment can do: the ranges and accuracy in its specification, and its FAT/SAT results. It is not the Equipment's actual capability on site.
+_Avoid_: actual capability, machine limits
+
 **Alert Level / Action Level**:
 Internal limits, set in the VMP, for monitored parameters (e.g. microbial counts in purified water). They are site limits, not pharmacopoeial specifications.
 
@@ -109,12 +113,20 @@ _Avoid_: log, history
 
 ## AI and checks
 
+**Proposal**:
+Anything the system puts before a human for a decision: the Coverage class of a requirement, a Pre-review finding (Check Finding or AI Finding), or a drafted Test Step. It has no effect until a human decides on it.
+_Avoid_: AI decision, AI result, suggestion
+
+**Proposal Decision**:
+A human's recorded answer to one Proposal: accepted, edited or rejected, with who decided, when, and the Reason for Change when it is edited or rejected. It is not an Electronic Signature, which approves a controlled document.
+_Avoid_: review decision, approval
+
 **AI Finding**:
-An AI proposal (draft, Pre-review finding, extraction result) that a human must accept, edit, or reject before it has any effect.
+A Pre-review finding made by the LLM. It is a Proposal, and every citation in it is verified before a human sees it.
 _Avoid_: AI decision, AI result
 
 **Check Finding**:
-A finding produced by a deterministic rule, with no model involved (e.g. a result outside its Acceptance Criterion marked as passed).
+A finding decided by a deterministic rule (e.g. a result outside its Acceptance Criterion marked as passed). A model may read the values the rule judges from a document, each with a verified citation; the model never decides the finding.
 _Avoid_: AI Finding (for rule output)
 
 **Hallucination Probe**:

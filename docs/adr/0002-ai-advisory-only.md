@@ -5,3 +5,7 @@ The LLM produces AI Findings only (drafted Protocols, Pre-review, extraction), a
 ## Consequences
 
 Every AI Finding stores its source document and revision, model, prompt, time and the reviewer's action, so it can be audited.
+
+## Amended 16 November 2026 (ADR 0010)
+
+What this ADR calls an AI Finding is now a Proposal (`GLOSSARY.md`): a Coverage class, a Pre-review finding or a drafted Test Step. The duty to store source, model, prompt, time and the human's action applies to every Proposal; the action is a Proposal Decision. "AI Finding" now names only a Pre-review finding made by the LLM.

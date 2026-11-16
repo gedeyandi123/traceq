@@ -13,3 +13,13 @@ TraceQ is designed to meet 21 CFR Part 11, CPOB Annex 7 and the draft EU GMP Ann
 ## Consequences
 
 Schema migrations must keep the trigger and grants; integration tests verify the chain and reject direct UPDATE/DELETE.
+
+## Amended 16 November 2026 (ADR 0010)
+
+The controls arrive in three phases.
+
+1. With the first write feature (step 1 of ADR 0010): the append-only Audit Trail enforced in Postgres (revoked grants for the application role and a trigger that rejects UPDATE and DELETE; no hash chain yet), the Reason for Change, Proposal Decisions, and segregation of duties in code wherever one record names two roles. Integration tests reject direct UPDATE, DELETE and TRUNCATE; the chain is tested from phase 3. Until the hash chain exists, the trail resists the application but cannot show tampering by a database administrator; the documentation says so.
+2. With Electronic Signatures (step 8 of ADR 0010, the first step cut when time runs out): signatures bound to content, re-authentication (ADR 0005), and the Witness's signature. Before that, an approval is a recorded status and is labelled "not an Electronic Signature".
+3. Beyond the eight steps of ADR 0010: the hash chain and its head copy, the audit-trail review screen and the access review report.
+
+A Proposal Decision is not an Electronic Signature.
