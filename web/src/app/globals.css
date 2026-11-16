@@ -60,3 +60,33 @@ ul.evidence li + li {
 .coverage-none {
   background: #eee;
 }
+.read-only {
+  padding: 0.5rem 0.75rem;
+  background: #f4f4f4;
+  border-left: 3px solid #999;
+}
+table.tally {
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+table.tally caption {
+  text-align: left;
+  font-weight: bold;
+}
+table.tally th,
+table.tally td {
+  border: 1px solid #ddd;
+  padding: 0.25rem 0.5rem;
+}
+.decision-changed > strong {
+  color: #8a5a00;
+}
+.decision .reason {
+  font-style: italic;
+}
+.decide form {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}

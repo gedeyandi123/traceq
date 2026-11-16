@@ -71,6 +71,55 @@
       "atMost": "≤ {max} {unit}"
     }
   },
+  "decisions": {
+    "column": "Keputusan",
+    "states": {
+      "decided": "Sudah diputuskan",
+      "changed": "Berubah sejak diputuskan: belum diputuskan lagi",
+      "undecided": "Belum diputuskan"
+    },
+    "when": "{date} {time} UTC",
+    "made": {
+      "accepted": "Diterima oleh {name}, {when}",
+      "rejected": "Ditolak oleh {name}, {when}",
+      "edited": "Diubah ke {class} oleh {name}, {when}"
+    },
+    "earlier": "Keputusan sebelumnya atas isi ini:",
+    "previous": "Keputusan sebelumnya, atas isi lain: {summary}",
+    "accept": "Terima",
+    "reject": "Tolak",
+    "edit": "Ubah kelas",
+    "toClass": "Pilih kelas cakupan",
+    "reason": "Alasan perubahan",
+    "readOnly": {
+      "signedOut": "Hanya membaca: masuk sebagai orang dengan peran pengambil keputusan untuk memutuskan.",
+      "noRole": "Hanya membaca: identitas ini tidak memiliki peran pengambil keputusan. Masuk sebagai orang yang memilikinya untuk memutuskan.",
+      "notImported": "Hanya membaca: run ini belum diimpor ke basis data. Impor run (perintah demo) untuk memutuskan.",
+      "unavailable": "Hanya membaca: API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
+    },
+    "errors": {
+      "refused": "Keputusan ditolak API. Alasan perubahan wajib untuk menolak, mengubah kelas, atau mengganti keputusan; mengubah kelas perlu kelas yang lain.",
+      "forbidden": "Keputusan ditolak API: identitas ini tidak memiliki peran pengambil keputusan.",
+      "unauthorized": "Keputusan ditolak API: token tidak diterima. Masuk lagi.",
+      "failed": "Keputusan tidak tersimpan. Coba lagi."
+    },
+    "kinds": {
+      "coverage": "Baris cakupan",
+      "check": "Temuan pemeriksaan",
+      "ai": "Temuan AI"
+    },
+    "counts": {
+      "title": "Jumlah keputusan",
+      "kind": "Jenis",
+      "total": "Proposal",
+      "undecided": "Belum diputuskan",
+      "accepted": "Diterima",
+      "edited": "Diubah",
+      "rejected": "Ditolak",
+      "changed": "Berubah sejak diputuskan",
+      "decidedNotProposed": "Diputuskan sebelumnya, tidak diusulkan run ini"
+    }
+  },
   "findings": {
     "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",
     "subtitle": "{equipment} · run {runId}",
