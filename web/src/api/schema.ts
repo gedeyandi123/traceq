@@ -171,9 +171,51 @@ export interface paths {
         };
         /**
          * List Proposals
-         * @description The Proposals of an imported run, in the order of its files, with their state.
+         * @description The Proposals of an imported run, in the order of its files, with their decision
+         *     state and decisions.
          */
         get: operations["listProposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/proposals/{proposal_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Decision
+         * @description Records one Proposal Decision on the content this run proposed, with its Audit
+         *     Trail entry. Earlier decisions stay. Needs the deciding role.
+         */
+        post: operations["recordDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/decision-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Decision Counts
+         * @description Per kind of Proposal of an imported run: how many there are and where they stand.
+         */
+        get: operations["decisionCounts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -277,6 +319,50 @@ export interface components {
         Completeness: {
             /** Urs */
             urs: components["schemas"]["UrsCompleteness"][];
+        };
+        /**
+         * Decision
+         * @description A recorded Proposal Decision: what, who, when and why.
+         */
+        Decision: {
+            /** Id */
+            id: number;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "accepted" | "rejected" | "edited";
+            /** Coverage */
+            coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Reason */
+            reason: string | null;
+            /** Run Id */
+            run_id: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * DecisionCounts
+         * @description Stored decisions counted per kind of Proposal for one run. Counts, not a measure of
+         *     quality.
+         */
+        DecisionCounts: {
+            /** Run Id */
+            run_id: string;
+            coverage: components["schemas"]["KindCounts"];
+            check: components["schemas"]["KindCounts"];
+            ai: components["schemas"]["KindCounts"];
         };
         /**
          * DesignRow
@@ -386,6 +472,28 @@ export interface components {
             already_imported: boolean;
         };
         /**
+         * KindCounts
+         * @description The Proposals of one kind in a run, by decision state. ``total`` is the sum of
+         *     ``undecided``, ``changed`` and the current decisions ``accepted``, ``edited`` and
+         *     ``rejected``.
+         */
+        KindCounts: {
+            /** Total */
+            total: number;
+            /** Undecided */
+            undecided: number;
+            /** Accepted */
+            accepted: number;
+            /** Edited */
+            edited: number;
+            /** Rejected */
+            rejected: number;
+            /** Changed */
+            changed: number;
+            /** Decided Not Proposed */
+            decided_not_proposed: number;
+        };
+        /**
          * Matrix
          * @description The traceability matrix of a run.
          */
@@ -457,6 +565,26 @@ export interface components {
             citation: components["schemas"]["Cite"];
         };
         /**
+         * NewDecision
+         * @description A Proposal Decision on the content the run proposed.
+         *
+         *     A Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is
+         *     ``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no
+         *     class). A Reason for Change is required for ``rejected`` and ``edited``, and for any
+         *     decision that replaces an earlier one on the same content.
+         */
+        NewDecision: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "accepted" | "rejected" | "edited";
+            /** Coverage */
+            coverage?: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
          * NotRead
          * @description A vendor document the run could not read.
          */
@@ -505,7 +633,7 @@ export interface components {
         };
         /**
          * Proposal
-         * @description A Proposal of a run, and where it stands in the run's files.
+         * @description A Proposal of a run, where it stands in the run's files, and its decision state.
          */
         Proposal: {
             /** Id */
@@ -523,9 +651,12 @@ export interface components {
             content_hash: string;
             /**
              * State
-             * @constant
+             * @enum {string}
              */
-            state: "undecided";
+            state: "decided" | "changed" | "undecided";
+            /** Decisions */
+            decisions: components["schemas"]["Decision"][];
+            previous: components["schemas"]["Decision"] | null;
         };
         /**
          * Range
@@ -926,6 +1057,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Proposal"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recordDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decision"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decisionCounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionCounts"];
                 };
             };
             /** @description Validation Error */
