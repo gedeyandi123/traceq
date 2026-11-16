@@ -5,6 +5,7 @@ Usage::
     traceq run CORPUS_DIR [--equipment TAG] [--out runs] [--recordings recordings]
         [--model claude-haiku-5-5] [--live] [--max-usd 1] [--no-vendor-reuse]
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
+        [--issuer URL --database URL [--audience traceq] [--role-claim roles]]
     traceq demo-issuer [--port 9000] [--audience traceq] [--role-claim roles]
 
 Without ``--live`` every LLM call is replayed from ``--recordings`` and nothing is sent.
@@ -17,8 +18,11 @@ a scan is neither cached nor readable (OCR model not installed) or the corpus is
 covered, for the "could be saved by reuse" framing. Eval runs keep the default
 (``vendor_reuse`` true), which scorer criterion 1 assumes.
 
-``traceq serve`` starts the read-only API over the run folders in ``--runs``; ``--corpus``
-is the released corpus they read, so a citation opens its page.
+``traceq serve`` starts the API over the run folders in ``--runs``; ``--corpus`` is the
+released corpus they read, so a citation opens its page. Without ``--issuer`` and
+``--database`` it is read-only and every database route answers 401; with both, a token of
+that issuer opens the database routes (``--database``: a SQLAlchemy URL connecting as the
+application role). It refuses to start with only one of the two.
 
 ``traceq demo-issuer`` starts the demo OIDC issuer on ``http://127.0.0.1:PORT`` (never
 another interface): demo identities without a password, for the demo only.
@@ -58,6 +62,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--corpus", type=Path, help="released corpus directory holding manifest.json")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8000)
+    s.add_argument("--issuer", help="trusted OIDC issuer URL, as its tokens name it")
+    s.add_argument("--audience", default="traceq", help="what a token must be issued for")
+    s.add_argument("--role-claim", default="roles", help="the claim holding the roles")
+    s.add_argument("--database", help="database URL, connecting as the application role")
     i = commands.add_parser(
         "demo-issuer", help="start the demo OIDC issuer (demo identities, local machine only)"
     )
@@ -80,8 +88,21 @@ def main(argv: list[str] | None = None) -> int:
         import uvicorn
 
         from traceq.app.api import create_app
+        from traceq.identity import IdentitySettings
 
-        uvicorn.run(create_app(args.runs, args.corpus), host=args.host, port=args.port)
+        identity = (
+            None
+            if args.issuer is None
+            else IdentitySettings(
+                issuer=args.issuer, audience=args.audience, role_claim=args.role_claim
+            )
+        )
+        try:
+            app = create_app(args.runs, args.corpus, identity=identity, database=args.database)
+        except ValueError as e:
+            print(f"traceq serve: {e}", file=sys.stderr)
+            return 2
+        uvicorn.run(app, host=args.host, port=args.port)
         return 0
 
     from traceq.runs.run import run

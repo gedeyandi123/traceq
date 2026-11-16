@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TraceQ",
-    "summary": "Read-only API over run folders.",
+    "summary": "Run folders read-only; Proposals in the database, behind a token.",
     "version": "0.1.0"
   },
   "paths": {
@@ -272,6 +272,100 @@
             "content": {
               "application/pdf": {},
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/import": {
+      "post": {
+        "summary": "Import ",
+        "description": "Imports a run folder as Proposals, in one transaction. Importing a run already\nimported changes nothing. Needs the deciding role.",
+        "operationId": "importRun",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportedRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/proposals": {
+      "get": {
+        "summary": "List Proposals",
+        "description": "The Proposals of an imported run, in the order of its files, with their state.",
+        "operationId": "listProposals",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Proposal"
+                  },
+                  "title": "Response Listproposals"
+                }
+              }
             }
           },
           "422": {
@@ -802,6 +896,36 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImportedRun": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "proposals": {
+            "type": "integer",
+            "title": "Proposals"
+          },
+          "already_imported": {
+            "type": "boolean",
+            "title": "Already Imported"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "equipment",
+          "proposals",
+          "already_imported"
+        ],
+        "title": "ImportedRun",
+        "description": "A run imported as Proposals."
+      },
       "Matrix": {
         "properties": {
           "requirements": {
@@ -1127,6 +1251,66 @@
         "title": "Present",
         "description": "A feature that must exist; ``value`` is set when an observation states it."
       },
+      "Proposal": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "coverage",
+              "check",
+              "ai"
+            ],
+            "title": "Kind"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "state": {
+            "type": "string",
+            "const": "undecided",
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "requirement",
+          "position",
+          "content_hash",
+          "state"
+        ],
+        "title": "Proposal",
+        "description": "A Proposal of a run, and where it stands in the run's files."
+      },
       "Range": {
         "properties": {
           "type": {
@@ -1430,6 +1614,12 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }
