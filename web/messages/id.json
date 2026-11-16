@@ -6,6 +6,17 @@
   "common": {
     "cite": "{doc} rev {rev}, hlm. {page}"
   },
+  "signin": {
+    "title": "Masuk",
+    "demoNote": "Ini identitas demo, bukan kontrol akses sungguhan: tanpa kata sandi, pilih salah satu tokoh fiktif.",
+    "unavailable": "Penerbit identitas demo tidak dapat dihubungi. Jalankan traceq demo-issuer.",
+    "as": "Masuk sebagai {name}",
+    "canDecide": "Dapat memutuskan",
+    "readOnly": "Hanya membaca",
+    "link": "Masuk (identitas demo)",
+    "signedInAs": "Masuk sebagai {name} (identitas demo)",
+    "out": "Keluar"
+  },
   "runs": {
     "title": "Run analisis",
     "empty": "Belum ada run. Jalankan traceq run lalu traceq serve.",
