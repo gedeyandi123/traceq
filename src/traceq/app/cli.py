@@ -7,7 +7,6 @@ Usage::
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
         [--issuer URL --database URL [--audience traceq] [--role-claim roles]]
     traceq demo-issuer [--port 9000] [--audience traceq] [--role-claim roles]
-    traceq demo CORPUS_DIR --equipment TAG [--recordings recordings/haiku-r7] [--runs runs-demo]
 
 Without ``--live`` every LLM call is replayed from ``--recordings`` and nothing is sent.
 With ``--live``, calls not yet recorded go to Mode Cloud through the Batch API and are
@@ -27,20 +26,12 @@ application role). It refuses to start with only one of the two.
 
 ``traceq demo-issuer`` starts the demo OIDC issuer on ``http://127.0.0.1:PORT`` (never
 another interface): demo identities without a password, for the demo only.
-
-``traceq demo CORPUS_DIR --equipment TAG`` brings the demo to a known state and, run
-again, resets it: Postgres (Docker Compose), the database recreated and migrated, the
-committed recordings of the dev Equipment replayed (no LLM call), the demo issuer and the API
-started, the run imported as a persona. ``CORPUS_DIR`` is the extracted corpus release 0.1.0;
-without it the command refuses.
-It stays in the foreground until Ctrl-C, which stops the issuer and the API (Postgres stays).
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-import time
 from pathlib import Path
 
 from traceq.ai import BudgetExceeded, MissingRecording
@@ -81,16 +72,6 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("--port", type=int, default=9000)
     i.add_argument("--audience", default="traceq")
     i.add_argument("--role-claim", default="roles")
-    d = commands.add_parser("demo", help="set up (or reset) the demo: database, run, issuer, API")
-    d.add_argument("corpus", type=Path, help="the extracted corpus release 0.1.0")
-    d.add_argument("--equipment", required=True, help="the dev Equipment to replay and import")
-    d.add_argument("--recordings", type=Path, default=Path("recordings/haiku-r7"))
-    d.add_argument("--runs", type=Path, default=Path("runs-demo"))
-    d.add_argument("--issuer-port", type=int, default=9000)
-    d.add_argument("--api-port", type=int, default=8000)
-    d.add_argument(
-        "--no-compose", action="store_true", help="Postgres already runs; skip Docker Compose"
-    )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
 
     if args.command == "demo-issuer":
@@ -102,9 +83,6 @@ def main(argv: list[str] | None = None) -> int:
         app = create_issuer(url, audience=args.audience, role_claim=args.role_claim)
         uvicorn.run(app, host="127.0.0.1", port=args.port)
         return 0
-
-    if args.command == "demo":
-        return _demo(args)
 
     if args.command == "serve":
         import uvicorn
@@ -161,40 +139,6 @@ def main(argv: list[str] | None = None) -> int:
         f" cost ${m['cost_usd']}, dropped {len(m['dropped'])} claims"
     )
     return 0
-
-
-def _demo(args: argparse.Namespace) -> int:
-    from traceq.app.demo import DemoError, DemoSettings, bring_up
-
-    settings = DemoSettings(
-        corpus=args.corpus,
-        equipment=args.equipment,
-        recordings=args.recordings,
-        runs=args.runs,
-        issuer_port=args.issuer_port,
-        api_port=args.api_port,
-        compose=not args.no_compose,
-    )
-    try:
-        demo = bring_up(settings, log=lambda msg: print(f"traceq demo: {msg}", flush=True))
-    except DemoError as e:
-        print(f"traceq demo: {e}", file=sys.stderr)
-        return 2
-    print(
-        f"traceq demo: ready. Postgres 127.0.0.1:5432, issuer {demo.issuer_url}, API"
-        f" {demo.api_url} (run {demo.run_id} imported). Start the web UI with"
-        " `cd web && npm run dev`. Ctrl-C stops the issuer and the API.",
-        flush=True,
-    )
-    try:
-        while demo.api.poll() is None and demo.issuer.poll() is None:
-            time.sleep(0.5)
-        print("traceq demo: a process stopped; stopping the demo", file=sys.stderr)
-        return 1
-    except KeyboardInterrupt:
-        return 0
-    finally:
-        demo.stop()
 
 
 if __name__ == "__main__":

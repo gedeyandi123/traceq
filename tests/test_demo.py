@@ -18,8 +18,14 @@ import pytest
 from conftest import ADMIN_URL
 from sqlalchemy import create_engine, text
 
-from traceq.app.cli import main
-from traceq.app.demo import DemoError, DemoSettings, bring_up, check_corpus, reset_database
+from traceq.app.demo import (
+    DemoError,
+    DemoSettings,
+    bring_up,
+    check_corpus,
+    reset_database,
+    run_demo,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "recordings" / "corpus-0.1.0" / "manifest.json"
@@ -59,7 +65,7 @@ def demo_database(postgres_admin: object, tmp_path: Path) -> Iterator[str]:
 def test_refuses_without_the_corpus_and_says_what_is_missing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["demo", str(tmp_path / "nowhere"), "--equipment", "TP-201"]) == 2
+    assert run_demo(DemoSettings(corpus=tmp_path / "nowhere", equipment="TP-201")) == 2
     err = capsys.readouterr().err
     assert "manifest.json" in err and "corpus release 0.1.0" in err
 

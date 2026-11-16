@@ -247,3 +247,28 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
         _stop(api, issuer)
         raise
     return Demo(issuer=issuer, api=api, run_id=run_id, issuer_url=issuer_url, api_url=api_url)
+
+
+def run_demo(settings: DemoSettings) -> int:
+    """The demo command: brings the demo up, then waits in the foreground until Ctrl-C.
+    Exit code 0 after Ctrl-C, 1 when a process stopped, 2 when it could not start."""
+    try:
+        demo = bring_up(settings, log=lambda msg: print(f"demo: {msg}", flush=True))
+    except DemoError as e:
+        print(f"demo: {e}", file=sys.stderr)
+        return 2
+    print(
+        f"demo: ready. Postgres 127.0.0.1:5432, issuer {demo.issuer_url}, API"
+        f" {demo.api_url} (run {demo.run_id} imported). Start the web UI with"
+        " `cd web && npm run dev`. Ctrl-C stops the issuer and the API.",
+        flush=True,
+    )
+    try:
+        while demo.api.poll() is None and demo.issuer.poll() is None:
+            time.sleep(0.5)
+        print("demo: a process stopped; stopping the demo", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        demo.stop()
