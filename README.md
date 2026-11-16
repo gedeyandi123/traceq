@@ -2,7 +2,7 @@
 
 Traceability-led workspace for pharmaceutical equipment qualification (GMP), with AI as an advisory assistant. The plant, vendors, people, and documents are fictional; all data is synthetic.
 
-Status: the synthetic dataset v0 (TP-201 package and its answer key) and the eval scorer are in place; the TraceQ system itself is next, starting with a thin slice that turns the TP-201 package into a scored submission. The dataset is not frozen yet: judged values await practitioner review.
+Status: the synthetic dataset v0 (the TP-201 package and a held-out TP-202 slice, with answer keys), the eval scorer, and a thin slice of the TraceQ system are in place. The slice turns a corpus into a scored submission, with Haiku baselines for both Equipment (`baselines/`). The dataset is not frozen yet: a practitioner's plausibility check of the TP-201 values is in, while one site decision, the risk-assessment scores and the transport-sensitivity flags await review ([`DATASHEET.md`](DATASHEET.md)).
 
 - [`GLOSSARY.md`](GLOSSARY.md): domain language
 - [`docs/adr/`](docs/adr/): architecture decisions

@@ -1,6 +1,6 @@
 # Synthetic dataset design (v0)
 
-Status: design for v0. Items marked **[D]** are parameters that a practising qualification supervisor (design partner) will confirm during discovery; v0 ships with the defaults stated here. Domain terms are defined in [`GLOSSARY.md`](../../GLOSSARY.md).
+Status: design for v0. Items marked **[D]** are parameters that a practising qualification supervisor (design partner) will confirm during discovery; v0 ships with the defaults stated here. Discovery was answered on 2026-11-13 by one practitioner via a form; the answers, in general form, are in section 12. No default has changed yet. Domain terms are defined in [`GLOSSARY.md`](../../GLOSSARY.md).
 
 ## 1. Purpose
 
@@ -402,10 +402,12 @@ Optional sets start only when (1) v1 is scored, (2) the core demo and the practi
 
 ## 12. Discovery parameters [D]
 
-- Equipment types most often qualified: confirms the Equipment list.
-- Most common review errors: defect-type weights.
-- Reuse of vendor FAT/SAT: Coverage framing.
-- Document language: ID/EN proportion.
-- Working tools (Word / Excel / paper / DMS): format mix.
-- Test Steps that require a Witness: which Test Steps are flagged critical.
-- How protocols are written (template vs copied from similar Equipment): if copied, add the "leftover from another Equipment" defect.
+Answered on 2026-11-13 by one practitioner via a form (a plausibility check, n = 1). Each line gives the parameter, the answer in general form, and what follows. Changing a default that is rendered into a document (`site_rules`) changes corpus bytes, so it is decided by the owner at freeze or for a later set.
+
+- Equipment types most often qualified: confirms the Equipment list. *Answer:* every OSD, liquid, sterile and semi-solid type offered, plus utilities, HVAC, cleanrooms and laboratory instruments. The list stays; later sets are chosen by variation (section 11).
+- Most common review errors: defect-type weights. *Answer:* calculation or unit errors, references to outdated SOP or document versions, and out-of-limit results not followed up. All three are in the taxonomy; TP-201 plants the third (S5) and a relative of the second (S8, a superseded value). Candidate weights for later sets.
+- Reuse of vendor FAT/SAT: Coverage framing. *Answer:* sometimes, as supporting attachments to IQ/OQ for static parameters or those already verified at the maker (dimensions, part specifications, basic software functions). Reuse is real but narrow; the target proportions and the framing "this is what could be saved" stay. The software example is on the practitioner agenda (D11), since TP-201 marks HMI software transport-sensitive.
+- Document language: ID/EN proportion. *Answer:* mixed. The default stays.
+- Working tools (Word / Excel / paper / DMS): format mix. *Answer:* Word, Excel and paper, with status tracked in a spreadsheet and a calendar; no DMS. The default stays.
+- Test Steps that require a Witness: which Test Steps are flagged critical. *Answer:* manual tests without automatic raw data from the machine, tests of critical interlocks or alarms, and system security checks (password challenge, audit trail). This differs from the default (`site_rules.witness: critical_aspects`), which is unchanged until the owner decides; drafted Test Step criterion 6 stays not scored.
+- How protocols are written (template vs copied from similar Equipment): if copied, add the "leftover from another Equipment" defect. *Answer:* a mix of both. The defect is a candidate for later sets; TP-201 keeps the template default.
