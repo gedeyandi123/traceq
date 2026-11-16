@@ -2,7 +2,7 @@
 
 Panduan menjalankan demo TraceQ irisan 1 untuk sesi praktisi: persiapan, alur end to end, kasus uji langkah demi langkah, hal yang diketahui salah, dan pemulihan. Perintah dasarnya ada di `README.md` (bagian "Demo"). Dokumen ini tidak mengulanginya kecuali bila urutannya penting.
 
-**Status:** dilatih penuh pada 16 Nov 2026 (UTC) di laptop Windows 11 dengan korpus rilis 0.1.0 asli, rekaman `haiku-r7`, dan web UI di Chrome. Hasil per kasus ada di kolom "16 Nov" pada bagian 5.
+**Status:** dilatih penuh pada 16–17 Nov 2026 (UTC) di laptop Windows 11 dengan korpus rilis 0.1.0 asli, rekaman `haiku-r7`, dan web UI di Chrome; semua 17 kasus lulus. Hasil per kasus ada di kolom "16 Nov" pada bagian 5. Sesi praktisi diadakan sesudah freeze 25 Nov: runbook ini dijalankan ulang di atas rilis dan rekaman freeze.
 
 ## 1. Apa yang ditunjukkan demo, dan apa yang tidak
 
@@ -34,7 +34,7 @@ Jalankan dari root repo, masing-masing di terminal sendiri:
 
 1. **Demo** (Postgres, reset database, replay, issuer, API, import):
    `uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01`
-   Tambahkan `--no-compose` bila Postgres sudah jalan. Perintah ini tetap di foreground. Replay butuh sekitar 0,2 detik.
+   Tambahkan `--no-compose` bila Postgres sudah jalan. Perintah ini tetap di foreground. Replay butuh sekitar 0,2 detik. Tunggu baris `demo: ready. …`; saran `npm run dev` di baris itu abaikan, pakai mode produksi (langkah 3).
 2. **Eval (opsional, disarankan):** tanpa langkah ini halaman "Hasil evaluasi" menulis "Run ini belum dinilai". Ambil run id dari `runs-demo/`, lalu:
    - `uv run python -m traceq_eval world/tp201.yaml runs-demo/<run id>/submission.json --out runs-demo/<run id>` (sekitar 7 detik, keluar dengan `gates PASS`)
    - `uv run python -m traceq_eval.screen serve --runs runs-demo --port 8001`
@@ -68,18 +68,18 @@ Kolom "16 Nov" berisi hasil latihan. ✅ = sesuai harapan dan sudah diamati. "Be
 | K3 | Terima usulan cakupan | URS-TP201-001 → "Terima" | Baris menjadi "Sudah diputuskan / Diterima oleh Ayu Kartika Sari, <tanggal> UTC"; Belum diputuskan 37, Diterima 1 | ✅ |
 | K4 | Ubah kelas tanpa alasan ditolak | URS-TP201-002 → pilih "Celah" → "Ubah kelas" tanpa alasan | Browser menahan form ("Please fill out this field", pesan bawaan browser dalam bahasa Inggris) | ✅ |
 | K5 | Ubah kelas dengan alasan | Sama, dengan alasan diisi | "Diubah ke Celah oleh Ayu Kartika Sari", alasan tampil miring; Diubah 1 | ✅ |
-| K6 | Tolak temuan yang salah | Temuan pra-tinjauan → "Tanda tangan atau tanggal tidak ada" (CAL-TP201-01) → isi alasan → "Tolak" | "Ditolak oleh …" dengan alasan; Ditolak 1 di tabel temuan. Temuan ini false positive yang diketahui (#101) | ✅ (dilatih pada temuan lain) |
-| K7 | Terima temuan AI yang benar | Temuan AI "Data tidak konsisten" (nomor seri RTP36-25-0417 vs -0471) → "Terima" | Diterima; Temuan AI Diterima 1 | Belum |
+| K6 | Tolak temuan yang salah | Temuan pra-tinjauan → "Tanda tangan atau tanggal tidak ada" (CAL-TP201-01) → isi alasan → "Tolak" | "Ditolak oleh …" dengan alasan; Ditolak 1 di tabel temuan. Temuan ini false positive yang diketahui (#101) | ✅ (dilatih pada temuan "Protokol vendor belum disetujui", yang sebenarnya benar; untuk demo pakai false positive ini) |
+| K7 | Terima temuan AI yang benar | Temuan AI "Data tidak konsisten" (nomor seri RTP36-25-0417 vs -0471) → "Terima" | Diterima; Temuan AI Diterima 1 | ✅ (17 Nov) |
 | K8 | Memutuskan ulang wajib beralasan, dan penolakan API tampil | Pada baris yang sudah diputuskan, kirim "Terima" lagi dengan alasan kosong atau hanya spasi | Alasan kosong: ditahan browser. Hanya spasi: muncul banner "Keputusan ditolak API. Alasan perubahan wajib …" | ✅ |
 | K9 | Peran baca saja | Keluar → masuk sebagai Citra → buka matriks | Keputusan Ayu terlihat; tidak ada tombol Terima, Ubah kelas atau Tolak | ✅ |
 | K10 | Server menolak penulisan tanpa hak | `POST /runs/<id>/proposals/<n>/decisions` ke API: dengan token Citra, lalu tanpa token | 403, lalu 401. Pembatasannya ada di API, bukan hanya di UI | ✅ |
-| K11 | Audit Trail mencatat dan reset mengosongkan | Setelah K3–K6: `docker exec traceq-postgres-1 psql -U postgres -d traceq -c "select id, at, name, action, record_id from audit_trail order by 1"`; lalu reset | Sebelum reset: 1 "run imported" ditambah 1 baris per keputusan. Setelah reset: hanya 1 "run imported" | ✅ |
+| K11 | Audit Trail mencatat dan reset mengosongkan | Setelah K3–K6: `docker exec traceq-postgres-1 psql -U postgres -d traceq -c "select id, at, name, action, record_id, reason from audit_trail order by 1"`; lalu reset | Sebelum reset: 1 "run imported" ditambah 1 baris per keputusan. Setelah reset: hanya 1 "run imported" | ✅ |
 | K12 | Hasil evaluasi | Jalankan langkah eval di bagian 3 → "Hasil evaluasi" | Gerbang fabrikasi lulus, nilai 26/38, kutipan 122/122, recall cacat 5/7, fabrikasi 0/179 dan 0/6 (sama dengan `recordings/haiku-r7/report-TP-201.json`) | ✅ |
 | K13 | Halaman eval tanpa harness | Lewati langkah eval | "Run ini belum dinilai, atau API evaluasi tidak dapat dihubungi"; halaman lain tetap jalan | ✅ |
 | K14 | Mode produksi | `npm run build` lalu `npm start`, lalu satu keputusan | Halaman dan PDF terlayani, keputusan tersimpan, tidak ada ikon dev | ✅ |
-| K15 | Pemutus kedua | Masuk sebagai Bima, putuskan ulang baris yang diputuskan Ayu (dengan alasan) | Nama Bima tercatat; Audit Trail punya baris baru | Belum |
-| K16 | Ctrl-C di terminal sungguhan | Ctrl-C pada `demo.py` | Issuer dan API berhenti, port 8000 dan 9000 bebas, Postgres tetap jalan | Belum di terminal. Proses yang dihentikan paksa melepas port; `tests/test_demo.py` menguji `stop()` |
-| K17 | Docker mati | Jalankan `demo.py` saat Docker Desktop mati | Pesan error yang jelas | Belum |
+| K15 | Pemutus kedua | Masuk sebagai Bima, putuskan ulang baris yang diputuskan Ayu (dengan alasan) | "Diterima oleh Bima Arya Nugraha" dengan alasan dan "Keputusan sebelumnya atas isi ini"; Audit Trail punya baris baru dengan `old_value` (keputusan Ayu), `new_value` dan `reason` | ✅ (17 Nov) |
+| K16 | Ctrl-C di terminal sungguhan | Ctrl-C pada `demo.py` | Issuer dan API berhenti ("Application shutdown complete"), exit 0, port 8000 dan 9000 bebas, Postgres tetap jalan | ✅ (17 Nov, CTRL_C_EVENT asli ke console demo) |
+| K17 | Docker mati | Jalankan `demo.py` (tanpa `--no-compose`) saat Docker tidak bisa dihubungi | "could not start Postgres with Docker Compose (…); is Docker running?", exit 2 | ✅ (17 Nov, Docker disimulasikan tidak terjangkau) |
 
 ## 6. Yang diketahui salah di rekaman r7 (TP-201, set pengembangan)
 
