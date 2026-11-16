@@ -148,6 +148,90 @@
         }
       }
     },
+    "/runs/{run_id}/dropped": {
+      "get": {
+        "summary": "Get Dropped",
+        "description": "The claims the citation check dropped, each with its subject and reason.",
+        "operationId": "getDropped",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DroppedClaim"
+                  },
+                  "title": "Response Getdropped"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/completeness": {
+      "get": {
+        "summary": "Get Completeness",
+        "description": "The URS completeness check; not found for a run written before it existed.",
+        "operationId": "getCompleteness",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Completeness"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/runs/{run_id}/documents/{doc_id}/{rev}": {
       "get": {
         "summary": "Get Document",
@@ -389,6 +473,24 @@
         "title": "Cite",
         "description": "Where a claim comes from: document, revision, page and the verbatim quote."
       },
+      "Completeness": {
+        "properties": {
+          "urs": {
+            "items": {
+              "$ref": "#/components/schemas/UrsCompleteness"
+            },
+            "type": "array",
+            "title": "Urs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "urs"
+        ],
+        "title": "Completeness",
+        "description": "The URS completeness check of a run: printed numbers that did not become a\nrequirement, and URS text no kept requirement quotes."
+      },
       "DesignRow": {
         "properties": {
           "doc": {
@@ -460,6 +562,31 @@
         ],
         "title": "DesignRow",
         "description": "A datasheet or certificate value compared with the URS value."
+      },
+      "DroppedClaim": {
+        "properties": {
+          "claim": {
+            "type": "string",
+            "title": "Claim"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim",
+          "id",
+          "reason"
+        ],
+        "title": "DroppedClaim",
+        "description": "A claim the citation check dropped, with its reason in plain text."
       },
       "EvidenceStep": {
         "properties": {
@@ -845,6 +972,26 @@
         "title": "MatrixRow",
         "description": "One requirement: its text and value, Coverage class and reason, and Evidence."
       },
+      "MissedNumber": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "page"
+        ],
+        "title": "MissedNumber",
+        "description": "A printed requirement number that did not become a kept requirement."
+      },
       "MissingDocument": {
         "properties": {
           "doc_id": {
@@ -1173,6 +1320,76 @@
           "value"
         ],
         "title": "Text"
+      },
+      "UnquotedText": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "page",
+          "text"
+        ],
+        "title": "UnquotedText",
+        "description": "URS text that no kept requirement quotes: adjacent lines merged."
+      },
+      "UrsCompleteness": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "numbers": {
+            "type": "string",
+            "enum": [
+              "checked",
+              "not_applicable"
+            ],
+            "title": "Numbers"
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found"
+          },
+          "missed": {
+            "items": {
+              "$ref": "#/components/schemas/MissedNumber"
+            },
+            "type": "array",
+            "title": "Missed"
+          },
+          "unquoted": {
+            "items": {
+              "$ref": "#/components/schemas/UnquotedText"
+            },
+            "type": "array",
+            "title": "Unquoted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "numbers",
+          "found",
+          "missed",
+          "unquoted"
+        ],
+        "title": "UrsCompleteness",
+        "description": "The completeness check of one URS the run read, built without an LLM."
       },
       "ValidationError": {
         "properties": {
