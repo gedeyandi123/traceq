@@ -352,26 +352,3 @@ ul.evidence li + li {
   background: var(--cov-none-bg);
   border-color: var(--cov-none-edge);
 }
-.read-only {
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-info-soft);
-  border-left: 3px solid var(--color-info);
-  border-radius: var(--radius-sm);
-}
-table.tally {
-  margin-bottom: var(--space-4);
-  background: var(--color-surface);
-}
-.decision-changed > strong {
-  color: var(--color-warn);
-}
-.decision .reason {
-  font-style: italic;
-}
-.decide form {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-}
