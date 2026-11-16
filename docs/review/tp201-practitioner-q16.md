@@ -51,6 +51,8 @@ Pemilik menyetujui nilai-nilai ini berdasarkan logika dan cek fakta umum. Prakti
 
 ## D. Agenda lisan sesi Q16 (30 menit, urut prioritas)
 
+**Perubahan 16 Nov 2026 (pemilik, setelah grilling scope, ADR 0010):** D1–D3, D9, D10 (sekaligus D6) dan D11 ditanyakan lewat satu form lanjutan pendek sebelum freeze 25 Nov, bersama beberapa pertanyaan umum tentang praktik review. Jawabannya masuk sebagai perubahan kunci di PR sendiri sebelum freeze; kalau form belum kembali, freeze memakai default. Sesi dimulai dengan tanya jawab lanjutan atas jawaban form, lalu demo dan penilaian beberapa temuan, lalu sisa agenda di bawah (A10, D13, D14; D5, D8, D4, D7, C2 kalau ada waktu). Paragraf berikut adalah rencana sebelum perubahan itu.
+
 Bagian A–C sudah dikirim sebagai Google Form dan sudah dijawab. Bagian D tidak dikirim sebagai form kedua agar praktisi tidak menerima kiriman berulang; isinya dibahas lisan di sesi review 30 menit (Q16), yang digabung dengan demo minggu 3–4. Isi bagian ini menyangkut penilaian, bukan nilai URS. Kriteria kritis (D1–D3) memblokir sign-off RA (`risk_assessment.reviewed_by`). Dengan aturan RA sekarang (Aspek kritis = Ya bila S ≥ 4), mengubah kritis sebuah requirement berarti mengubah `critical` di URS dan skor S-nya di RA sekaligus. Kelas Coverage tidak ikut berubah.
 
 Urutannya mengikuti apa yang memblokir freeze dan klaim. Nomor D1–D11 tetap, supaya rujukan di dokumen lain tidak putus. Kalau waktu habis, topik di bawah garis memakai default dan ditandai "belum direview praktisi" di DATASHEET, atau dibahas di sesi kedua sekitar minggu 5–6.
