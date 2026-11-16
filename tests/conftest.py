@@ -1,4 +1,5 @@
-"""Shared fixtures: the recorded OCR output of the TP-201 scans, and no OCR model, as in CI.
+"""Shared fixtures: the recorded OCR output of the TP-201 scans, no OCR model, as in CI, and a
+Postgres database per test session.
 
 ``tests/fixtures/ingest/<doc>_rev<n>.json`` is what PP-OCRv6 small read on each scan, in the
 ingest cache's format. To regenerate them, with the OCR model installed
@@ -9,11 +10,17 @@ scan's ``<sha256>-<version>.json`` to ``<doc>_rev<n>.json``.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+import os
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
+from sqlalchemy import URL, Connection, create_engine, make_url, text
+from sqlalchemy.exc import OperationalError
 
+from traceq.db import APP_ROLE, OWNER_ROLE, ensure_roles, upgrade
 from traceq.documents import Corpus, OcrUnavailable, scan
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ingest"
@@ -45,3 +52,82 @@ def no_ocr_model(monkeypatch: pytest.MonkeyPatch) -> None:
         raise OcrUnavailable("the OCR model is not installed")
 
     monkeypatch.setattr(scan, "_engine", unavailable)
+
+
+# --- Postgres -------------------------------------------------------------------------
+# A superuser connection to a server (Compose locally, the service container in CI). Each
+# session creates databases with unique names and drops them at the end, because two
+# implementers may share one server; the roles belong to the server and are never dropped.
+ADMIN_URL = os.environ.get(
+    "TRACEQ_TEST_ADMIN_URL", "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/postgres"
+)
+
+
+@dataclass(frozen=True)
+class Databases:
+    """One migrated database, as the role that owns it and as the application role."""
+
+    owner: URL
+    app: URL
+
+
+_unreachable: list[str] = []
+
+
+@pytest.fixture(scope="session")
+def postgres_admin() -> Iterator[Connection]:
+    # pytest runs a failed session fixture again for every test that needs it, and a refused
+    # connection takes seconds on Windows: the first failure is remembered.
+    if not _unreachable:
+        try:
+            conn = create_engine(
+                ADMIN_URL, isolation_level="AUTOCOMMIT", connect_args={"connect_timeout": 5}
+            ).connect()
+        except OperationalError as e:
+            where = make_url(ADMIN_URL).render_as_string(hide_password=True)
+            _unreachable.append(
+                f"Postgres is not reachable at {where} ({type(e).__name__}); start it with"
+                " `docker compose up -d postgres` or set TRACEQ_TEST_ADMIN_URL"
+            )
+        else:
+            with conn:
+                ensure_roles(conn)
+                yield conn
+            return
+    if os.environ.get("CI"):
+        pytest.fail(_unreachable[0])
+    pytest.skip(_unreachable[0])
+
+
+@pytest.fixture(scope="session")
+def new_database(postgres_admin: Connection) -> Iterator[Callable[[], Databases]]:
+    """Creates a database owned by the owner role and migrated from zero."""
+    created: list[str] = []
+
+    def create() -> Databases:
+        name = f"traceq_test_{uuid4().hex[:12]}"
+        postgres_admin.execute(text(f'CREATE DATABASE "{name}" OWNER {OWNER_ROLE}'))
+        created.append(name)
+        server = make_url(ADMIN_URL).set(database=name)
+        dbs = Databases(
+            owner=server.set(username=OWNER_ROLE, password=OWNER_ROLE),
+            app=server.set(username=APP_ROLE, password=APP_ROLE),
+        )
+        upgrade(dbs.owner)
+        return dbs
+
+    yield create
+    for name in created:
+        postgres_admin.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+
+
+@pytest.fixture(scope="session")
+def databases(new_database: Callable[[], Databases]) -> Databases:
+    """The session's database, shared by its tests."""
+    return new_database()
+
+
+@pytest.fixture
+def fresh_database(new_database: Callable[[], Databases]) -> Databases:
+    """A database of its own, just migrated from zero."""
+    return new_database()

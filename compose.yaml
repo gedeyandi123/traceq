@@ -1,0 +1,24 @@
+# Postgres for TraceQ (spec #105): `docker compose up -d postgres`. Local machine only.
+# The superuser password is for this local demo server; the roles TraceQ connects as are
+# created by src/traceq/db/roles.sql when the data volume is first initialised (and again,
+# idempotently, by the test fixture).
+name: traceq
+
+services:
+  postgres:
+    image: postgres:17.12
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/traceq/db/roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  pgdata:
