@@ -12,6 +12,20 @@ jobs:
   checks:
     name: checks
     runs-on: ubuntu-24.04
+    # The database tests connect as the superuser, create the roles and a database of their
+    # own; with CI set they fail, not skip, when Postgres is not reachable.
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
     steps:
       - uses: actions/checkout@v7
         with:
