@@ -387,9 +387,9 @@
   source: {doc: URS-TP201, rev: 1, page: 1, section: 2. Material dan konstruksi}
   param: food_grade_lubricant
   value: {type: present}
-  critical: false
-  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 22, text: Tidak, critical: false, severity: 3,
-    occurrence: 2, detection: 3, rpn: 18}
+  critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 22, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 3, rpn: 24}
   evidence: []
   design_evidence: []
   expected_coverage: gap
@@ -623,9 +623,9 @@
   source: {doc: URS-TP201, rev: 1, page: 1, section: 3. Kontrol dan keselamatan}
   param: punch_overload_protection
   value: {type: present}
-  critical: false
-  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 29, text: Tidak, critical: false, severity: 3,
-    occurrence: 2, detection: 2, rpn: 12}
+  critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 29, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 2, rpn: 16}
   evidence:
   - doc: SAT-TP201
     rev: 0
@@ -863,9 +863,9 @@
   source: {doc: URS-TP201, rev: 1, page: 2, section: 5. Utilitas dan lingkungan}
   param: dust_extraction_flow
   value: {type: range, min: 300, unit: m3/h}
-  critical: false
-  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 37, text: Tidak, critical: false, severity: 3,
-    occurrence: 2, detection: 2, rpn: 12}
+  critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 37, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 2, rpn: 16}
   evidence: []
   design_evidence:
   - doc: DS-TP201
@@ -979,9 +979,9 @@
   source: {doc: URS-TP201, rev: 1, page: 2, section: 7. Dokumentasi}
   param: material_certificates
   value: {type: present}
-  critical: false
-  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 44, text: Tidak, critical: false, severity: 3,
-    occurrence: 1, detection: 1, rpn: 3}
+  critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 44, text: Ya, critical: true, severity: 5,
+    occurrence: 1, detection: 1, rpn: 5}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
@@ -1001,9 +1001,9 @@
   source: {doc: URS-TP201, rev: 1, page: 2, section: 7. Dokumentasi}
   param: force_sensor_calibration
   value: {type: present}
-  critical: false
-  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 45, text: Tidak, critical: false, severity: 3,
-    occurrence: 2, detection: 2, rpn: 12}
+  critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 45, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 2, rpn: 16}
   evidence:
   - doc: FAT-TP201-M
     rev: 0
