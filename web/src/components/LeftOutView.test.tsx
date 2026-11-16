@@ -8,16 +8,32 @@ import completeness from "../../../tests/fixtures/run/runs/20261113T090000Z-f1a2
 import run from "../../../tests/fixtures/run/runs/20261113T090000Z-f1a2b3/run.json";
 import { LeftOutView } from "./LeftOutView";
 
-const humanAc: DroppedClaim = { claim: "acceptance", id: "URS-TP201-007", reason: "to be set by a human" };
+const humanAc: DroppedClaim = {
+  claim: "acceptance",
+  id: "URS-TP201-007",
+  reason: "to be set by a human: no source cited",
+};
+const otherAc: DroppedClaim = { claim: "acceptance", id: "URS-TP201-009", reason: "bad answer" };
 const dropped = [...(run.dropped as DroppedClaim[]), humanAc];
 
-function show(c: Completeness | null) {
+function show(c: Completeness | null, items: DroppedClaim[] = dropped) {
   render(
     <NextIntlClientProvider locale="id" messages={messages}>
-      <LeftOutView dropped={dropped} completeness={c} />
+      <LeftOutView dropped={items} completeness={c} />
     </NextIntlClientProvider>,
   );
 }
+
+test("an acceptance claim dropped for another reason stays in its kind group", () => {
+  show(null, [...dropped, otherAc]);
+
+  const group = within(screen.getByRole("region", { name: "Jenis: acceptance" }));
+  expect(group.getByText("URS-TP201-009")).toBeDefined();
+  expect(group.queryByText("URS-TP201-007")).toBeNull();
+  const human = within(screen.getByRole("region", { name: "Kriteria penerimaan yang diserahkan ke manusia" }));
+  expect(human.getByText("URS-TP201-007")).toBeDefined();
+  expect(human.queryByText("URS-TP201-009")).toBeNull();
+});
 
 test("groups dropped claims by kind, apart from Acceptance Criteria left to a human", () => {
   show(completeness as Completeness);

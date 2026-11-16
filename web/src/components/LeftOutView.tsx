@@ -6,7 +6,7 @@ import type { Completeness, DroppedClaim } from "@/api/client";
 const HUMAN_REASON = "to be set by a human";
 
 function isHumanAc(d: DroppedClaim): boolean {
-  return d.claim === "acceptance" && d.reason === HUMAN_REASON;
+  return d.claim === "acceptance" && d.reason.startsWith(HUMAN_REASON);
 }
 
 function groupByKind(dropped: readonly DroppedClaim[]): [string, DroppedClaim[]][] {
