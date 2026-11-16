@@ -49,7 +49,7 @@ build-backend = "hatchling.build"
 packages = ["src/traceq_dataset", "src/traceq_eval", "src/traceq"]
 
 [project.scripts]
-traceq = "traceq.runs.cli:main"
+traceq = "traceq.app.cli:main"
 
 [project.optional-dependencies]
 ocr = [
@@ -92,14 +92,30 @@ root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "TraceQ modules are layered: runs > review, protocols > traceability > documents, ai"
+name = "TraceQ modules are layered: app > runs > review, protocols > traceability > documents, ai"
 type = "layers"
 layers = [
+    "traceq.app",
     "traceq.runs",
     "traceq.review | traceq.protocols",
     "traceq.traceability",
     "traceq.documents | traceq.ai",
 ]
+
+[[tool.importlinter.contracts]]
+name = "No module imports app, the top of the layers"
+type = "forbidden"
+source_modules = [
+    "traceq.runs",
+    "traceq.review",
+    "traceq.protocols",
+    "traceq.traceability",
+    "traceq.documents",
+    "traceq.ai",
+    "traceq_eval",
+    "traceq_dataset",
+]
+forbidden_modules = ["traceq.app"]
 
 [[tool.importlinter.contracts]]
 name = "The system never imports the dataset or the scorer"

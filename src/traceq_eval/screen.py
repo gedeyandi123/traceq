@@ -4,7 +4,7 @@ Scoring is a harness step: ``python -m traceq_eval ... --out runs/<run id>`` wri
 ``report.json`` beside the run's files. This API reads that report and the run's cost from
 ``run.json`` and serves, per scored run, the report's headline rates with k/n and its split
 (both written by the scorer), the gate verdict and the cost. It never serves report items (per-item
-expected values) or baseline contents; the system's API (``traceq.runs.api``) serves no
+expected values) or baseline contents; the system's API (``traceq.app.api``) serves no
 score at all.
 
 Usage::

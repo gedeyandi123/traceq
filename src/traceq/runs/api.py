@@ -8,8 +8,8 @@ with the bytes it read.
 
 There is no upload and no database: every route is a GET.
 
-``python -m traceq.runs.api OUT`` writes the OpenAPI schema the TypeScript client is
-generated from (ADR 0003).
+``create_router`` returns the routes; the ``app`` module composes them into the application
+(``python -m traceq.app.api OUT`` writes the OpenAPI schema, ADR 0003).
 """
 
 from __future__ import annotations
@@ -17,11 +17,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from traceq.documents import Corpus
@@ -41,10 +40,10 @@ def _read(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def create_app(runs: Path, corpus: Path | None = None) -> FastAPI:
+def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
     """``runs``: the directory ``traceq run`` writes run folders into. ``corpus``: the
     released corpus the runs read, for opening a cited page (none: no document route)."""
-    app = FastAPI(title="TraceQ", version="0.1.0", summary="Read-only API over run folders.")
+    router = APIRouter()
 
     def folder(run_id: str) -> Path:
         path = runs / run_id
@@ -63,7 +62,7 @@ def create_app(runs: Path, corpus: Path | None = None) -> FastAPI:
             pipeline_version=str(meta["pipeline_version"]),
         )
 
-    @app.get("/runs", operation_id="listRuns")
+    @router.get("/runs", operation_id="listRuns")
     def list_runs() -> list[RunSummary]:
         """Every run folder, newest first."""
         found = (
@@ -77,21 +76,21 @@ def create_app(runs: Path, corpus: Path | None = None) -> FastAPI:
         )
         return sorted(found, key=lambda r: r.created, reverse=True)
 
-    @app.get("/runs/{run_id}", operation_id="getRun")
+    @router.get("/runs/{run_id}", operation_id="getRun")
     def get_run(run_id: str) -> RunSummary:
         return summary(folder(run_id))
 
-    @app.get("/runs/{run_id}/matrix", operation_id="getMatrix")
+    @router.get("/runs/{run_id}/matrix", operation_id="getMatrix")
     def get_matrix(run_id: str) -> Matrix:
         """The traceability matrix: Coverage class and reason, and cited Evidence."""
         return Matrix.model_validate(_read(folder(run_id) / MATRIX_FILE))
 
-    @app.get("/runs/{run_id}/findings", operation_id="getFindings")
+    @router.get("/runs/{run_id}/findings", operation_id="getFindings")
     def get_findings(run_id: str) -> Findings:
         """The Pre-review: Check Findings, AI Findings kept apart, and missing documents."""
         return Findings.model_validate(_read(folder(run_id) / FINDINGS_FILE))
 
-    @app.get(
+    @router.get(
         "/runs/{run_id}/documents/{doc_id}/{rev}",
         operation_id="getDocument",
         response_class=Response,
@@ -115,18 +114,4 @@ def create_app(runs: Path, corpus: Path | None = None) -> FastAPI:
         disposition = f'inline; filename="{doc.path.name}"'
         return Response(data, media_type=media, headers={"Content-Disposition": disposition})
 
-    return app
-
-
-def openapi_schema() -> dict[str, Any]:
-    """The OpenAPI schema; it does not depend on which folders are served."""
-    return create_app(Path("runs")).openapi()
-
-
-def write_openapi(out: Path) -> None:
-    text = json.dumps(openapi_schema(), ensure_ascii=False, indent=2) + "\n"
-    out.write_text(text, encoding="utf-8", newline="\n")
-
-
-if __name__ == "__main__":
-    write_openapi(Path(sys.argv[1]))
+    return router
