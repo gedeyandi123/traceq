@@ -20,7 +20,11 @@ export default async function FindingsPage({ params }: { params: Promise<{ runId
     <>
       <Link href={`/runs/${encodeURIComponent(runId)}`}>{t("back")}</Link>
       <h1>{t("title")}</h1>
-      <p className="muted">{t("subtitle", { equipment: run.data.equipment, runId })}</p>
+      <p className="muted">
+        {t("subtitle", { equipment: run.data.equipment, runId })}
+        {" · "}
+        <Link href={`/runs/${encodeURIComponent(runId)}/left-out`}>{t("toLeftOut")}</Link>
+      </p>
       <FindingsView findings={findings.data} runId={runId} />
     </>
   );
