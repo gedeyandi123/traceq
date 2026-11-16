@@ -6,6 +6,7 @@ database refuses. Each test session migrates its own database from zero (``tests
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -108,6 +109,103 @@ def test_migrations_from_zero_leave_grants_and_triggers(fresh_database: Database
             text(
                 "SELECT count(*) FROM pg_trigger WHERE tgrelid = 'audit_trail'::regclass"
                 " AND tgtype & 32 = 32"
+            )
+        ).scalar_one()
+        assert sorted(grants) == ["INSERT", "SELECT"]
+        assert {"UPDATE", "DELETE"} <= set(triggers)
+        assert truncate == 1
+
+
+# --- The decisions table: the same protection ------------------------------------------
+DECISION_REFUSING = (
+    "UPDATE proposal_decisions SET reason = 'rewritten'",
+    "DELETE FROM proposal_decisions",
+    "TRUNCATE proposal_decisions",
+)
+
+
+def _seed_decision(url: URL) -> None:
+    """One imported run, one Proposal and a decision on it, added as the application role."""
+    with engine(url).begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO imported_runs (run_id, equipment, created, model, mode,"
+                " pipeline_version, prompts, documents) VALUES"
+                " ('r-seed', 'TP-000', now(), 'm', 'replay', '1', '{}', '[]')"
+            )
+        )
+        pid = c.execute(
+            text(
+                "INSERT INTO proposals (kind, equipment, subject, subject_hash, ordinal)"
+                " VALUES ('ai', 'TP-000', '{}', md5(random()::text), 0) RETURNING id"
+            )
+        ).scalar_one()
+        c.execute(
+            text(
+                "INSERT INTO run_proposals (run_id, proposal_id, seq, position, content_hash,"
+                " proposed) VALUES ('r-seed', :p, 0, 0, 'h', '{}') ON CONFLICT DO NOTHING"
+            ),
+            {"p": pid},
+        )
+        c.execute(
+            text(
+                "INSERT INTO proposal_decisions (proposal_id, run_id, content_hash, decision,"
+                " subject, issuer, name) VALUES (:p, 'r-seed', 'h', 'accepted', 's', 'i', 'n')"
+            ),
+            {"p": pid},
+        )
+
+
+@pytest.fixture(scope="module")
+def decided(new_database: Callable[[], Databases]) -> Databases:
+    dbs = new_database()
+    _seed_decision(dbs.app)
+    return dbs
+
+
+@pytest.mark.parametrize("statement", DECISION_REFUSING)
+def test_the_application_role_cannot_alter_a_decision(decided: Databases, statement: str) -> None:
+    with (
+        pytest.raises(ProgrammingError, match="permission denied"),
+        engine(decided.app).begin() as c,
+    ):
+        c.execute(text(statement))
+
+
+@pytest.mark.parametrize("statement", DECISION_REFUSING)
+def test_a_trigger_refuses_altering_a_decision_even_with_the_grant(
+    decided: Databases, statement: str
+) -> None:
+    with pytest.raises(DBAPIError, match="append-only"), engine(decided.owner).begin() as c:
+        c.execute(text(statement))
+    with engine(decided.app).connect() as c:
+        assert c.execute(text("SELECT count(*) FROM proposal_decisions")).scalar_one() == 1
+
+
+def test_a_decision_takes_the_database_clock(decided: Databases) -> None:
+    with engine(decided.app).connect() as c:
+        at = c.execute(text("SELECT at FROM proposal_decisions")).scalar_one()
+    assert at > datetime(2020, 1, 1, tzinfo=UTC)
+
+
+def test_migrations_from_zero_protect_the_decisions_table(fresh_database: Databases) -> None:
+    with create_engine(fresh_database.owner).connect() as c:
+        grants = c.execute(
+            text(
+                "SELECT privilege_type FROM information_schema.role_table_grants"
+                " WHERE table_name = 'proposal_decisions' AND grantee = 'traceq_app'"
+            )
+        ).scalars()
+        triggers = c.execute(
+            text(
+                "SELECT DISTINCT event_manipulation FROM information_schema.triggers"
+                " WHERE event_object_table = 'proposal_decisions' AND action_timing = 'BEFORE'"
+            )
+        ).scalars()
+        truncate = c.execute(
+            text(
+                "SELECT count(*) FROM pg_trigger"
+                " WHERE tgrelid = 'proposal_decisions'::regclass AND tgtype & 32 = 32"
             )
         ).scalar_one()
         assert sorted(grants) == ["INSERT", "SELECT"]

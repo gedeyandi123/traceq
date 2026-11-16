@@ -1,4 +1,4 @@
-"""Importing a run folder as Proposals, and reading a run's Proposals (spec #105).
+"""Importing a run folder as Proposals (spec #105).
 
 An import is one transaction: the run's provenance, every Proposal, and the Audit Trail entry
 naming who imported it, or none of them. Importing a run already imported changes nothing.
@@ -25,11 +25,11 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.orm import Session
 
 from traceq import audit
-from traceq.proposals.keys import Kind, proposals_of
+from traceq.proposals.keys import proposals_of
 from traceq.runs.schemas import Findings, Matrix
 
 _META = MetaData()
-_RUNS = Table(
+RUNS = Table(
     "imported_runs",
     _META,
     Column("run_id", Text, primary_key=True),
@@ -41,7 +41,7 @@ _RUNS = Table(
     Column("prompts", JSONB),
     Column("documents", JSONB),
 )
-_PROPOSALS = Table(
+PROPOSALS = Table(
     "proposals",
     _META,
     Column("id", BigInteger, primary_key=True),
@@ -51,7 +51,7 @@ _PROPOSALS = Table(
     Column("subject_hash", Text),
     Column("ordinal", Integer),
 )
-_RUN_PROPOSALS = Table(
+RUN_PROPOSALS = Table(
     "run_proposals",
     _META,
     Column("run_id", Text, primary_key=True),
@@ -82,17 +82,8 @@ class Imported:
     already_imported: bool
 
 
-@dataclass(frozen=True)
-class StoredProposal:
-    id: int
-    kind: Kind
-    requirement: str | None
-    position: int | None
-    content_hash: str
-
-
 def _count(session: Session, run_id: str) -> int:
-    q = select(func.count()).select_from(_RUN_PROPOSALS).where(_RUN_PROPOSALS.c.run_id == run_id)
+    q = select(func.count()).select_from(RUN_PROPOSALS).where(RUN_PROPOSALS.c.run_id == run_id)
     return session.execute(q).scalar_one()
 
 
@@ -111,13 +102,13 @@ def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
         "documents": meta["corpus"]["documents"],
     }
     added = session.execute(
-        insert(_RUNS)
+        insert(RUNS)
         .values(
             run_id=run_id,
             **{**provenance, "created": datetime.fromisoformat(provenance["created"])},
         )
         .on_conflict_do_nothing(index_elements=["run_id"])
-        .returning(_RUNS.c.run_id)
+        .returning(RUNS.c.run_id)
     ).first()
     if added is None:
         return Imported(run_id, equipment, _count(session, run_id), already_imported=True)
@@ -125,7 +116,7 @@ def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
     proposed = proposals_of(equipment, run.matrix, run.findings)
     if proposed:
         session.execute(
-            insert(_PROPOSALS)
+            insert(PROPOSALS)
             .values(
                 [
                     {
@@ -143,13 +134,13 @@ def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
         ids = {
             (h, o): i
             for i, h, o in session.execute(
-                select(_PROPOSALS.c.id, _PROPOSALS.c.subject_hash, _PROPOSALS.c.ordinal).where(
-                    _PROPOSALS.c.subject_hash.in_({p.subject_hash for p in proposed})
+                select(PROPOSALS.c.id, PROPOSALS.c.subject_hash, PROPOSALS.c.ordinal).where(
+                    PROPOSALS.c.subject_hash.in_({p.subject_hash for p in proposed})
                 )
             )
         }
         session.execute(
-            insert(_RUN_PROPOSALS).values(
+            insert(RUN_PROPOSALS).values(
                 [
                     {
                         "run_id": run_id,
@@ -173,23 +164,3 @@ def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
         new={**provenance, "proposals": len(proposed)},
     )
     return Imported(run_id, equipment, len(proposed), already_imported=False)
-
-
-def run_proposals(session: Session, run_id: str) -> list[StoredProposal] | None:
-    """The Proposals of an imported run in file order; ``None`` when it is not imported."""
-    imported = session.execute(select(_RUNS.c.run_id).where(_RUNS.c.run_id == run_id)).first()
-    if imported is None:
-        return None
-    rows = session.execute(
-        select(
-            _PROPOSALS.c.id,
-            _PROPOSALS.c.kind,
-            _RUN_PROPOSALS.c.requirement,
-            _RUN_PROPOSALS.c.position,
-            _RUN_PROPOSALS.c.content_hash,
-        )
-        .join(_PROPOSALS, _PROPOSALS.c.id == _RUN_PROPOSALS.c.proposal_id)
-        .where(_RUN_PROPOSALS.c.run_id == run_id)
-        .order_by(_RUN_PROPOSALS.c.seq)
-    )
-    return [StoredProposal(i, k, r, p, h) for i, k, r, p, h in rows]

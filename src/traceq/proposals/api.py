@@ -1,13 +1,16 @@
-"""The database routes over runs: importing a run as Proposals and reading them (spec #105).
+"""The database routes over runs: importing a run as Proposals, reading where they stand,
+recording Proposal Decisions and counting them (spec #105).
 
-Every route needs a valid bearer token; importing needs the deciding role, so the Audit Trail
-names who imported which run. Without a database (default settings) the routes answer 401.
+Every route needs a valid bearer token; importing and deciding need the deciding role, so the
+Audit Trail names who did it. Without a database (default settings) the routes answer 401.
+One decision per request: there is no bulk route.
 
 No ``from __future__ import annotations``: FastAPI reads the annotations naming the
 per-application dependency (``principal``), a local name, at definition time.
 """
 
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -18,9 +21,11 @@ from sqlalchemy import Engine
 from traceq.audit import Actor
 from traceq.db import transaction
 from traceq.identity import Principal
-from traceq.proposals.store import RunFiles, import_run, run_proposals
+from traceq.proposals import decisions
+from traceq.proposals.store import RunFiles, import_run
 from traceq.runs.api import FINDINGS_FILE, MATRIX_FILE, RUN_FILE, find_run, read_served
 from traceq.runs.schemas import Findings, Matrix
+from traceq.traceability.coverage import CoverageClass
 
 
 class _Model(BaseModel):
@@ -38,8 +43,42 @@ class ImportedRun(_Model):
     """True when the run was imported before: nothing changed."""
 
 
+class NewDecision(_Model):
+    """A Proposal Decision on the content the run proposed.
+
+    A Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is
+    ``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no
+    class). A Reason for Change is required for ``rejected`` and ``edited``, and for any
+    decision that replaces an earlier one on the same content."""
+
+    decision: Literal["accepted", "rejected", "edited"]
+    coverage: CoverageClass | None = None
+    """For ``edited``: the class the Coverage row is changed to."""
+    reason: str | None = None
+    """The Reason for Change."""
+
+
+class Decision(_Model):
+    """A recorded Proposal Decision: what, who, when and why."""
+
+    id: int
+    decision: Literal["accepted", "rejected", "edited"]
+    coverage: CoverageClass | None
+    """For ``edited``: the class the person chose."""
+    reason: str | None
+    run_id: str
+    """The run whose Proposal it was made on."""
+    content_hash: str
+    """The content it was made on."""
+    subject: str
+    issuer: str
+    name: str
+    """The name shown for the person at the time."""
+    at: datetime
+
+
 class Proposal(_Model):
-    """A Proposal of a run, and where it stands in the run's files."""
+    """A Proposal of a run, where it stands in the run's files, and its decision state."""
 
     id: int
     """Its identity across runs: the same subject gets the same id in every run."""
@@ -51,7 +90,61 @@ class Proposal(_Model):
     """For a finding: its position in its layer's list in ``findings.json``, from 0."""
     content_hash: str
     """What this run proposed about it, hashed as the content a decision rests on."""
-    state: Literal["undecided"]
+    state: Literal["decided", "changed", "undecided"]
+    """``decided``: a decision exists for this content, also one made on another run.
+    ``changed``: decisions exist only for other content, so it is undecided again.
+    ``undecided``: no decision exists."""
+    decisions: list[Decision]
+    """For ``decided``: every decision on this content, the current one first."""
+    previous: Decision | None
+    """For ``changed``: the latest decision, made on other content."""
+
+
+class KindCounts(_Model):
+    """The Proposals of one kind in a run, by decision state. ``total`` is the sum of
+    ``undecided``, ``changed`` and the current decisions ``accepted``, ``edited`` and
+    ``rejected``."""
+
+    total: int
+    undecided: int
+    """No decision exists."""
+    accepted: int
+    edited: int
+    rejected: int
+    changed: int
+    """Changed since it was decided: undecided again."""
+    decided_not_proposed: int
+    """Decided earlier, not proposed by this run: Proposals of the run's Equipment with a
+    decision that this run does not hold. Not in ``total``."""
+
+
+class DecisionCounts(_Model):
+    """Stored decisions counted per kind of Proposal for one run. Counts, not a measure of
+    quality."""
+
+    run_id: str
+    coverage: KindCounts
+    check: KindCounts
+    ai: KindCounts
+
+
+def _decision(d: decisions.Decision) -> Decision:
+    return Decision(
+        id=d.id,
+        decision=d.decision,
+        coverage=d.coverage,
+        reason=d.reason,
+        run_id=d.run_id,
+        content_hash=d.content_hash,
+        subject=d.actor.subject,
+        issuer=d.actor.issuer,
+        name=d.actor.name,
+        at=d.at,
+    )
+
+
+def _actor(who: Principal) -> Actor:
+    return Actor(subject=who.subject, issuer=who.issuer, name=who.name)
 
 
 def create_router(runs: Path, db: Engine | None, principal: Callable[..., Principal]) -> APIRouter:
@@ -84,9 +177,8 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(422, f"{run_id} is not a run folder that can be imported") from e
         if meta.get("run_id") != run_id:
             raise HTTPException(422, f"the run folder {run_id} names another run id")
-        actor = Actor(subject=who.subject, issuer=who.issuer, name=who.name)
         with transaction(database()) as session:
-            done = import_run(session, actor, files)
+            done = import_run(session, _actor(who), files)
         return ImportedRun(
             run_id=done.run_id,
             equipment=done.equipment,
@@ -98,21 +190,84 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
     def list_proposals(
         run_id: str, who: Annotated[Principal, Depends(principal)]
     ) -> list[Proposal]:
-        """The Proposals of an imported run, in the order of its files, with their state."""
+        """The Proposals of an imported run, in the order of its files, with their decision
+        state and decisions."""
         with transaction(database()) as session:
-            stored = run_proposals(session, run_id)
-        if stored is None:
+            stood = decisions.standings(session, run_id)
+        if stood is None:
             raise HTTPException(404, f"run {run_id} is not imported")
         return [
             Proposal(
-                id=p.id,
-                kind=p.kind,
-                requirement=p.requirement,
-                position=p.position,
-                content_hash=p.content_hash,
-                state="undecided",
+                id=s.proposal_id,
+                kind=s.kind,
+                requirement=s.requirement,
+                position=s.position,
+                content_hash=s.content_hash,
+                state=s.state,
+                decisions=[_decision(d) for d in s.decisions],
+                previous=None if s.previous is None else _decision(s.previous),
             )
-            for p in stored
+            for s in stood
         ]
+
+    @router.post(
+        "/runs/{run_id}/proposals/{proposal_id}/decisions",
+        operation_id="recordDecision",
+        status_code=201,
+    )
+    def record_decision(
+        run_id: str,
+        proposal_id: int,
+        body: NewDecision,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> Decision:
+        """Records one Proposal Decision on the content this run proposed, with its Audit
+        Trail entry. Earlier decisions stay. Needs the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "recording a decision needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                made = decisions.record(
+                    session,
+                    _actor(who),
+                    run_id,
+                    proposal_id,
+                    body.decision,
+                    body.coverage,
+                    body.reason,
+                )
+        except decisions.NotInRun as e:
+            raise HTTPException(404, str(e)) from e
+        except decisions.Refused as e:
+            raise HTTPException(422, str(e)) from e
+        return _decision(made)
+
+    @router.get("/runs/{run_id}/decision-counts", operation_id="decisionCounts")
+    def decision_counts(
+        run_id: str, who: Annotated[Principal, Depends(principal)]
+    ) -> DecisionCounts:
+        """Per kind of Proposal of an imported run: how many there are and where they stand."""
+        with transaction(database()) as session:
+            got = decisions.counts(session, run_id)
+        if got is None:
+            raise HTTPException(404, f"run {run_id} is not imported")
+
+        def kind(k: decisions.KindCounts) -> KindCounts:
+            return KindCounts(
+                total=k.total,
+                undecided=k.undecided,
+                accepted=k.accepted,
+                edited=k.edited,
+                rejected=k.rejected,
+                changed=k.changed,
+                decided_not_proposed=k.decided_not_proposed,
+            )
+
+        return DecisionCounts(
+            run_id=run_id,
+            coverage=kind(got["coverage"]),
+            check=kind(got["check"]),
+            ai=kind(got["ai"]),
+        )
 
     return router

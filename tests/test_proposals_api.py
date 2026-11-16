@@ -35,6 +35,8 @@ OTHER_RUN = "20261120T090000Z-c0ffee"
 DATABASE_ROUTES = {
     ("post", "/runs/{run_id}/import"),
     ("get", "/runs/{run_id}/proposals"),
+    ("post", "/runs/{run_id}/proposals/{proposal_id}/decisions"),
+    ("get", "/runs/{run_id}/decision-counts"),
 }
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
@@ -115,7 +117,7 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
     client = TestClient(create_app(runs))
     good = bearer(token(demo_issuer, decider=True))
     for method, path in DATABASE_ROUTES:
-        url = path.format(run_id=RUN_ID)
+        url = path.format(run_id=RUN_ID, proposal_id=1)
         assert client.request(method, url).status_code == 401
         assert client.request(method, url, headers=good).status_code == 401
     # The run-folder routes still work.
@@ -143,7 +145,7 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
     assert database == DATABASE_ROUTES
     assert {m for m, p in routes - database} == {"get"}
     for method, path in database:
-        r = client.request(method, path.format(run_id=RUN_ID))
+        r = client.request(method, path.format(run_id=RUN_ID, proposal_id=1))
         assert r.status_code == 401, (method, path)
         assert r.headers["www-authenticate"] == "Bearer"
 
@@ -391,3 +393,256 @@ def test_the_same_requirement_of_another_equipment_is_another_proposal(
     assert import_run(client, decider, OTHER_RUN)["equipment"] == "TP-999"
     first = {p["id"] for p in proposals(client, decider)}
     assert first.isdisjoint(p["id"] for p in proposals(client, decider, OTHER_RUN))
+
+
+# --- Proposal Decisions -------------------------------------------------------------
+
+
+def decide(
+    client: TestClient,
+    headers: dict[str, str],
+    proposal: dict[str, Any],
+    run_id: str = RUN_ID,
+    **body: object,
+) -> Any:
+    url = f"/runs/{run_id}/proposals/{proposal['id']}/decisions"
+    r = client.post(url, headers=headers, json=body)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def refused(
+    client: TestClient, headers: dict[str, str], proposal: dict[str, Any], **body: object
+) -> int:
+    url = f"/runs/{RUN_ID}/proposals/{proposal['id']}/decisions"
+    return client.post(url, headers=headers, json=body).status_code
+
+
+def counts(client: TestClient, headers: dict[str, str], run_id: str = RUN_ID) -> Any:
+    r = client.get(f"/runs/{run_id}/decision-counts", headers=headers)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def place(ps: list[dict[str, Any]], kind: str, where: object) -> dict[str, Any]:
+    return _by_place(ps)[(kind, where)]
+
+
+def test_a_decision_is_recorded_with_who_and_when_and_an_audit_trail_entry(
+    client: TestClient, decider: dict[str, str], fresh_database: Databases
+) -> None:
+    import_run(client, decider)
+    row = place(proposals(client, decider), "coverage", "URS-TP201-002")
+    got = decide(client, decider, row, decision="accepted")
+    assert {k: got[k] for k in ("decision", "coverage", "reason", "run_id", "name")} == {
+        "decision": "accepted",
+        "coverage": None,
+        "reason": None,
+        "run_id": RUN_ID,
+        "name": "Ayu Kartika Sari",
+    }
+    assert got["content_hash"] == row["content_hash"]
+    assert got["at"]
+    after = place(proposals(client, decider), "coverage", "URS-TP201-002")
+    assert after["state"] == "decided"
+    assert after["decisions"] == [got]
+    assert after["previous"] is None
+    with transaction(engine(fresh_database.app)) as s:
+        last = entries(s)[-1]
+    assert (last.action, last.record_type, last.record_id) == (
+        "decision recorded",
+        "proposal",
+        str(row["id"]),
+    )
+    assert (last.actor.subject, last.actor.name) == ("demo-0001", "Ayu Kartika Sari")
+    assert last.actor.issuer == got["issuer"]
+    assert last.old_value is None
+    assert isinstance(last.new_value, dict)
+    assert last.new_value["decision"] == "accepted"
+    assert last.new_value["content_hash"] == row["content_hash"]
+
+
+def test_a_coverage_row_is_accepted_or_edited_and_a_finding_accepted_or_rejected(
+    client: TestClient, decider: dict[str, str]
+) -> None:
+    import_run(client, decider)
+    ps = proposals(client, decider)
+    row = place(ps, "coverage", "URS-TP201-026")
+    no_class = place(ps, "coverage", "URS-TP201-030")
+    check, ai = place(ps, "check", 0), place(ps, "ai", 0)
+    edited = decide(client, decider, row, decision="edited", coverage="gap", reason="no FAT step")
+    assert (edited["decision"], edited["coverage"]) == ("edited", "gap")
+    decide(client, decider, no_class, decision="edited", coverage="partial", reason="read again")
+    decide(client, decider, check, decision="rejected", reason="the rule does not apply")
+    decide(client, decider, ai, decision="accepted")
+    # What does not fit the kind is refused.
+    assert refused(client, decider, no_class, decision="accepted", reason="r") == 422
+    assert refused(client, decider, row, decision="rejected", reason="r") == 422
+    assert refused(client, decider, row, decision="edited", reason="no class") == 422
+    assert refused(client, decider, row, decision="edited", coverage="nope", reason="r") == 422
+    assert refused(client, decider, row, decision="edited", coverage="site_only", reason="r") == 422
+    assert refused(client, decider, check, decision="edited", coverage="gap", reason="r") == 422
+    assert refused(client, decider, ai, decision="accepted", coverage="gap", reason="r") == 422
+
+
+@pytest.mark.parametrize(
+    ("kind", "where", "body"),
+    [
+        ("check", 0, {"decision": "rejected"}),
+        ("coverage", "URS-TP201-002", {"decision": "edited", "coverage": "gap"}),
+        ("ai", 0, {"decision": "rejected", "reason": "   "}),
+    ],
+    ids=["rejected", "edited", "blank"],
+)
+def test_a_missing_reason_for_change_is_refused(
+    client: TestClient,
+    decider: dict[str, str],
+    fresh_database: Databases,
+    kind: str,
+    where: object,
+    body: dict[str, object],
+) -> None:
+    import_run(client, decider)
+    p = place(proposals(client, decider), kind, where)
+    assert refused(client, decider, p, **body) == 422
+    assert place(proposals(client, decider), kind, where)["state"] == "undecided"
+    with transaction(engine(fresh_database.app)) as s:
+        assert [e.action for e in entries(s)] == ["run imported"]
+
+
+def test_a_replacing_decision_needs_a_reason_and_keeps_the_earlier_one(
+    client: TestClient, decider: dict[str, str], fresh_database: Databases
+) -> None:
+    import_run(client, decider)
+    ai = place(proposals(client, decider), "ai", 0)
+    first = decide(client, decider, ai, decision="accepted")
+    assert refused(client, decider, ai, decision="accepted") == 422
+    second = decide(client, decider, ai, decision="rejected", reason="misread the serial")
+    third = decide(client, decider, ai, decision="accepted", reason="checked the plate again")
+    now = place(proposals(client, decider), "ai", 0)
+    assert now["state"] == "decided"
+    assert now["decisions"] == [third, second, first]
+    with transaction(engine(fresh_database.app)) as s:
+        last = entries(s)[-1]
+    assert last.reason == "checked the plate again"
+    assert isinstance(last.old_value, dict)
+    assert last.old_value["decision"] == "rejected"
+
+
+def test_a_person_without_the_deciding_role_cannot_decide(
+    client: TestClient, demo_issuer: DemoIssuer, decider: dict[str, str]
+) -> None:
+    import_run(client, decider)
+    reader = bearer(token(demo_issuer, decider=False))
+    ai = place(proposals(client, reader), "ai", 0)
+    assert refused(client, reader, ai, decision="accepted") == 403
+    assert place(proposals(client, reader), "ai", 0)["state"] == "undecided"
+
+
+def test_a_decision_on_a_proposal_the_run_does_not_hold_is_not_found(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    def other(meta: dict[str, Any], matrix: dict[str, Any], findings: dict[str, Any]) -> None:
+        meta["corpus"]["equipment"] = "TP-999"
+
+    import_run(client, decider)
+    add_run(runs, OTHER_RUN, other)
+    import_run(client, decider, OTHER_RUN)
+    foreign = proposals(client, decider, OTHER_RUN)[0]
+    assert refused(client, decider, foreign, decision="accepted") == 404
+    r = client.post(
+        f"/runs/nope/proposals/{foreign['id']}/decisions",
+        headers=decider,
+        json={"decision": "accepted"},
+    )
+    assert r.status_code == 404
+
+
+def test_a_second_run_with_the_same_content_carries_the_decision(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    import_run(client, decider)
+    ai = place(proposals(client, decider), "ai", 0)
+    made = decide(client, decider, ai, decision="accepted")
+    add_run(runs, OTHER_RUN)
+    import_run(client, decider, OTHER_RUN)
+    carried = place(proposals(client, decider, OTHER_RUN), "ai", 0)
+    assert carried["state"] == "decided"
+    assert carried["decisions"] == [made]
+    assert made["run_id"] == RUN_ID
+
+
+def test_changed_content_is_changed_since_it_was_decided(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    def changed(meta: dict[str, Any], matrix: dict[str, Any], findings: dict[str, Any]) -> None:
+        findings["ai_findings"][0]["detail"] = "The serial numbers differ."
+
+    import_run(client, decider)
+    ai = place(proposals(client, decider), "ai", 0)
+    made = decide(client, decider, ai, decision="rejected", reason="the plate matches")
+    add_run(runs, OTHER_RUN, changed)
+    import_run(client, decider, OTHER_RUN)
+    now = place(proposals(client, decider, OTHER_RUN), "ai", 0)
+    assert now["id"] == ai["id"]
+    assert now["state"] == "changed"
+    assert now["decisions"] == []
+    assert now["previous"] == made
+    # The new content replaces no decision on it: an accept needs no reason.
+    decide(client, decider, now, OTHER_RUN, decision="accepted")
+    assert place(proposals(client, decider, OTHER_RUN), "ai", 0)["state"] == "decided"
+    # The first run still shows its own content as decided.
+    assert place(proposals(client, decider), "ai", 0)["decisions"] == [made]
+
+
+def _zero() -> dict[str, int]:
+    names = ("total", "undecided", "accepted", "edited", "rejected", "changed")
+    return dict.fromkeys((*names, "decided_not_proposed"), 0)
+
+
+def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[str, str]) -> None:
+    def dropped(meta: dict[str, Any], matrix: dict[str, Any], findings: dict[str, Any]) -> None:
+        del findings["check_findings"][1]
+        matrix["requirements"][0]["coverage"] = "gap"
+
+    import_run(client, decider)
+    assert counts(client, decider) == {
+        "run_id": RUN_ID,
+        "coverage": {**_zero(), "total": 3, "undecided": 3},
+        "check": {**_zero(), "total": 2, "undecided": 2},
+        "ai": {**_zero(), "total": 1, "undecided": 1},
+    }
+    ps = proposals(client, decider)
+    decide(client, decider, place(ps, "coverage", "URS-TP201-002"), decision="accepted")
+    no_class = place(ps, "coverage", "URS-TP201-030")
+    decide(client, decider, no_class, decision="edited", coverage="gap", reason="no Evidence")
+    decide(client, decider, place(ps, "check", 0), decision="accepted")
+    decide(client, decider, place(ps, "check", 1), decision="rejected", reason="not a deviation")
+    assert counts(client, decider) == {
+        "run_id": RUN_ID,
+        "coverage": {**_zero(), "total": 3, "undecided": 1, "accepted": 1, "edited": 1},
+        "check": {**_zero(), "total": 2, "accepted": 1, "rejected": 1},
+        "ai": {**_zero(), "total": 1, "undecided": 1},
+    }
+    add_run(runs, OTHER_RUN, dropped)
+    import_run(client, decider, OTHER_RUN)
+    assert counts(client, decider, OTHER_RUN) == {
+        "run_id": OTHER_RUN,
+        "coverage": {**_zero(), "total": 3, "undecided": 1, "edited": 1, "changed": 1},
+        "check": {**_zero(), "total": 1, "accepted": 1, "decided_not_proposed": 1},
+        "ai": {**_zero(), "total": 1, "undecided": 1},
+    }
+    assert client.get("/runs/nope/decision-counts", headers=decider).status_code == 404
+
+
+def test_no_api_text_calls_a_decision_an_approval_or_a_signature() -> None:
+    """The database routes and their schemas; the finding types of the run files name
+    signatures and approvals as what a finding is about."""
+    schema = openapi_schema()
+    texts = [schema["paths"][p][m] for m, p in DATABASE_ROUTES]
+    components = schema["components"]["schemas"]
+    names = ("ImportedRun", "NewDecision", "Decision", "Proposal", "KindCounts", "DecisionCounts")
+    texts += [components[n] for n in names]
+    text = json.dumps(texts).lower()
+    assert "decision" in text
+    assert all(w not in text for w in ("approv", "signature", "sign-off", "signed off"))
