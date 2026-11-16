@@ -190,7 +190,13 @@ export function FindingsView({
               {findings.missing_documents.map((d) => (
                 <tr key={d.doc_id}>
                   <td className={tbl.id}>{d.doc_id}</td>
-                  <td>{d.type}</td>
+                  <td>
+                    {t.has(`docTypes.${d.type}`) ? (
+                      <span title={d.type}>{t(`docTypes.${d.type}` as "docTypes.iq_protocol")}</span>
+                    ) : (
+                      d.type
+                    )}
+                  </td>
                   <td>{d.stage}</td>
                   <td>
                     <CiteLink runId={runId} cite={d.citation} />

@@ -94,3 +94,11 @@ Round 2 (this branch): tokens in `globals.css`, CSS Modules per component, the s
 - Round 3: one page order on every run screen (header, tabs, intro line, summary panels, tables), one panel and one section-heading pattern, `.stack` rhythm, decision k/n progress, coverage class meanings (from the decision table of the dataset design), sticky table headers fixed.
 - Round 4 (data clarity): evidence chips carry the observed value or the printed design value (required vs observed side by side without opening the row); the value citation shows only when it differs from the requirement's citation; AI finding timestamps formatted; "Keputusan" header on both findings tables; the repeated "Terima" uses a soft variant so 38 identical solid buttons do not outweigh the data.
 - Data observations for the system, not the UI (the UI shows output as it is): requirement texts from URS page 2 carry the ID and the "Kritis" column ("URS-TP201-024 Tidak Resep …"); reasons, design values and enum labels (`iq_protocol`, `ai_finding`) are English.
+
+## 7. Round 5 (17 Nov 2026): detailed audit, owner answers
+
+- Pagination and column sorting: not added (owner agreed). 38 rows; URS order is the traceability order; the API returns the whole matrix in one response, so pagination would be cosmetic and would break find-in-page and whole-matrix review.
+- Matrix filter (Coverage class + decision state): wanted, as a **separate spec after the restyle**, so the restyle stays "no behaviour change". Note for that spec: the decide action redirects to `/runs/<id>` and would drop a filter; keeping it needs a validated return field.
+- Test guard kept: raw labels locked by tests (left-out "Jenis: value", eval "Set" column per row) stay; only lightened visually.
+- Done: styled 404 (Next's built-in one was black, English, no way back; status stays 404); "Belum diputuskan" quieter so decided and changed rows stand out; missing-document types labelled ("Protokol IQ") with the raw value as fallback; unquoted URS text folded behind its count (left-out 2,672 → 1,879 px at 1366).
+- Open for the spec: `error.tsx` for an API failure mid-render (needs a client component and translations on the client); tab counts (2–3 more API reads per page); the decided/changed visuals and the scroll position after a decision are not yet seen with real decisions.

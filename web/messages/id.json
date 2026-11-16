@@ -181,7 +181,12 @@
       "outdated_reference": "Referensi kedaluwarsa"
     },
     "intro": "Masalah dalam dokumen vendor yang ditemukan sebelum tinjauan: oleh aturan tetap, dan oleh AI sebagai saran. Terima temuan yang benar; tolak yang salah dengan alasan.",
-    "summaryTitle": "Ringkasan temuan"
+    "summaryTitle": "Ringkasan temuan",
+    "docTypes": {
+      "iq_protocol": "Protokol IQ",
+      "oq_protocol": "Protokol OQ",
+      "pq_protocol": "Protokol PQ"
+    }
   },
   "leftOut": {
     "title": "Yang tidak dimasukkan sistem",
@@ -207,7 +212,8 @@
     "missed": "tidak menjadi persyaratan",
     "intro": "Yang sengaja tidak dimasukkan sistem: klaim yang gagal pemeriksaan kutipan, kriteria penerimaan yang harus ditetapkan manusia, dan teks URS yang tidak dikutip persyaratan mana pun.",
     "summaryTitle": "Ringkasan",
-    "unquotedTotal": "Teks URS tidak dikutip"
+    "unquotedTotal": "Teks URS tidak dikutip",
+    "showUnquoted": "Tampilkan teks ({count})"
   },
   "eval": {
     "title": "Hasil evaluasi",

@@ -83,3 +83,13 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.fold > summary {
+  cursor: pointer;
+  width: fit-content;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.fold[open] > summary {
+  margin-bottom: var(--space-3);
+}

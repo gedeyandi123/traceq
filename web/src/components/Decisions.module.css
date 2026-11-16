@@ -36,7 +36,8 @@
   color: var(--color-warn);
 }
 .state_undecided strong {
-  color: var(--color-text-2);
+  color: var(--color-text-3);
+  font-weight: 500;
 }
 .made {
   color: var(--color-text-2);

@@ -119,14 +119,17 @@ export function LeftOutView({
               {u.unquoted.length === 0 ? (
                 <p className="muted">{t("none")}</p>
               ) : (
-                <ul className={s.unquoted}>
-                  {u.unquoted.map((x) => (
-                    <li key={`${x.page}/${x.text}`}>
-                      <span className={s.page}>{t("page", { page: x.page })}</span>
-                      <pre>{x.text}</pre>
-                    </li>
-                  ))}
-                </ul>
+                <details className={s.fold}>
+                  <summary>{t("showUnquoted", { count: u.unquoted.length })}</summary>
+                  <ul className={s.unquoted}>
+                    {u.unquoted.map((x) => (
+                      <li key={`${x.page}/${x.text}`}>
+                        <span className={s.page}>{t("page", { page: x.page })}</span>
+                        <pre>{x.text}</pre>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               )}
             </section>
           ))
