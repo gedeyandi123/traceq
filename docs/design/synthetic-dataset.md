@@ -394,7 +394,7 @@ Revised 14 Nov 2026 (ADR 0009): v1 is cut to one clean held-out Equipment. The o
 | Version | Weeks | Contents | Unlocks |
 |---|---|---|---|
 | v0 | 1–2 | TP-201 package, 35–40 requirements, 8 planted scenarios; a small TP-202 held-out slice before the first Haiku run | Thin end-to-end slice (weeks 3–4) |
-| — | after the 25 Nov freeze | Coverage quality on TP-201, timeboxed to one week or three prompt experiments, whichever comes first | A stronger system before it is measured on new data |
+| — | after the 25 Nov freeze and the scope grilling (owner, 16 Nov 2026) | Coverage quality on TP-201, timeboxed to one week or three prompt experiments, whichever comes first | A stronger system before it is measured on new data |
 | v1 | from week 4 | PW-001 as a held-out Equipment at full size (about 30–40 requirements): URS and vendor package written by a separate session; the owner reviews its labels | A clean held-out score at a usable n; a test that the data model is generic (a utility, not an OSD machine) |
 | optional | decided at the end-of-week-4 retro | Further Equipment (HSMG-101, FBD-101, CP-301, the full TP-202 package, `generate --variant`) | Registry, Requalification, missing-document recall; more variation |
 
@@ -411,3 +411,5 @@ Answered on 2026-11-13 by one practitioner via a form (a plausibility check, n =
 - Working tools (Word / Excel / paper / DMS): format mix. *Answer:* Word, Excel and paper, with status tracked in a spreadsheet and a calendar; no DMS. The default stays.
 - Test Steps that require a Witness: which Test Steps are flagged critical. *Answer:* manual tests without automatic raw data from the machine, tests of critical interlocks or alarms, and system security checks (password challenge, audit trail). This differs from the default (`site_rules.witness: critical_aspects`), which is unchanged until the owner decides; drafted Test Step criterion 6 stays not scored.
 - How protocols are written (template vs copied from similar Equipment): if copied, add the "leftover from another Equipment" defect. *Answer:* a mix of both. The defect is a candidate for later sets; TP-201 keeps the template default.
+
+Other practitioner notes, for the URS of later sets (owner decision 2026-11-16; TP-201 stays as it is): environmental conditions state relative humidity next to temperature, and data-integrity requirements include secure data export and an audit trail that cannot be deleted, next to user access levels. The Witness rule and the "leftover from another Equipment" defect apply to site protocols, which TP-201 does not contain (its IQ and OQ are expected gaps), so they wait for a set that has them.
