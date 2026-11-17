@@ -10,12 +10,3 @@
 .equipment {
   font-weight: 650;
 }
-.mode {
-  padding: 0.125rem var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--color-ink-soft);
-  color: var(--color-ink);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  white-space: nowrap;
-}

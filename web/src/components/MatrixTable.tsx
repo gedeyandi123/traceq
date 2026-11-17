@@ -4,7 +4,7 @@ import type { Cite, Matrix, MatrixRow, ObservedValue, Proposal, Value } from "@/
 import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
-import { CoveragePill, DataTable, Panel } from "./ui/ui";
+import { cell, CoveragePill, DataTable, Panel } from "./ui/ui";
 import type { CoverageKey } from "./ui/ui";
 
 import s from "./MatrixTable.module.css";
@@ -102,7 +102,7 @@ function EvidenceCell({ row, runId, t }: { row: MatrixRow; runId: string; t: T }
               {" · "}
               {t("result", { result: t(`results.${e.result ?? "none"}`) })}
             </div>
-            {e.failure && <div className="failure">{e.failure}</div>}
+            {e.failure && <div className={s.failure}>{e.failure}</div>}
             <CiteLink runId={runId} cite={e.citation} />
           </li>
         ))}
@@ -218,7 +218,7 @@ export function MatrixTable({
           {matrix.requirements.map((row) => (
             <tr key={row.id} data-testid={row.id} className={s[`edge_${row.coverage ?? "none"}`]}>
               <td>
-                <strong className={s.id}>{row.id}</strong>
+                <strong className={cell.id}>{row.id}</strong>
                 <p className={s.text}>{row.text}</p>
                 <span className={s.cite}>
                   <CiteLink runId={runId} cite={row.source} />

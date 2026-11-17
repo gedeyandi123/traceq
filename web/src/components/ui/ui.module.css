@@ -140,24 +140,15 @@
   color: var(--color-text-3);
 }
 
-/* Stat chip: a large figure and its label. */
-.stat {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-.statValue {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.attention {
-  color: var(--color-fail);
-}
-.statLabel {
-  color: var(--color-text-2);
-  font-weight: 500;
+/* Mode badge: how a run was made (replay or live). */
+.badge {
+  padding: 0.125rem var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink-soft);
+  color: var(--color-ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* Empty state: nothing here yet, not an error. */

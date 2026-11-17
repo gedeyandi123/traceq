@@ -7,6 +7,7 @@
     "toRuns": "Kembali ke daftar run"
   },
   "runHeader": {
+    "back": "Semua run",
     "breadcrumb": "Lokasi",
     "tabs": "Layar run",
     "run": "Run",
@@ -41,7 +42,6 @@
     "mode": "Mode",
     "replay": "Putar ulang",
     "live": "Langsung",
-    "open": "Buka matriks",
     "lead": "Setiap run membaca dokumen vendor satu peralatan dan mengusulkan matriks, temuan dan klaim yang dibuang. Semua usulan menunggu keputusan manusia.",
     "run": "Run",
     "emptyTitle": "Belum ada run",
@@ -49,9 +49,6 @@
   },
   "matrix": {
     "title": "Matriks ketertelusuran",
-    "subtitle": "{equipment} · run {runId}",
-    "back": "Semua run",
-    "notFound": "Run tidak ditemukan.",
     "requirement": "Persyaratan",
     "value": "Nilai yang disyaratkan",
     "coverage": "Cakupan",
@@ -64,9 +61,6 @@
     "observed": "Teramati: {observed}",
     "result": "Hasil: {result}",
     "ambiguous": "Terbaca ganda ({readings}): minta konfirmasi",
-    "toFindings": "Temuan pra-tinjauan",
-    "toEval": "Hasil evaluasi",
-    "toLeftOut": "Yang tidak dimasukkan sistem",
     "notRead": "Dokumen vendor yang tidak terbaca",
     "classes": {
       "covered_by_vendor": "Dicakup vendor",
@@ -156,8 +150,6 @@
   },
   "findings": {
     "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",
-    "subtitle": "{equipment} · run {runId}",
-    "back": "Matriks ketertelusuran",
     "check": "Temuan pemeriksaan (aturan)",
     "checkNote": "Ditemukan oleh aturan deterministik, tanpa model.",
     "ai": "Temuan AI (saran)",
@@ -173,7 +165,6 @@
     "stage": "Tahap",
     "required": "Diwajibkan oleh",
     "status": "Status",
-    "toLeftOut": "Yang tidak dimasukkan sistem",
     "trace": "Model {model} · prompt {prompt} · {created}",
     "actions": {
       "pending": "Menunggu tinjauan"
@@ -195,7 +186,6 @@
       "outdated_reference": "Referensi kedaluwarsa"
     },
     "intro": "Masalah dalam dokumen vendor yang ditemukan sebelum tinjauan: oleh aturan tetap, dan oleh AI sebagai saran. Terima temuan yang benar; tolak yang salah dengan alasan.",
-    "summaryTitle": "Ringkasan temuan",
     "docTypes": {
       "urs": "URS",
       "risk_assessment": "Penilaian risiko",
@@ -212,8 +202,6 @@
   },
   "leftOut": {
     "title": "Yang tidak dimasukkan sistem",
-    "subtitle": "{equipment} · run {runId}",
-    "back": "Matriks ketertelusuran",
     "dropped": "Klaim yang dibuang pemeriksaan kutipan",
     "droppedNote": "Isinya gagal pemeriksaan kutipan, jadi hanya jenis, subjek, dan alasannya yang ditampilkan.",
     "group": "Jenis: {kind}",
@@ -231,13 +219,10 @@
     "unquoted": "Teks URS yang tidak dikutip persyaratan mana pun",
     "page": "hlm. {page}",
     "intro": "Yang sengaja tidak dimasukkan sistem: klaim yang gagal pemeriksaan kutipan, kriteria penerimaan yang harus ditetapkan manusia, dan teks URS yang tidak dikutip persyaratan mana pun.",
-    "summaryTitle": "Ringkasan",
     "showUnquoted": "Tampilkan teks ({count})"
   },
   "eval": {
     "title": "Hasil evaluasi",
-    "subtitle": "{equipment} · run {runId}",
-    "back": "Matriks ketertelusuran",
     "notScored": "Run ini belum dinilai, atau API evaluasi tidak dapat dihubungi. Penilaian adalah langkah terpisah dari harness.",
     "metric": "Ukuran",
     "kn": "k/n",

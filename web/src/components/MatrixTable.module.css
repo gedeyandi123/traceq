@@ -108,9 +108,8 @@
   --row-edge: var(--cov-none-edge);
 }
 
-.id {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.failure {
+  color: var(--color-fail);
 }
 .text {
   margin: var(--space-1) 0;
