@@ -10,6 +10,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Changed
+
+- Scorer 0.7.0 (#180, owner decision on #133): `same_value` compares units after Unicode NFKC and casefold (`m³/h` equals `m3/h`, as the system's `_same_unit` does), and a `range` whose `min` equals its `max` equals a `number` of that value with the same unit ("380 V"). Plural units (`tablet/h` vs `tablets/h`) and `%` vs `% FS` stay different. Recorded `haiku-r8` reports and both baselines re-scored by replay: TP-201 value 25/38 → 27/38 (URS-TP201-026 and 028); TP-202 counts unchanged; gates, fabrication and probes unchanged. The submission format, dataset version and answer key are unchanged.
+
 ## [0.1.1] - 2026-11-17
 
 Frozen dataset release. Only values changed since 0.1.0 (PATCH): the TP-201 criticality from the practitioner's follow-up form and the owner's sign-off of the risk-assessment scores (see "Changed" below); no schema or answer-key semantics change. Everything listed below is part of this release.

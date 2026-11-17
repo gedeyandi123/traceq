@@ -478,6 +478,7 @@ def test_submission_validates_and_passes_the_scorer_gates(recorded: RunOutput) -
         "URS-TP201-008",
         "URS-TP201-012",
         "URS-TP201-014",
+        "URS-TP201-026",  # a number equals the key's range with min = max (#180)
     ]
     assert report["requirements"]["metrics"]["source_citation_rate"] == 1.0
     assert report["requirements"]["metrics"]["unknown_requirements"] == []
