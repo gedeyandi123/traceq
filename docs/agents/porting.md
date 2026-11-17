@@ -27,6 +27,6 @@ The protocol is written for Claude Code. Do this before another coding agent wor
    - no reading `.env` files or credential stores.
 3. **Repositories without server-side protection.** A private repo on a free plan has no branch protection, so the local guards are its only defence. Give the new agent a GitHub token scoped to what it needs, or no access to such repos at all.
 4. **Data.** ADR 0001 still holds: no private document or name goes to any LLM. Decide which vendor may read anything outside this public repo before granting access, and check that vendor's data-retention terms.
-5. **Context.** Move whatever the agent's memory holds that the repo does not (current plan, contact rules, owner preferences) into a place the new agent reads. Private items never go into this public repo.
+5. **Context.** The plan is already in GitHub issues and the decisions in the repo (CLAUDE.md, "Where state lives"). Move what only the agent's memory holds (owner preferences, machine-local setup) into a place the new agent reads. Private items never go into this public repo.
 6. **One agent at a time.** Two agents working the same repo collide on branches and worktrees.
 7. **Verify.** Run one docs ticket end to end with the new agent (branch, checks, PR, merge rules) before giving it a code ticket.
