@@ -123,11 +123,16 @@ def comparable(spec: Value, observed: Observed) -> bool:
     match spec, observed:
         case Range() | Number(), Ambiguous():
             return True
+        case Number(unit=u), Number(unit=v):
+            # A count without unit ("36") compares with a counted one ("36 stations") (#175).
+            return not normalise(u) or not normalise(v) or _same_unit(u, v)
         case Range(unit=u) | Number(unit=u), Range(unit=v) | Number(unit=v):
             return _same_unit(u, v)
         case OneOf() | Text(), Text() | OneOf():
             return True
-        case Present(), Present():
+        case Present() | OneOf(), Present() | OneOf():
+            # OneOf vs OneOf is handled above; a feature that is there compares with a
+            # choice among options, both ways (#175).
             return True
         case _:
             return False
@@ -151,8 +156,10 @@ def meets(spec: Value, observed: Value) -> bool:
         case OneOf(allowed=allowed) | Text(value=allowed), OneOf(allowed=values):
             options = (allowed,) if isinstance(allowed, str) else allowed
             return all(any(_same_text(o, v) for o in options) for v in values)
-        case Present(), Present(value=v):
+        case Present() | OneOf(), Present(value=v):
             return v is True
+        case Present(), OneOf():
+            return True
         case _:
             return False
 
