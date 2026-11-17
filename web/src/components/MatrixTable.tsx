@@ -1,6 +1,13 @@
 import { useTranslations } from "next-intl";
 
-import type { Cite, Matrix, MatrixRow, ObservedValue, Proposal, Value } from "@/api/client";
+import type {
+  Cite,
+  Matrix,
+  MatrixRow,
+  ObservedValue,
+  Proposal,
+  Value,
+} from "@/api/client";
 import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
@@ -15,7 +22,14 @@ type Evidence = MatrixRow["evidence"][number];
 const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
 
 /** Riskiest first: the order of the Coverage summary and the legend. */
-const RISK: readonly CoverageKey[] = ["conflict", "gap", "partial", "site_only", "covered_by_vendor", "none"];
+const RISK: readonly CoverageKey[] = [
+  "conflict",
+  "gap",
+  "partial",
+  "site_only",
+  "covered_by_vendor",
+  "none",
+];
 
 function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
   switch (v.type) {
@@ -36,7 +50,9 @@ function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
       if (!observed || v.value == null) return t("values.present");
       return v.value ? t("values.presentObserved") : t("values.absentObserved");
     case "ambiguous":
-      return t("ambiguous", { readings: v.readings.map((r) => number.format(r)).join(" / ") });
+      return t("ambiguous", {
+        readings: v.readings.map((r) => number.format(r)).join(" / "),
+      });
   }
 }
 
@@ -45,12 +61,18 @@ function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
 function shortObserved(t: T, e: Evidence): string {
   const v = e.observed_value;
   if (!v) return e.observed;
-  if (v.type === "ambiguous") return `${v.readings.map((r) => number.format(r)).join(" / ")} ?`;
+  if (v.type === "ambiguous")
+    return `${v.readings.map((r) => number.format(r)).join(" / ")} ?`;
   return formatValue(t, v, true);
 }
 
 function sameCite(a: Cite, b: Cite): boolean {
-  return a.doc === b.doc && a.rev === b.rev && a.page === b.page && a.quote === b.quote;
+  return (
+    a.doc === b.doc &&
+    a.rev === b.rev &&
+    a.page === b.page &&
+    a.quote === b.quote
+  );
 }
 
 const MARK = { pass: "✓", fail: "✕", none: "·" } as const;
@@ -58,7 +80,15 @@ const MARK = { pass: "✓", fail: "✕", none: "·" } as const;
 /** Evidence on one line of chips (each step with its observed value, and the first design
  * value); the full list, its quotes and citations one click away. A chip is not a link, and
  * its text is one node, so it never doubles a value or a citation the row shows elsewhere. */
-function EvidenceCell({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
+function EvidenceCell({
+  row,
+  runId,
+  t,
+}: {
+  row: MatrixRow;
+  runId: string;
+  t: T;
+}) {
   if (row.evidence.length === 0 && row.design.length === 0) {
     return <span className="muted">{t("noEvidence")}</span>;
   }
@@ -76,13 +106,17 @@ function EvidenceCell({ row, runId, t }: { row: MatrixRow; runId: string; t: T }
                 title={`${e.stage} ${e.step}: ${t(`results.${result}`)}`}
               >
                 <span aria-hidden="true">{MARK[result]}</span>
-                <span className={s.chipText}>{`${e.step} · ${shortObserved(t, e)}`}</span>
+                <span
+                  className={s.chipText}
+                >{`${e.step} · ${shortObserved(t, e)}`}</span>
               </span>
             );
           })}
           {design && (
             <span className={s.chip} title={design.name}>
-              <span className={s.chipText}>{`${t("designShort")} · ${design.printed}`}</span>
+              <span
+                className={s.chipText}
+              >{`${t("designShort")} · ${design.printed}`}</span>
             </span>
           )}
         </span>
@@ -97,7 +131,9 @@ function EvidenceCell({ row, runId, t }: { row: MatrixRow; runId: string; t: T }
             {e.test}
             <div className={s.observed}>
               {t("observed", {
-                observed: e.observed_value ? formatValue(t, e.observed_value, true) : e.observed,
+                observed: e.observed_value
+                  ? formatValue(t, e.observed_value, true)
+                  : e.observed,
               })}
               {" · "}
               {t("result", { result: t(`results.${e.result ?? "none"}`) })}
@@ -108,7 +144,8 @@ function EvidenceCell({ row, runId, t }: { row: MatrixRow; runId: string; t: T }
         ))}
         {row.design.map((d) => (
           <li key={`${d.doc}/${d.name}`}>
-            <strong>{t("design")}</strong> {d.name}: {t("printed", { printed: d.printed })}
+            <strong>{t("design")}</strong> {d.name}:{" "}
+            {t("printed", { printed: d.printed })}
             <div>
               <CiteLink runId={runId} cite={d.citation} />
             </div>
@@ -121,20 +158,37 @@ function EvidenceCell({ row, runId, t }: { row: MatrixRow; runId: string; t: T }
 
 /** The proposed class, and after it the class a human changed it to, so the final class does
  * not hide in the decision text. */
-function CoverageCell({ row, proposal, t }: { row: MatrixRow; proposal: Proposal | undefined; t: T }) {
+function CoverageCell({
+  row,
+  proposal,
+  t,
+}: {
+  row: MatrixRow;
+  proposal: Proposal | undefined;
+  t: T;
+}) {
   const proposed: CoverageKey = row.coverage ?? "none";
-  const current = proposal?.state === "decided" ? proposal.decisions[0] : undefined;
+  const current =
+    proposal?.state === "decided" ? proposal.decisions[0] : undefined;
   const decided = current?.decision === "edited" ? current.coverage : null;
   return (
     <span className={s.classes}>
-      <CoveragePill cls={proposed} label={t(`classes.${proposed}`)} help={t(`help.${proposed}`)} />
+      <CoveragePill
+        cls={proposed}
+        label={t(`classes.${proposed}`)}
+        help={t(`help.${proposed}`)}
+      />
       {decided != null && (
         <>
           <span aria-hidden="true" className={s.arrow}>
             →
           </span>
           <span className="visually-hidden">{t("decidedClass")}</span>
-          <CoveragePill cls={decided} label={t(`classes.${decided}`)} help={t(`help.${decided}`)} />
+          <CoveragePill
+            cls={decided}
+            label={t(`classes.${decided}`)}
+            help={t(`help.${decided}`)}
+          />
         </>
       )}
     </span>
@@ -155,7 +209,11 @@ function CoverageSummary({ rows, t }: { rows: readonly MatrixRow[]; t: T }) {
         {RISK.map((k) => (
           <li key={k} className={counts.has(k) ? undefined : s.zero}>
             <span className={s.summaryCount}>{counts.get(k) ?? 0}</span>
-            <CoveragePill cls={k} label={t(`classes.${k}`)} help={t(`help.${k}`)} />
+            <CoveragePill
+              cls={k}
+              label={t(`classes.${k}`)}
+              help={t(`help.${k}`)}
+            />
           </li>
         ))}
       </ul>
@@ -203,20 +261,30 @@ export function MatrixTable({
         <CoverageSummary rows={matrix.requirements} t={t} />
         <DecisionTally counts={decisions.counts} kinds={["coverage"]} />
       </div>
-      <DataTable className={s.matrix}>
+      <DataTable
+        className={
+          decisions.access.mode === "readOnly"
+            ? `${s.matrix} ${s.readOnly}`
+            : s.matrix
+        }
+      >
         <thead>
           <tr>
             <th className={s.colRequirement}>{t("requirement")}</th>
             <th className={s.colValue}>{t("value")}</th>
             <th className={s.colCoverage}>{t("coverage")}</th>
-            <th>{t("reason")}</th>
+            <th className={s.colReason}>{t("reason")}</th>
             <th className={s.colEvidence}>{t("evidence")}</th>
             {decided && <th className={s.colDecision}>{td("column")}</th>}
           </tr>
         </thead>
         <tbody>
           {matrix.requirements.map((row) => (
-            <tr key={row.id} data-testid={row.id} className={s[`edge_${row.coverage ?? "none"}`]}>
+            <tr
+              key={row.id}
+              data-testid={row.id}
+              className={s[`edge_${row.coverage ?? "none"}`]}
+            >
               <td>
                 <strong className={cell.id}>{row.id}</strong>
                 <p className={s.text}>{row.text}</p>
@@ -230,14 +298,19 @@ export function MatrixTable({
                 ) : (
                   <span className="muted">{t("noValue")}</span>
                 )}
-                {row.value_citation && !sameCite(row.value_citation, row.source) && (
-                  <div className={s.cite}>
-                    <CiteLink runId={runId} cite={row.value_citation} />
-                  </div>
-                )}
+                {row.value_citation &&
+                  !sameCite(row.value_citation, row.source) && (
+                    <div className={s.cite}>
+                      <CiteLink runId={runId} cite={row.value_citation} />
+                    </div>
+                  )}
               </td>
               <td>
-                <CoverageCell row={row} proposal={byRequirement.get(row.id)} t={t} />
+                <CoverageCell
+                  row={row}
+                  proposal={byRequirement.get(row.id)}
+                  t={t}
+                />
               </td>
               <td className={s.reason}>{row.reason}</td>
               <td>

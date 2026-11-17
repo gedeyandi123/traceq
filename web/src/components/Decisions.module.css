@@ -26,6 +26,7 @@
   margin-bottom: var(--space-4);
 }
 .progressLine {
+  font-size: var(--text-lg);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -79,6 +80,7 @@
   color: var(--color-warn);
 }
 .state_undecided {
+  font-weight: 500;
   color: var(--color-text-3);
 }
 .made {

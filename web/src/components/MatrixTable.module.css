@@ -70,19 +70,35 @@
   vertical-align: bottom;
 }
 .colRequirement {
-  width: 26%;
-}
-.colValue {
-  width: 12%;
-}
-.colCoverage {
-  width: 13%;
-}
-.colEvidence {
   width: 22%;
 }
-.colDecision {
+.colValue {
+  width: 10%;
+}
+.colCoverage {
+  width: 12%;
+}
+.colReason {
+  width: 17%;
+}
+.colEvidence {
   width: 20%;
+}
+.colDecision {
+  width: 19%;
+}
+/* A viewer who cannot decide: the Keputusan column holds only the state line. */
+.readOnly .colRequirement {
+  width: 23%;
+}
+.readOnly .colReason {
+  width: 19%;
+}
+.readOnly .colEvidence {
+  width: 22%;
+}
+.readOnly .colDecision {
+  width: 14%;
 }
 
 /* A coloured left edge per class. */
@@ -126,7 +142,7 @@
 }
 .reason {
   color: var(--color-text-2);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Coverage cell: proposed class, then the decided one. */
@@ -143,7 +159,19 @@
 
 /* Evidence: one line of chips; the full list behind it. */
 .evidence > summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
   font-weight: 400;
+}
+/* display:flex drops the browser marker, so draw one: it shows the chips open. */
+.evidence > summary::before {
+  content: "B8";
+  flex: none;
+  color: var(--color-text-3);
+}
+.evidence[open] > summary::before {
+  content: "BE";
 }
 .chips {
   display: inline-flex;
