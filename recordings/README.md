@@ -1,12 +1,31 @@
 # Recorded live runs
 
-`haiku-r7` holds one live Haiku run per Equipment on corpus release 0.1.0 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `7b9b0d1f8dbd`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.0/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
+`haiku-r8` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `7b9b0d1f8dbd`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
-r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
+`haiku-r7` and `corpus-0.1.0` stay for the tests that use them (`tests/test_promote.py`, `test_demo.py`, `test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
 
-The dataset is not frozen (freeze 2026-11-25): the baseline is redone at the freeze.
+## r8 (current): the freeze baseline on corpus 0.1.1 (#133)
 
-## r7 (current): a `transport` prompt for the votes (#90)
+| | TP-201 (dev) | TP-202 (held-out) |
+|---|---|---|
+| run id | 20261117T101703Z-ca52bb | 20261117T110529Z-7b7d24 |
+| coverage | 29/38 | 5/13 |
+| value | 25/38 | 10/13 |
+| defect recall | 5/7 | 1/3 |
+| probes fabricated | 0/6 | 0/2 |
+| fabrication | 0/177 | 0/49 |
+| gates | PASS | PASS |
+| calls (live) | 147 (145) | 62 (62) |
+| tokens in/out | 508370/52622 | 121945/16599 |
+| cost USD (live) | 0.038574 (0.037470) | 0.010247 (0.010247) |
+
+Fresh runs, not a top-up: the folder started with only the ingest cache of r7 for the 17 documents release 0.1.1 did not change (document reading, no LLM output); the 3 changed TP-201 documents (URS rev 0 and rev 1, RA) were read anew. Prompts, model and pipeline are those of r7. The first TP-201 attempt stopped on a network timeout while polling a batch, after 2 calls had been recorded; the re-run replayed those 2 and sent the other 145, so TP-201 shows 2 replayed calls. The lost batch (38 requests) was still billed: $0.005791 (80222 input / 7120 output tokens), counted in the cost table below.
+
+TP-201 scores against the 0.1.1 answer key (criticality changed, #128 and #165), so they do not compare one-to-one with r7. Against r7: coverage 25 → 29 of 38 (macro F1 0.690 → 0.821), value 26 → 25, `evidence_precision` 1.000 → 0.870 and `evidence_recall` 0.929 → 0.786, `ambiguous.silently_resolved` 1 → 0. With the same prompts, the evidence drop is run-to-run variation of a fresh run (r1–r3 below show coverage between 23 and 29 of 38 on one prompt); it is not investigated here and no prompt changes at the freeze.
+
+TP-202 (held-out): the gate passes; reported from the scorer's report only. Its values are LLM-drafted and frozen without a human domain review, so its rates are development signals, never claims (`DATASHEET.md`).
+
+## r7: a `transport` prompt for the votes (#90)
 
 | | TP-201 (dev) | TP-202 (held-out) |
 |---|---|---|
@@ -85,8 +104,10 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | probe 2 (#85, `link` variant ×96, TP-201 only) | $0.032230 | – |
 | `link` variant run (discarded, ratchet FAIL) | $0.018768 | – |
 | r7 (top-up, live calls only) | $0.006559 | $0.001267 |
+| r8, lost batch of the timed-out first attempt | $0.005791 | – |
+| r8 (live calls only) | $0.037470 | $0.010247 |
 
-Total $0.329482 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run).
+Total $0.382990 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 

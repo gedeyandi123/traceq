@@ -1,0 +1,177 @@
+{
+ "doc_sha256": "29a9d9b14cba61edf5cb2bd17337ff8d7c2ecedbda2c7b6fa644c23237c9c75e",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  18.47
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1240039424,
+ "pages": [
+  {
+   "number": 1,
+   "text": "Technical Datasheet\nRTP 36 rotary tablet press (single-sided)\nManufacturer Pressora Maschinenbau GmbH Document no. DS-TP201\nModel RTP 36 Revision 0\nMachine serial no. RTP36-25-0417 Issue date 08-Nov-2025\nCustomer PT Arunika Farma Lestari Customer equipment tag TP-201\nPerformance\nNumber of punch stations 36 stations\nTurret speed 20–70 rpm\nMaximum output 151,200 tablets/h\nMaximum main compression force 100 kN\nMaximum pre-compression force 20 kN\nTooling\nMaximum tablet diameter 25 mm\nMaximum fill depth 18 mm\nTooling standard EU B\nMaterials and finish SS 316L\nProduct-contact parts\nSurface roughness Ra, product-contact parts (max.) 0.8 µm\nFrame and covers SS 304\nControl and safety\nAutomatic tablet weight control (force-based) Yes\nAutomatic rejection of out-of-limit tablets Yes\nCompression force measurement accuracy (max. ±) 1 % FS\nFeeder paddle speed 10–60 rpm\nEmergency stop Yes\nPunch overload protection Yes\nDesign values for machine serial no. RTP36-25-0417, as built for the customer's order. Values marked max. are limits of the machine.\nPrepared by Markus Brandt Signed electronically 08-Nov-2025\nHMI and data\nUser access levels (operator, supervisor, admin) Yes\nAudit trail of parameter and recipe changes Yes\nAlarm log with time and user Yes\nUtilities\nPower supply (3 phase, 50 Hz) 380 V\nCompressed air 6–7 bar\nDust extraction flow (required) 300 m3/h",
+   "tables": [
+    [
+     [
+      "Manufacturer",
+      "Pressora Maschinenbau GmbH",
+      "Document no.",
+      "DS-TP201"
+     ],
+     [
+      "Model",
+      "RTP 36",
+      "Revision",
+      "0"
+     ],
+     [
+      "Machine serial no.",
+      "RTP36-25-0417",
+      "Issue date",
+      "08-Nov-2025"
+     ],
+     [
+      "Customer",
+      "PT Arunika Farma Lestari",
+      "Customer equipment tag",
+      "TP-201"
+     ]
+    ],
+    [
+     [
+      "Performance"
+     ],
+     [
+      "Number of punch stations",
+      "36 stations"
+     ],
+     [
+      "Turret speed",
+      "20–70 rpm"
+     ],
+     [
+      "Maximum output",
+      "151,200 tablets/h"
+     ],
+     [
+      "Maximum main compression force",
+      "100 kN"
+     ],
+     [
+      "Maximum pre-compression force",
+      "20 kN"
+     ]
+    ],
+    [
+     [
+      "Tooling"
+     ],
+     [
+      "Maximum tablet diameter",
+      "25 mm"
+     ],
+     [
+      "Maximum fill depth",
+      "18 mm"
+     ],
+     [
+      "Tooling standard",
+      "EU B"
+     ]
+    ],
+    [
+     [
+      "Materials and finish",
+      "SS 316L"
+     ],
+     [
+      "Product-contact parts",
+      ""
+     ],
+     [
+      "Surface roughness Ra, product-contact parts (max.)",
+      "0.8 µm"
+     ],
+     [
+      "Frame and covers",
+      "SS 304"
+     ]
+    ],
+    [
+     [
+      "Control and safety",
+      ""
+     ],
+     [
+      "Automatic tablet weight control (force-based)",
+      "Yes"
+     ],
+     [
+      "Automatic rejection of out-of-limit tablets",
+      "Yes"
+     ],
+     [
+      "Compression force measurement accuracy (max. ±)",
+      "1 % FS"
+     ],
+     [
+      "Feeder paddle speed",
+      "10–60 rpm"
+     ],
+     [
+      "Emergency stop",
+      "Yes"
+     ],
+     [
+      "Punch overload protection",
+      "Yes"
+     ]
+    ],
+    [
+     [
+      "Prepared by",
+      "Markus Brandt",
+      "Signed electronically",
+      "08-Nov-2025"
+     ]
+    ],
+    [
+     [
+      "HMI and data"
+     ],
+     [
+      "User access levels (operator, supervisor, admin)",
+      "Yes"
+     ],
+     [
+      "Audit trail of parameter and recipe changes",
+      "Yes"
+     ],
+     [
+      "Alarm log with time and user",
+      "Yes"
+     ]
+    ],
+    [
+     [
+      "Utilities",
+      ""
+     ],
+     [
+      "Power supply (3 phase, 50 Hz)",
+      "380 V"
+     ],
+     [
+      "Compressed air",
+      "6–7 bar"
+     ],
+     [
+      "Dust extraction flow (required)",
+      "300 m3/h"
+     ]
+    ]
+   ]
+  }
+ ]
+}

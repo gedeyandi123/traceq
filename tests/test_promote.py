@@ -26,6 +26,8 @@ MANIFEST = ROOT / "recordings" / "corpus-0.1.0"
 WORLD = ROOT / "world" / "tp202.yaml"
 KEY = ROOT / "answer_key"
 TAG = "TP-202"
+# The baseline r7 gave, as committed until the freeze baseline r8 replaced it (#133).
+R7_BASELINE = ROOT / "tests" / "fixtures" / "promote" / f"baseline-{TAG}-r7.json"
 
 README_COLUMN = """\
 | | TP-202 (held-out) |
@@ -91,7 +93,7 @@ def test_promote_writes_the_recordings_layout_and_the_baseline(
 
     assert _json(recordings / f"report-{TAG}.json") == _stamped(R7 / f"report-{TAG}.json")
     assert (recordings / f"run-{TAG}.json").read_bytes() == (R7 / f"run-{TAG}.json").read_bytes()
-    assert _json(baseline) == _stamped(ROOT / "baselines" / f"{TAG}.json")
+    assert _json(baseline) == _stamped(R7_BASELINE)
     assert got.baseline == baseline
     assert got.column == README_COLUMN
 
