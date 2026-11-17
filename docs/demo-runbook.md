@@ -105,7 +105,7 @@ Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan sc
 
 | Gejala | Penyebab | Tindakan |
 |---|---|---|
-| Halaman 404 setelah reset | Setiap reset membuat run id baru, dan tab lama masih menunjuk run lama | Mulai dari `/` |
+| Halaman 404 setelah reset | Setiap reset membuat run id baru, dan tab lama masih menunjuk run lama. Halaman menampilkan 404 berbahasa Indonesia "Halaman tidak ditemukan" dengan "Kembali ke daftar run" (HTTP 404), tetapi judul tab browser masih "Matriks ketertelusuran · TraceQ"; ini keterbatasan yang diketahui | Mulai dari `/` |
 | Banner "Hanya membaca: API tidak menerima token …" padahal header masih menulis "Masuk sebagai …" | Issuer membuat kunci tanda tangan baru setiap kali start, jadi cookie lama ditolak | **Keluar lalu Masuk lagi setelah setiap reset** |
 | `port 8000 is in use` | Demo sebelumnya masih jalan | Ctrl-C pada demo sebelumnya, lalu jalankan lagi |
 | "Run ini belum dinilai" | Eval screen tidak jalan, atau run baru belum dinilai | Ulangi langkah eval di bagian 3 dengan run id baru |
