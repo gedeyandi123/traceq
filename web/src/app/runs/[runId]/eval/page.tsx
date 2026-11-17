@@ -26,7 +26,7 @@ export default async function EvalPage({ params }: { params: Promise<{ runId: st
   return (
     <>
       <RunHeader run={run.data} current="eval" intro={t("intro")} />
-      {summary.data ? <EvalView summary={summary.data} /> : <p>{t("notScored")}</p>}
+      <EvalView summary={summary.data ?? null} />
     </>
   );
 }
