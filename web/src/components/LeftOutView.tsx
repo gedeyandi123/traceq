@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import type { Completeness, DroppedClaim } from "@/api/client";
 
 import s from "./LeftOutView.module.css";
-import { cell, DataTable, EmptyState, SectionHeading } from "./ui/ui";
+import { cell, DataTable, EmptyState, SectionHeading, SummaryLinks } from "./ui/ui";
 
 /** The reason the drafting step gives for an Acceptance Criterion it leaves empty. */
 const HUMAN_REASON = "to be set by a human";
@@ -43,7 +43,8 @@ function DroppedTable({ items }: { items: readonly DroppedClaim[] }) {
 }
 
 /** What the system left out of a run: claims the citation check dropped (by kind, with the
- * Acceptance Criteria left to a human apart) and the URS completeness check. A dropped claim
+ * Acceptance Criteria left to a human apart) and the URS completeness check, after a summary
+ * that links to each. A dropped claim
  * shows kind, subject and reason only, never its content. `completeness` is null for a run
  * folder written before the check existed. */
 export function LeftOutView({
@@ -57,8 +58,17 @@ export function LeftOutView({
   const human = dropped.filter(isHumanAc);
   const groups = groupByKind(dropped.filter((d) => !isHumanAc(d)));
   const droppedCount = groups.reduce((n, [, items]) => n + items.length, 0);
+  const unquoted = (completeness?.urs ?? []).reduce((n, u) => n + u.unquoted.length, 0);
   return (
     <div className={s.screen}>
+      <SummaryLinks
+        title={t("summaryTitle")}
+        items={[
+          { n: droppedCount, label: t("dropped"), href: "#dropped-claims" },
+          { n: human.length, label: t("humanAc"), href: "#human-ac" },
+          ...(completeness === null ? [] : [{ n: unquoted, label: t("unquotedTotal"), href: "#completeness" }]),
+        ]}
+      />
       <section aria-labelledby="dropped-claims">
         <SectionHeading id="dropped-claims" title={t("dropped")} count={droppedCount} note={t("droppedNote")} />
         {groups.length === 0 ? (

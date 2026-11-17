@@ -5,7 +5,7 @@ import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import { formatWhen } from "./formatWhen";
 import type { DecisionView } from "./Decisions";
-import { cell, DataTable, EmptyState, SectionHeading } from "./ui/ui";
+import { cell, DataTable, EmptyState, SectionHeading, SummaryLinks } from "./ui/ui";
 
 import s from "./FindingsView.module.css";
 
@@ -29,7 +29,7 @@ function byPosition(view: DecisionView, kind: Proposal["kind"]): Map<number | nu
 
 /** The Pre-review of a run: Check Findings (deterministic rules) and AI Findings (advisory,
  * pending a human) in separate sections, then the documents the VMP requires that the corpus
- * lacks. Every finding links to the page it cites. For an imported run each finding shows its
+ * lacks, after a summary that links to each section. Every finding links to the page it cites. For an imported run each finding shows its
  * decision state in place of the file's "pending", and the decision forms when the viewer may
  * decide. */
 export function FindingsView({
@@ -51,7 +51,17 @@ export function FindingsView({
   return (
     <>
       <DecisionNotice view={decisions} />
-      <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
+      <div className={s.overview}>
+        <SummaryLinks
+          title={t("summaryTitle")}
+          items={[
+            { n: findings.check_findings.length, label: t("check"), href: "#check-findings" },
+            { n: findings.ai_findings.length, label: t("ai"), href: "#ai-findings" },
+            { n: findings.missing_documents.length, label: t("missing"), href: "#missing-documents" },
+          ]}
+        />
+        <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
+      </div>
       <section className={s.section} aria-labelledby="check-findings">
         <SectionHeading
           id="check-findings"
