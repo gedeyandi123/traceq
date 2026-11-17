@@ -33,7 +33,7 @@ from traceq.app.demo import (
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "recordings" / "corpus-0.1.1" / "manifest.json"
-R9 = ROOT / "recordings" / "haiku-r9"
+R10 = ROOT / "recordings" / "haiku-r10"
 
 
 def _corpus(tmp_path: Path) -> Path:
@@ -70,7 +70,7 @@ def demo_database(postgres_admin: object, tmp_path: Path) -> Iterator[str]:
 def test_refuses_without_the_corpus_and_says_what_is_missing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    settings = DemoSettings(corpus=tmp_path / "nowhere", equipment="TP-201", recordings=R9)
+    settings = DemoSettings(corpus=tmp_path / "nowhere", equipment="TP-201", recordings=R10)
     assert run_demo(settings) == 2
     err = capsys.readouterr().err
     assert "manifest.json" in err and "corpus release" in err
@@ -129,11 +129,11 @@ def test_refuses_a_document_whose_bytes_differ_from_the_manifest(tmp_path: Path)
         check_corpus(corpus, "TP-201")
 
 
-def test_pair_check_accepts_the_0_1_1_manifest_with_r9(tmp_path: Path) -> None:
+def test_pair_check_accepts_the_0_1_1_manifest_with_r10(tmp_path: Path) -> None:
     corpus = tmp_path / "c"
     corpus.mkdir()
     shutil.copy(MANIFEST, corpus / "manifest.json")
-    check_pair(corpus, "TP-201", R9)
+    check_pair(corpus, "TP-201", R10)
 
 
 def test_pair_check_accepts_another_version_and_skips_superseded_revisions(
@@ -213,7 +213,7 @@ def test_demo_comes_up_imported_and_a_second_run_resets(
     settings = DemoSettings(
         corpus=_corpus(tmp_path),
         equipment="TP-201",
-        recordings=R9,
+        recordings=R10,
         runs=tmp_path / "runs",
         database=demo_database,
         issuer_port=_free_port(),
@@ -229,6 +229,6 @@ def test_demo_comes_up_imported_and_a_second_run_resets(
                 headers={"Authorization": f"Bearer {token.json()['access_token']}"},
             )
             assert got.status_code == 200
-            assert len(got.json()) == 47
+            assert len(got.json()) == 48
         finally:
             demo.stop()

@@ -1,8 +1,8 @@
 """``traceq_eval promote`` (#86): a live run folder into the recordings layout and a baseline.
 
-The live run is rebuilt from the committed top-up run r9 of TP-201 (its live ``run.json``,
+The live run is rebuilt from the committed top-up run r10 of TP-201 (its live ``run.json``,
 and the submission the replay of its recordings gives, with the live run id), so the
-expected files are the ones ``promote`` committed for r9: the report, the run metadata, the
+expected files are the ones ``promote`` committed for r10: the report, the run metadata, the
 baseline and the README column. No live call is made. (Until r9 it used r7 of TP-202,
 whose ``extract`` answers no longer replay on the current prompt.)
 """
@@ -22,29 +22,29 @@ from traceq_eval import promote
 from traceq_eval.__main__ import main
 
 ROOT = Path(__file__).resolve().parents[1]
-R9 = ROOT / "recordings" / "haiku-r9"
+R10 = ROOT / "recordings" / "haiku-r10"
 MANIFEST = ROOT / "recordings" / "corpus-0.1.1"
 WORLD = ROOT / "world" / "tp201.yaml"
 KEY = ROOT / "answer_key"
 # The dev Equipment: the test reads report items and recorded requests, which the
 # held-out Equipment's must not be.
 TAG = "TP-201"
-# The baseline r9 gave; a later baseline change moves it to a fixture, as r7's was.
-R9_BASELINE = ROOT / "baselines" / f"{TAG}.json"
+# The baseline r10 gave; a later baseline change moves it to a fixture, as r7's was.
+R10_BASELINE = ROOT / "baselines" / f"{TAG}.json"
 
 README_COLUMN = """\
 | | TP-201 (dev) |
 |---|---|
-| run id | 20261117T200739Z-77d6c9 |
+| run id | 20261117T211439Z-f6ddbf |
 | coverage | 30/38 |
 | value | 29/38 |
 | defect recall | 5/7 |
 | probes fabricated | 0/6 |
-| fabrication | 0/182 |
+| fabrication | 0/183 |
 | gates | PASS |
-| calls (live) | 149 (57) |
-| tokens in/out | 523080/53017 |
-| cost USD (live) | 0.039408 (0.010758) |"""
+| calls (live) | 149 (1) |
+| tokens in/out | 523136/51461 |
+| cost USD (live) | 0.039022 (0.001398) |"""
 
 
 def _json(path: Path) -> Any:
@@ -65,24 +65,24 @@ def _dump(path: Path, data: Any) -> None:
 
 @pytest.fixture(scope="module")
 def live_run(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A live run folder as ``traceq run --live`` leaves it: r9's TP-201 run, a top-up."""
+    """A live run folder as ``traceq run --live`` leaves it: r10's TP-201 run, a top-up."""
     tmp = tmp_path_factory.mktemp("live")
-    out = run(MANIFEST, tmp, R9, "claude-haiku-5-5", equipment=TAG)
-    metadata = _json(R9 / f"run-{TAG}.json")
+    out = run(MANIFEST, tmp, R10, "claude-haiku-5-5", equipment=TAG)
+    metadata = _json(R10 / f"run-{TAG}.json")
     sub = _json(out.folder / "submission.json")
     sub["system"]["run_id"] = metadata["run_id"]
     folder = tmp / metadata["run_id"]
     out.folder.rename(folder)
     _dump(folder / "submission.json", sub)
-    shutil.copyfile(R9 / f"run-{TAG}.json", folder / "run.json")
+    shutil.copyfile(R10 / f"run-{TAG}.json", folder / "run.json")
     return folder
 
 
 @pytest.fixture
 def recordings(tmp_path: Path) -> Path:
-    """A copy of r9 without its report and run metadata, as before the promotion."""
-    target = tmp_path / "recordings" / "haiku-r10"
-    shutil.copytree(R9, target, ignore=shutil.ignore_patterns("report-*", "run-*"))
+    """A copy of r10 without its report and run metadata, as before the promotion."""
+    target = tmp_path / "recordings" / "haiku-r11"
+    shutil.copytree(R10, target, ignore=shutil.ignore_patterns("report-*", "run-*"))
     return target
 
 
@@ -94,9 +94,9 @@ def test_promote_writes_the_recordings_layout_and_the_baseline(
         live_run, recordings, corpus=MANIFEST, world=WORLD, key=KEY, baseline=baseline
     )
 
-    assert _json(recordings / f"report-{TAG}.json") == _stamped(R9 / f"report-{TAG}.json")
-    assert (recordings / f"run-{TAG}.json").read_bytes() == (R9 / f"run-{TAG}.json").read_bytes()
-    assert _json(baseline) == _stamped(R9_BASELINE)
+    assert _json(recordings / f"report-{TAG}.json") == _stamped(R10 / f"report-{TAG}.json")
+    assert (recordings / f"run-{TAG}.json").read_bytes() == (R10 / f"run-{TAG}.json").read_bytes()
+    assert _json(baseline) == _stamped(R10_BASELINE)
     assert got.baseline == baseline
     assert got.column == README_COLUMN
 
@@ -107,7 +107,7 @@ def test_a_failed_gate_writes_the_recordings_but_no_baseline(
     # A key that expects `partial` where the run claims `covered_by_vendor` trips the gate.
     key = tmp_path / "key"
     shutil.copytree(KEY / TAG, key / TAG)
-    report = _json(R9 / f"report-{TAG}.json")
+    report = _json(R10 / f"report-{TAG}.json")
     claimed = next(
         i["id"] for i in report["requirements"]["items"] if i["got"] == "covered_by_vendor"
     )
