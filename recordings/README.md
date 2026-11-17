@@ -15,7 +15,7 @@
 | value | 29/38 | 10/13 |
 | defect recall | 5/7 | 1/3 |
 | probes fabricated | 0/6 | 0/2 |
-| fabrication | 0/183 | 0/49 |
+| fabrication | 0/180 | 0/49 |
 | gates | PASS | PASS |
 | calls (live) | 149 (1) | 62 (1) |
 | tokens in/out | 523136/51461 | 123561/16207 |
@@ -28,6 +28,8 @@ A top-up of r9: the folder started as a copy of r9, each live run sent its one `
 TP-201 against r9 (ratchet against `baselines/TP-201.json` of r9, scorer 0.7.0): **ratchet FAIL** on the defect metrics; every requirement metric is the same. The one recorded answer of the new prompt is worse than all five E2 samples were: findings 10 → 11, defect precision 5/10 → 5/11 (F1 0.588 → 0.555), `mislabelled` 0 → 1, false positives on clean documents 2 → 4, false positives 5 → 5, recall the same (5/7, D-TP201-003 still found). By type: `ac_deviates_from_urs` false positives 2 → 1 (this one cites the site's risk assessment and the DQ, not a vendor test); new are one `outdated_reference` false positive and one `inconsistent_data` finding that points at the expired calibration (D-TP201-002, already found by its rule) under the wrong type. With the temperature at its default each answer is a sample: over the 6 answers of the new prompt (E2 and r10) there is 1 false `ac_deviates_from_urs`, against 11 in the 6 answers of the old one (E2 and r9). **The owner accepts the trade-off by merging this baseline (design §9), or keeps r9 by not merging.**
 
 TP-202 (held-out): reported from the scorer's report only. Gates PASS, ratchet against r9 PASS, every metric the same as r9 (defect findings 2, precision 1/2).
+
+**Re-scored after the signature rules took the SOP's scope (#101).** SOP-VAL-002 applies its signature rules to site qualification documents and vendor FAT/SAT protocols, and leaves other vendor documents (data sheets, FDS, certificates) to their issuer's quality system. `missing_signatures` and `segregation_of_duties` now run only on vendor protocols, as `vendor_protocol_not_approved` already did, so a calibration certificate is no longer judged by the site rule. A system change, deterministic: replay only, no calls, calls, tokens and cost unchanged. TP-201 before → after: the three `missing_signature` false positives ("'Calibrated by' has no date" on the three certificates) are gone, findings 11 → 8, defect precision 5/11 → 5/8 (F1 0.555 → 0.667), false positives 5 → 2, on clean documents 4 → 2, recall the same (5/7), fabrication 0/183 → 0/180 (the three findings' citations), every requirement metric the same, gates PASS, ratchet against the r10 baseline PASS. The table above shows the new fabrication count. TP-202 (held-out), from the scorer's report only: gates PASS, ratchet PASS, every count unchanged, so its report and baseline stay as committed.
 
 ## r9: `extract` reads the direction of a limit (#133, E1)
 

@@ -162,6 +162,30 @@ def test_missing_signature_counterexample() -> None:
     assert missing_signatures(fat_m(), RULES, not_approved=False) == []
 
 
+def certificate() -> Record:
+    """A calibration certificate as the dataset prints it: no date column on its signature
+    rows, the issue date on a stamp."""
+    d = "CAL-TP201-01"
+    return Record(
+        d,
+        0,
+        "calibration_certificate",
+        signatures=[
+            sig(d, "executed", "Calibrated by", "Rudi Hartono", ""),
+            sig(d, "approved", "Approved by", "Rudi Hartono", "05-Jan-2026"),
+        ],
+    )
+
+
+def test_site_signature_rules_skip_a_certificate() -> None:
+    # SOP scope: other vendor documents (certificates) are signed under their issuer's
+    # quality system, not the site rule (#101).
+    r = certificate()
+    assert missing_signatures(r, RULES, not_approved=False) == []
+    assert segregation_of_duties(r, RULES) == []
+    assert check([r], [], RULES) == []
+
+
 def test_unapproved_protocol_is_one_finding_not_three() -> None:
     assert [f.type for f in check([fat_c()], [], RULES)] == ["vendor_protocol_not_approved"]
 

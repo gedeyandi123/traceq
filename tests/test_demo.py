@@ -229,6 +229,6 @@ def test_demo_comes_up_imported_and_a_second_run_resets(
                 headers={"Authorization": f"Bearer {token.json()['access_token']}"},
             )
             assert got.status_code == 200
-            assert len(got.json()) == 48
+            assert len(got.json()) == 45  # r10, after #101 dropped 3 certificate findings
         finally:
             demo.stop()

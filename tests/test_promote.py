@@ -40,7 +40,7 @@ README_COLUMN = """\
 | value | 29/38 |
 | defect recall | 5/7 |
 | probes fabricated | 0/6 |
-| fabrication | 0/183 |
+| fabrication | 0/180 |
 | gates | PASS |
 | calls (live) | 149 (1) |
 | tokens in/out | 523136/51461 |
