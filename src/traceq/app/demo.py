@@ -10,6 +10,7 @@ loaded.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import socket
@@ -27,7 +28,6 @@ from sqlalchemy import URL, create_engine, make_url, text
 
 from traceq.db import APP_ROLE, OWNER_ROLE, ensure_roles, upgrade
 
-CORPUS_VERSION = "0.1.0"
 MODEL = "claude-haiku-5-5"
 DATABASE = "traceq"
 DEMO_PERSONA = "ayu"
@@ -43,7 +43,7 @@ class DemoError(Exception):
 class DemoSettings:
     corpus: Path
     equipment: str
-    recordings: Path = Path("recordings/haiku-r7")
+    recordings: Path
     runs: Path = Path("runs-demo")
     admin_url: str = ADMIN_URL
     database: str = DATABASE
@@ -52,30 +52,56 @@ class DemoSettings:
     compose: bool = True
 
 
-def check_corpus(corpus: Path, equipment: str) -> None:
-    """Refuses unless ``corpus`` is the extracted corpus release 0.1.0 with the documents of
-    ``equipment``."""
+def _manifest(corpus: Path) -> dict[str, Any]:
     manifest = corpus / "manifest.json"
     if not corpus.is_dir() or not manifest.is_file():
         raise DemoError(
-            f"{corpus} is not the extracted corpus release {CORPUS_VERSION}: it has no"
-            " manifest.json. Download the corpus release asset from the GitHub Releases page"
-            " and extract it, then pass its directory."
+            f"{corpus} is not an extracted corpus release: it has no manifest.json."
+            " Download the corpus release asset from the GitHub Releases page and extract it,"
+            " then pass its directory."
         )
     data: dict[str, Any] = json.loads(manifest.read_text(encoding="utf-8"))
-    if data.get("version") != CORPUS_VERSION:
-        raise DemoError(
-            f"{corpus} holds corpus release {data.get('version')}, the demo needs {CORPUS_VERSION}"
-        )
-    missing = [
-        str(d["path"])
-        for d in data["documents"]
-        if d["equipment"] == equipment and not (corpus / str(d["path"])).is_file()
-    ]
+    return data
+
+
+def check_corpus(corpus: Path, equipment: str) -> None:
+    """Refuses unless ``corpus`` is an extracted corpus release holding every document of
+    ``equipment`` with the SHA-256 of its manifest. The release is the manifest's own."""
+    data = _manifest(corpus)
+    version = data.get("version")
+    docs = [d for d in data["documents"] if d["equipment"] == equipment]
+    missing = [str(d["path"]) for d in docs if not (corpus / str(d["path"])).is_file()]
     if missing:
         raise DemoError(
-            f"{corpus} lacks {len(missing)} {equipment} documents (first: {missing[0]});"
-            " extract the whole corpus release"
+            f"{corpus} lacks {len(missing)} {equipment} documents of corpus release {version}"
+            f" (first: {missing[0]}); extract the whole corpus release"
+        )
+    for d in docs:
+        if hashlib.sha256((corpus / str(d["path"])).read_bytes()).hexdigest() != d["sha256"]:
+            raise DemoError(
+                f"{d['path']} in {corpus} does not match the SHA-256 of corpus release"
+                f" {version}; extract the release again"
+            )
+
+
+def check_pair(corpus: Path, equipment: str, recordings: Path) -> None:
+    """Refuses unless ``recordings`` was made on the corpus release of ``corpus``: every
+    document of ``equipment`` has an ingest entry (``ingest/<sha256>-<reader version>.json``).
+    A superseded revision (a higher revision of the same document exists) is skipped: the run
+    reads only the latest revision of each document, so it never ingests the older one."""
+    data = _manifest(corpus)
+    docs = [d for d in data["documents"] if d["equipment"] == equipment]
+    latest: dict[str, int] = {}
+    for d in docs:
+        latest[str(d["doc_id"])] = max(latest.get(str(d["doc_id"]), d["rev"]), d["rev"])
+    ingested = {p.name[:64] for p in (recordings / "ingest").glob("*.json")}
+    for d in docs:
+        if d["rev"] < latest[str(d["doc_id"])] or d["sha256"] in ingested:
+            continue
+        raise DemoError(
+            f"the recordings in {recordings} were not made on corpus release {data.get('version')}"
+            f" (no ingest entry for {d['doc_id']} rev {d['rev']}); pass the recordings set of"
+            " that release"
         )
 
 
@@ -181,6 +207,9 @@ def start_postgres() -> None:
 def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: None) -> Demo:
     """Everything the demo command does except waiting. Raises ``DemoError``."""
     check_corpus(settings.corpus, settings.equipment)
+    check_pair(settings.corpus, settings.equipment, settings.recordings)
+    release = _manifest(settings.corpus).get("version")
+    log(f"corpus release {release}, recordings {settings.recordings}")
     for port, what in ((settings.issuer_port, "issuer"), (settings.api_port, "API")):
         if not _port_free(port):
             raise DemoError(
