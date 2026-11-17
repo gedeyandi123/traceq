@@ -2,7 +2,9 @@
 
 Domain language: `GLOSSARY.md`. Decisions: `docs/adr/`. Dataset and eval design: `docs/design/synthetic-dataset.md`. Commands: `README.md`. Moving to another coding agent: `docs/agents/porting.md`.
 
-Checks before claiming done (show the output): `pre-commit run --all-files`, `uv run pyright`, `uv run pytest -q`. When `web/` changes, also `npm run typecheck`, `npm test` and `npm run build` in `web/` (a new worktree needs `npm ci` there first); a UI change also re-runs the cases of `docs/demo-runbook.md` it touches.
+Checks before claiming done (show the output): `pre-commit run --all-files`, `uv run pyright`, `uv run pytest -q`. When `web/` changes, also `npm run typecheck`, `npm test` and `npm run build` in `web/` (a new worktree needs `npm ci` there first); a UI change also re-runs the cases of `docs/demo-runbook.md` it touches. Local `pytest` (about 1.5 GB of RAM for 8 minutes) may be skipped when the diff touches only Markdown and files under `web/` that no test reads (tests read `web/openapi.json`, `web/eval-openapi.json` and `web/src/decisions/`); the PR then says so, and the required CI `checks` job, which runs the full suite, is the evidence.
+
+Memory on this laptop (16 GB, measured 17 Nov 2026): peaks of `pytest` 1.5 GB, `next build` 1.4 GB, `vitest` 1.0 GB, `npm ci` 0.7 GB. Claude Code stops its own background shells when RAM runs critically low, which killed `pytest` and the demo stack during #135. So the main session starts a check server only after the implementer has reported and stops it after the check, and runs one implementer at a time while free RAM is under 4 GB. Long-lived processes the owner needs (the demo stack, the eval screen) are started by the main session in their own console windows (`Start-Process`), not as background shells, so that cleanup cannot stop them.
 
 ## Agent skills
 
