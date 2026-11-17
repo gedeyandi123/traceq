@@ -1,6 +1,6 @@
 {
-  "run_id": "20261117T101703Z-ca52bb",
-  "created": "2026-11-17T10:17:03.109926+00:00",
+  "run_id": "20261117T173631Z-fc51a8",
+  "created": "2026-11-17T17:36:31.025658+00:00",
   "system": "traceq",
   "pipeline_version": "0.3.0",
   "mode": "live",
@@ -102,17 +102,17 @@
     ]
   },
   "calls": {
-    "total": 147,
-    "replayed": 2,
-    "live": 145
+    "total": 149,
+    "replayed": 146,
+    "live": 3
   },
   "tokens": {
-    "input": 508370,
-    "output": 52622
+    "input": 518571,
+    "output": 52496
   },
-  "cost_usd": 0.038574,
-  "live_cost_usd": 0.03747,
-  "max_usd": 0.1,
+  "cost_usd": 0.039053,
+  "live_cost_usd": 0.000835,
+  "max_usd": 0.01,
   "price_table": {
     "batch_discount": 0.5
   },
@@ -407,7 +407,7 @@
       "format": "xlsx",
       "engine": "openpyxl",
       "version": "openpyxl-1",
-      "cached": false,
+      "cached": true,
       "pages": 1,
       "seconds_per_page": [
         0.02
@@ -417,8 +417,8 @@
     }
   ],
   "duration": {
-    "total_seconds": 2880.318,
-    "live_seconds": 2879.857
+    "total_seconds": 309.272,
+    "live_seconds": 307.471
   },
   "not_read": []
 }

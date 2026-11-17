@@ -8,20 +8,22 @@
 
 | | TP-201 (dev) | TP-202 (held-out) |
 |---|---|---|
-| run id | 20261117T101703Z-ca52bb | 20261117T110529Z-7b7d24 |
-| coverage | 29/38 | 5/13 |
+| run id | 20261117T173631Z-fc51a8 | 20261117T110529Z-7b7d24 |
+| coverage | 30/38 | 5/13 |
 | value | 25/38 | 10/13 |
 | defect recall | 5/7 | 1/3 |
 | probes fabricated | 0/6 | 0/2 |
-| fabrication | 0/177 | 0/49 |
+| fabrication | 0/178 | 0/49 |
 | gates | PASS | PASS |
-| calls (live) | 147 (145) | 62 (62) |
-| tokens in/out | 508370/52622 | 121945/16599 |
-| cost USD (live) | 0.038574 (0.037470) | 0.010247 (0.010247) |
+| calls (live) | 149 (3) | 62 (62) |
+| tokens in/out | 518571/52496 | 121945/16599 |
+| cost USD (live) | 0.039053 (0.000835) | 0.010247 (0.010247) |
 
 Fresh runs, not a top-up: the folder started with only the ingest cache of r7 for the 17 documents release 0.1.1 did not change (document reading, no LLM output); the 3 changed TP-201 documents (URS rev 0 and rev 1, RA) were read anew. Prompts, model and pipeline are those of r7. The first TP-201 attempt stopped on a network timeout while polling a batch, after 2 calls had been recorded; the re-run replayed those 2 and sent the other 145, so TP-201 shows 2 replayed calls. The lost batch (38 requests) was still billed: $0.005791 (80222 input / 7120 output tokens), counted in the cost table below.
 
-TP-201 scores against the 0.1.1 answer key (criticality changed, #128 and #165), so they do not compare one-to-one with r7. Against r7: coverage 25 → 29 of 38 (macro F1 0.690 → 0.821), value 26 → 25, `evidence_precision` 1.000 → 0.870 and `evidence_recall` 0.929 → 0.786, `ambiguous.silently_resolved` 1 → 0. With the same prompts, the evidence drop is run-to-run variation of a fresh run (r1–r3 below show coverage between 23 and 29 of 38 on one prompt); it is not investigated here and no prompt changes at the freeze.
+TP-201 scores against the 0.1.1 answer key (criticality changed, #128 and #165), so they do not compare one-to-one with r7. The figures in this paragraph are those of the first TP-201 run (before the #175 top-up below). Against r7: coverage 25 → 29 of 38 (macro F1 0.690 → 0.821), value 26 → 25, `evidence_precision` 1.000 → 0.870 and `evidence_recall` 0.929 → 0.786, `ambiguous.silently_resolved` 1 → 0. With the same prompts, the evidence drop is run-to-run variation of a fresh run (r1–r3 below show coverage between 23 and 29 of 38 on one prompt); it is not investigated here and no prompt changes at the freeze.
+
+**TP-201 top-up for the value-comparison rule (#175).** A `Number` now compares with a `Number` when one side has no unit (`36` vs `36 stations`); `Range` keeps the same-unit rule, and `present` vs `one_of` stays not comparable (it would take a presence check as evidence for a material choice, probe P1). URS-TP201-001 then reaches the `transport` vote, which r8 had never recorded: the live top-up into this folder sent those 3 calls ($0.000835) and replayed the other 146; all 3 answered "not sensitive". TP-201 before → after: coverage 29/38 → 30/38 (macro F1 0.821 → 0.844; 001 `gap` → `covered_by_vendor`), `evidence_precision` 20/23 → 21/24, `evidence_recall` 11/14 → 12/14, fabrication 0/177 → 0/178, drafted Test Steps 32 → 31, value 25/38 unchanged, gates PASS. The first TP-201 run's figures: run id 20261117T101703Z-ca52bb, calls 147 (145 live), tokens 508370/52622, cost 0.038574 (0.037470 live). TP-202 (held-out): its report does not change (scorer report: same gates and counts), so its run stays as recorded.
 
 TP-202 (held-out): the gate passes; reported from the scorer's report only. Its values are LLM-drafted and frozen without a human domain review, so its rates are development signals, never claims (`DATASHEET.md`).
 
@@ -106,8 +108,9 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | r7 (top-up, live calls only) | $0.006559 | $0.001267 |
 | r8, lost batch of the timed-out first attempt | $0.005791 | – |
 | r8 (live calls only) | $0.037470 | $0.010247 |
+| r8 top-up (#175, `transport` ×3) | $0.000835 | – |
 
-Total $0.382990 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used).
+Total $0.383825 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 
