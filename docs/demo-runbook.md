@@ -33,8 +33,8 @@ Pakai **mode produksi** (`npm run build` lalu `npm start`), bukan `npm run dev`.
 Jalankan dari root repo, masing-masing di terminal sendiri:
 
 1. **Demo** (Postgres, reset database, replay, issuer, API, import):
-   `uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01`
-   Tambahkan `--no-compose` bila Postgres sudah jalan. Perintah ini tetap di foreground. Replay butuh sekitar 0,2 detik. Tunggu baris `demo: ready. …`; saran `npm run dev` di baris itu abaikan, pakai mode produksi (langkah 3).
+   `uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01 --recordings recordings/haiku-r7`
+   (rilis 0.1.0 dengan rekaman r7; untuk rilis lain, pakai rekaman yang dibuat di rilis itu: pasangan yang tidak cocok ditolak sebelum database disentuh). Tambahkan `--no-compose` bila Postgres sudah jalan. Perintah ini tetap di foreground. Replay butuh sekitar 0,2 detik. Tunggu baris `demo: ready. …`; saran `npm run dev` di baris itu abaikan, pakai mode produksi (langkah 3).
 2. **Eval (opsional, disarankan):** tanpa langkah ini halaman "Hasil evaluasi" menulis "Run ini belum dinilai". Ambil run id dari `runs-demo/`, lalu:
    - `uv run python -m traceq_eval world/tp201.yaml runs-demo/<run id>/submission.json --out runs-demo/<run id>` (sekitar 7 detik, keluar dengan `gates PASS`)
    - `uv run python -m traceq_eval.screen serve --runs runs-demo --port 8001`
