@@ -1,5 +1,7 @@
 /* The one data-table style every screen shares (spec #135). Tokens only (ADR 0011). */
 .frame {
+  /* A containing block: visually hidden text inside a cell stays within the frame. */
+  position: relative;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

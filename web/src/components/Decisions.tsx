@@ -45,9 +45,16 @@ const time = new Intl.DateTimeFormat("id-ID", {
   timeZone: "UTC",
 });
 
+/** A timestamp as the decision states read it ("16/11/2026 09.30 UTC"); the raw value when it
+ * does not parse. The findings screen formats AI Finding timestamps with it too. */
+export function formatWhen(t: T, iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return iso;
+  return t("when", { date: date.format(at), time: time.format(at) });
+}
+
 function summary(t: T, classes: ClassT, d: Decision): string {
-  const at = new Date(d.at);
-  const when = t("when", { date: date.format(at), time: time.format(at) });
+  const when = formatWhen(t, d.at);
   if (d.decision === "edited") {
     return t("made.edited", { class: classes(`classes.${d.coverage ?? "none"}`), name: d.name, when });
   }

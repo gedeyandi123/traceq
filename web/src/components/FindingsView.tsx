@@ -2,12 +2,15 @@ import { useTranslations } from "next-intl";
 
 import type { Cite, Findings, Proposal } from "@/api/client";
 import { CiteLink } from "./CiteLink";
-import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
+import { DecisionCell, DecisionNotice, DecisionTally, formatWhen } from "./Decisions";
 import type { DecisionView } from "./Decisions";
+import { cell, DataTable, EmptyState, SectionHeading } from "./ui/ui";
+
+import s from "./FindingsView.module.css";
 
 function Citations({ cites, runId }: { cites: readonly Cite[]; runId: string }) {
   return (
-    <ul className="citations">
+    <ul className={s.citations}>
       {cites.map((c) => (
         <li key={`${c.doc}/${c.rev}/${c.page}/${c.quote}`}>
           <CiteLink runId={runId} cite={c} />
@@ -42,17 +45,23 @@ export function FindingsView({
   const decided = decisions.proposals !== undefined;
   const checks = byPosition(decisions, "check");
   const ais = byPosition(decisions, "ai");
+  // A document type the messages have no label for shows as it is, never as a missing key.
+  const docType = (type: string) => (t.has(`docTypes.${type}`) ? t(`docTypes.${type}`) : type);
   return (
     <>
       <DecisionNotice view={decisions} />
       <DecisionTally counts={decisions.counts} kinds={["check", "ai"]} />
-      <section className="findings findings-check" aria-labelledby="check-findings">
-        <h2 id="check-findings">{t("check")}</h2>
-        <p className="muted">{t("checkNote")}</p>
+      <section className={s.section} aria-labelledby="check-findings">
+        <SectionHeading
+          id="check-findings"
+          title={t("check")}
+          count={findings.check_findings.length}
+          note={t("checkNote")}
+        />
         {findings.check_findings.length === 0 ? (
-          <p>{t("none")}</p>
+          <EmptyState title={t("none")} />
         ) : (
-          <table>
+          <DataTable>
             <thead>
               <tr>
                 <th>{t("type")}</th>
@@ -65,19 +74,19 @@ export function FindingsView({
             <tbody>
               {findings.check_findings.map((f, i) => (
                 <tr key={`${f.type}/${f.doc}/${i}`}>
-                  <td>{t(`checkTypes.${f.type}`)}</td>
-                  <td>{f.doc}</td>
+                  <td className={s.type}>{t(`checkTypes.${f.type}`)}</td>
+                  <td className={cell.id}>{f.doc}</td>
                   <td>{f.detail}</td>
                   <td>
                     <Citations cites={f.citations} runId={runId} />
                     {f.rule && (
-                      <div>
+                      <div className={s.rule}>
                         {t("rule")}: <CiteLink runId={runId} cite={f.rule} />
                       </div>
                     )}
                   </td>
                   {decided && (
-                    <td>
+                    <td className={s.decision}>
                       <DecisionCell
                         proposal={checks.get(i)}
                         runId={runId}
@@ -89,39 +98,47 @@ export function FindingsView({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </section>
 
-      <section className="findings findings-ai" aria-labelledby="ai-findings">
-        <h2 id="ai-findings">{t("ai")}</h2>
-        <p className="muted">{t("aiNote")}</p>
+      <section className={s.section} aria-labelledby="ai-findings">
+        <SectionHeading
+          id="ai-findings"
+          title={t("ai")}
+          count={findings.ai_findings.length}
+          note={t("aiNote")}
+        />
         {findings.ai_findings.length === 0 ? (
-          <p>{t("none")}</p>
+          <EmptyState title={t("none")} />
         ) : (
-          <table>
+          <DataTable>
             <thead>
               <tr>
                 <th>{t("type")}</th>
                 <th>{t("detail")}</th>
                 <th>{t("citations")}</th>
-                <th>{t("status")}</th>
+                <th>{decided ? td("column") : t("status")}</th>
               </tr>
             </thead>
             <tbody>
               {findings.ai_findings.map((f, i) => (
                 <tr key={`${f.type}/${i}`}>
-                  <td>{t(`aiTypes.${f.type}`)}</td>
+                  <td className={s.type}>{t(`aiTypes.${f.type}`)}</td>
                   <td>
                     {f.detail}
-                    <div className="muted">
-                      {t("trace", { model: f.model, prompt: f.prompt.slice(0, 12), created: f.created })}
+                    <div className={s.trace}>
+                      {t("trace", {
+                        model: f.model,
+                        prompt: f.prompt.slice(0, 12),
+                        created: formatWhen(td, f.created),
+                      })}
                     </div>
                   </td>
                   <td>
                     <Citations cites={f.citations} runId={runId} />
                   </td>
-                  <td>
+                  <td className={s.decision}>
                     {decided ? (
                       <DecisionCell
                         proposal={ais.get(i)}
@@ -130,23 +147,27 @@ export function FindingsView({
                         access={decisions.access}
                       />
                     ) : (
-                      <span className="pending">{t(`actions.${f.reviewer_action}`)}</span>
+                      <span className={s.pending}>{t(`actions.${f.reviewer_action}`)}</span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </section>
 
-      <section className="findings findings-missing" aria-labelledby="missing-documents">
-        <h2 id="missing-documents">{t("missing")}</h2>
-        <p className="muted">{t("missingNote")}</p>
+      <section className={s.section} aria-labelledby="missing-documents">
+        <SectionHeading
+          id="missing-documents"
+          title={t("missing")}
+          count={findings.missing_documents.length}
+          note={t("missingNote")}
+        />
         {findings.missing_documents.length === 0 ? (
-          <p>{t("none")}</p>
+          <EmptyState title={t("none")} />
         ) : (
-          <table>
+          <DataTable>
             <thead>
               <tr>
                 <th>{t("document")}</th>
@@ -158,8 +179,8 @@ export function FindingsView({
             <tbody>
               {findings.missing_documents.map((d) => (
                 <tr key={d.doc_id}>
-                  <td>{d.doc_id}</td>
-                  <td>{d.type}</td>
+                  <td className={cell.id}>{d.doc_id}</td>
+                  <td>{docType(d.type)}</td>
                   <td>{d.stage}</td>
                   <td>
                     <CiteLink runId={runId} cite={d.citation} />
@@ -167,7 +188,7 @@ export function FindingsView({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </section>
     </>
