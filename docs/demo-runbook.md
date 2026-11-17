@@ -100,7 +100,7 @@ Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan sc
   - 005 "Sebagian" ("SAT-02: result does not meet the URS") yang seharusnya *covered_by_vendor*: akibat salah baca nilai di butir berikut.
   - 034 "Sebagian" ("URS value not verified") yang seharusnya *covered_by_vendor*.
 - **URS-TP201-005** menampilkan "Teramati: 204 kN" untuk nilai yang dicatat SAT sebagai 20,4 kN, sehingga barisnya "Sebagian".
-- **Bukti lebih sedikit dari r7:** presisi bukti 0,875 dan recall bukti 0,857 (r7: 1,000 dan 0,929), dengan prompt yang sama; dicatat sebagai variasi antar-run dan diselidiki sesudah freeze (#172).
+- **Bukti lebih sedikit dari r7:** presisi bukti 0,875 dan recall bukti 0,857 (r7: 1,000 dan 0,929), dengan prompt yang sama; diselidiki 18 Nov (#172): input `link` r7 dan r8 berbeda; dari tiga langkah berlebih, 038 (FAT-M-11) dan 014 (FAT-C-02) muncul hampir di setiap jawaban, 002 (SAT-01) hanya kadang-kadang. Prompt tidak diubah sebelum sesi praktisi.
 - **Recall cacat 5/7, presisi temuan 5/10.** Lima false positive:
   - tiga temuan aturan "Tanda tangan atau tanggal tidak ada" pada sertifikat kalibrasi CAL-TP201-01, KAL-2025-0412 dan KAL-2026-0057 (#101);
   - dua temuan AI "Kriteria penerimaan menyimpang dari URS" untuk FAT-M-02 dan FAT-M-09 (#100). Ini dibahas di sesi sebagai D9.
