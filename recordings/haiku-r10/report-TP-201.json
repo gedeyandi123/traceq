@@ -9,8 +9,8 @@
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",
-    "prompt": "9f54f4fa1054",
-    "run_id": "20261117T200739Z-77d6c9"
+    "prompt": "e7b77fbfedfb",
+    "run_id": "20261117T211439Z-f6ddbf"
   },
   "scorer_version": "0.7.0",
   "equipment": "TP-201",
@@ -23,8 +23,8 @@
       "better": "higher"
     },
     "citations.verified_rate": {
-      "k": 119,
-      "n": 119,
+      "k": 120,
+      "n": 120,
       "rate": 1.0,
       "better": "higher"
     },
@@ -36,7 +36,7 @@
     },
     "fabrication.rate": {
       "k": 0,
-      "n": 182,
+      "n": 183,
       "rate": 0.0,
       "better": "lower"
     },
@@ -93,15 +93,15 @@
     }
   },
   "fabrication": {
-    "claims": 182,
+    "claims": 183,
     "fabricated": 0,
     "rate": 0.0
   },
   "citations": {
-    "total": 119,
+    "total": 120,
     "verified_rate": 1.0,
     "by_status": {
-      "verified": 119,
+      "verified": 120,
       "value_not_in_quote": 0,
       "too_long": 0,
       "unknown_document": 0,
@@ -589,10 +589,10 @@
   "defects": {
     "metrics": {
       "defects": 7,
-      "findings": 10,
+      "findings": 11,
       "recall": 0.7143,
-      "precision": 0.5,
-      "f1": 0.5882,
+      "precision": 0.4545,
+      "f1": 0.5555,
       "recall_by_layer": {
         "llm": 0.6667,
         "rule": 1.0,
@@ -603,9 +603,9 @@
         "major": 0.6667,
         "minor": 1.0
       },
-      "mislabelled": 0,
+      "mislabelled": 1,
       "false_positives": 5,
-      "false_positives_on_clean_documents": 2,
+      "false_positives_on_clean_documents": 4,
       "severity_agreement": 0.0
     },
     "items": [
@@ -658,7 +658,7 @@
         "scenario": "S7",
         "type": "ambiguous_value",
         "found_by": [
-          11
+          12
         ]
       }
     ],
@@ -729,10 +729,12 @@
       },
       {
         "n": 8,
-        "type": "ac_deviates_from_urs",
+        "type": "inconsistent_data",
         "severity": null,
-        "status": "false_positive",
-        "defects": [],
+        "status": "mislabelled",
+        "defects": [
+          "D-TP201-002"
+        ],
         "on_clean_document": false
       },
       {
@@ -741,10 +743,18 @@
         "severity": null,
         "status": "false_positive",
         "defects": [],
-        "on_clean_document": false
+        "on_clean_document": true
       },
       {
-        "n": 11,
+        "n": 10,
+        "type": "outdated_reference",
+        "severity": null,
+        "status": "false_positive",
+        "defects": [],
+        "on_clean_document": true
+      },
+      {
+        "n": 12,
         "type": "ambiguous_value",
         "severity": null,
         "status": "match",

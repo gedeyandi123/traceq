@@ -1,12 +1,35 @@
 # Recorded live runs
 
-`haiku-r9` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `9f54f4fa1054`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.7.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
+`haiku-r10` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `e7b77fbfedfb`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.7.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
 `haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
-`haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r9 since the r9 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
+`haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r10 since the r10 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
 
-## r9 (current): `extract` reads the direction of a limit (#133, E1)
+## r10 (current): `ai_review` reports `ac_deviates_from_urs` only on the site's own protocols (#100, E2)
+
+| | TP-201 (dev) | TP-202 (held-out) |
+|---|---|---|
+| run id | 20261117T211439Z-f6ddbf | 20261117T211730Z-527c71 |
+| coverage | 30/38 | 5/13 |
+| value | 29/38 | 10/13 |
+| defect recall | 5/7 | 1/3 |
+| probes fabricated | 0/6 | 0/2 |
+| fabrication | 0/183 | 0/49 |
+| gates | PASS | PASS |
+| calls (live) | 149 (1) | 62 (1) |
+| tokens in/out | 523136/51461 | 123561/16207 |
+| cost USD (live) | 0.039022 (0.001398) | 0.010230 (0.000613) |
+
+The change is one line of the `ai_review` prompt, as design §7 defines the defect: `ac_deviates_from_urs` is an acceptance criterion in one of the site's own protocols (IQ, OQ or PQ) that is looser than, or different from, the URS; a vendor FAT or SAT that checks less than the URS asks is not this issue. Experiment E2 (#100, #133), on the TP-201 `ai_review` request of r9, 5 samples per arm: the old prompt gave 9 false `ac_deviates_from_urs` findings in 5 answers, the new one 0 in 5, and kept the inconsistent serial number (D-TP201-003) in 5 of 5. Only TP-201 was used to write the line.
+
+A top-up of r9: the folder started as a copy of r9, each live run sent its one `ai_review` request (the only request the change touches), and the 2 old `ai_review` recordings were removed as unused. r9's figures stay below; its folder was removed, since r10 holds every other recording of it.
+
+TP-201 against r9 (ratchet against `baselines/TP-201.json` of r9, scorer 0.7.0): **ratchet FAIL** on the defect metrics; every requirement metric is the same. The one recorded answer of the new prompt is worse than all five E2 samples were: findings 10 → 11, defect precision 5/10 → 5/11 (F1 0.588 → 0.555), `mislabelled` 0 → 1, false positives on clean documents 2 → 4, false positives 5 → 5, recall the same (5/7, D-TP201-003 still found). By type: `ac_deviates_from_urs` false positives 2 → 1 (this one cites the site's risk assessment and the DQ, not a vendor test); new are one `outdated_reference` false positive and one `inconsistent_data` finding that points at the expired calibration (D-TP201-002, already found by its rule) under the wrong type. With the temperature at its default each answer is a sample: over the 6 answers of the new prompt (E2 and r10) there is 1 false `ac_deviates_from_urs`, against 11 in the 6 answers of the old one (E2 and r9). **The owner accepts the trade-off by merging this baseline (design §9), or keeps r9 by not merging.**
+
+TP-202 (held-out): reported from the scorer's report only. Gates PASS, ratchet against r9 PASS, every metric the same as r9 (defect findings 2, precision 1/2).
+
+## r9: `extract` reads the direction of a limit (#133, E1)
 
 | | TP-201 (dev) | TP-202 (held-out) |
 |---|---|---|
@@ -138,8 +161,10 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | r8 top-up (#175, `transport` ×3) | $0.000835 | – |
 | E1 probes (#133, `extract` old/v1/v2/v3 ×3, TP-201 only) | $0.057598 | – |
 | r9 (top-up, live calls only) | $0.010758 | $0.001789 |
+| E2 probe (#100, `ai_review` old/new ×5, TP-201 only) | $0.016941 | – |
+| r10 (top-up, live calls only) | $0.001398 | $0.000613 |
 
-Total $0.453970 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1 and r9, limits 0.10 and 0.05: owner's ceiling $0.35, $0.070145 used).
+Total $0.472922 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01): owner's ceiling $0.35, $0.089097 used).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 
