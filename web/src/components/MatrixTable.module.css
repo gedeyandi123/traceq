@@ -63,26 +63,42 @@
 /* The table: fixed columns so long text wraps instead of widening the page. */
 .matrix {
   table-layout: fixed;
-  min-width: 960px;
+  min-width: 1024px;
 }
 .matrix thead th {
   white-space: normal;
   vertical-align: bottom;
 }
 .colRequirement {
-  width: 26%;
+  width: 22%;
 }
 .colValue {
-  width: 12%;
+  width: 9%;
 }
 .colCoverage {
   width: 13%;
 }
+.colReason {
+  width: 16%;
+}
 .colEvidence {
-  width: 22%;
+  width: 21%;
 }
 .colDecision {
-  width: 20%;
+  width: 19%;
+}
+/* A viewer who cannot decide: the Keputusan column holds only the state line. */
+.readOnly .colRequirement {
+  width: 24%;
+}
+.readOnly .colReason {
+  width: 18%;
+}
+.readOnly .colEvidence {
+  width: 22%;
+}
+.readOnly .colDecision {
+  width: 14%;
 }
 
 /* A coloured left edge per class. */
@@ -126,7 +142,7 @@
 }
 .reason {
   color: var(--color-text-2);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Coverage cell: proposed class, then the decided one. */
@@ -143,7 +159,19 @@
 
 /* Evidence: one line of chips; the full list behind it. */
 .evidence > summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
   font-weight: 400;
+}
+/* display:flex drops the browser marker, so draw one: it shows the chips open. */
+.evidence > summary::before {
+  content: "\25B8";
+  flex: none;
+  color: var(--color-text-3);
+}
+.evidence[open] > summary::before {
+  content: "\25BE";
 }
 .chips {
   display: inline-flex;
