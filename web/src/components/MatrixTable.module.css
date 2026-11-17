@@ -63,7 +63,7 @@
 /* The table: fixed columns so long text wraps instead of widening the page. */
 .matrix {
   table-layout: fixed;
-  min-width: 960px;
+  min-width: 1024px;
 }
 .matrix thead th {
   white-space: normal;
@@ -73,26 +73,26 @@
   width: 22%;
 }
 .colValue {
-  width: 10%;
+  width: 9%;
 }
 .colCoverage {
-  width: 12%;
+  width: 13%;
 }
 .colReason {
-  width: 17%;
+  width: 16%;
 }
 .colEvidence {
-  width: 20%;
+  width: 21%;
 }
 .colDecision {
   width: 19%;
 }
 /* A viewer who cannot decide: the Keputusan column holds only the state line. */
 .readOnly .colRequirement {
-  width: 23%;
+  width: 24%;
 }
 .readOnly .colReason {
-  width: 19%;
+  width: 18%;
 }
 .readOnly .colEvidence {
   width: 22%;
