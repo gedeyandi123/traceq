@@ -1,6 +1,6 @@
 # Recorded live runs
 
-`haiku-r9` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `9f54f4fa1054`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
+`haiku-r9` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `9f54f4fa1054`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.7.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
 `haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | run id | 20261117T200739Z-77d6c9 | 20261117T201654Z-f4dbef |
 | coverage | 30/38 | 5/13 |
-| value | 28/38 | 10/13 |
+| value | 29/38 | 10/13 |
 | defect recall | 5/7 | 1/3 |
 | probes fabricated | 0/6 | 0/2 |
 | fabrication | 0/182 | 0/49 |
@@ -21,11 +21,11 @@
 | tokens in/out | 523080/53017 | 123505/16599 |
 | cost USD (live) | 0.039408 (0.010758) | 0.010325 (0.001789) |
 
-The change is two lines of the `extract` prompt: a bounding word in any language ("at least", "minimum", "minimal", "maksimal", ">=", ...) makes a one-sided `range`; a `number` is an exact or nominal value stated without one, with `min` and `max` null; `present` also covers a requirement that refers to a limit without stating its value. It is variant v2 of experiment E1 (#133, comment 6958134728): on the 38 TP-201 `extract` requests, 3 samples per arm, values right 74/114 with the old prompt and 86/114 with v2, with no item worse. Three variants were tried on the same dev items, so v2 was picked on dev; this held-out run is the check.
+The change is two lines of the `extract` prompt: a bounding word in any language ("at least", "minimum", "minimal", "maksimal", ">=", ...) makes a one-sided `range`; a `number` is an exact or nominal value stated without one, with `min` and `max` null; `present` also covers a requirement that refers to a limit without stating its value. It is variant v2 of experiment E1 (#133, comment 6958134728): on the 38 TP-201 `extract` requests, 3 samples per arm, values right 74/114 with the old prompt and 86/114 with v2, with no item worse (scorer 0.6.0); re-scored with scorer 0.7.0, 79/114 and 90/114, and one item worse: URS-TP201-026 ("380 V, 3 fase") 2/3 → 1/3, which v2 more often reads as `text`. Three variants were tried on the same dev items, so v2 was picked on dev; this held-out run is the check.
 
 A top-up of r8: the folder started as a copy of r8, the live runs sent only the requests the new prompt changed (every `extract` request and the downstream requests whose input carries the value), and the 73 recordings neither run reads any more (the old `extract` answers and the requests they fed) were removed. The other prompts are unchanged.
 
-TP-201 against r8 (ratchet against `baselines/TP-201.json` of r8): value 25/38 → 28/38 (URS-TP201-004, -005 and -021 now right; -021 also `gap` → `partial`, macro F1 0.844 → 0.848), `evidence_precision` 21/24 → 22/25, `evidence_recall` 12/14 → 13/14, every other metric the same except **`ambiguous.silently_resolved` 0 → 1 (ratchet FAIL)**. The drafted Test Step TS-URS-TP201-003 takes its Acceptance Criterion "≥ 120,000 tablets/h" correctly from SAT-01, but its quote runs on into the observed reading "122.400 tablets/h" (the ambiguous value A-TP201-002), and the scorer counts any valued claim that quotes an ambiguous location as resolving it. The `draft` prompt is unchanged; its request changed because the value of 003 changed (`range` instead of `number`), and r7 showed the same pattern on TS-URS-TP201-017 with the old prompts, so it is run-to-run variation of the quote's length. **The owner accepts the trade-off by merging this baseline (design §9: a trade-off is accepted through a new baseline, not a margin).** Not addressed by this run: 006, 007 and 013, which E1 showed as unstable gains, stay wrong.
+TP-201 against r8 (ratchet against `baselines/TP-201.json` of r8, both scored with scorer 0.7.0): value 27/38 → 29/38 (URS-TP201-004, -005 and -021 now right, -021 also `gap` → `partial`, macro F1 0.844 → 0.848; -026 now wrong: read as `text` "380 V, 3 fase", as E1 showed), `evidence_precision` 21/24 → 22/25, `evidence_recall` 12/14 → 13/14, every other metric the same except **`ambiguous.silently_resolved` 0 → 1 (ratchet FAIL)**. The drafted Test Step TS-URS-TP201-003 takes its Acceptance Criterion "≥ 120,000 tablets/h" correctly from SAT-01, but its quote runs on into the observed reading "122.400 tablets/h" (the ambiguous value A-TP201-002), and the scorer counts any valued claim that quotes an ambiguous location as resolving it. The `draft` prompt is unchanged; its request changed because the value of 003 changed (`range` instead of `number`), and r7 showed the same pattern on TS-URS-TP201-017 with the old prompts, so it is run-to-run variation of the quote's length. **The owner accepts the trade-off by merging this baseline (design §9: a trade-off is accepted through a new baseline, not a margin).** Not addressed by this run: 006, 007 and 013, which E1 showed as unstable gains, stay wrong.
 
 TP-202 (held-out): reported from the scorer's report only. Gates PASS, ratchet against r8 PASS, every metric the same as r8. Held-out exposure: in the session of 18 Nov the agent printed 8 TP-202 `extract` answers of r8 before this prompt was written (disclosed on #133 and in `DATASHEET.md`), so this held-out check is not clean for those items.
 
@@ -35,7 +35,7 @@ TP-202 (held-out): reported from the scorer's report only. Gates PASS, ratchet a
 |---|---|---|
 | run id | 20261117T173631Z-fc51a8 | 20261117T110529Z-7b7d24 |
 | coverage | 30/38 | 5/13 |
-| value | 25/38 | 10/13 |
+| value | 27/38 | 10/13 |
 | defect recall | 5/7 | 1/3 |
 | probes fabricated | 0/6 | 0/2 |
 | fabrication | 0/178 | 0/49 |
@@ -49,6 +49,8 @@ Fresh runs, not a top-up: the folder started with only the ingest cache of r7 fo
 TP-201 scores against the 0.1.1 answer key (criticality changed, #128 and #165), so they do not compare one-to-one with r7. The figures in this paragraph are those of the first TP-201 run (before the #175 top-up below). Against r7: coverage 25 → 29 of 38 (macro F1 0.690 → 0.821), value 26 → 25, `evidence_precision` 1.000 → 0.870 and `evidence_recall` 0.929 → 0.786, `ambiguous.silently_resolved` 1 → 0. With the same prompts, the evidence drop is run-to-run variation of a fresh run (r1–r3 below show coverage between 23 and 29 of 38 on one prompt); it is not investigated here and no prompt changes at the freeze.
 
 **TP-201 top-up for the value-comparison rule (#175).** A `Number` now compares with a `Number` when one side has no unit (`36` vs `36 stations`); `Range` keeps the same-unit rule, and `present` vs `one_of` stays not comparable (it would take a presence check as evidence for a material choice, probe P1). URS-TP201-001 then reaches the `transport` vote, which r8 had never recorded: the live top-up into this folder sent those 3 calls ($0.000835) and replayed the other 146; all 3 answered "not sensitive". TP-201 before → after: coverage 29/38 → 30/38 (macro F1 0.821 → 0.844; 001 `gap` → `covered_by_vendor`), `evidence_precision` 20/23 → 21/24, `evidence_recall` 11/14 → 12/14, fabrication 0/177 → 0/178, drafted Test Steps 32 → 31, value 25/38 unchanged, gates PASS. The first TP-201 run's figures: run id 20261117T101703Z-ca52bb, calls 147 (145 live), tokens 508370/52622, cost 0.038574 (0.037470 live). TP-202 (held-out): its report does not change (scorer report: same gates and counts), so its run stays as recorded.
+
+**Re-scored with scorer 0.7.0 (#180).** Two value-comparison rules (owner decision on #133): units compare after NFKC and casefold (`m³/h` = `m3/h`, URS-TP201-028), and a `range` with `min` = `max` equals a `number` of that value ("380 V", URS-TP201-026). Replay only, no calls. TP-201 value 25/38 → 27/38; every other count unchanged, gates PASS. TP-202 (held-out): scorer report counts unchanged (value 10/13, gates PASS, fabrication 0/49, probes 0/2).
 
 TP-202 (held-out): the gate passes; reported from the scorer's report only. Its values are LLM-drafted and frozen without a human domain review, so its rates are development signals, never claims (`DATASHEET.md`).
 

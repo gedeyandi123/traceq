@@ -38,6 +38,7 @@ Evidence, and a ``gap`` / ``partial`` / ``conflict`` requirement labelled
 from __future__ import annotations
 
 import math
+import unicodedata
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -58,7 +59,7 @@ from traceq_eval.ocr import score_ocr
 from traceq_eval.segmentation import Alignment, align
 from traceq_eval.submission import Citation, Submission
 
-SCORER_VERSION = "0.6.0"
+SCORER_VERSION = "0.7.0"
 
 Split = Literal["dev", "held_out"]
 DEV = frozenset({"TP-201"})
@@ -106,8 +107,22 @@ def _f1(p: float | None, r: float | None) -> float | None:
     return round(2 * p * r / (p + r), 4)
 
 
+def _unit(unit: str) -> str:
+    """Rule A (#180): ``m³/h`` is ``m3/h``, as the system compares units (NFKC, casefold)."""
+    return unicodedata.normalize("NFKC", unit).strip().casefold()
+
+
+def _point(v: Mapping[str, Any] | None) -> Mapping[str, Any] | None:
+    """Rule B (#180): a range with min = max is the number of that value ("380 V")."""
+    if v is None or v.get("type") != "range" or v.get("min") is None or v["min"] != v.get("max"):
+        return v
+    return {"type": "number", "value": v["min"], "unit": v.get("unit")}
+
+
 def same_value(a: Mapping[str, Any] | None, b: Mapping[str, Any] | None) -> bool:
-    """Equal normalised values: numbers to 1e-9 relative, ``one_of`` as a set."""
+    """Equal normalised values: numbers to 1e-9 relative, units after NFKC and casefold,
+    ``one_of`` as a set, a range whose min equals its max as a number of that value."""
+    a, b = _point(a), _point(b)
     if a is None or b is None or a.get("type") != b.get("type"):
         return False
     for k in set(a) | set(b):
@@ -117,6 +132,9 @@ def same_value(a: Mapping[str, Any] | None, b: Mapping[str, Any] | None) -> bool
                 return False
         elif isinstance(x, int | float) and isinstance(y, int | float):
             if not math.isclose(x, y, rel_tol=1e-9, abs_tol=1e-9):
+                return False
+        elif k == "unit" and isinstance(x, str) and isinstance(y, str):
+            if _unit(x) != _unit(y):
                 return False
         elif isinstance(x, str) and isinstance(y, str):
             if x.strip() != y.strip():

@@ -37,7 +37,7 @@ README_COLUMN = """\
 |---|---|
 | run id | 20261117T200739Z-77d6c9 |
 | coverage | 30/38 |
-| value | 28/38 |
+| value | 29/38 |
 | defect recall | 5/7 |
 | probes fabricated | 0/6 |
 | fabrication | 0/182 |

@@ -7,7 +7,7 @@
     "seed": 0,
     "answer_key_sha256": "0dd473b2d7087349a688dc23478175f965bbe9b5e193a0c3dc99453a893ffa5d"
   },
-  "scorer_version": "0.6.0",
+  "scorer_version": "0.7.0",
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",
@@ -21,7 +21,7 @@
     "citations.by_status.too_long": 0.0,
     "requirements.coverage_accuracy": 0.7895,
     "requirements.coverage_macro_f1": 0.8475,
-    "requirements.value_accuracy": 0.7368,
+    "requirements.value_accuracy": 0.7632,
     "requirements.superseded_values": 0.0,
     "requirements.source_citation_rate": 1.0,
     "requirements.evidence_precision": 0.88,
