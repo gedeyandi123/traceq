@@ -1,0 +1,58 @@
+{
+  "doc_sha256": "c65e7ae0036b237f9c8332b73b5fe935e94f0efa3b9eb00701ce0e50c5b7c3ee",
+  "key": "4aef4965bb86df3ef8b8709b54c5069f3d8096191f25669e2128c7a065f3799a",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "site_rules",
+  "prompt_hash": "55dce8aa92345e83c355de3e75353aaa7553f7ef215f1178fd458025cc837b50",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "rule": {
+                "enum": [
+                  "signature_name_and_date",
+                  "vendor_protocol_approved_before_execution",
+                  "preparer_not_approver",
+                  "checker_not_approver",
+                  "performer_not_witness"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "rule",
+              "page",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "rules"
+      ],
+      "type": "object"
+    },
+    "system": "You read a site's qualification SOP for pharmaceutical equipment (it may be in Indonesian). Report which of these rules it states, each with the page and a quote of the sentence that states it:\n- signature_name_and_date: every signature carries a name and a date.\n- vendor_protocol_approved_before_execution: the site checks and approves a vendor FAT/SAT protocol before it is executed.\n- preparer_not_approver: the person who prepares a document does not approve it.\n- checker_not_approver: the checker and the approver are different people.\n- performer_not_witness: the person who performs a test step is not its witness.\nquote: a verbatim excerpt of the page, at most 200 characters, holding what the item states. Copy characters exactly; never paraphrase or translate.\nList only rules the SOP states; return an empty list when it states none.",
+    "user": "Document SOP-VAL-002, revision 2, 1 pages.\n\n<page n=\"1\">\nProsedur Tetap: Kualifikasi Peralatan\nNomor dokumen SOP-VAL-002\nRevisi 2\nTanggal berlaku 07/04/2025\nLokasi PT Arunika Farma Lestari\n1. Tujuan\nProsedur ini menetapkan cara menyusun, menandatangani, mengeksekusi, dan mengoreksi dokumen kualifikasi peralatan.\n2. Ruang lingkup\nDokumen kualifikasi site (SKP, penilaian risiko, DQ, protokol dan laporan IQ/OQ) serta protokol FAT/SAT vendor yang digunakan sebagai Bukti. Dokumen vendor lain (lembar data, FDS, sertifikat) ditandatangani sesuai sistem mutu penerbitnya.\n3. Penandatangan\nProtokol FAT/SAT vendor diperiksa dan disetujui site sebelum dieksekusi. Setiap tanda tangan disertai nama dan tanggal.\nDokumen Disusun oleh Diperiksa oleh Disetujui oleh\nDokumen site (SKP, penilaian risiko, DQ, protokol IQ/OQ) Qualification Engineer Qualification Supervisor QA Approver\nProtokol FAT/SAT vendor Vendor Qualification Supervisor QA Approver\n4. Pemisahan tugas\nDalam satu dokumen, penyusun tidak boleh menyetujui dokumen yang disusunnya, pemeriksa dan penyetuju adalah dua orang yang berbeda, dan pelaksana tidak boleh sekaligus menjadi Saksi pada Langkah Uji yang sama.\n5. Koreksi catatan (GDP)\nKoreksi pada catatan dibuat dengan mencoret nilai lama dengan satu garis sehingga tetap terbaca, menulis nilai baru di dekatnya, serta membubuhkan paraf, tanggal, dan alasan koreksi. Nilai tidak boleh ditimpa, dihapus, atau ditutup dengan cairan koreksi (CPOB 10.8; PIC/S PI 041-1 §8.7).\n6. Saksi (Witness)\nLangkah Uji yang memverifikasi Aspek Kritis (persyaratan dengan Kritis = Ya dalam SKP dan penilaian risiko) wajib disaksikan oleh Saksi, yang membubuhkan paraf dan tanggal pada hasil. Langkah Uji lain tidak memerlukan Saksi.\n7. Penyusunan protokol\nProtokol IQ/OQ disusun dari templat protokol standar site untuk setiap peralatan; protokol tidak disalin dari protokol peralatan lain.\nRiwayat revisi\nRev. Tanggal Keterangan\n2 07/04/2025 Aturan koreksi catatan diselaraskan dengan PIC/S PI 041-1.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 07/04/2025\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 07/04/2025\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 07/04/2025\n</page>"
+  },
+  "response": {
+    "input_tokens": 1852,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 302,
+    "text": "{\"rules\":[{\"rule\":\"signature_name_and_date\",\"page\":1,\"quote\":\"Setiap tanda tangan disertai nama dan tanggal.\"},{\"rule\":\"vendor_protocol_approved_before_execution\",\"page\":1,\"quote\":\"Protokol FAT/SAT vendor diperiksa dan disetujui site sebelum dieksekusi.\"},{\"rule\":\"preparer_not_approver\",\"page\":1,\"quote\":\"Dalam satu dokumen, penyusun tidak boleh menyetujui dokumen yang disusunnya\"},{\"rule\":\"checker_not_approver\",\"page\":1,\"quote\":\"pemeriksa dan penyetuju adalah dua orang yang berbeda\"},{\"rule\":\"performer_not_witness\",\"page\":1,\"quote\":\"pelaksana tidak boleh sekaligus menjadi Saksi pada Langkah Uji yang sama.\"}]}"
+  }
+}

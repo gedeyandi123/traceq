@@ -1,0 +1,196 @@
+{
+  "doc_sha256": "8cbf6c1710dc97487c19e1ceb582c8139b80058a67d479013031eca5ed4853cb",
+  "key": "4a81bbe1a98e88d4106b9e952ed48f9d5c4bf48b5c008140f444cbab6073cdc2",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "record",
+  "prompt_hash": "6ce13f73300d68c716dde38522b5c26b1f13eae5bf7b88e6ace8584e7386878f",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "calculations": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "inputs": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "operation": {
+                "enum": [
+                  "mean",
+                  "sum",
+                  "difference",
+                  "min",
+                  "max",
+                  "range"
+                ],
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "operation",
+              "inputs",
+              "result",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "deviations": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "steps": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "id",
+              "steps",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "instruments": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "valid_until": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "valid_until",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "signatures": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "role": {
+                "enum": [
+                  "prepared",
+                  "checked",
+                  "approved",
+                  "executed",
+                  "witnessed",
+                  "other"
+                ],
+                "type": "string"
+              },
+              "role_printed": {
+                "type": "string"
+              },
+              "signed": {
+                "type": "boolean"
+              },
+              "site": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "role_printed",
+              "role",
+              "site",
+              "name",
+              "signed",
+              "date",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "step_instruments": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "instruments": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "instruments",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "signatures",
+        "instruments",
+        "step_instruments",
+        "deviations",
+        "calculations"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a qualification record for pharmaceutical equipment: a vendor FAT or SAT protocol and report, or a calibration certificate. Report only what the page prints; leave a field empty (\"\") when the page leaves it blank.\nsignatures: every row of a signature block (preparation, check, approval, execution, witness), also a row whose name, signature or date is blank. role_printed: the role label exactly as printed; role: prepared, checked, approved, executed, witnessed or other; site: true when the person signs for the customer site rather than the vendor; name, date: as printed; signed: true when a signature (also an electronic one) is recorded.\ninstruments: every measuring instrument whose calibration validity the page prints: id as printed, valid_until: the calibration due or expiry date exactly as printed.\nstep_instruments: for each test step that names the instruments it used: step number and instrument ids as printed.\ndeviations: every deviation recorded on the page: its id as printed and the step numbers it concerns. A section that says no deviation was recorded has none.\ncalculations: every result the page computes from other printed numbers (mean, sum, difference, min, max, range): step number, operation, the inputs and the stated result exactly as printed.\nquote: a verbatim excerpt of the page, at most 200 characters, holding what the item states. Copy characters exactly; never paraphrase or translate.\nReturn empty lists when the page has none.",
+    "user": "Document FAT-TP202, revision 0, page 1.\n\n<page>\nFACTORY ACCEPTANCE TEST RECORD\nMechanical and control functions\nRecord no. FAT-TP202 Customer PT Arunika Farma Lestari\nRevision 0 Machine Rotary tablet press (double-sided),\nDate of issue 16-Feb-2026 customer tag TP-202\nA. Machine data (as built)\nSerial number TRXD-24-0932\nModel TRX-D 41\nNumber of punch stations 41 stations\nB. Release of the test procedure\nStep Name Company Signature Date\nIssued Luca Bertoni Rotaforma Macchine S.r.l. Signed electronically 16-Feb-2026\nReviewed (customer) Bayu Pratama PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nReleased for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 26-Feb-2026\nC. Test records\nTest case TC-01\nProcedure Run the empty turret from minimum to maximum speed; record the lowest and highest stable speed.\nRequired 10–80 rpm\nMeasured 10–80 rpm\nVerdict PASS\nTest case TC-02\nProcedure Run placebo at maximum turret speed for 10 minutes on both sides; count the tablets and convert to tablets per hour.\nRequired ≥ 300,000 tablets/h\nMeasured 312,000 tablets/h\nVerdict PASS\nTest case TC-03\nProcedure Apply main compression with the test tooling; record the highest force reached.\nRequired ≥ 80 kN\nMeasured 76 kN\nVerdict FAIL\nTest case TC-04\nProcedure Set pre-compression to maximum; record the force shown by the force channel.\nRequired ≥ 20 kN\nMeasured 22 kN\nVerdict PASS\nTest case TC-05\nProcedure Check the material certificates of the product-contact parts against the parts list.\nRequired SS 316L\nMeasured SS 316L\nVerdict PASS\n</page>"
+  },
+  "response": {
+    "input_tokens": 2357,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 363,
+    "text": "{\"signatures\":[{\"role_printed\":\"Issued\",\"role\":\"prepared\",\"site\":false,\"name\":\"Luca Bertoni\",\"signed\":true,\"date\":\"16-Feb-2026\",\"quote\":\"Issued Luca Bertoni Rotaforma Macchine S.r.l. Signed electronically 16-Feb-2026\"},{\"role_printed\":\"Reviewed (customer)\",\"role\":\"checked\",\"site\":true,\"name\":\"Bayu Pratama\",\"signed\":true,\"date\":\"26-Feb-2026\",\"quote\":\"Reviewed (customer) Bayu Pratama PT Arunika Farma Lestari Signed electronically 26-Feb-2026\"},{\"role_printed\":\"Released for test (customer)\",\"role\":\"approved\",\"site\":true,\"name\":\"Dewi Anggraini\",\"signed\":true,\"date\":\"26-Feb-2026\",\"quote\":\"Released for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 26-Feb-2026\"}],\"instruments\":[],\"step_instruments\":[],\"deviations\":[],\"calculations\":[]}"
+  }
+}

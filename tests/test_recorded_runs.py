@@ -3,7 +3,7 @@
 Each ``recordings/haiku-r<n>`` holds one live run per Equipment: its LLM recordings, its
 ingest cache, the scorer report (``report-<tag>.json``) and the run metadata
 (``run-<tag>.json``: cost, tokens, settings). Replay needs only the release manifest
-(``recordings/corpus-0.1.0/manifest.json``): document hashes key the recordings and the
+(``recordings/corpus-0.1.1/manifest.json``): document hashes key the recordings and the
 ingest cache, so CI downloads no corpus and runs neither Docling nor the OCR model.
 """
 
@@ -26,10 +26,10 @@ from traceq_eval.submission import Submission
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORDINGS = ROOT / "recordings"
-MANIFEST = RECORDINGS / "corpus-0.1.0"
+MANIFEST = RECORDINGS / "corpus-0.1.1"
 MODEL = "claude-haiku-5-5"
 WORLDS = {"TP-201": ROOT / "world" / "tp201.yaml", "TP-202": ROOT / "world" / "tp202.yaml"}
-RUNS = ("haiku-r7",)
+RUNS = ("haiku-r8",)
 
 
 @cache
