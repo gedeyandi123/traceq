@@ -10,8 +10,14 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-17
+
+Frozen dataset release. Only values changed since 0.1.0 (PATCH): the TP-201 criticality from the practitioner's follow-up form and the owner's sign-off of the risk-assessment scores (see "Changed" below); no schema or answer-key semantics change. Everything listed below is part of this release.
+
 ### Added (corpus release)
 
+- Corpus release 0.1.1 (`corpus-v0.1.1`, **frozen**, 2026-11-17): built by `docker/corpus.Dockerfile` from commit 95abbe3, two builds byte-identical. Against 0.1.0, `URS-TP201` rev 0 and rev 1 and `RA-TP201` differ; the other 17 documents, including all of TP-202, are byte-identical. Not reviewed by a practitioner: the owner-signed risk-assessment scores and threshold, the transport flags of dimensions, material and surface finish, and TP-202's 13 LLM-drafted values (`DATASHEET.md`).
+- Freeze baselines: live Haiku runs r8 on 0.1.1 (`recordings/haiku-r8`), both gates pass; `baselines/TP-201.json` and `TP-202.json` are these runs (`recordings/README.md`, #169).
 - Corpus release 0.1.0 (`corpus-v0.1.0`, pre-release, **not frozen**: practitioner review in part: the TP-201 form returned on 2026-11-13, and freeze on 2026-11-25 with defaults, owner decision of 2026-11-16): TP-201 and TP-202 eval corpus built by `docker/corpus.Dockerfile`, with `manifest.json` and checksums.
 
 ### Added
