@@ -7,7 +7,7 @@ Panduan menjalankan demo TraceQ irisan 1 untuk sesi praktisi: persiapan, alur en
 ## 1. Apa yang ditunjukkan demo, dan apa yang tidak
 
 - **Ditunjukkan:** matriks ketertelusuran TP-201 (38 persyaratan) dengan bukti yang dikutip sampai halaman PDF, temuan pra-tinjauan (aturan dan AI), keputusan manusia (terima, ubah kelas, tolak) yang tercatat di Audit Trail, peran baca saja, dan skor eval dengan k/n.
-- **Bukan panggilan LLM langsung:** run diputar ulang dari rekaman `recordings/haiku-r8` dan tidak mengirim apa pun ke API. "Biaya run: 0,0386 USD" di layar eval adalah biaya panggilan yang direkam saat dijalankan live (`cost_usd`), bukan biaya demo (`live_cost_usd` = 0).
+- **Bukan panggilan LLM langsung:** run diputar ulang dari rekaman `recordings/haiku-r8` dan tidak mengirim apa pun ke API. "Biaya run: 0,0391 USD" di layar eval adalah biaya panggilan yang direkam saat dijalankan live (`cost_usd`), bukan biaya demo (`live_cost_usd` = 0).
 - **Data fiktif:** pabrik, vendor (Pressora Maschinenbau GmbH), mesin dan persona demo semuanya sintetis (ADR 0001).
 - **AI hanya memberi saran:** setiap Proposal menunggu keputusan manusia (ADR 0002, ADR 0009).
 - **Bukan kontrol akses sungguhan:** persona demo tidak memakai kata sandi. Keycloak dan tanda tangan elektronik datang belakangan (ADR 0005, ADR 0007).
@@ -74,7 +74,7 @@ Kolom "Hasil" berisi hasil gladi 17 Nov 2026 (UTC) pada rilis 0.1.1 dengan rekam
 | K9 | Peran baca saja | Keluar → masuk sebagai Citra → buka matriks | Keputusan Ayu terlihat; tidak ada tombol Terima, Ubah kelas atau Tolak, dan tidak ada lipatan "Ubah kelas…", "Tolak…" atau "Putuskan ulang"; muncul pemberitahuan "Hanya membaca: …" | ✅ (17 Nov, r8) |
 | K10 | Server menolak penulisan tanpa hak | `POST /runs/<id>/proposals/<n>/decisions` ke API: dengan token Citra, lalu tanpa token | 403, lalu 401. Pembatasannya ada di API, bukan hanya di UI | ✅ (17 Nov, r8) |
 | K11 | Audit Trail mencatat dan reset mengosongkan | Setelah K3–K6: `docker exec traceq-postgres-1 psql -U postgres -d traceq -c "select id, at, name, action, record_id, reason from audit_trail order by 1"`; lalu reset | Sebelum reset: 1 "run imported" ditambah 1 baris per keputusan. Setelah reset: hanya 1 "run imported" | ✅ (17 Nov, r8: 1 "run imported" + 7 keputusan, setelah reset 1 baris) |
-| K12 | Hasil evaluasi | Jalankan langkah eval di bagian 3 → "Hasil evaluasi" | Gerbang fabrikasi lulus, nilai 25/38, kutipan 116/116, recall cacat 5/7, fabrikasi 0/177 dan 0/6 (sama dengan `recordings/haiku-r8/report-TP-201.json`); panel "Gerbang dan biaya" menulis "Gerbang fabrikasi: lulus" dan "Biaya run: 0,0386 USD" | ✅ (17 Nov, r8) |
+| K12 | Hasil evaluasi | Jalankan langkah eval di bagian 3 → "Hasil evaluasi" | Gerbang fabrikasi lulus, nilai 25/38, kutipan 116/116, recall cacat 5/7, fabrikasi 0/178 dan 0/6 (sama dengan `recordings/haiku-r8/report-TP-201.json`); panel "Gerbang dan biaya" menulis "Gerbang fabrikasi: lulus" dan "Biaya run: 0,0391 USD" | ✅ (17 Nov, r8; angka fabrikasi dan biaya diperbarui untuk top-up #175, belum diulang di demo) |
 | K13 | Halaman eval tanpa harness | Lewati langkah eval | Judul "Belum ada hasil evaluasi" dan teks "Run ini belum dinilai, atau API evaluasi tidak dapat dihubungi"; halaman lain tetap jalan | ✅ (17 Nov, r8; eval screen dimatikan sebentar) |
 | K14 | Mode produksi | `npm run build` lalu `npm start`, lalu satu keputusan | Halaman dan PDF terlayani, keputusan tersimpan, tidak ada ikon dev | ✅ (17 Nov, r8) |
 | K15 | Pemutus kedua | Masuk sebagai Bima, buka "Putuskan ulang" pada baris yang diputuskan Ayu dan putuskan (dengan alasan) | "Diterima oleh Bima Arya Nugraha" dengan alasan dan "Keputusan sebelumnya atas isi ini"; Audit Trail punya baris baru dengan `old_value` (keputusan Ayu), `new_value` dan `reason` | ✅ (17 Nov, r8; halaman tidak lagi kembali ke atas, lihat di bawah tabel) |
@@ -91,16 +91,16 @@ Presenter yang memutuskan jauh di bawah halaman perlu menggulir kembali ke baris
 
 ## 6. Yang diketahui salah di rekaman r8 (TP-201, set pengembangan)
 
-Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan scorer `recordings/haiku-r8/report-TP-201.json` (run 20261117T101703Z-ca52bb; laporan run demo sama persis kecuali run id).
+Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan scorer `recordings/haiku-r8/report-TP-201.json` (run 20261117T173631Z-fc51a8, top-up #175; laporan run demo sama persis kecuali run id).
 
-- **Kelas cakupan benar 29/38**, nilai benar 25/38. Ukuran pertama tidak muncul di layar eval, yang hanya menampilkan akurasi nilai. Ke-9 kelas yang salah adalah alasan setiap usulan menunggu keputusan manusia.
+- **Kelas cakupan benar 30/38**, nilai benar 25/38. Ukuran pertama tidak muncul di layar eval, yang hanya menampilkan akurasi nilai. Ke-8 kelas yang salah adalah alasan setiap usulan menunggu keputusan manusia.
   - Usulan "Sebagian" dengan alasan "condition 2: date ambiguous" untuk langkah SAT yang sebenarnya *covered_by_vendor* (019, 020, 023).
-  - Usulan "Celah" ("no FAT/SAT step addresses it", tanpa bukti) yang seharusnya *covered_by_vendor* (001, 011, 021). Di r7 001 dan 021 punya bukti; penurunan ini tercatat di #172.
+  - Usulan "Celah" ("no FAT/SAT step addresses it", tanpa bukti) yang seharusnya *covered_by_vendor* (011, 021). Di r7 021 punya bukti; penurunan ini tercatat di #172. 001 kini benar (aturan angka tanpa satuan, #175).
   - 016 "Celah" yang seharusnya "Sebagian".
   - 005 "Sebagian" ("SAT-02: result does not meet the URS") yang seharusnya *covered_by_vendor*: akibat salah baca nilai di butir berikut.
   - 034 "Sebagian" ("URS value not verified") yang seharusnya *covered_by_vendor*.
 - **URS-TP201-005** menampilkan "Teramati: 204 kN" untuk nilai yang dicatat SAT sebagai 20,4 kN, sehingga barisnya "Sebagian".
-- **Bukti lebih sedikit dari r7:** presisi bukti 0,870 dan recall bukti 0,786 (r7: 1,000 dan 0,929), dengan prompt yang sama; dicatat sebagai variasi antar-run dan diselidiki sesudah freeze (#172).
+- **Bukti lebih sedikit dari r7:** presisi bukti 0,875 dan recall bukti 0,857 (r7: 1,000 dan 0,929), dengan prompt yang sama; dicatat sebagai variasi antar-run dan diselidiki sesudah freeze (#172).
 - **Recall cacat 5/7, presisi temuan 5/10.** Lima false positive:
   - tiga temuan aturan "Tanda tangan atau tanggal tidak ada" pada sertifikat kalibrasi CAL-TP201-01, KAL-2025-0412 dan KAL-2026-0057 (#101);
   - dua temuan AI "Kriteria penerimaan menyimpang dari URS" untuk FAT-M-02 dan FAT-M-09 (#100). Ini dibahas di sesi sebagai D9.

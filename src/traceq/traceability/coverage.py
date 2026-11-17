@@ -123,6 +123,9 @@ def comparable(spec: Value, observed: Observed) -> bool:
     match spec, observed:
         case Range() | Number(), Ambiguous():
             return True
+        case Number(unit=u), Number(unit=v):
+            # A count without unit ("36") compares with a counted one ("36 stations") (#175).
+            return not normalise(u) or not normalise(v) or _same_unit(u, v)
         case Range(unit=u) | Number(unit=u), Range(unit=v) | Number(unit=v):
             return _same_unit(u, v)
         case OneOf() | Text(), Text() | OneOf():
