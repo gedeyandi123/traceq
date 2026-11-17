@@ -17,6 +17,8 @@ from traceq.traceability.coverage import (
     Step,
     VendorAssessment,
     classify,
+    comparable,
+    meets,
 )
 from traceq.traceability.evidence import (
     _Value,  # pyright: ignore[reportPrivateUsage]  # the model's answer shape; no public builder
@@ -204,6 +206,27 @@ def test_a_step_that_cannot_test_the_value_is_not_evidence() -> None:
     c = classify(gasket, [_step(Present(value=True))], [], ASSESSED)
     assert (c.coverage, c.evidence) == ("gap", ())
     assert classify(_req(), [_step(Number(value=50, unit="kN"))], [], ASSESSED).coverage == "gap"
+
+
+# --- Comparing values (#175) ------------------------------------------------------------
+
+
+def test_a_count_without_unit_compares_with_a_counted_number() -> None:
+    stations = Number(value=36, unit="stations")
+    assert comparable(stations, Number(value=36, unit=""))
+    assert comparable(Number(value=36, unit=""), stations)
+    assert meets(stations, Number(value=36, unit=""))
+    assert not meets(stations, Number(value=35, unit=""))
+    assert not comparable(stations, Number(value=36, unit="rpm"))
+
+
+def test_a_range_still_needs_the_same_unit() -> None:
+    speed = Range(min=20, max=70, unit="rpm")
+    assert not comparable(speed, Number(value=36, unit=""))
+    assert not comparable(speed, Range(min=20, max=70, unit=""))
+    assert not comparable(Number(value=36, unit=""), Range(min=36, max=36, unit="rpm"))
+    assert not comparable(speed, Range(min=20, max=70, unit="Hz"))
+    assert comparable(speed, Range(min=20, max=70, unit="RPM"))
 
 
 def test_without_a_verified_urs_value_no_step_can_prove() -> None:
