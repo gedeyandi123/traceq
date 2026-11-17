@@ -1,9 +1,10 @@
 """``traceq_eval promote`` (#86): a live run folder into the recordings layout and a baseline.
 
-The live run is rebuilt from the committed top-up run r7 of TP-202 (its live ``run.json``,
+The live run is rebuilt from the committed top-up run r9 of TP-201 (its live ``run.json``,
 and the submission the replay of its recordings gives, with the live run id), so the
-expected files are the ones committed by hand in PR #91: the report, the run metadata, the
-baseline and the README column. No live call is made.
+expected files are the ones ``promote`` committed for r9: the report, the run metadata, the
+baseline and the README column. No live call is made. (Until r9 it used r7 of TP-202,
+whose ``extract`` answers no longer replay on the current prompt.)
 """
 
 from __future__ import annotations
@@ -21,27 +22,29 @@ from traceq_eval import promote
 from traceq_eval.__main__ import main
 
 ROOT = Path(__file__).resolve().parents[1]
-R7 = ROOT / "recordings" / "haiku-r7"
-MANIFEST = ROOT / "recordings" / "corpus-0.1.0"
-WORLD = ROOT / "world" / "tp202.yaml"
+R9 = ROOT / "recordings" / "haiku-r9"
+MANIFEST = ROOT / "recordings" / "corpus-0.1.1"
+WORLD = ROOT / "world" / "tp201.yaml"
 KEY = ROOT / "answer_key"
-TAG = "TP-202"
-# The baseline r7 gave, as committed until the freeze baseline r8 replaced it (#133).
-R7_BASELINE = ROOT / "tests" / "fixtures" / "promote" / f"baseline-{TAG}-r7.json"
+# The dev Equipment: the test reads report items and recorded requests, which the
+# held-out Equipment's must not be.
+TAG = "TP-201"
+# The baseline r9 gave; a later baseline change moves it to a fixture, as r7's was.
+R9_BASELINE = ROOT / "baselines" / f"{TAG}.json"
 
 README_COLUMN = """\
-| | TP-202 (held-out) |
+| | TP-201 (dev) |
 |---|---|
-| run id | 20261114T091315Z-dcd2d1 |
-| coverage | 6/13 |
-| value | 10/13 |
-| defect recall | 1/3 |
-| probes fabricated | 0/2 |
-| fabrication | 0/53 |
+| run id | 20261117T200739Z-77d6c9 |
+| coverage | 30/38 |
+| value | 29/38 |
+| defect recall | 5/7 |
+| probes fabricated | 0/6 |
+| fabrication | 0/182 |
 | gates | PASS |
-| calls (live) | 68 (11) |
-| tokens in/out | 131379/16068 |
-| cost USD (live) | 0.010586 (0.001267) |"""
+| calls (live) | 149 (57) |
+| tokens in/out | 523080/53017 |
+| cost USD (live) | 0.039408 (0.010758) |"""
 
 
 def _json(path: Path) -> Any:
@@ -49,8 +52,8 @@ def _json(path: Path) -> Any:
 
 
 def _stamped(path: Path) -> Any:
-    """A committed r7 file as ``promote`` writes it today: ``promote`` stamps the installed
-    dataset version, while r7 was recorded on 0.1.0; every other field must match exactly."""
+    """A committed file as ``promote`` writes it today: ``promote`` stamps the installed
+    dataset version, which may be newer than the run's; every other field must match."""
     data = _json(path)
     data["dataset"]["version"] = version("traceq-dataset")
     return data
@@ -62,24 +65,24 @@ def _dump(path: Path, data: Any) -> None:
 
 @pytest.fixture(scope="module")
 def live_run(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A live run folder as ``traceq run --live`` leaves it: r7's TP-202 run, a top-up."""
+    """A live run folder as ``traceq run --live`` leaves it: r9's TP-201 run, a top-up."""
     tmp = tmp_path_factory.mktemp("live")
-    out = run(MANIFEST, tmp, R7, "claude-haiku-5-5", equipment=TAG)
-    metadata = _json(R7 / f"run-{TAG}.json")
+    out = run(MANIFEST, tmp, R9, "claude-haiku-5-5", equipment=TAG)
+    metadata = _json(R9 / f"run-{TAG}.json")
     sub = _json(out.folder / "submission.json")
     sub["system"]["run_id"] = metadata["run_id"]
     folder = tmp / metadata["run_id"]
     out.folder.rename(folder)
     _dump(folder / "submission.json", sub)
-    shutil.copyfile(R7 / f"run-{TAG}.json", folder / "run.json")
+    shutil.copyfile(R9 / f"run-{TAG}.json", folder / "run.json")
     return folder
 
 
 @pytest.fixture
 def recordings(tmp_path: Path) -> Path:
-    """A copy of r7 without its report and run metadata, as before the promotion."""
-    target = tmp_path / "recordings" / "haiku-r8"
-    shutil.copytree(R7, target, ignore=shutil.ignore_patterns("report-*", "run-*"))
+    """A copy of r9 without its report and run metadata, as before the promotion."""
+    target = tmp_path / "recordings" / "haiku-r10"
+    shutil.copytree(R9, target, ignore=shutil.ignore_patterns("report-*", "run-*"))
     return target
 
 
@@ -91,9 +94,9 @@ def test_promote_writes_the_recordings_layout_and_the_baseline(
         live_run, recordings, corpus=MANIFEST, world=WORLD, key=KEY, baseline=baseline
     )
 
-    assert _json(recordings / f"report-{TAG}.json") == _stamped(R7 / f"report-{TAG}.json")
-    assert (recordings / f"run-{TAG}.json").read_bytes() == (R7 / f"run-{TAG}.json").read_bytes()
-    assert _json(baseline) == _stamped(R7_BASELINE)
+    assert _json(recordings / f"report-{TAG}.json") == _stamped(R9 / f"report-{TAG}.json")
+    assert (recordings / f"run-{TAG}.json").read_bytes() == (R9 / f"run-{TAG}.json").read_bytes()
+    assert _json(baseline) == _stamped(R9_BASELINE)
     assert got.baseline == baseline
     assert got.column == README_COLUMN
 
@@ -104,7 +107,7 @@ def test_a_failed_gate_writes_the_recordings_but_no_baseline(
     # A key that expects `partial` where the run claims `covered_by_vendor` trips the gate.
     key = tmp_path / "key"
     shutil.copytree(KEY / TAG, key / TAG)
-    report = _json(R7 / f"report-{TAG}.json")
+    report = _json(R9 / f"report-{TAG}.json")
     claimed = next(
         i["id"] for i in report["requirements"]["items"] if i["got"] == "covered_by_vendor"
     )
@@ -151,12 +154,12 @@ def test_a_run_its_recordings_do_not_reproduce_is_not_promoted(
 
 
 def test_recordings_missing_a_call_are_not_promoted(live_run: Path, recordings: Path) -> None:
-    # A call this run makes (its `transport` votes are TP-202's only), not the first file
+    # A call this run makes (its `transport` votes are TP-201's only), not the first file
     # the glob lists: that order differs by OS and may be another Equipment's call.
     voted = [
         p
         for p in sorted(recordings.glob("*.json"))
-        if _json(p).get("prompt") == "transport" and "TP202" in _json(p)["request"]["user"]
+        if _json(p).get("prompt") == "transport" and "TP201" in _json(p)["request"]["user"]
     ]
     assert voted
     voted[0].unlink()
