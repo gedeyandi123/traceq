@@ -238,6 +238,7 @@ requirements:
       drafted_by: llm
       reviewed_by: practitioner
     scope: mechanical
+    critical: true
     transport_sensitive: false
     intended_coverage: gap
   - id: URS-TP201-013
@@ -431,6 +432,7 @@ requirements:
       quote: "The operating system clock should be synchronized with the clock of connected systems and access to all clocks restricted to authorised personnel."
       accessed: 2026-11-12
     scope: data_integrity
+    critical: true
     intended_coverage: gap
 
   # --- 5. Utilitas dan lingkungan (site_only) ------------------------------------
@@ -845,14 +847,17 @@ designs:
 # Short FMEA of the site (RA-TP201, XLSX), one row per requirement. Severity >= 4 marks a
 # Critical Aspect and must agree with `critical` in the URS (schema check). Scores and the
 # threshold are judged numbers (design principle 7): drafted, they block freeze until a
-# human reviews them. Criticality of URS-003, -013, -020 and -028 goes to the practitioner
-# (Q16 section D), so the owner does not sign off yet.
+# human reviews them. The follow-up form (2026-11-16) set the criticality of -003, -013,
+# -020, -028, -035 and -036. The owner signed off the rest on 2026-11-17 (#133, review sheet
+# docs/review/tp201-ra-review.md): -012 and -025 to severity 4, every other score and the
+# threshold as drafted; -017, -037 and -010 stay on the practitioner agenda.
 # `controls`: the planned control and verification per requirement scope. The same text for
 # every requirement of a scope, so it cannot leak a Coverage label.
 risk_assessment:
   doc_id: RA-TP201
   critical_from: 4
   drafted_by: llm
+  reviewed_by: owner
   controls:
     mechanical: "Tinjauan desain di DQ; verifikasi fisik saat FAT/SAT dan IQ"
     control: "Tinjauan FDS; uji fungsi saat FAT/SAT dan OQ"
@@ -870,7 +875,7 @@ risk_assessment:
     - {requirement: URS-TP201-009, failure_mode: "Bagian kontak produk tidak terbuat dari SS 316L", effect: "Korosi atau reaksi dengan produk; kontaminasi produk", severity: 5, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-010, failure_mode: "Permukaan kontak produk terlalu kasar", effect: "Residu tertahan; pembersihan tidak efektif", severity: 3, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-011, failure_mode: "Material rangka dan penutup tidak tahan pembersihan", effect: "Korosi rangka; partikel di ruang produksi", severity: 2, occurrence: 2, detection: 2}
-    - {requirement: URS-TP201-012, failure_mode: "Material gasket atau seal tidak sesuai", effect: "Seal terdegradasi; partikel masuk ke produk", severity: 3, occurrence: 2, detection: 3}
+    - {requirement: URS-TP201-012, failure_mode: "Material gasket atau seal tidak sesuai", effect: "Seal terdegradasi; partikel masuk ke produk", severity: 4, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-013, failure_mode: "Pelumas bukan food-grade", effect: "Kontaminasi produk bila terjadi kontak dengan pelumas", severity: 4, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-014, failure_mode: "Kontrol berat otomatis tidak bekerja", effect: "Bobot tablet di luar batas tidak terkoreksi di antara pemeriksaan IPC", severity: 5, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-015, failure_mode: "Tablet di luar batas tidak ditolak", effect: "Tablet di luar batas bobot masuk ke produk ruahan", severity: 5, occurrence: 2, detection: 4}
@@ -883,7 +888,7 @@ risk_assessment:
     - {requirement: URS-TP201-022, failure_mode: "Audit trail tidak merekam perubahan", effect: "Perubahan parameter atau resep tidak dapat ditelusuri", severity: 4, occurrence: 2, detection: 4}
     - {requirement: URS-TP201-023, failure_mode: "Log alarm tidak lengkap", effect: "Investigasi penyimpangan terhambat", severity: 3, occurrence: 2, detection: 3}
     - {requirement: URS-TP201-024, failure_mode: "Resep tidak dapat dipulihkan", effect: "Resep diketik ulang dengan risiko salah input", severity: 3, occurrence: 2, detection: 3}
-    - {requirement: URS-TP201-025, failure_mode: "Jam HMI tidak sinkron dengan waktu pabrik", effect: "Waktu di audit trail dan log alarm tidak dapat dikorelasikan", severity: 3, occurrence: 3, detection: 3}
+    - {requirement: URS-TP201-025, failure_mode: "Jam HMI tidak sinkron dengan waktu pabrik", effect: "Waktu di audit trail dan log alarm tidak dapat dikorelasikan", severity: 4, occurrence: 3, detection: 3}
     - {requirement: URS-TP201-026, failure_mode: "Suplai listrik tidak sesuai spesifikasi mesin", effect: "Mesin tidak dapat dioperasikan atau rusak", severity: 2, occurrence: 1, detection: 1}
     - {requirement: URS-TP201-027, failure_mode: "Tekanan udara tekan tidak sesuai", effect: "Fungsi pneumatik tidak andal", severity: 3, occurrence: 2, detection: 2}
     - {requirement: URS-TP201-028, failure_mode: "Kapasitas dust extraction tidak memadai", effect: "Debu menyebar; risiko kontaminasi silang", severity: 4, occurrence: 2, detection: 2}

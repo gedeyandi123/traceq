@@ -208,7 +208,8 @@ def test_risk_assessment_marks_the_urs_critical_aspects(eq: Equipment, ra: Rende
     assert missing_text(ra) == []
     marked = {r.id for r in eq.requirements if ra.placed[f"{r.id}.critical"].text == "Ya"}
     assert marked == {r.id for r in eq.requirements if r.critical}
-    assert len(marked) == 16  # 11 drafted + 5 from the follow-up form (D2, D3), 2026-11-16
+    # 11 drafted + 5 from the follow-up form (D2, D3), 2026-11-16 + 2 owner sign-off, 2026-11-17
+    assert len(marked) == 18
 
 
 def test_risk_assessment_is_values_not_formulas(ra: Rendered) -> None:
@@ -242,8 +243,13 @@ def test_risk_assessment_bytes_are_deterministic(eq: Equipment, ra: Rendered) ->
     assert later.data != ra.data
 
 
-def test_risk_scores_await_review(eq: Equipment) -> None:
-    assert eq.unreviewed_risks()
+def test_risk_scores_are_signed_off(eq: Equipment) -> None:
+    assert not eq.unreviewed_risks()  # owner sign-off, 2026-11-17 (#133)
+
+    def edit(d: dict) -> None:
+        d["risk_assessment"]["reviewed_by"] = None
+
+    assert _with(eq, edit).unreviewed_risks()
 
 
 def test_risk_assessment_must_agree_with_the_urs(eq: Equipment) -> None:

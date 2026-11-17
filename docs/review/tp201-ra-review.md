@@ -1,6 +1,16 @@
 # Review skor risk assessment RA-TP201 (sebelum freeze 25 Nov)
 
-Status: **menunggu jawaban owner** (langkah pertama "Before 25 Nov" di #133). Dibuat oleh agen pada 17 Nov 2026 dari `world/tp201.yaml`. Jawabannya masuk lewat PR tersendiri (world, answer key, `DATASHEET.md`, `CHANGELOG.md`); sesudah itu dokumen ini mencatat keputusan, bukan usul.
+Status: **diputuskan owner, 17 Nov 2026** (#133). Dibuat oleh agen pada 17 Nov 2026 dari `world/tp201.yaml`; tabel di bawah adalah usul sebelum keputusan.
+
+## Keputusan (17 Nov 2026)
+
+- Ambang S ≥ 4 tetap. O dan D semua baris disetujui apa adanya.
+- **012 dan 025: S3 → S4** (kritis). 012: material kontak produk, sama seperti pelumas 013. 025: timestamp audit trail adalah integritas data, sama seperti 021 dan 022.
+- **017: tetap S3** sampai sesi (D9).
+- **037: tetap S2** sampai sesi (A10). Usul S4/S5 di bawah ditarik: itu ekstrapolasi aturan praktisi pada baris yang praktisi jawab "tidak tahu", dan critical aspect GMP menyangkut mutu produk dan keselamatan pasien, bukan dokumen keselamatan mesin.
+- **Bagian B: tetap.** 010 (kekasaran permukaan) kandidat terkuat; ditanyakan di sesi (D15).
+- Semua skor lain disetujui owner dan ditandai "not reviewed by a practitioner". Jumlah kritis: 18 dari 38.
+- TP-202 dibekukan dengan nilai draf LLM apa adanya (owner bukan praktisi; agen tidak membuka data held-out); review praktisi di agenda (D16).
 
 Sumber: `world/tp201.yaml` (`risk_assessment`), dibuat otomatis dari data dunia. Ambang kritis sekarang: **S ≥ 4** ("kegagalan berdampak langsung pada mutu produk, keselamatan, atau integritas data"). Skala 1–5; RPN = S × O × D.
 
@@ -74,7 +84,7 @@ Sumber: `world/tp201.yaml` (`risk_assessment`), dibuat otomatis dari data dunia.
 | 037 | Deklarasi kesesuaian keselamatan tidak tersedia | 2 | 1 | 1 | 2 | Tidak |  | draf LLM | A |
 | 038 | Daftar suku cadang dan gambar as-built tidak tersedia | 2 | 1 | 1 | 2 | Tidak |  | draf LLM |  |
 
-Jumlah kritis sekarang: 16 dari 38.
+Jumlah kritis sebelum keputusan: 16 dari 38.
 
 ## Cara menjawab
 
