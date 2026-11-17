@@ -163,8 +163,9 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | r9 (top-up, live calls only) | $0.010758 | $0.001789 |
 | E2 probe (#100, `ai_review` old/new ×5, TP-201 only) | $0.016941 | – |
 | r10 (top-up, live calls only) | $0.001398 | $0.000613 |
+| E3 probe (#172, `link` unchanged ×3, TP-201 only) | $0.033360 | – |
 
-Total $0.472922 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01): owner's ceiling $0.35, $0.089097 used).
+Total $0.506282 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01): plus the E3 probe: owner's ceiling $0.35, $0.122457 used; timebox closed 18 Nov).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 
