@@ -106,6 +106,7 @@ Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan sc
   - dua temuan AI "Kriteria penerimaan menyimpang dari URS" untuk FAT-M-02 dan FAT-M-09 (#100). Ini dibahas di sesi sebagai D9.
 
   Dua cacat yang terlewat sebagai temuan adalah koreksi GDP (S1) dan konflik desain (S6). Konflik tooling S6 tetap tampil sebagai kelas "Konflik" pada URS-TP201-008 di matriks.
+- **Teks persyaratan URS halaman 2** (URS-TP201-024 s.d. 038) diawali ID dan isi kolom Kritis, misalnya "URS-TP201-024 Tidak Resep produk …": jawaban `segment` untuk halaman itu mengambil seluruh baris tabel. Kalimat persyaratannya tetap benar dan skor tidak membaca teks ini. Perbaikannya ditunda sampai setelah sesi praktisi (#145).
 - **OCR:** layar eval menulis 35/36 entri terbaca persis: ID instrumen SW-03 di SAT-TP201 hlm. 1 terbaca "E0-MS" (sama dengan r7).
 - **Alasan dalam bahasa Inggris:** kolom Alasan, rincian temuan dan alasan pada "Yang tidak dimasukkan sistem" berbahasa Inggris di dalam UI berbahasa Indonesia. Tanyakan ke praktisi apakah ini mengganggu (bagian 9).
 - **Waktu dalam UTC:** keputusan ditulis "… 12.10 UTC", bukan WIB.
