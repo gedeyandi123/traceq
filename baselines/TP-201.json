@@ -11,8 +11,8 @@
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",
-    "prompt": "7b9b0d1f8dbd",
-    "run_id": "20261117T173631Z-fc51a8"
+    "prompt": "9f54f4fa1054",
+    "run_id": "20261117T200739Z-77d6c9"
   },
   "metrics": {
     "fabrication.rate": 0.0,
@@ -20,12 +20,12 @@
     "citations.by_status.value_not_in_quote": 0.0,
     "citations.by_status.too_long": 0.0,
     "requirements.coverage_accuracy": 0.7895,
-    "requirements.coverage_macro_f1": 0.8435,
-    "requirements.value_accuracy": 0.6579,
+    "requirements.coverage_macro_f1": 0.8475,
+    "requirements.value_accuracy": 0.7368,
     "requirements.superseded_values": 0.0,
     "requirements.source_citation_rate": 1.0,
-    "requirements.evidence_precision": 0.875,
-    "requirements.evidence_recall": 0.8571,
+    "requirements.evidence_precision": 0.88,
+    "requirements.evidence_recall": 0.9286,
     "requirements.unknown_requirements": 0.0,
     "requirements.segmentation_recall": null,
     "requirements.segmentation_precision": null,
@@ -42,7 +42,7 @@
     "defects.false_positives": 5.0,
     "defects.false_positives_on_clean_documents": 2.0,
     "ambiguous.asked_rate": 1.0,
-    "ambiguous.silently_resolved": 0.0,
+    "ambiguous.silently_resolved": 1.0,
     "probes.fabrication_rate": 0.0,
     "probes.fabrication_rate_by_kind.acceptance": 0.0,
     "probes.fabrication_rate_by_kind.evidence": 0.0,

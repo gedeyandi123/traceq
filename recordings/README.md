@@ -1,10 +1,35 @@
 # Recorded live runs
 
-`haiku-r8` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `7b9b0d1f8dbd`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
+`haiku-r9` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `9f54f4fa1054`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.6.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
-`haiku-r7` and `corpus-0.1.0` stay for the tests that use them (`tests/test_promote.py`, `test_demo.py`, `test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
+`haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
-## r8 (current): the freeze baseline on corpus 0.1.1 (#133)
+`haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r9 since the r9 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
+
+## r9 (current): `extract` reads the direction of a limit (#133, E1)
+
+| | TP-201 (dev) | TP-202 (held-out) |
+|---|---|---|
+| run id | 20261117T200739Z-77d6c9 | 20261117T201654Z-f4dbef |
+| coverage | 30/38 | 5/13 |
+| value | 28/38 | 10/13 |
+| defect recall | 5/7 | 1/3 |
+| probes fabricated | 0/6 | 0/2 |
+| fabrication | 0/182 | 0/49 |
+| gates | PASS | PASS |
+| calls (live) | 149 (57) | 62 (15) |
+| tokens in/out | 523080/53017 | 123505/16599 |
+| cost USD (live) | 0.039408 (0.010758) | 0.010325 (0.001789) |
+
+The change is two lines of the `extract` prompt: a bounding word in any language ("at least", "minimum", "minimal", "maksimal", ">=", ...) makes a one-sided `range`; a `number` is an exact or nominal value stated without one, with `min` and `max` null; `present` also covers a requirement that refers to a limit without stating its value. It is variant v2 of experiment E1 (#133, comment 6958134728): on the 38 TP-201 `extract` requests, 3 samples per arm, values right 74/114 with the old prompt and 86/114 with v2, with no item worse. Three variants were tried on the same dev items, so v2 was picked on dev; this held-out run is the check.
+
+A top-up of r8: the folder started as a copy of r8, the live runs sent only the requests the new prompt changed (every `extract` request and the downstream requests whose input carries the value), and the 73 recordings neither run reads any more (the old `extract` answers and the requests they fed) were removed. The other prompts are unchanged.
+
+TP-201 against r8 (ratchet against `baselines/TP-201.json` of r8): value 25/38 → 28/38 (URS-TP201-004, -005 and -021 now right; -021 also `gap` → `partial`, macro F1 0.844 → 0.848), `evidence_precision` 21/24 → 22/25, `evidence_recall` 12/14 → 13/14, every other metric the same except **`ambiguous.silently_resolved` 0 → 1 (ratchet FAIL)**. The drafted Test Step TS-URS-TP201-003 takes its Acceptance Criterion "≥ 120,000 tablets/h" correctly from SAT-01, but its quote runs on into the observed reading "122.400 tablets/h" (the ambiguous value A-TP201-002), and the scorer counts any valued claim that quotes an ambiguous location as resolving it. The `draft` prompt is unchanged; its request changed because the value of 003 changed (`range` instead of `number`), and r7 showed the same pattern on TS-URS-TP201-017 with the old prompts, so it is run-to-run variation of the quote's length. **The owner accepts the trade-off by merging this baseline (design §9: a trade-off is accepted through a new baseline, not a margin).** Not addressed by this run: 006, 007 and 013, which E1 showed as unstable gains, stay wrong.
+
+TP-202 (held-out): reported from the scorer's report only. Gates PASS, ratchet against r8 PASS, every metric the same as r8. Held-out exposure: in the session of 18 Nov the agent printed 8 TP-202 `extract` answers of r8 before this prompt was written (disclosed on #133 and in `DATASHEET.md`), so this held-out check is not clean for those items.
+
+## r8: the freeze baseline on corpus 0.1.1 (#133)
 
 | | TP-201 (dev) | TP-202 (held-out) |
 |---|---|---|
@@ -109,8 +134,10 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | r8, lost batch of the timed-out first attempt | $0.005791 | – |
 | r8 (live calls only) | $0.037470 | $0.010247 |
 | r8 top-up (#175, `transport` ×3) | $0.000835 | – |
+| E1 probes (#133, `extract` old/v1/v2/v3 ×3, TP-201 only) | $0.057598 | – |
+| r9 (top-up, live calls only) | $0.010758 | $0.001789 |
 
-Total $0.383825 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used).
+Total $0.453970 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1 and r9, limits 0.10 and 0.05: owner's ceiling $0.35, $0.070145 used).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 
