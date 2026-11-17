@@ -20,7 +20,7 @@ Panduan menjalankan demo TraceQ irisan 1 untuk sesi praktisi: persiapan, alur en
 | P1 | Docker Desktop menyala | `docker info` menjawab |
 | P2 | `uv sync` di root repo | tanpa error |
 | P3 | Node 24 dan dependensi UI: `cd web && npm ci` | `npm ci` selesai. Tanpa langkah ini `npm run dev` gagal di checkout baru |
-| P4 | Unduh dan cek korpus: `gh release download corpus-v0.1.0 --repo gedeyandi123/traceq --pattern 'corpus-0.1.0.tar.gz*'`, lalu `sha256sum -c corpus-0.1.0.tar.gz.sha256` dan `tar -xzf corpus-0.1.0.tar.gz` | `OK`; folder `t0-2026-06-01/` berisi `manifest.json`, `TP-201/`, `TP-202/` |
+| P4 | Unduh dan cek korpus: `gh release download corpus-v0.1.1 --repo gedeyandi123/traceq --pattern 'corpus-0.1.1.tar.gz*'`, lalu `sha256sum -c corpus-0.1.1.tar.gz.sha256` dan `tar -xzf corpus-0.1.1.tar.gz` | `OK`; folder `t0-2026-06-01/` berisi `manifest.json`, `TP-201/`, `TP-202/` |
 | P5 | Port 5432 (Postgres), 8000 (API), 9000 (issuer), 8001 (eval), 3000 (UI) bebas, atau 5432 dipakai Postgres TraceQ sendiri | `netstat -ano` |
 | P6 | Build UI untuk produksi: `cd web && npm run build` | daftar route tampil (`/`, `/runs/[runId]`, …, `/signin`) |
 | P7 | Jalankan seluruh bagian 3 dan 5 sekali sebagai gladi | semua kasus sesuai harapan |
@@ -33,8 +33,8 @@ Pakai **mode produksi** (`npm run build` lalu `npm start`), bukan `npm run dev`.
 Jalankan dari root repo, masing-masing di terminal sendiri:
 
 1. **Demo** (Postgres, reset database, replay, issuer, API, import):
-   `uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01 --recordings recordings/haiku-r7`
-   (rilis 0.1.0 dengan rekaman r7; untuk rilis lain, pakai rekaman yang dibuat di rilis itu: pasangan yang tidak cocok ditolak sebelum database disentuh). Tambahkan `--no-compose` bila Postgres sudah jalan. Perintah ini tetap di foreground. Replay butuh sekitar 0,2 detik. Tunggu baris `demo: ready. …`; saran `npm run dev` di baris itu abaikan, pakai mode produksi (langkah 3).
+   `uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01 --recordings recordings/haiku-r8`
+   (rilis 0.1.1 dengan rekaman r8; untuk rilis lain, pakai rekaman yang dibuat di rilis itu: pasangan yang tidak cocok ditolak sebelum database disentuh). Tambahkan `--no-compose` bila Postgres sudah jalan. Perintah ini tetap di foreground. Replay butuh sekitar 0,2 detik. Tunggu baris `demo: ready. …`; saran `npm run dev` di baris itu abaikan, pakai mode produksi (langkah 3).
 2. **Eval (opsional, disarankan):** tanpa langkah ini halaman "Hasil evaluasi" menulis "Run ini belum dinilai". Ambil run id dari `runs-demo/`, lalu:
    - `uv run python -m traceq_eval world/tp201.yaml runs-demo/<run id>/submission.json --out runs-demo/<run id>` (sekitar 7 detik, keluar dengan `gates PASS`)
    - `uv run python -m traceq_eval.screen serve --runs runs-demo --port 8001`
