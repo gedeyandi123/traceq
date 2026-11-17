@@ -106,6 +106,31 @@
   color: var(--color-text-2);
 }
 
+/* A summary list of jump links: the matrix overview's count style, each item a link. */
+.summaryLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.summaryLinks a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.summaryCount {
+  min-width: 1.25rem;
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.zero {
+  opacity: 0.6;
+}
+
 /* Section heading: the same on every screen. */
 .section {
   display: flex;

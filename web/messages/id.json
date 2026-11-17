@@ -150,6 +150,7 @@
   },
   "findings": {
     "title": "Temuan pra-tinjauan dan dokumen yang tidak ada",
+    "summaryTitle": "Ringkasan temuan",
     "check": "Temuan pemeriksaan (aturan)",
     "checkNote": "Ditemukan oleh aturan deterministik, tanpa model.",
     "ai": "Temuan AI (saran)",
@@ -202,6 +203,8 @@
   },
   "leftOut": {
     "title": "Yang tidak dimasukkan sistem",
+    "summaryTitle": "Ringkasan",
+    "unquotedTotal": "Teks URS tidak dikutip",
     "dropped": "Klaim yang dibuang pemeriksaan kutipan",
     "droppedNote": "Isinya gagal pemeriksaan kutipan, jadi hanya jenis, subjek, dan alasannya yang ditampilkan.",
     "group": "Jenis: {kind}",

@@ -53,6 +53,30 @@ export function Panel({ title, children }: { title: string; children: ReactNode 
   );
 }
 
+/** A screen's summary in a panel: one count per section, each a link to the section's anchor.
+ * The findings and left-out screens share it. */
+export function SummaryLinks({
+  title,
+  items,
+}: {
+  title: string;
+  items: readonly { n: number; label: string; href: string }[];
+}) {
+  return (
+    <Panel title={title}>
+      <ul className={s.summaryLinks} aria-label={title}>
+        {items.map((item) => (
+          <li key={item.href}>
+            <a href={item.href} className={item.n === 0 ? s.zero : undefined}>
+              <span className={s.summaryCount}>{item.n}</span> {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
 /** The heading of a section of a screen: title, an optional count, one line of what it is.
  * The id makes it an anchor and the name of the section it heads. */
 export function SectionHeading({ id, title, count, note }: { id: string; title: string; count?: number; note?: string }) {

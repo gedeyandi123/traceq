@@ -1,5 +1,20 @@
 /* The findings screen (spec #135, ticket #142): its sections and the cells of its tables.
  * The table itself is the shared data-table style. Tokens only (ADR 0011). */
+/* Overview: the summary next to the decision progress, as on the matrix; stacked below 1199 px. */
+.overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: start;
+}
+.overview > :only-child {
+  grid-column: 1 / -1;
+}
+@media (max-width: 1199px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .section {
   margin-top: var(--space-6);
 }
