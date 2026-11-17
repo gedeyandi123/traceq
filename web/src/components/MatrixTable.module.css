@@ -1,0 +1,220 @@
+/* The matrix (spec #135, ticket #141). Tokens only (ADR 0011). */
+
+/* Overview: the Coverage summary next to the decision progress; stacked below 1199 px. */
+.overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: start;
+  margin-bottom: var(--space-4);
+}
+.overview > :only-child {
+  grid-column: 1 / -1;
+}
+@media (max-width: 1199px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.summary li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.summaryCount {
+  min-width: 1.25rem;
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.zero {
+  opacity: 0.6;
+}
+
+.legend > summary {
+  width: fit-content;
+  font-size: var(--text-sm);
+}
+.legend dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  margin: var(--space-3) 0 0;
+}
+.legend dl > div {
+  display: contents;
+}
+.legend dd {
+  margin: 0;
+  color: var(--color-text-2);
+}
+
+/* The table: fixed columns so long text wraps instead of widening the page. */
+.matrix {
+  table-layout: fixed;
+  min-width: 960px;
+}
+.matrix thead th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+.colRequirement {
+  width: 26%;
+}
+.colValue {
+  width: 12%;
+}
+.colCoverage {
+  width: 13%;
+}
+.colEvidence {
+  width: 22%;
+}
+.colDecision {
+  width: 20%;
+}
+
+/* A coloured left edge per class. */
+.matrix tbody td:first-child {
+  box-shadow: inset 3px 0 0 var(--row-edge, transparent);
+}
+.edge_conflict {
+  --row-edge: var(--cov-conflict-edge);
+}
+.edge_gap {
+  --row-edge: var(--cov-gap-edge);
+}
+.edge_partial {
+  --row-edge: var(--cov-partial-edge);
+}
+.edge_site_only {
+  --row-edge: var(--cov-site-edge);
+}
+.edge_covered_by_vendor {
+  --row-edge: var(--cov-covered-edge);
+}
+.edge_none {
+  --row-edge: var(--cov-none-edge);
+}
+
+.failure {
+  color: var(--color-fail);
+}
+.text {
+  margin: var(--space-1) 0;
+}
+.cite {
+  font-size: var(--text-xs);
+}
+.cite a {
+  overflow-wrap: anywhere;
+}
+.value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.reason {
+  color: var(--color-text-2);
+  overflow-wrap: anywhere;
+}
+
+/* Coverage cell: proposed class, then the decided one. */
+.classes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+.arrow {
+  color: var(--color-text-3);
+  font-weight: 700;
+}
+
+/* Evidence: one line of chips; the full list behind it. */
+.evidence > summary {
+  font-weight: 400;
+}
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  vertical-align: top;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-sunken);
+  color: var(--color-text-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+.chipText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip_pass {
+  background: var(--color-pass-soft);
+  color: var(--color-pass);
+}
+.chip_fail {
+  background: var(--color-fail-soft);
+  color: var(--color-fail);
+}
+.chip_none {
+  background: var(--color-sunken);
+}
+.evidence > summary:hover .chip {
+  outline: 1px solid var(--color-border-strong);
+}
+.evidenceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.evidenceList li {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-sunken);
+  overflow-wrap: anywhere;
+}
+.observed {
+  color: var(--color-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Vendor documents the run could not read. */
+.notRead {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.notRead h2 {
+  font-size: var(--text-base);
+}
+.notRead ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}

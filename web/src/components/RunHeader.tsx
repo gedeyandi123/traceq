@@ -1,0 +1,66 @@
+import { useTranslations } from "next-intl";
+import Link from "next/link";
+
+import type { RunSummary } from "@/api/client";
+
+import { formatWhen } from "./formatWhen";
+import { ModeBadge } from "./ui/ui";
+
+import s from "./RunHeader.module.css";
+
+/** The four screens of a run. */
+export type RunTab = "matrix" | "findings" | "leftOut" | "eval";
+
+const PATHS: Record<RunTab, string> = { matrix: "", findings: "/findings", leftOut: "/left-out", eval: "/eval" };
+const TABS = Object.keys(PATHS) as RunTab[];
+
+/** The header every run screen shares: a breadcrumb back to all runs, the run's Equipment and
+ * facts, one tab per screen of the run (the current one marked with `aria-current`), and one
+ * line on what the screen is for. A component the pages render, not a layout: the pages
+ * already fetch the run, and a layout cannot see `searchParams`. */
+export function RunHeader({ run, current, intro }: { run: RunSummary; current: RunTab; intro: string }) {
+  const t = useTranslations("runHeader");
+  const runs = useTranslations("runs");
+  const when = useTranslations("decisions");
+  const base = `/runs/${encodeURIComponent(run.run_id)}`;
+  return (
+    <header className={s.header}>
+      <nav aria-label={t("breadcrumb")} className={s.crumbs}>
+        <Link href="/">{t("back")}</Link>
+        <span aria-hidden="true">/</span>
+        <span>{run.equipment}</span>
+      </nav>
+      <div className={s.titleRow}>
+        <h1 className={s.title}>{run.equipment}</h1>
+        <ModeBadge>{runs(run.mode)}</ModeBadge>
+      </div>
+      <dl className={s.meta}>
+        <div>
+          <dt>{t("run")}</dt>
+          <dd>{run.run_id}</dd>
+        </div>
+        <div>
+          <dt>{runs("model")}</dt>
+          <dd>{run.model}</dd>
+        </div>
+        <div>
+          <dt>{runs("created")}</dt>
+          <dd>{formatWhen(when, run.created)}</dd>
+        </div>
+      </dl>
+      <nav aria-label={t("tabs")} className={s.tabs}>
+        {TABS.map((tab) => (
+          <Link
+            key={tab}
+            href={`${base}${PATHS[tab]}`}
+            className={s.tab}
+            aria-current={tab === current ? "page" : undefined}
+          >
+            {t(tab)}
+          </Link>
+        ))}
+      </nav>
+      <p className={s.intro}>{intro}</p>
+    </header>
+  );
+}
