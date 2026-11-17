@@ -257,7 +257,7 @@ export function DecisionCell({
   if (proposal === undefined) return null;
   const [current, ...earlier] = proposal.decisions;
   return (
-    <div className={s.cell}>
+    <div className={access.mode === "decide" ? `${s.cell} ${s.cellDecide}` : s.cell}>
       <strong className={`${s.state} ${s[`state_${proposal.state}`]}`}>
         {t(`states.${proposal.state}`)}
       </strong>

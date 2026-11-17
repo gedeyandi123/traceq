@@ -203,13 +203,15 @@ export function MatrixTable({
         <CoverageSummary rows={matrix.requirements} t={t} />
         <DecisionTally counts={decisions.counts} kinds={["coverage"]} />
       </div>
-      <DataTable className={s.matrix}>
+      <DataTable
+        className={decisions.access.mode === "readOnly" ? `${s.matrix} ${s.readOnly}` : s.matrix}
+      >
         <thead>
           <tr>
             <th className={s.colRequirement}>{t("requirement")}</th>
             <th className={s.colValue}>{t("value")}</th>
             <th className={s.colCoverage}>{t("coverage")}</th>
-            <th>{t("reason")}</th>
+            <th className={s.colReason}>{t("reason")}</th>
             <th className={s.colEvidence}>{t("evidence")}</th>
             {decided && <th className={s.colDecision}>{td("column")}</th>}
           </tr>
