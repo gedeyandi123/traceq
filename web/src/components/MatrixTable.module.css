@@ -166,12 +166,12 @@
 }
 /* display:flex drops the browser marker, so draw one: it shows the chips open. */
 .evidence > summary::before {
-  content: "B8";
+  content: "\25B8";
   flex: none;
   color: var(--color-text-3);
 }
 .evidence[open] > summary::before {
-  content: "BE";
+  content: "\25BE";
 }
 .chips {
   display: inline-flex;
