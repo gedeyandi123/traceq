@@ -126,11 +126,20 @@ Method [F]: `main` 4faf885 (port 3000) and the prototype e54cf7e (production bui
 | C5 | Decision progress is a 14 px line; prototype had a 26 px number and a bar | UNCLEAR → owner: enlarge | Baseline audit §1 item 4. One text node kept (`DecisionCell.test.tsx:60,67`); no bar (1/38 moves 2.6 %) | #157 |
 | C6 | Prototype's "38 Persyaratan" total and bar split by class | UNCLEAR → not built | Total already in "0/38"; the bar repeats the pills (spec #135 US8 met) | — |
 
+Resolved on 17 Nov 2026 [F] (measured in the same way on production builds; full tables in the PRs):
+- **C1, C3, C4 and C5** were fixed by #160 (#157).
+  - Ayu at 1366: reasons average 1.76 lines (max 3), 0 words split mid-word, matrix 4,817 px. At 1093: 2.26 lines.
+  - Citra at 1366: 1.34 lines, 4,796 px.
+  - Undecided state weight 500, decided 600. Evidence marker on its own line in 0 of 28 rows. Progress line 20 px.
+  - Column widths: 22/9/13/16/21/19 % for a decider and 24/9/13/18/22/14 % read-only. The table's `min-width` is 1024 px. The decision cell's 11rem minimum applies only to a decider.
+- **C2** was fixed by #161 (#158). The panels show 6/3/2 and 8/7/9, and each link reaches its section.
+- Runbook re-run after both merges: #162.
+
 Refuted or equal [O]: the matrix shows 41 of 93 citation links without opening a fold in both builds, and 0 of the 7 SAT links in both. The requirement id is weight 650 in both. Tab styles are identical (labels shortened by spec US1). No horizontal page scroll on any screen at any of the three widths. The lowest text contrast on the matrix is 5.38:1. INTENDED: tally folded under the k/n line (spec #135), numeric dates (`formatWhen`, #154), sign-in initials, the run list's Run column and section counts (accepted in the #147 review). IMPROVEMENT: page titles on list, sign-in and 404; the Evidence fold marker; the matrix table starts 114 px higher at 1366.
 
 Decision states without writing data [F]: the round 6 preview (`/prototype/states`: the real components over the render-test fixtures, a no-op action) was run unchanged against `main`'s components in a throwaway, uncommitted worktree (fixtures byte-identical). Decided, changed, accepted and rejected rows match the prototype in colour, weight and height (within 8 px). Only the state dot and C3 differ.
 
-Scroll after a decision [F] (correcting round 6 and spec #135): a throwaway copy of `main` whose `decide` action skipped the API but kept the production redirect, in a production build over the real matrix. The demo database stayed at 0 decisions. A successful decision **keeps the scroll position** (same URL). A refusal (`?error=refused` added) returns to the top, and so does the first success after a refusal (`?error` removed). The future filter spec needs a return to the row only for a filter kept in the URL and after a refusal (#135 comment of 17 Nov).
+Scroll after a decision [F] (correcting round 6 and spec #135): a throwaway copy of `main` whose `decide` action skipped the API but kept the production redirect, in a production build over the real matrix. The demo database stayed at 0 decisions. A successful decision **keeps the scroll position** (same URL). A refusal (`?error=refused` added) returns to the top, and so does the first success after a refusal (`?error` removed). The future filter spec needs a return to the row only for a filter kept in the URL and after a refusal (#135 comment of 17 Nov). Exception seen later the same day: in the runbook re-run (#162), a successful "Putuskan ulang" decision by a second decider (K15) returned to the top with an unchanged URL. The probe did not cover "Putuskan ulang"; #163 investigates it.
 
 Eval empty state [O]: checked with a separate empty eval screen. "Belum ada hasil evaluasi" reads as not scored, not as an error.
 
