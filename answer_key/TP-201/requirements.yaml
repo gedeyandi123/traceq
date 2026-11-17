@@ -374,9 +374,9 @@
   value:
     type: one_of
     allowed: [EPDM, silicone]
-  critical: false
-  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 21, text: Tidak, critical: false, severity: 3,
-    occurrence: 2, detection: 3, rpn: 18}
+  critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 21, text: Ya, critical: true, severity: 4,
+    occurrence: 2, detection: 3, rpn: 24}
   evidence: []
   design_evidence: []
   expected_coverage: gap
@@ -803,9 +803,9 @@
   source: {doc: URS-TP201, rev: 1, page: 2, section: 4. Integritas data HMI}
   param: time_synchronisation
   value: {type: present}
-  critical: false
-  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 34, text: Tidak, critical: false, severity: 3,
-    occurrence: 3, detection: 3, rpn: 27}
+  critical: true
+  risk: {doc: RA-TP201, rev: 0, sheet: Penilaian Risiko, row: 34, text: Ya, critical: true, severity: 4,
+    occurrence: 3, detection: 3, rpn: 36}
   evidence: []
   design_evidence:
   - doc: FDS-TP201
