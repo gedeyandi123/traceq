@@ -32,6 +32,7 @@ const proposals: DecisionView["proposals"] = [
     state: "decided",
     decisions: [decision({ id: 5 })],
     previous: null,
+    previous_class: null,
   },
   {
     id: 22,
@@ -44,6 +45,7 @@ const proposals: DecisionView["proposals"] = [
       decision({ id: 6, decision: "rejected", reason: "Protokol disetujui di halaman 2", ...BIMA }),
     ],
     previous: null,
+    previous_class: null,
   },
   {
     id: 23,
@@ -54,6 +56,7 @@ const proposals: DecisionView["proposals"] = [
     state: "undecided",
     decisions: [],
     previous: null,
+    previous_class: null,
   },
 ];
 

@@ -1618,6 +1618,24 @@
                 "type": "null"
               }
             ]
+          },
+          "previous_class": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "covered_by_vendor",
+                  "partial",
+                  "site_only",
+                  "gap",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Class"
           }
         },
         "additionalProperties": false,
@@ -1630,7 +1648,8 @@
           "content_hash",
           "state",
           "decisions",
-          "previous"
+          "previous",
+          "previous_class"
         ],
         "title": "Proposal",
         "description": "A Proposal of a run, where it stands in the run's files, and its decision state."

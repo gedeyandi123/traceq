@@ -595,6 +595,47 @@ def test_changed_content_is_changed_since_it_was_decided(
     assert place(proposals(client, decider), "ai", 0)["decisions"] == [made]
 
 
+def test_a_changed_coverage_row_names_the_class_decided_earlier(
+    client: TestClient, runs: Path, decider: dict[str, str], fresh_database: Databases
+) -> None:
+    """Accepted: the class proposed on the content it was made on; edited: the class chosen."""
+
+    def changed(meta: dict[str, Any], matrix: dict[str, Any], findings: dict[str, Any]) -> None:
+        rows = {r["id"]: r for r in matrix["requirements"]}
+        rows["URS-TP201-002"]["coverage"] = "gap"
+        rows["URS-TP201-026"]["coverage"] = "partial"
+        findings["ai_findings"][0]["detail"] = "The serial numbers differ."
+
+    import_run(client, decider)
+    ps = proposals(client, decider)
+    assert all(p["previous_class"] is None for p in ps)
+    decide(client, decider, place(ps, "coverage", "URS-TP201-002"), decision="accepted")
+    row = place(ps, "coverage", "URS-TP201-026")
+    decide(client, decider, row, decision="edited", coverage="gap", reason="no FAT step")
+    decide(client, decider, place(ps, "ai", 0), decision="rejected", reason="the plate matches")
+    with transaction(engine(fresh_database.app)) as s:
+        trail = len(entries(s))
+    add_run(runs, OTHER_RUN, changed)
+    import_run(client, decider, OTHER_RUN)
+    now = _by_place(proposals(client, decider, OTHER_RUN))
+    assert {where: (p["state"], p["previous_class"]) for where, p in now.items()} == {
+        ("coverage", "URS-TP201-002"): ("changed", "partial"),
+        ("coverage", "URS-TP201-026"): ("changed", "gap"),
+        ("coverage", "URS-TP201-030"): ("undecided", None),
+        ("check", 0): ("undecided", None),
+        ("check", 1): ("undecided", None),
+        ("ai", 0): ("changed", None),
+    }
+    # Reading it writes nothing: only the import of the second run joined the Audit Trail.
+    with transaction(engine(fresh_database.app)) as s:
+        assert len(entries(s)) == trail + 1
+    # Once decided again, the row no longer names an earlier class.
+    again = now[("coverage", "URS-TP201-002")]
+    decide(client, decider, again, OTHER_RUN, decision="accepted")
+    after = place(proposals(client, decider, OTHER_RUN), "coverage", "URS-TP201-002")
+    assert (after["state"], after["previous_class"]) == ("decided", None)
+
+
 def _zero() -> dict[str, int]:
     names = ("total", "undecided", "accepted", "edited", "rejected", "changed")
     return dict.fromkeys((*names, "decided_not_proposed"), 0)

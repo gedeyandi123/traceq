@@ -643,6 +643,8 @@ export interface components {
             /** Decisions */
             decisions: components["schemas"]["Decision"][];
             previous: components["schemas"]["Decision"] | null;
+            /** Previous Class */
+            previous_class: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
         };
         /**
          * Range

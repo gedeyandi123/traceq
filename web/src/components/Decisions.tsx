@@ -236,7 +236,8 @@ function Forms({
 }
 
 /** Where one Proposal stands: its decision state, the decisions on this content (current
- * first) or, when its content changed, the latest earlier decision; and the decision forms
+ * first) or, when its content changed, the latest earlier decision with, for a Coverage row,
+ * the class it settled on; and the decision forms
  * when the viewer may decide. ``proposed``: the class the system proposed, for a Coverage
  * row. Nothing when the run holds no such Proposal. */
 export function DecisionCell({
@@ -281,6 +282,9 @@ export function DecisionCell({
       {proposal.previous && (
         <div className={s.history}>
           <span>{t("previous", { summary: summary(t, classes, proposal.previous) })}</span>
+          {proposal.previous_class && (
+            <div>{t("previousClass", { class: classes(`classes.${proposal.previous_class}`) })}</div>
+          )}
           {proposal.previous.reason && <div className={s.reason}>{proposal.previous.reason}</div>}
         </div>
       )}

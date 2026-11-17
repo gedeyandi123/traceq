@@ -112,6 +112,7 @@
     },
     "earlier": "Keputusan sebelumnya atas isi ini:",
     "previous": "Keputusan sebelumnya, atas isi lain: {summary}",
+    "previousClass": "sebelumnya: {class}",
     "accept": "Terima",
     "reject": "Tolak",
     "edit": "Ubah kelas",
