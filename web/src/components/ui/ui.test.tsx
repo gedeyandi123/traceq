@@ -1,28 +1,41 @@
 // The shared UI primitives of spec #135: what a person sees and can do with each.
 import { render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 
-import { Button, CoveragePill, DataTable, EmptyState, Panel, SectionHeading, StatChip } from "./ui";
+import { Button, CoveragePill, DataTable, EmptyState, ModeBadge, Panel, SectionHeading } from "./ui";
 
-test("a Coverage pill reads as its label, with its shape hidden from screen readers", () => {
-  render(<CoveragePill cls="conflict" label="Konflik" help="Desain tidak memenuhi URS." />);
-  const pill = screen.getByText("Konflik", { exact: false });
-  expect(pill.textContent).not.toBe("Konflik"); // the shape is there for the eye
-  expect(pill.title).toBe("Desain tidak memenuhi URS.");
-  const shape = pill.querySelector("[aria-hidden=true]");
-  expect(shape?.textContent).not.toBe("");
-  expect(pill.textContent).toBe(`${shape?.textContent}Konflik`);
+// A pill as the matrix shows it, inside a table cell, whose accessible name is what a screen
+// reader announces.
+function inCell(pill: ReactNode) {
+  return render(
+    <table>
+      <tbody>
+        <tr>
+          <td>{pill}</td>
+        </tr>
+      </tbody>
+    </table>,
+  );
+}
+
+test("a Coverage pill reads as its label, with its shape shown only to the eye", () => {
+  inCell(<CoveragePill cls="conflict" label="Konflik" help="Desain tidak memenuhi URS." />);
+  const read = screen.getByRole("cell", { name: "Konflik" });
+  expect(read.textContent).not.toBe("Konflik"); // the shape is there for the eye
+  expect(read.textContent?.endsWith("Konflik")).toBe(true);
+  expect(screen.getByTitle("Desain tidak memenuhi URS.")).toBeDefined();
 });
 
 test("each Coverage class has its own shape, so colour is never the only sign", () => {
   const classes = ["covered_by_vendor", "partial", "site_only", "gap", "conflict", "none"] as const;
-  const { container } = render(
-    <>
-      {classes.map((c) => (
-        <CoveragePill key={c} cls={c} label={c} />
-      ))}
-    </>,
-  );
-  const shapes = [...container.querySelectorAll("[aria-hidden=true]")].map((s) => s.textContent);
+  const shapes = classes.map((c) => {
+    const { container, unmount } = inCell(<CoveragePill cls={c} label={c} />);
+    const read = within(container).getByRole("cell", { name: c });
+    const shape = read.textContent?.replace(c, "");
+    unmount();
+    return shape;
+  });
+  expect(shapes.every((shape) => shape !== "")).toBe(true);
   expect(new Set(shapes).size).toBe(classes.length);
 });
 
@@ -63,10 +76,9 @@ test("a panel shows its title and content", () => {
   expect(screen.getByText("Biaya run: 0.42 USD")).toBeDefined();
 });
 
-test("a stat chip shows a count with its label", () => {
-  render(<StatChip value={4} label="Celah" />);
-  expect(screen.getByText("4")).toBeDefined();
-  expect(screen.getByText("Celah")).toBeDefined();
+test("a mode badge shows the run's mode", () => {
+  render(<ModeBadge>Putar ulang</ModeBadge>);
+  expect(screen.getByText("Putar ulang")).toBeDefined();
 });
 
 test("an empty state says what is missing and why", () => {

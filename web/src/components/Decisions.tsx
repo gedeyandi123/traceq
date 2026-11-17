@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 
 import type { CoverageClass, Decision, DecisionCounts, Proposal } from "@/api/client";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
+import { formatWhen } from "./formatWhen";
 import { Button } from "./ui/ui";
 
 import s from "./Decisions.module.css";
@@ -32,26 +33,6 @@ export type DecisionScreen = "matrix" | "findings";
 
 type T = ReturnType<typeof useTranslations<"decisions">>;
 type ClassT = ReturnType<typeof useTranslations<"matrix">>;
-
-const date = new Intl.DateTimeFormat("id-ID", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const time = new Intl.DateTimeFormat("id-ID", {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-/** A timestamp as the decision states read it ("16/11/2026 09.30 UTC"); the raw value when it
- * does not parse. The findings screen formats AI Finding timestamps with it too. */
-export function formatWhen(t: T, iso: string): string {
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return iso;
-  return t("when", { date: date.format(at), time: time.format(at) });
-}
 
 function summary(t: T, classes: ClassT, d: Decision): string {
   const when = formatWhen(t, d.at);

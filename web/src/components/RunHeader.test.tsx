@@ -55,3 +55,13 @@ test("the header leads back to all runs and names the run it shows", () => {
   expect(screen.getByText("10/11/2026 08.05 UTC")).toBeDefined();
   expect(screen.getByText("Satu baris per persyaratan URS.")).toBeDefined();
 });
+
+test("a creation time that does not parse shows as it is, and the header still renders", () => {
+  render(
+    <NextIntlClientProvider locale="id" messages={messages}>
+      <RunHeader run={{ ...run, created: "kemarin" }} current="matrix" intro="Satu baris per persyaratan URS." />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByRole("heading", { level: 1, name: "TP-201" })).toBeDefined();
+  expect(screen.getByText("kemarin")).toBeDefined();
+});

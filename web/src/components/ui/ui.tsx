@@ -43,11 +43,11 @@ export function Button({
   return <button {...props} className={`${s.button} ${s[variant]} ${className ?? ""}`.trim()} />;
 }
 
-/** The one card of every screen's overview: an optional small title, then content. */
-export function Panel({ title, children }: { title?: string; children: ReactNode }) {
+/** The one card of every screen's overview: a small title, then content. */
+export function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className={s.panel}>
-      {title !== undefined && <h2 className={s.panelTitle}>{title}</h2>}
+      <h2 className={s.panelTitle}>{title}</h2>
       {children}
     </section>
   );
@@ -67,14 +67,10 @@ export function SectionHeading({ id, title, count, note }: { id: string; title: 
   );
 }
 
-/** A count with its label, in tabular figures. */
-export function StatChip({ value, label, attention }: { value: number | string; label: ReactNode; attention?: boolean }) {
-  return (
-    <span className={s.stat}>
-      <span className={`${s.statValue} ${attention ? s.attention : ""}`.trim()}>{value}</span>
-      <span className={s.statLabel}>{label}</span>
-    </span>
-  );
+/** How a run was made (its translated mode), as a small badge; the run list and the run
+ * header share it. */
+export function ModeBadge({ children }: { children: ReactNode }) {
+  return <span className={s.badge}>{children}</span>;
 }
 
 /** A block that says there is nothing here, and why. Not an error. */

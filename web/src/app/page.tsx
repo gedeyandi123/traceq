@@ -3,7 +3,8 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 import { api } from "@/api/client";
-import { cell, DataTable, EmptyState } from "@/components/ui/ui";
+import { formatWhen } from "@/components/formatWhen";
+import { cell, DataTable, EmptyState, ModeBadge } from "@/components/ui/ui";
 
 import s from "./page.module.css";
 
@@ -15,10 +16,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const [runs, app] = await Promise.all([getTranslations("runs"), getTranslations("app")]);
   return { title: { absolute: `${runs("title")} · ${app("title")}` } };
 }
-
-// The same format as the run header and the decision timestamps.
-const date = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
-const time = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
 
 export default async function RunsPage() {
   const t = await getTranslations("runs");
@@ -44,22 +41,19 @@ export default async function RunsPage() {
             </tr>
           </thead>
           <tbody>
-            {data.map((r) => {
-              const created = new Date(r.created);
-              return (
-                <tr key={r.run_id}>
-                  <th scope="row" className={cell.id}>
-                    <Link href={`/runs/${encodeURIComponent(r.run_id)}`}>{r.run_id}</Link>
-                  </th>
-                  <td className={s.equipment}>{r.equipment}</td>
-                  <td>{r.model}</td>
-                  <td>
-                    <span className={s.mode}>{t(r.mode)}</span>
-                  </td>
-                  <td className={cell.num}>{when("when", { date: date.format(created), time: time.format(created) })}</td>
-                </tr>
-              );
-            })}
+            {data.map((r) => (
+              <tr key={r.run_id}>
+                <th scope="row" className={cell.id}>
+                  <Link href={`/runs/${encodeURIComponent(r.run_id)}`}>{r.run_id}</Link>
+                </th>
+                <td className={s.equipment}>{r.equipment}</td>
+                <td>{r.model}</td>
+                <td>
+                  <ModeBadge>{t(r.mode)}</ModeBadge>
+                </td>
+                <td className={cell.num}>{formatWhen(when, r.created)}</td>
+              </tr>
+            ))}
           </tbody>
         </DataTable>
       )}

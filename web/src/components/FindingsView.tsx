@@ -2,7 +2,8 @@ import { useTranslations } from "next-intl";
 
 import type { Cite, Findings, Proposal } from "@/api/client";
 import { CiteLink } from "./CiteLink";
-import { DecisionCell, DecisionNotice, DecisionTally, formatWhen } from "./Decisions";
+import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
+import { formatWhen } from "./formatWhen";
 import type { DecisionView } from "./Decisions";
 import { cell, DataTable, EmptyState, SectionHeading } from "./ui/ui";
 

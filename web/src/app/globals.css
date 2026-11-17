@@ -282,12 +282,6 @@ pre {
 .muted {
   color: var(--color-text-3);
 }
-.failure {
-  color: var(--color-fail);
-}
-.num {
-  font-variant-numeric: tabular-nums;
-}
 .visually-hidden {
   position: absolute;
   width: 1px;
