@@ -24,6 +24,7 @@ function coverage(id: number, requirement: string, over: Partial<Proposal>): Pro
     state: "undecided",
     decisions: [],
     previous: null,
+    previous_class: null,
     ...over,
   };
 }

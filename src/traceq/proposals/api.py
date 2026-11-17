@@ -100,6 +100,10 @@ class Proposal(_Model):
     """For ``decided``: every decision on this content, the current one first."""
     previous: Decision | None
     """For ``changed``: the latest decision, made on other content."""
+    previous_class: CoverageClass | None
+    """For a ``changed`` Coverage row: the class that latest decision settled on, the class
+    proposed on its content when ``accepted``, the class chosen when ``edited``. ``null``
+    otherwise."""
 
 
 class KindCounts(_Model):
@@ -208,6 +212,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
                 state=s.state,
                 decisions=[_decision(d) for d in s.decisions],
                 previous=None if s.previous is None else _decision(s.previous),
+                previous_class=s.previous_class,
             )
             for s in stood
         ]

@@ -89,6 +89,9 @@ class Standing:
     """For ``decided``: every decision on this content, the current one first."""
     previous: Decision | None
     """For ``changed``: the latest decision, made on other content."""
+    previous_class: CoverageClass | None
+    """For a ``changed`` Coverage row: the class that decision settled on, the class proposed
+    on that content when accepted, the class chosen when edited."""
 
 
 @dataclass(frozen=True)
@@ -248,11 +251,22 @@ def standings(session: Session, run_id: str) -> list[Standing] | None:
     for m in rows:
         d = _decision(m)
         made.setdefault(d.proposal_id, []).append(d)
+    earlier = _accepted_classes(
+        session, [ds[0] for ds in made.values() if ds[0].decision == "accepted"]
+    )
     out: list[Standing] = []
     for h in held:
         every = made.get(h.id, [])
         same = tuple(d for d in every if d.content_hash == h.content_hash)
         state: State = "decided" if same else "changed" if every else "undecided"
+        previous = every[0] if state == "changed" else None
+        previous_class = None
+        if previous is not None and h.kind == "coverage":
+            previous_class = (
+                previous.coverage
+                if previous.decision == "edited"
+                else earlier.get((previous.run_id, previous.proposal_id))
+            )
         out.append(
             Standing(
                 proposal_id=h.id,
@@ -262,10 +276,31 @@ def standings(session: Session, run_id: str) -> list[Standing] | None:
                 content_hash=h.content_hash,
                 state=state,
                 decisions=same,
-                previous=every[0] if state == "changed" else None,
+                previous=previous,
+                previous_class=previous_class,
             )
         )
     return out
+
+
+def _accepted_classes(
+    session: Session, accepted: list[Decision]
+) -> dict[tuple[str, int], CoverageClass | None]:
+    """The class each run proposed on the Proposals of these accepted decisions."""
+    if not accepted:
+        return {}
+    wanted = {(d.run_id, d.proposal_id) for d in accepted}
+    found = session.execute(
+        select(RUN_PROPOSALS.c.run_id, RUN_PROPOSALS.c.proposal_id, RUN_PROPOSALS.c.proposed).where(
+            RUN_PROPOSALS.c.proposal_id.in_({p for _, p in wanted}),
+            RUN_PROPOSALS.c.run_id.in_({r for r, _ in wanted}),
+        )
+    ).all()
+    return {
+        (f.run_id, f.proposal_id): cast(CoverageClass | None, f.proposed.get("coverage"))
+        for f in found
+        if (f.run_id, f.proposal_id) in wanted
+    }
 
 
 def counts(session: Session, run_id: str) -> dict[Kind, KindCounts] | None:

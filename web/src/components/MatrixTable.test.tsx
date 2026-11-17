@@ -39,6 +39,7 @@ const proposals: DecisionView["proposals"] = [
       decision({ id: 2, ...BIMA }),
     ],
     previous: null,
+    previous_class: null,
   },
   {
     id: 12,
@@ -49,6 +50,7 @@ const proposals: DecisionView["proposals"] = [
     state: "changed",
     decisions: [],
     previous: decision({ id: 1, content_hash: "old", run_id: "20261101T080000Z-aaaaaa", ...BIMA }),
+    previous_class: "covered_by_vendor",
   },
   {
     id: 13,
@@ -59,6 +61,7 @@ const proposals: DecisionView["proposals"] = [
     state: "undecided",
     decisions: [],
     previous: null,
+    previous_class: null,
   },
 ];
 
@@ -114,6 +117,9 @@ test("an imported run shows each row's decision state, its decisions and the cou
       "Keputusan sebelumnya, atas isi lain: Diterima oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC",
     ),
   ).toBeDefined();
+  // What was decided before, so the reviewer sees what changed; on changed rows only.
+  expect(changed.getByText("sebelumnya: Dicakup vendor")).toBeDefined();
+  expect(decided.queryByText(/^sebelumnya:/)).toBeNull();
   const acceptChanged = changed.getByRole("button", { name: "Terima" }).closest("form")!;
   expect(within(acceptChanged).queryByRole("textbox")).toBeNull();
   const edit = changed.getByRole("button", { name: "Ubah kelas" }).closest("form")!;
@@ -126,6 +132,7 @@ test("an imported run shows each row's decision state, its decisions and the cou
   expect(undecided.getByText("Belum diputuskan")).toBeDefined();
   expect(undecided.queryByRole("button", { name: "Terima" })).toBeNull();
   expect(undecided.getByRole("button", { name: "Ubah kelas" })).toBeDefined();
+  expect(undecided.queryByText(/^sebelumnya:/)).toBeNull();
 
   const tally = within(screen.getByRole("table", { name: "Jumlah keputusan" }));
   const row = within(tally.getByRole("row", { name: /Baris cakupan/ }));
