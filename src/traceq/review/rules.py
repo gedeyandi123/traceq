@@ -6,7 +6,9 @@ judged (design section 6, "Ambiguous values").
 
 Rules the site sets (signatures with name and date, segregation of duties, site approval of
 vendor protocols) are applied only when the qualification SOP states them, and their finding
-also cites the SOP sentence. The others follow from the record itself or from GMP:
+also cites the SOP sentence. Of the records read, they apply only to vendor FAT/SAT
+protocols: the SOP's scope leaves other vendor documents, such as a calibration certificate,
+to their issuer's quality system (#101). The others follow from the record itself or from GMP:
 out-of-limit marked Pass and failed result without Deviation (CPOB 12.16), impossible date
 order, expired calibration and calculation error.
 
@@ -105,9 +107,9 @@ def vendor_protocol_not_approved(r: Record, rules: SiteRules) -> list[CheckFindi
 
 
 def missing_signatures(r: Record, rules: SiteRules, not_approved: bool) -> list[CheckFinding]:
-    """Every signature row carries a name, a signature and a date."""
+    """Every signature row of a vendor protocol carries a name, a signature and a date."""
     rule = rules.get("signature_name_and_date")
-    if rule is None:
+    if rule is None or not r.vendor_protocol:
         return []
     out: list[CheckFinding] = []
     for s in r.signatures:
@@ -169,6 +171,9 @@ def _same_person(a: str, b: str) -> bool:
 
 
 def segregation_of_duties(r: Record, rules: SiteRules) -> list[CheckFinding]:
+    """No one holds two duties the SOP separates on one vendor protocol."""
+    if not r.vendor_protocol:
+        return []
     out: list[CheckFinding] = []
     for name, first, second, what in _DUTIES:
         rule = rules.get(name)
