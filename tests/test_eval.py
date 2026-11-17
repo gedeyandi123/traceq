@@ -19,7 +19,7 @@ from traceq_eval.citations import PageTexts, Status, partial_ratio, value_in_quo
 from traceq_eval.judge import Criterion, JudgeVerdict, UrsRequirement
 from traceq_eval.oracle import perfect
 from traceq_eval.report import markdown
-from traceq_eval.score import CRITERIA, score
+from traceq_eval.score import CRITERIA, same_value, score
 from traceq_eval.submission import Submission, System, TestStep
 
 ROOT = Path(__file__).parents[1]
@@ -77,6 +77,35 @@ def test_value_in_quote_number_forms_and_boundaries() -> None:
     assert not value_in_quote({"type": "range", "min": 20, "max": 70, "unit": "rpm"}, "20–60 rpm")
     assert value_in_quote({"type": "one_of", "allowed": ["SS 316L"]}, "terbuat dari SS 316L.")
     assert value_in_quote({"type": "present"}, "anything")
+
+
+# --- Same value (scoring rules A and B, #180) --------------------------------------------
+
+
+def test_units_compare_after_nfkc_and_casefold() -> None:
+    def flow(unit: str) -> dict[str, Any]:
+        return {"type": "number", "value": 12, "unit": unit}
+
+    assert same_value(flow("m³/h"), flow("m3/h"))
+    assert same_value(flow("M3/H"), flow("m3/h"))
+    assert same_value(
+        {"type": "range", "min": 1, "unit": "KPA"}, {"type": "range", "min": 1, "unit": "kPa"}
+    )
+    assert not same_value(flow("m³/h"), flow("m2/h"))
+    assert not same_value(flow("m3/h"), flow("l/h"))
+    assert not same_value(flow("tablets/h"), flow("tablet/h"))  # no plural stripping (#133)
+    assert not same_value(flow("%"), flow("% FS"))  # rejected on #133
+
+
+def test_single_point_range_equals_a_number_of_that_value() -> None:
+    volts = {"type": "number", "value": 380, "unit": "V"}
+    assert same_value({"type": "range", "min": 380, "max": 380, "unit": "V"}, volts)
+    assert same_value(volts, {"type": "range", "min": 380.0, "max": 380.0, "unit": "v"})
+    assert not same_value({"type": "range", "min": 380, "max": 380, "unit": "kV"}, volts)
+    assert not same_value({"type": "range", "min": 220, "max": 220, "unit": "V"}, volts)
+    assert not same_value({"type": "range", "min": 380, "max": 400, "unit": "V"}, volts)
+    assert not same_value({"type": "range", "min": 380, "unit": "V"}, volts)
+    assert not same_value({"type": "range", "max": 380, "unit": "V"}, volts)
 
 
 def test_citation_statuses(pages: PageTexts, key: dict) -> None:
