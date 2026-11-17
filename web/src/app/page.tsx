@@ -9,9 +9,11 @@ import s from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
-/** The browser tab reads "<screen> · TraceQ" (the root layout's template); translations only, no fetch. */
+/** The browser tab reads "<screen> · TraceQ"; translations only, no fetch. The root layout's
+ * template does not apply to a page in the layout's own segment, so the title is absolute. */
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations("runs"))("title") };
+  const [runs, app] = await Promise.all([getTranslations("runs"), getTranslations("app")]);
+  return { title: { absolute: `${runs("title")} · ${app("title")}` } };
 }
 
 // The same format as the run header and the decision timestamps.
