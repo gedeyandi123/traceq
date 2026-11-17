@@ -200,10 +200,12 @@ def test_site_only_and_gap() -> None:
 
 
 def test_a_step_that_cannot_test_the_value_is_not_evidence() -> None:
-    # A step in another unit, or of another kind, says nothing about the URS value.
-    assert classify(_req(), [_step(Number(value=50, unit="kN"))], [], ASSESSED).coverage == "gap"
-    c = classify(_req(), [_step(Present(value=True))], [], ASSESSED)
+    # A lure: "check certificates of all product-contact parts" says nothing about the gasket
+    # material the URS asks for, so it is no Evidence and the requirement stays a gap.
+    gasket = _req(OneOf(allowed=("EPDM", "silicone")))
+    c = classify(gasket, [_step(Present(value=True))], [], ASSESSED)
     assert (c.coverage, c.evidence) == ("gap", ())
+    assert classify(_req(), [_step(Number(value=50, unit="kN"))], [], ASSESSED).coverage == "gap"
 
 
 # --- Comparing values (#175) ------------------------------------------------------------
@@ -225,20 +227,6 @@ def test_a_range_still_needs_the_same_unit() -> None:
     assert not comparable(Number(value=36, unit=""), Range(min=36, max=36, unit="rpm"))
     assert not comparable(speed, Range(min=20, max=70, unit="Hz"))
     assert comparable(speed, Range(min=20, max=70, unit="RPM"))
-
-
-def test_present_and_one_of_compare_both_ways() -> None:
-    options = OneOf(allowed=("installed",))
-    assert comparable(options, Present(value=True))
-    assert meets(options, Present(value=True))
-    assert not meets(options, Present(value=False))
-    assert not meets(options, Present())
-    assert comparable(Present(), options)
-    assert meets(Present(), options)
-    c = classify(_req(options), [_step(Present(value=True))], [], ASSESSED)
-    assert c.coverage == "covered_by_vendor"
-    assert not comparable(Present(), Text(value="installed"))
-    assert not comparable(Text(value="installed"), Present(value=True))
 
 
 def test_without_a_verified_urs_value_no_step_can_prove() -> None:

@@ -130,9 +130,7 @@ def comparable(spec: Value, observed: Observed) -> bool:
             return _same_unit(u, v)
         case OneOf() | Text(), Text() | OneOf():
             return True
-        case Present() | OneOf(), Present() | OneOf():
-            # OneOf vs OneOf is handled above; a feature that is there compares with a
-            # choice among options, both ways (#175).
+        case Present(), Present():
             return True
         case _:
             return False
@@ -156,10 +154,8 @@ def meets(spec: Value, observed: Value) -> bool:
         case OneOf(allowed=allowed) | Text(value=allowed), OneOf(allowed=values):
             options = (allowed,) if isinstance(allowed, str) else allowed
             return all(any(_same_text(o, v) for o in options) for v in values)
-        case Present() | OneOf(), Present(value=v):
+        case Present(), Present(value=v):
             return v is True
-        case Present(), OneOf():
-            return True
         case _:
             return False
 
