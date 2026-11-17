@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,14 @@ README_COLUMN = """\
 
 def _json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _stamped(path: Path) -> Any:
+    """A committed r7 file as ``promote`` writes it today: ``promote`` stamps the installed
+    dataset version, while r7 was recorded on 0.1.0; every other field must match exactly."""
+    data = _json(path)
+    data["dataset"]["version"] = version("traceq-dataset")
+    return data
 
 
 def _dump(path: Path, data: Any) -> None:
@@ -80,9 +89,9 @@ def test_promote_writes_the_recordings_layout_and_the_baseline(
         live_run, recordings, corpus=MANIFEST, world=WORLD, key=KEY, baseline=baseline
     )
 
-    assert _json(recordings / f"report-{TAG}.json") == _json(R7 / f"report-{TAG}.json")
+    assert _json(recordings / f"report-{TAG}.json") == _stamped(R7 / f"report-{TAG}.json")
     assert (recordings / f"run-{TAG}.json").read_bytes() == (R7 / f"run-{TAG}.json").read_bytes()
-    assert _json(baseline) == _json(ROOT / "baselines" / f"{TAG}.json")
+    assert _json(baseline) == _stamped(ROOT / "baselines" / f"{TAG}.json")
     assert got.baseline == baseline
     assert got.column == README_COLUMN
 
