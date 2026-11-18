@@ -13,6 +13,7 @@ import json
 import re
 import time
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -54,9 +55,16 @@ class Corpus:
     )
 
     @classmethod
-    def load(cls, root: Path, equipment: str | None = None, cache: Path | None = None) -> Corpus:
+    def load(
+        cls,
+        root: Path,
+        equipment: str | None = None,
+        cache: Path | None = None,
+        cache_reads: Sequence[Path] = (),
+    ) -> Corpus:
         """Read ``root/manifest.json``. ``equipment`` may be omitted when the corpus holds
-        exactly one Equipment. ``cache``: the ingest cache directory (none: nothing kept)."""
+        exactly one Equipment. ``cache``: the ingest cache directory (none: nothing kept);
+        ``cache_reads``: further caches it reads and never writes."""
         manifest: dict[str, Any] = json.loads((root / "manifest.json").read_text("utf-8"))
         tags = [str(t) for t in manifest["equipment"]]
         if equipment is None:
@@ -79,7 +87,12 @@ class Corpus:
             for d in entries
             if d["equipment"] == equipment
         )
-        return cls(root=root, equipment=equipment, documents=docs, cache=IngestCache(cache))
+        return cls(
+            root=root,
+            equipment=equipment,
+            documents=docs,
+            cache=IngestCache(cache, reads=cache_reads),
+        )
 
     def current(self, doc_type: str) -> list[CorpusDocument]:
         """The highest revision of every document of a type."""

@@ -17,6 +17,13 @@ call, so a run that cannot read one fails before it spends. A live run sends
 only calls that are not yet recorded, and refuses before sending when their estimate would
 pass ``max_usd``.
 
+A run may take a released Review Package beside the corpus (spec #196). The Equipment
+Pre-review then runs unchanged and replay-only, also in a live run: every call comes from
+``recordings``, which is read and never written, and a call missing there fails the run
+before anything is sent. The package's own recordings and ingest cache go to
+``package_recordings``. ``run.json`` names the package, its version, its corpus release and
+the Equipment recordings replayed. Without a package a run is as above.
+
 ``vendor_reuse`` (default true) decides whether a ``covered_by_vendor`` requirement also
 gets a drafted Test Step. Eval runs keep it true: scorer criterion 1 counts a step for a
 ``covered_by_vendor`` requirement as a failure (spec #29, "Vendor reuse framing").
@@ -35,7 +42,7 @@ from typing import Any
 
 from traceq.ai import LLM, Budget, PriceTable, Recorder
 from traceq.ai.port import Request, Response, sha256
-from traceq.documents import Corpus
+from traceq.documents import Corpus, ReviewPackage
 from traceq.protocols import PROMPTS as DRAFT_PROMPTS
 from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
@@ -99,22 +106,46 @@ def run(
     now: dt.datetime | None = None,
     vendor_reuse: bool = True,
     clock: Clock = time.perf_counter,
+    review_package: Path | None = None,
+    package_recordings: Path | None = None,
 ) -> RunOutput:
     """``now``: the start time the run id and ``created`` carry. ``clock``: what the run's
-    duration is measured with."""
+    duration is measured with. ``review_package``: a released Review Package directory for
+    this corpus and Equipment; its recordings and ingest cache go to ``package_recordings``,
+    while ``recordings`` is only read and the Equipment stages only replay."""
     start = clock()
     prices = prices or PriceTable.load()
     now = now or dt.datetime.now(dt.UTC)
     run_id = f"{now:%Y%m%dT%H%M%SZ}-{secrets.token_hex(3)}"
-    corpus = Corpus.load(corpus_dir, equipment, cache=recordings / INGEST_DIR)
+    package: ReviewPackage | None = None
+    store, reads = recordings, tuple[Path, ...]()
+    if review_package is not None:
+        if package_recordings is None or package_recordings.resolve() == recordings.resolve():
+            raise ValueError(
+                "a Review Package run needs package recordings apart from the Equipment"
+                f" recordings {recordings}, which it only reads"
+            )
+        package = ReviewPackage.load(review_package)
+        store, reads = package_recordings, (recordings,)
+    corpus = Corpus.load(
+        corpus_dir,
+        equipment,
+        cache=store / INGEST_DIR,
+        cache_reads=tuple(r / INGEST_DIR for r in reads),
+    )
+    if package is not None:
+        package.check_fits(corpus_dir, corpus.equipment)
     scans = [(d, corpus.read(d)) for d in corpus.documents if d.format == "scan"]
     budget = Budget(max_usd, prices) if live is not None else None
     timed = _Timed(live, clock) if live is not None else None
-    llm = Recorder(recordings, model, PIPELINE_VERSION, live=timed, budget=budget)
+    llm = Recorder(store, model, PIPELINE_VERSION, live=timed, budget=budget, reads=reads)
+    # In a Review Package run the Equipment Pre-review replays the Equipment run unchanged:
+    # a call it lacks fails the run instead of being sent (spec #196).
+    equipment_llm = llm.replay_only() if package is not None else llm
 
-    traced = trace(corpus, llm)
-    reviewed = review(corpus, llm, traced)
-    drafted = draft(corpus, llm, traced, vendor_reuse=vendor_reuse)
+    traced = trace(corpus, equipment_llm)
+    reviewed = review(corpus, equipment_llm, traced)
+    drafted = draft(corpus, equipment_llm, traced, vendor_reuse=vendor_reuse)
 
     prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS, *DRAFT_PROMPTS)}
     system = SystemInfo(
@@ -189,6 +220,13 @@ def run(
             for d in dict.fromkeys((*traced.vendor.not_read, *reviewed.not_read))
         ],
     }
+    if package is not None:
+        metadata["review_package"] = {
+            "package": package.package,
+            "version": package.version,
+            "corpus": {"release": package.corpus_release, "version": package.corpus_version},
+            "equipment_recordings": recordings.resolve().name,
+        }
 
     folder = out_dir / run_id
     folder.mkdir(parents=True)

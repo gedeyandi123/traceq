@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -101,17 +102,22 @@ def from_json(d: dict[str, Any]) -> Ingested:
 
 
 class IngestCache:
-    """``root`` ``None`` keeps nothing on disk."""
+    """Writes to ``root`` and also reads the caches in ``reads``, which it never writes (a
+    Review Package run keeps the Equipment run's cache as it is). ``root`` ``None`` keeps
+    nothing on disk."""
 
-    def __init__(self, root: Path | None) -> None:
+    def __init__(self, root: Path | None, reads: Sequence[Path] = ()) -> None:
         self.root = root
+        self.reads = tuple(reads)
 
     def path(self, doc_sha256: str, version: str) -> Path | None:
         return None if self.root is None else self.root / f"{doc_sha256}-{version}.json"
 
     def get(self, doc_sha256: str, version: str) -> Ingested | None:
-        path = self.path(doc_sha256, version)
-        if path is None or not path.exists():
+        name = f"{doc_sha256}-{version}.json"
+        roots = (*([] if self.root is None else [self.root]), *self.reads)
+        path = next((r / name for r in roots if (r / name).exists()), None)
+        if path is None:
             return None
         return from_json(json.loads(path.read_text(encoding="utf-8")))
 
