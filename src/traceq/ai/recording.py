@@ -10,8 +10,10 @@ budget has authorised them.
 
 A recorder writes to one store, ``store``, and also reads the stores in ``reads``, which it
 never writes: a Review Package run writes the package's recordings and replays the Equipment
-run's (spec #196). ``replay_only()`` answers from the same stores into the same call log but
-never sends: a miss fails before anything is sent, also when the recorder has a live adapter.
+run's (spec #196). ``replay_only()`` answers only from the stores in ``reads``, never from
+``store``, into the same call log and never sends: the Equipment stages of a Review Package run
+replay from the Equipment run's recordings alone, and a miss fails before anything is sent,
+also when the recorder has a live adapter.
 """
 
 from __future__ import annotations
@@ -80,9 +82,9 @@ class Recorder:
     def _path(self, r: Request) -> Path:
         return self.store / f"{self.key(r)}.json"
 
-    def _recorded(self, r: Request) -> Response | None:
+    def _recorded(self, r: Request, stores: Sequence[Path]) -> Response | None:
         name = f"{self.key(r)}.json"
-        for store in (self.store, *self.reads):
+        for store in stores:
             path = store / name
             if path.exists():
                 data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
@@ -90,23 +92,26 @@ class Recorder:
         return None
 
     def replay_only(self) -> LLM:
-        """This recorder without its live adapter: the same stores and the same call log."""
+        """This recorder without its live adapter and its written store: it answers from the
+        stores it reads only, into the same call log."""
         return _ReplayOnly(self)
 
     def complete(self, requests: Sequence[Request], *, send: bool = True) -> list[Response]:
-        """``send`` false: a call not recorded fails, even with a live adapter."""
+        """``send`` false: only the stores in ``reads`` answer, and a call not recorded there
+        fails, even with a live adapter."""
+        stores = (self.store, *self.reads) if send else self.reads
         found: dict[int, Response] = {}
         for i, r in enumerate(requests):
-            response = self._recorded(r)
+            response = self._recorded(r, stores)
             if response is not None:
                 found[i] = response
         misses = [i for i in range(len(requests)) if i not in found]
         if misses and (not send or self.live is None or self.budget is None):
-            stores = ", ".join(str(s) for s in (self.store, *self.reads))
+            where = ", ".join(str(s) for s in stores) or "no store"
             hint = "run live to record them" if send else "replay only: they are never sent"
             raise MissingRecording(
                 f"{len(misses)} of {len(requests)} '{requests[misses[0]].prompt.name}' calls"
-                f" are not recorded in {stores} for {self._model}; {hint}"
+                f" are not recorded in {where} for {self._model}; {hint}"
             )
         sent: dict[int, Response] = {}
         if misses and send and self.live is not None and self.budget is not None:

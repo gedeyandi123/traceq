@@ -316,12 +316,16 @@ class DraftTraced(_Model):
 
 
 class DraftTestStep(_Model):
-    """A Test Step of the draft, in draft order, as read and compared."""
+    """A Test Step of the draft, in draft order, as read and compared, or not read: the draft
+    prints it, but the citation check dropped its reading (``not_read``)."""
 
     id: str
     requirements: tuple[str, ...]
     """The requirement ids the step's own header prints."""
-    acceptance: DraftAcceptance
+    acceptance: DraftAcceptance | None
+    """``None``: not read."""
+    not_read: str | None = None
+    """Why the step's reading was dropped; then nothing else about it is read or compared."""
     traced: tuple[DraftTraced, ...]
     compared: bool
     not_compared: str | None
@@ -352,6 +356,14 @@ class DraftCheckFinding(_Model):
     citations: tuple[Cite, ...]
 
 
+class VendorDocument(_Model):
+    """A vendor document of the Equipment the comparators of a requirement may come from."""
+
+    doc: str
+    rev: int
+    kind: Literal["datasheet", "FAT", "SAT"]
+
+
 class ProtocolDraft(_Model):
     """The Protocol Draft of a Review Package run: its Test Steps in draft order, its
     traceability rows and its findings."""
@@ -361,3 +373,6 @@ class ProtocolDraft(_Model):
     test_steps: tuple[DraftTestStep, ...]
     trace_rows: tuple[DraftTraceRow, ...]
     findings: tuple[DraftCheckFinding, ...]
+    vendor_documents: tuple[VendorDocument, ...] = ()
+    """The run's current datasheets, FAT and SAT protocols, in that order: beside each Test
+    Step, each of them shows its facts for the step's requirement or "none"."""

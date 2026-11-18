@@ -9,12 +9,25 @@ the AC deviates from it or why it was not compared, and the comparators availabl
 facts of the requirement's matrix row by document; empty: none). Then whether the row was
 compared at all (why not), the traceability rows read, each with its citation, and the draft's
 Check Findings (layer Rule) with the values they compared. What the citation check dropped
-is in ``run.json``.
+is in ``run.json``; a Test Step the draft prints whose reading it dropped is also a row here,
+in draft order, marked not read with the reason. ``vendor_documents`` names the vendor
+documents (datasheets, FAT, SAT) a comparator may come from, so the page can say "none" for
+each document without a fact.
 """
 
 from __future__ import annotations
 
-from traceq.review.draft import Comparator, DraftReading, DraftRow, Read
+from typing import Literal
+
+from traceq.documents import Corpus
+from traceq.review.draft import (
+    Comparator,
+    DraftReading,
+    DraftRow,
+    Read,
+    StepNotRead,
+    in_draft_order,
+)
 from traceq.review.draft_rules import DraftFinding
 from traceq.runs.schemas import (
     AmbiguousValue,
@@ -28,12 +41,18 @@ from traceq.runs.schemas import (
     DraftTraceRow,
     PrintedRead,
     ProtocolDraft,
+    VendorDocument,
     VendorFactCite,
 )
 from traceq.runs.submission import DraftStep, Finding, cite
 from traceq.traceability import Ambiguous, Citation
 
 DRAFT_FILE = "protocol_draft.json"
+_VENDOR: tuple[tuple[str, Literal["datasheet", "FAT", "SAT"]], ...] = (
+    ("datasheet", "datasheet"),
+    ("fat", "FAT"),
+    ("sat", "SAT"),
+)
 
 
 def _cite(c: Citation) -> Cite:
@@ -72,15 +91,42 @@ def _finding(f: DraftFinding) -> DraftCheckFinding:
     )
 
 
+def _not_read(s: StepNotRead) -> DraftTestStep:
+    return DraftTestStep(
+        id=s.id,
+        requirements=(),
+        acceptance=None,
+        not_read=s.reason,
+        traced=(),
+        compared=False,
+        not_compared=None,
+    )
+
+
+def vendor_documents(corpus: Corpus) -> tuple[VendorDocument, ...]:
+    """The current datasheets, FAT and SAT protocols of the run's corpus, in that order."""
+    return tuple(
+        VendorDocument(doc=d.doc_id, rev=d.rev, kind=kind)
+        for doc_type, kind in _VENDOR
+        for d in corpus.current(doc_type)
+    )
+
+
 def protocol_draft(
-    package: str, reading: DraftReading, rows: list[DraftRow], findings: list[DraftFinding]
+    package: str,
+    reading: DraftReading,
+    rows: list[DraftRow],
+    findings: list[DraftFinding],
+    vendor_documents: tuple[VendorDocument, ...] = (),
 ) -> ProtocolDraft:
     doc = reading.doc
     return ProtocolDraft(
         package=package,
         document=DraftDocument(doc_id=doc.doc_id, rev=doc.rev, sha256=doc.sha256),
         test_steps=tuple(
-            DraftTestStep(
+            _not_read(r)
+            if isinstance(r, StepNotRead)
+            else DraftTestStep(
                 id=r.step.id,
                 requirements=r.step.requirements,
                 acceptance=DraftAcceptance(
@@ -104,13 +150,14 @@ def protocol_draft(
                 compared=r.not_compared is None,
                 not_compared=r.not_compared,
             )
-            for r in rows
+            for r in in_draft_order(reading, rows)
         ),
         trace_rows=tuple(
             DraftTraceRow(requirement=t.requirement, test_steps=t.steps, citation=_cite(t.citation))
             for t in reading.rows
         ),
         findings=tuple(_finding(f) for f in findings),
+        vendor_documents=vendor_documents,
     )
 
 

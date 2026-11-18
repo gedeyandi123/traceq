@@ -9,10 +9,11 @@ id the page does not print is not kept either. What is dropped is listed for the
 metadata, as in records reading.
 
 Limits are parsed by code from the printed text (``traceq.review.printed``), never taken from
-the model: the AC from the AC as printed, the URS limit from the verified quote of the
-requirement's URS citation (not from the Equipment run's extracted value, whose units the
-model may normalise and whose range has no strict-bound flag). A URS quote that does not
-parse leaves the row "not compared".
+the model: the AC from its verified quote, at the expression the model's copy points to (a
+copy that leaves out "maks." still reads the upper limit the page prints), the URS limit from
+the verified quote of the requirement's URS citation (not from the Equipment run's extracted
+value, whose units the model may normalise and whose range has no strict-bound flag). A URS
+quote that does not parse leaves the row "not compared".
 
 The draft never enters the Equipment stages: it is read here, after them, from a corpus of
 its own.
@@ -20,6 +21,7 @@ its own.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
@@ -29,7 +31,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from traceq.ai import LLM, Prompt, Request
 from traceq.documents import CorpusDocument, Page, normalise
 from traceq.review.compare import compare
-from traceq.review.printed import PrintedValue, read_printed
+from traceq.review.printed import PrintedValue, read_printed, read_quoted
 from traceq.traceability import (
     Ambiguous,
     Citation,
@@ -130,8 +132,9 @@ class StepReading:
     requirements: tuple[str, ...]
     """The requirement ids the step itself prints."""
     printed: str
-    """The AC as printed."""
+    """The AC as the model copied it from the page (shown only)."""
     value: Read
+    """Read by code from the citation's quote, never from ``printed``."""
     citation: Citation
     """Verified: the quote is on the page and holds the AC as printed."""
 
@@ -150,6 +153,18 @@ class DraftReading:
     steps: list[StepReading] = field(default_factory=list[StepReading])
     rows: list[TraceRow] = field(default_factory=list[TraceRow])
     dropped: list[Dropped] = field(default_factory=list[Dropped])
+    not_read: list[StepNotRead] = field(default_factory=list["StepNotRead"])
+    """Test Steps the draft prints whose reading the citation check dropped."""
+
+
+@dataclass(frozen=True)
+class StepNotRead:
+    """A Test Step the draft prints on ``page``, outside its traceability table, whose reading
+    the citation check dropped (``reason``) and that no other page read."""
+
+    id: str
+    page: int
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -217,15 +232,23 @@ class _Reader:
         self.doc, self.pages, self.out = doc, pages, out
         self.texts = [p.text for p in pages]
 
-    def cite(self, n: int, quote: str, claim: Claim, what: str, *printed: str) -> Citation | None:
+        self.unread: list[StepNotRead] = []
+        """Step readings the citation check dropped, kept or not once every page is read."""
+
+    def check(self, n: int, quote: str, *printed: str) -> Citation | str:
+        """The citation, or why the check drops it."""
         c = Citation(self.doc.doc_id, self.doc.rev, n, quote)
         if not (verified(c, self.texts) and _holds(quote, *printed)):
-            reason = "quote check"
-        elif uncertain(c, self.pages):
-            reason = UNCERTAIN
-        else:
+            return "quote check"
+        if uncertain(c, self.pages):
+            return UNCERTAIN
+        return c
+
+    def cite(self, n: int, quote: str, claim: Claim, what: str, *printed: str) -> Citation | None:
+        c = self.check(n, quote, *printed)
+        if isinstance(c, Citation):
             return c
-        self.drop(claim, f"p{n} {what}", reason)
+        self.drop(claim, f"p{n} {what}", c)
         return None
 
     def drop(self, claim: Claim, what: str, reason: str) -> None:
@@ -237,8 +260,10 @@ class _Reader:
         for s in a.test_steps:
             if s.id in seen:
                 continue
-            c = self.cite(n, s.quote, "draft_step", s.id, s.acceptance)
-            if c is None:
+            c = self.check(n, s.quote, s.acceptance)
+            if not isinstance(c, Citation):
+                self.drop("draft_step", f"p{n} {s.id}", c)
+                self.unread.append(StepNotRead(s.id, n, c))
                 continue
             if not s.id.strip() or normalise(s.id) not in text:
                 self.drop("draft_step", f"p{n} {s.id}", "id not on the page")
@@ -249,7 +274,7 @@ class _Reader:
                     s.id,
                     tuple(r for r in s.requirements if r.strip() and normalise(r) in text),
                     s.acceptance,
-                    read_printed(s.acceptance, self.doc.language),
+                    read_quoted(s.quote, s.acceptance, self.doc.language),
                     c,
                 )
             )
@@ -274,7 +299,48 @@ def read_draft(doc: CorpusDocument, pages: Sequence[Page], llm: LLM) -> DraftRea
             reader.page(n, _Page.model_validate_json(answer.text))
         except ValidationError:
             reader.drop("draft_step", f"p{n}", "bad answer")
+    texts = outside_table(out)
+    for s in reader.unread:
+        listed = {x.id for x in out.steps} | {x.id for x in out.not_read}
+        if s.id.strip() and s.id not in listed and printed_at(s.id, texts[s.page - 1]) >= 0:
+            out.not_read.append(s)
     return out
+
+
+def outside_table(reading: DraftReading) -> list[str]:
+    """The draft's pages, normalised, with every traceability row read taken out of its page:
+    the table prints every planned Test Step id, so only the rest shows a Test Step."""
+    texts = [normalise(p.text) for p in reading.pages]
+    for r in reading.rows:
+        n = r.citation.page - 1
+        texts[n] = texts[n].replace(normalise(r.citation.quote), " ")
+    return texts
+
+
+def printed_at(step: str, text: str) -> int:
+    """Where normalised ``text`` first prints the Test Step id ``step``; -1: nowhere. An id
+    inside a longer one (``OQ-2`` in ``OQ-22``) is not that id."""
+    m = re.search(rf"(?<![\w-]){re.escape(normalise(step))}(?![\w]|-\w)", text)
+    return -1 if m is None else m.start()
+
+
+def in_draft_order(reading: DraftReading, rows: list[DraftRow]) -> list[DraftRow | StepNotRead]:
+    """The rows read, in their order, with each Test Step not read placed before the first row
+    the draft prints after it (by page, then where the page first prints its id)."""
+    texts = outside_table(reading)
+
+    def at(step: str, page: int) -> tuple[int, int]:
+        i = printed_at(step, texts[page - 1])
+        return page, len(texts[page - 1]) if i < 0 else i
+
+    pending = sorted(reading.not_read, key=lambda s: at(s.id, s.page))
+    out: list[DraftRow | StepNotRead] = []
+    for r in rows:
+        here = at(r.step.id, r.step.citation.page)
+        while pending and at(pending[0].id, pending[0].page) < here:
+            out.append(pending.pop(0))
+        out.append(r)
+    return [*out, *pending]
 
 
 def _reason(value: Read) -> str | None:

@@ -289,6 +289,8 @@
     "notParsed": "bentuk yang tidak dibaca kode",
     "ursNotRead": "Nilai URS tidak terbaca: {reason}",
     "noComparators": "tidak ada",
+    "notRead": "Tidak terbaca: bacaannya dibuang oleh pemeriksaan kutipan ({reason})",
+    "notReadSteps": "Langkah uji tidak terbaca",
     "notComparedBecause": "Tidak dibandingkan: {reason}",
     "deviates": "Menyimpang dari URS",
     "within": "Sesuai URS",
@@ -296,6 +298,7 @@
     "noDocumentFinding": "Tidak ada temuan tentang seluruh dokumen",
     "noSteps": "Draf ini tidak memiliki langkah uji yang terbaca",
     "comparatorKinds": { "FAT": "FAT", "SAT": "SAT", "design": "Desain" },
+    "vendorKinds": { "datasheet": "Datasheet", "FAT": "FAT", "SAT": "SAT" },
     "types": {
       "ac_deviates_from_urs": "Kriteria penerimaan lebih longgar dari URS",
       "requirement_not_tested": "Persyaratan tanpa langkah uji"

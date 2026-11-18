@@ -355,6 +355,39 @@ def test_the_route_returns_rows_findings_and_decisions_to_both_roles(
     assert got["findings"][2]["proposal"]["decisions"] == [made]
 
 
+def _with_unread_step_and_vendor_documents(draft: dict[str, Any]) -> None:
+    unread = {
+        "id": "OQ-02",
+        "requirements": [],
+        "acceptance": None,
+        "not_read": "quote check",
+        "traced": [],
+        "compared": False,
+        "not_compared": None,
+    }
+    draft["test_steps"].insert(0, unread)
+    draft["vendor_documents"] = [
+        {"doc": "DS-TP201", "rev": 0, "kind": "datasheet"},
+        {"doc": "SAT-TP201", "rev": 0, "kind": "SAT"},
+    ]
+
+
+def test_the_route_lists_a_step_not_read_and_the_vendor_documents(
+    client: TestClient, runs: Path, reader: dict[str, str]
+) -> None:
+    """Story 7: a Test Step whose reading was dropped is listed in draft order, not read,
+    with the reason. Story 6: the vendor documents each Test Step shows a fact or "none" for."""
+    add_package_run(runs, edit=_with_unread_step_and_vendor_documents)
+    got = view(client, reader)
+    assert [s["id"] for s in got["test_steps"]] == ["OQ-02", "OQ-03"]
+    unread = got["test_steps"][0]
+    assert (unread["not_read"], unread["acceptance"]) == ("quote check", None)
+    assert [(d["doc"], d["kind"]) for d in got["vendor_documents"]] == [
+        ("DS-TP201", "datasheet"),
+        ("SAT-TP201", "SAT"),
+    ]
+
+
 def test_the_route_needs_a_token_and_a_review_package_run(
     client: TestClient, runs: Path, decider: dict[str, str]
 ) -> None:

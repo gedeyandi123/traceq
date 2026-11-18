@@ -139,7 +139,7 @@ Ctrl-C pada `demo.py`, eval screen dan `npm start`. Postgres tetap jalan; matika
 
 ## 10. Draf protokol OQ (irisan 3, spec #196)
 
-Layar "Draf protokol" menampilkan draf protokol OQ milik site dari Review Package `TP-201-OQ-draft` 0.1.0: setiap langkah uji dalam urutan draf dengan kriteria penerimaan (KP) seperti terbaca, nilai URS yang dibandingkan, pembanding (langkah FAT/SAT dan data desain dari matriks, hanya ditampilkan), dan temuannya atau "Tidak dibandingkan" dengan alasannya; lalu temuan tentang seluruh dokumen. Langkah uji OQ yang dirancang TraceQ sendiri tidak tampil di sini. Draf dimuat bersama paket saat demo dinyalakan; tidak ada unggahan.
+Layar "Draf protokol" menampilkan draf protokol OQ milik site dari Review Package `TP-201-OQ-draft` 0.1.0: setiap langkah uji dalam urutan draf dengan kriteria penerimaan (KP) seperti terbaca, nilai URS yang dibandingkan, pembanding per dokumen vendor (datasheet, FAT, SAT: langkah FAT/SAT dan data desain dari matriks, atau "tidak ada"; hanya ditampilkan), dan temuannya atau "Tidak dibandingkan" dengan alasannya; lalu temuan tentang seluruh dokumen. Langkah uji yang tercetak di draf tetapi bacaannya dibuang oleh pemeriksaan kutipan tetap tampil di tempatnya dengan "Tidak terbaca: …" dan alasannya (rekaman fixture tidak memiliki langkah seperti itu, jadi layar demo tidak menampilkannya; diuji di vitest). Langkah uji OQ yang dirancang TraceQ sendiri tidak tampil di sini. Draf dimuat bersama paket saat demo dinyalakan; tidak ada unggahan.
 
 **Menyalakan dengan paket.** Ganti perintah demo di bagian 3 langkah 1 dengan:
 
@@ -165,3 +165,4 @@ Run-nya menjadi run Review Package: Pre-review peralatan diputar ulang dari r10 
 | K24 | Tolak temuan dokumen dengan alasan | "Temuan tentang seluruh dokumen" → URS-TP201-002 → "Tolak…" → isi alasan → "Tolak" (tanpa alasan: ditahan browser) | "Ditolak oleh …" dengan alasan; "2/5"; Ditolak 1 | Belum |
 | K25 | Pembaca | Keluar → masuk sebagai Citra → tab "Draf protokol" | Keputusan Ayu terlihat; tidak ada tombol Terima/Tolak atau lipatan "Tolak…"/"Putuskan ulang"; "Hanya membaca: …" | Belum |
 | K26 | Lebar layar | Ulangi K21 pada 1920 px dan pada jendela sempit (di bawah 1199 px dan sekitar 768 px) | Ringkasan dan "Jumlah keputusan" bertumpuk di bawah 1199 px; tabel bergulir ke samping di dalam bingkainya, halaman tidak | Belum |
+| K27 | Pembanding per dokumen vendor | Pada K21, lihat kolom "Pembanding" baris OQ-03 | OQ-03: "Datasheet DS-TP201: tidak ada", "FAT FAT-TP201-C: tidak ada", "FAT FAT-TP201-M: tidak ada", lalu "SAT SAT-TP201:" dengan SAT-01 dan link ke PDF SAT; setiap baris yang terbaca menyebut keempat dokumen itu, masing-masing dengan faktanya atau "tidak ada" | Belum |

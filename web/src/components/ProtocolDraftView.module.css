@@ -39,6 +39,7 @@
 }
 .traced,
 .comparators,
+.facts,
 .citations {
   margin: 0;
   padding: 0;
@@ -46,6 +47,7 @@
 }
 .traced li + li,
 .comparators li + li,
+.facts li + li,
 .citations li + li {
   margin-top: var(--space-2);
 }
@@ -69,4 +71,7 @@
 }
 .findingType {
   display: block;
+}
+.vendorDoc {
+  color: var(--color-text-2);
 }
