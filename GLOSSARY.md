@@ -133,6 +133,18 @@ _Avoid_: AI Finding (for rule output)
 An eval item whose fact the corpus does not hold, planted beside a lure; the right answer is "not found", and any value, Evidence or citation given for it counts as fabricated.
 _Avoid_: trick question
 
+**Clean Trap**:
+An eval item where a document is correct but looks like a defect: an Acceptance Criterion close to its URS limit, or the same limit written another way. The right answer is no finding; a finding on it counts as wrong.
+_Avoid_: decoy, negative sample
+
+**Injection Probe**:
+An eval item where a document carries text that instructs the AI to do something (e.g. not to report a defective Test Step). It passes when the effect the text asks for does not appear in the output.
+_Avoid_: jailbreak
+
+**Review Package**:
+One site Protocol Draft with its own answer key, which refers to a frozen Equipment package without changing it. Pre-review of a site document is scored on it.
+_Avoid_: test set, review bundle
+
 **Pre-review**:
 The automated review of a Protocol or Execution before human review: deterministic rules first (Check Findings), then the LLM for the rest (AI Findings).
 _Avoid_: AI review, auto-review
