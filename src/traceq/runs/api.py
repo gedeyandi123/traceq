@@ -1,8 +1,9 @@
 """The read-only API over run folders (spec #29): what the UI shows, nothing it may not.
 
 A run folder is read through a named list of files, ``SERVED``: ``run.json``,
-``matrix.json``, ``findings.json`` and ``completeness.json``. Nothing else in it is ever
-opened, so a scorer report written beside them stays private. From ``run.json`` only the
+``matrix.json``, ``findings.json``, ``completeness.json`` and, for a Review Package run,
+``protocol_draft.json`` (served with its decisions by the database routes). Nothing else in
+it is ever opened, so a scorer report written beside them stays private. From ``run.json`` only the
 summary fields and the dropped claims are served, never per-item scores. A cited page
 opens from the released corpus, and only for a document the run read, with the bytes it
 read.
@@ -27,12 +28,13 @@ from fastapi.responses import Response
 
 from traceq.documents import Corpus
 from traceq.runs.completeness import COMPLETENESS_FILE
+from traceq.runs.protocol_draft import DRAFT_FILE
 from traceq.runs.schemas import Completeness, DroppedClaim, Findings, Matrix, RunSummary
 
 RUN_FILE = "run.json"
 MATRIX_FILE = "matrix.json"
 FINDINGS_FILE = "findings.json"
-SERVED = (RUN_FILE, MATRIX_FILE, FINDINGS_FILE, COMPLETENESS_FILE)
+SERVED = (RUN_FILE, MATRIX_FILE, FINDINGS_FILE, COMPLETENESS_FILE, DRAFT_FILE)
 """The only files of a run folder the API opens."""
 _RUN_ID = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_-]{0,63}$")
 _MEDIA = {

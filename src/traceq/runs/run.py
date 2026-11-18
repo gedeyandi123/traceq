@@ -62,13 +62,17 @@ from traceq.runs.completeness import COMPLETENESS_FILE, completeness
 from traceq.runs.drafts import drafts
 from traceq.runs.findings import findings
 from traceq.runs.matrix import matrix
-from traceq.runs.protocol_draft import draft_findings_out, draft_steps, protocol_draft
+from traceq.runs.protocol_draft import (
+    DRAFT_FILE,
+    draft_findings_out,
+    draft_steps,
+    protocol_draft,
+)
 from traceq.runs.submission import Submission, SystemInfo, build
 from traceq.traceability import PIPELINE_VERSION, PROMPTS, Traceability, trace
 
 SYSTEM_NAME = "traceq"
 INGEST_DIR = "ingest"
-DRAFT_FILE = "protocol_draft.json"
 
 Clock = Callable[[], float]
 """Seconds on a monotonic clock."""
@@ -339,7 +343,9 @@ def run(
     if package is not None and on_draft is not None:
         _write_json(
             folder / DRAFT_FILE,
-            protocol_draft(package.package, on_draft.reading, on_draft.rows, on_draft.findings),
+            protocol_draft(
+                package.package, on_draft.reading, on_draft.rows, on_draft.findings
+            ).model_dump(mode="json"),
         )
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)

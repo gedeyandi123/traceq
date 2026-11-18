@@ -133,7 +133,8 @@
     "kinds": {
       "coverage": "Baris cakupan",
       "check": "Temuan pemeriksaan",
-      "ai": "Temuan AI"
+      "ai": "Temuan AI",
+      "draft": "Temuan draf protokol"
     },
     "counts": {
       "title": "Jumlah keputusan",

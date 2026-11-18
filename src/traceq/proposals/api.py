@@ -1,5 +1,6 @@
 """The database routes over runs: importing a run as Proposals, reading where they stand,
-recording Proposal Decisions and counting them (spec #105).
+recording Proposal Decisions and counting them (spec #105), and the Protocol Draft of a Review
+Package run with the decisions on its findings (spec #196).
 
 Every route needs a valid bearer token; importing and deciding need the deciding role, so the
 Audit Trail names who did it. Without a database (default settings) the routes answer 401.
@@ -26,7 +27,16 @@ from traceq.proposals.decisions import State, Verdict
 from traceq.proposals.keys import Kind
 from traceq.proposals.store import RunFiles, import_run
 from traceq.runs.api import FINDINGS_FILE, MATRIX_FILE, RUN_FILE, find_run, read_served
-from traceq.runs.schemas import Findings, Matrix
+from traceq.runs.protocol_draft import DRAFT_FILE
+from traceq.runs.schemas import (
+    DraftCheckFinding,
+    DraftDocument,
+    DraftTestStep,
+    DraftTraceRow,
+    Findings,
+    Matrix,
+    ProtocolDraft,
+)
 from traceq.traceability.coverage import CoverageClass
 
 
@@ -85,11 +95,13 @@ class Proposal(_Model):
     id: int
     """Its identity across runs: the same subject gets the same id in every run."""
     kind: Kind
-    """A Coverage row, or the layer of a finding (Check Finding, AI Finding)."""
+    """A Coverage row, or the layer of a finding (Check Finding, AI Finding); ``draft``: a
+    Check Finding on the Protocol Draft of a Review Package run."""
     requirement: str | None
     """For a Coverage row: the requirement id in ``matrix.json``."""
     position: int | None
-    """For a finding: its position in its layer's list in ``findings.json``, from 0."""
+    """For a finding: its position in its layer's list in ``findings.json``, from 0; for a
+    draft finding, in the findings of the Protocol Draft."""
     content_hash: str
     """What this run proposed about it, hashed as the content a decision rests on."""
     state: State
@@ -132,6 +144,31 @@ class DecisionCounts(_Model):
     coverage: KindCounts
     check: KindCounts
     ai: KindCounts
+    draft: KindCounts
+    """Findings on the Protocol Draft of a Review Package run; all zero for another run."""
+
+
+class DraftFindingView(_Model):
+    """A finding on the Protocol Draft and the Proposal it was imported as."""
+
+    finding: DraftCheckFinding
+    proposal: Proposal | None
+    """``null`` until the run is imported. Accepted means "real, will be fixed": it creates
+    no task or revision."""
+
+
+class ProtocolDraftView(_Model):
+    """The Protocol Draft of a Review Package run: its Test Steps in draft order, its
+    traceability rows and its findings, each with its decision state."""
+
+    run_id: str
+    imported: bool
+    """Whether the run is imported: only then do its findings carry a Proposal."""
+    package: str
+    document: DraftDocument
+    test_steps: tuple[DraftTestStep, ...]
+    trace_rows: tuple[DraftTraceRow, ...]
+    findings: list[DraftFindingView]
 
 
 def _decision(d: decisions.Decision) -> Decision:
@@ -146,6 +183,20 @@ def _decision(d: decisions.Decision) -> Decision:
         issuer=d.actor.issuer,
         name=d.actor.name,
         at=d.at,
+    )
+
+
+def _proposal(s: decisions.Standing) -> Proposal:
+    return Proposal(
+        id=s.proposal_id,
+        kind=s.kind,
+        requirement=s.requirement,
+        position=s.position,
+        content_hash=s.content_hash,
+        state=s.state,
+        decisions=[_decision(d) for d in s.decisions],
+        previous=None if s.previous is None else _decision(s.previous),
+        previous_class=s.previous_class,
     )
 
 
@@ -174,10 +225,12 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(404, f"no run {run_id}")
         try:
             meta: dict[str, Any] = read_served(folder / RUN_FILE)
+            draft = folder / DRAFT_FILE
             files = RunFiles(
                 meta=meta,
                 matrix=Matrix.model_validate(read_served(folder / MATRIX_FILE)),
                 findings=Findings.model_validate(read_served(folder / FINDINGS_FILE)),
+                draft=ProtocolDraft.model_validate(read_served(draft)) if draft.is_file() else None,
             )
         except (OSError, ValueError, ValidationError) as e:
             raise HTTPException(422, f"{run_id} is not a run folder that can be imported") from e
@@ -202,20 +255,40 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             stood = decisions.standings(session, run_id)
         if stood is None:
             raise HTTPException(404, f"run {run_id} is not imported")
-        return [
-            Proposal(
-                id=s.proposal_id,
-                kind=s.kind,
-                requirement=s.requirement,
-                position=s.position,
-                content_hash=s.content_hash,
-                state=s.state,
-                decisions=[_decision(d) for d in s.decisions],
-                previous=None if s.previous is None else _decision(s.previous),
-                previous_class=s.previous_class,
-            )
-            for s in stood
-        ]
+        return [_proposal(s) for s in stood]
+
+    @router.get("/runs/{run_id}/protocol-draft", operation_id="getProtocolDraft")
+    def get_protocol_draft(
+        run_id: str, who: Annotated[Principal, Depends(principal)]
+    ) -> ProtocolDraftView:
+        """The Protocol Draft a Review Package run read: its Test Steps in draft order, its
+        traceability rows and its findings, each with its decision state once the run is
+        imported. Any role may read it; deciding goes through ``recordDecision``."""
+        folder = find_run(runs, run_id)
+        if folder is None:
+            raise HTTPException(404, f"no run {run_id}")
+        path = folder / DRAFT_FILE
+        if not path.is_file():
+            raise HTTPException(404, f"{run_id} is not a Review Package run")
+        try:
+            draft = ProtocolDraft.model_validate(read_served(path))
+        except (OSError, ValueError, ValidationError) as e:
+            raise HTTPException(422, f"{run_id}: the Protocol Draft cannot be read") from e
+        with transaction(database()) as session:
+            stood = decisions.standings(session, run_id)
+        by_position = {s.position: _proposal(s) for s in (stood or []) if s.kind == "draft"}
+        return ProtocolDraftView(
+            run_id=run_id,
+            imported=stood is not None,
+            package=draft.package,
+            document=draft.document,
+            test_steps=draft.test_steps,
+            trace_rows=draft.trace_rows,
+            findings=[
+                DraftFindingView(finding=f, proposal=by_position.get(i))
+                for i, f in enumerate(draft.findings)
+            ],
+        )
 
     @router.post(
         "/runs/{run_id}/proposals/{proposal_id}/decisions",
@@ -275,6 +348,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             coverage=kind(got["coverage"]),
             check=kind(got["check"]),
             ai=kind(got["ai"]),
+            draft=kind(got["draft"]),
         )
 
     return router

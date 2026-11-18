@@ -183,6 +183,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/protocol-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Protocol Draft
+         * @description The Protocol Draft a Review Package run read: its Test Steps in draft order, its
+         *     traceability rows and its findings, each with its decision state once the run is
+         *     imported. Any role may read it; deciding goes through ``recordDecision``.
+         */
+        get: operations["getProtocolDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/proposals/{proposal_id}/decisions": {
         parameters: {
             query?: never;
@@ -359,6 +381,7 @@ export interface components {
             coverage: components["schemas"]["KindCounts"];
             check: components["schemas"]["KindCounts"];
             ai: components["schemas"]["KindCounts"];
+            draft: components["schemas"]["KindCounts"];
         };
         /**
          * DesignRow
@@ -376,6 +399,137 @@ export interface components {
             /** Value */
             value: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
             citation: components["schemas"]["Cite"];
+        };
+        /**
+         * DraftAcceptance
+         * @description A Test Step's Acceptance Criterion as printed, the value code read from it (none: a
+         *     form the parser does not know) and the verified citation it was read from.
+         */
+        DraftAcceptance: {
+            /** Printed */
+            printed: string;
+            /** Value */
+            value: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
+            citation: components["schemas"]["Cite"];
+        };
+        /**
+         * DraftCheckFinding
+         * @description A Check Finding (layer Rule) on the draft, with the values it compared, as parsed. It
+         *     is on a Test Step (``test_step``) or, for ``requirement_not_tested``, on a traceability
+         *     row (``row``, the row's requirement id).
+         */
+        DraftCheckFinding: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "ac_deviates_from_urs" | "requirement_not_tested";
+            /**
+             * Layer
+             * @constant
+             */
+            layer: "rule";
+            /** Test Step */
+            test_step?: string | null;
+            /** Row */
+            row?: string | null;
+            /** Requirement */
+            requirement: string;
+            /** Detail */
+            detail: string;
+            /** Ac */
+            ac: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
+            /** Urs Limit */
+            urs_limit: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
+            /** Citations */
+            citations: components["schemas"]["Cite"][];
+        };
+        /**
+         * DraftComparator
+         * @description The vendor facts of one document a requirement's matrix row holds: shown only, never
+         *     a finding.
+         */
+        DraftComparator: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "FAT" | "SAT" | "design";
+            /** Facts */
+            facts: components["schemas"]["VendorFactCite"][];
+        };
+        /**
+         * DraftDocument
+         * @description The Protocol Draft under review: document, revision and the SHA-256 of its bytes.
+         */
+        DraftDocument: {
+            /** Doc Id */
+            doc_id: string;
+            /** Rev */
+            rev: number;
+            /** Sha256 */
+            sha256: string;
+        };
+        /**
+         * DraftFindingView
+         * @description A finding on the Protocol Draft and the Proposal it was imported as.
+         */
+        DraftFindingView: {
+            finding: components["schemas"]["DraftCheckFinding"];
+            proposal: components["schemas"]["Proposal"] | null;
+        };
+        /**
+         * DraftTestStep
+         * @description A Test Step of the draft, in draft order, as read and compared.
+         */
+        DraftTestStep: {
+            /** Id */
+            id: string;
+            /** Requirements */
+            requirements: string[];
+            acceptance: components["schemas"]["DraftAcceptance"];
+            /** Traced */
+            traced: components["schemas"]["DraftTraced"][];
+            /** Compared */
+            compared: boolean;
+            /** Not Compared */
+            not_compared: string | null;
+        };
+        /**
+         * DraftTraceRow
+         * @description A row of the draft's traceability table: a requirement and its Test Step ids.
+         */
+        DraftTraceRow: {
+            /** Requirement */
+            requirement: string;
+            /** Test Steps */
+            test_steps: string[];
+            citation: components["schemas"]["Cite"];
+        };
+        /**
+         * DraftTraced
+         * @description A Test Step's AC compared with one requirement the traceability table traces it to.
+         */
+        DraftTraced: {
+            /** Requirement */
+            requirement: string;
+            /** Urs Limit */
+            urs_limit: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
+            citation: components["schemas"]["Cite"] | null;
+            /** Not Parsed */
+            not_parsed: string | null;
+            /** Compared */
+            compared: boolean;
+            /** Deviates */
+            deviates: boolean;
+            /** Not Compared */
+            not_compared: string | null;
+            /** Comparators */
+            comparators: components["schemas"]["DraftComparator"][];
         };
         /**
          * DroppedClaim
@@ -468,7 +622,7 @@ export interface components {
             already_imported: boolean;
         };
         /** @enum {string} */
-        Kind: "coverage" | "check" | "ai";
+        Kind: "coverage" | "check" | "ai" | "draft";
         /**
          * KindCounts
          * @description The Proposals of one kind in a run, by decision state. ``total`` is the sum of
@@ -490,6 +644,33 @@ export interface components {
             changed: number;
             /** Decided Not Proposed */
             decided_not_proposed: number;
+        };
+        /**
+         * Limit
+         * @description A limit as printed: either bound may be strict (``< 0,8 µm``).
+         */
+        Limit: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "range";
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /** Unit */
+            unit: string;
+            /**
+             * Min Exclusive
+             * @default false
+             */
+            min_exclusive: boolean;
+            /**
+             * Max Exclusive
+             * @default false
+             */
+            max_exclusive: boolean;
         };
         /**
          * Matrix
@@ -647,6 +828,26 @@ export interface components {
             previous_class: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
         };
         /**
+         * ProtocolDraftView
+         * @description The Protocol Draft of a Review Package run: its Test Steps in draft order, its
+         *     traceability rows and its findings, each with its decision state.
+         */
+        ProtocolDraftView: {
+            /** Run Id */
+            run_id: string;
+            /** Imported */
+            imported: boolean;
+            /** Package */
+            package: string;
+            document: components["schemas"]["DraftDocument"];
+            /** Test Steps */
+            test_steps: components["schemas"]["DraftTestStep"][];
+            /** Trace Rows */
+            trace_rows: components["schemas"]["DraftTraceRow"][];
+            /** Findings */
+            findings: components["schemas"]["DraftFindingView"][];
+        };
+        /**
          * Range
          * @description A required or tested range; either bound may be open.
          */
@@ -737,6 +938,25 @@ export interface components {
             value: string;
         };
         /**
+         * Tolerance
+         * @description A nominal value with a tolerance: ``380 V ± 10 %``.
+         */
+        Tolerance: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tolerance";
+            /** Nominal */
+            nominal: number;
+            /** Tolerance */
+            tolerance: number;
+            /** Tolerance Unit */
+            tolerance_unit: string;
+            /** Unit */
+            unit: string;
+        };
+        /**
          * UnquotedText
          * @description URS text that no kept requirement quotes: adjacent lines merged.
          */
@@ -779,6 +999,17 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VendorFactCite
+         * @description A vendor step's observation or a design value, as printed, with its citation.
+         */
+        VendorFactCite: {
+            /** Name */
+            name: string;
+            /** Printed */
+            printed: string;
+            citation: components["schemas"]["Cite"];
         };
         /** @enum {string} */
         Verdict: "accepted" | "rejected" | "edited";
@@ -1049,6 +1280,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Proposal"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getProtocolDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolDraftView"];
                 };
             };
             /** @description Validation Error */

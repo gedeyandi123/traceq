@@ -10,6 +10,13 @@ rests on. Both follow the spec's table:
 - Check Finding: key = Equipment, layer, type, document, and its citations as a set.
   Content = detail text, cited site rule.
 - AI Finding: key = Equipment, layer, type, and its citations as a set. Content = detail text.
+- Draft finding (a Check Finding, layer Rule, on the Protocol Draft of a Review Package run,
+  spec #196): key = Equipment, layer, type, draft document and revision, the Test Step id (or
+  the traceability row's requirement id for ``requirement_not_tested``) and the requirement it
+  was compared with, since a Test Step the table lists under two requirements gives a finding
+  for each. Content = detail text, the rule (its type) and the values compared (AC and URS
+  limit as parsed). No quote text enters either: a re-run whose quote differs only in length
+  is the same Proposal with the same content, while a change in a compared value asks again.
 
 Wording is left out of Coverage content (the model's paraphrase, every quote), and nothing that
 only describes the run enters a key or a hash (run id, time, model, prompt hash). Two Proposals
@@ -24,9 +31,21 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from traceq.runs.schemas import AiFinding, CheckFinding, Cite, Findings, Matrix, MatrixRow
+from traceq.runs.schemas import (
+    AiFinding,
+    CheckFinding,
+    Cite,
+    DraftCheckFinding,
+    Findings,
+    Matrix,
+    MatrixRow,
+    PrintedRead,
+    ProtocolDraft,
+)
 
-type Kind = Literal["coverage", "check", "ai"]
+type Kind = Literal["coverage", "check", "ai", "draft"]
+"""``draft``: a Check Finding on the Protocol Draft under review, kept apart from the
+Equipment's Check Findings."""
 type JsonObject = dict[str, Any]
 
 
@@ -45,7 +64,8 @@ class Proposed:
     requirement: str | None
     """For a Coverage row: the requirement id."""
     position: int | None
-    """For a finding: its position in its layer's list in ``findings.json``."""
+    """For a finding: its position in its layer's list in ``findings.json``; for a draft
+    finding, in the findings of ``protocol_draft.json``."""
 
 
 def _canonical(data: Any) -> str:
@@ -121,9 +141,38 @@ def _ai(equipment: str, f: AiFinding) -> tuple[JsonObject, JsonObject]:
     return subject, {"detail": f.detail}
 
 
-def proposals_of(equipment: str, matrix: Matrix, findings: Findings) -> list[Proposed]:
-    """Every Coverage row, Check Finding and AI Finding of a run, in file order. Drafted Test
-    Steps are Proposals too but not imported in this slice."""
+def _read(v: PrintedRead | None) -> JsonObject | None:
+    return None if v is None else v.model_dump(mode="json", exclude_none=True)
+
+
+def _draft(
+    equipment: str, draft: ProtocolDraft, f: DraftCheckFinding
+) -> tuple[JsonObject, JsonObject]:
+    where = {"test_step": f.test_step} if f.test_step is not None else {"row": f.row}
+    subject = {
+        "equipment": equipment,
+        "layer": f.layer,
+        "type": f.type,
+        "doc": draft.document.doc_id,
+        "rev": draft.document.rev,
+        **where,
+        "requirement": f.requirement,
+    }
+    content = {
+        "detail": f.detail,
+        "rule": f.type,
+        "ac": _read(f.ac),
+        "urs_limit": _read(f.urs_limit),
+    }
+    return subject, content
+
+
+def proposals_of(
+    equipment: str, matrix: Matrix, findings: Findings, draft: ProtocolDraft | None = None
+) -> list[Proposed]:
+    """Every Coverage row, Check Finding and AI Finding of a run, then the findings on its
+    Protocol Draft (a Review Package run), in file order. Drafted Test Steps are Proposals too
+    but not imported in this slice."""
     seen: Counter[str] = Counter()
     out: list[Proposed] = []
 
@@ -164,4 +213,7 @@ def proposals_of(equipment: str, matrix: Matrix, findings: Findings) -> list[Pro
         add("check", *_check(equipment, c), c.model_dump(mode="json"), position=i)
     for i, a in enumerate(findings.ai_findings):
         add("ai", *_ai(equipment, a), a.model_dump(mode="json"), position=i)
+    if draft is not None:
+        for i, d in enumerate(draft.findings):
+            add("draft", *_draft(equipment, draft, d), d.model_dump(mode="json"), position=i)
     return out

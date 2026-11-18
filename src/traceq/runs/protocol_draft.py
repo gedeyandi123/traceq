@@ -14,95 +14,104 @@ is in ``run.json``.
 
 from __future__ import annotations
 
-from typing import Any
-
 from traceq.review.draft import Comparator, DraftReading, DraftRow, Read
 from traceq.review.draft_rules import DraftFinding
+from traceq.runs.schemas import (
+    AmbiguousValue,
+    Cite,
+    DraftAcceptance,
+    DraftCheckFinding,
+    DraftComparator,
+    DraftDocument,
+    DraftTestStep,
+    DraftTraced,
+    DraftTraceRow,
+    PrintedRead,
+    ProtocolDraft,
+    VendorFactCite,
+)
 from traceq.runs.submission import DraftStep, Finding, cite
 from traceq.traceability import Ambiguous, Citation
 
-
-def _cite(c: Citation | None) -> dict[str, Any] | None:
-    return None if c is None else {"doc": c.doc, "rev": c.rev, "page": c.page, "quote": c.quote}
+DRAFT_FILE = "protocol_draft.json"
 
 
-def _value(v: Read) -> dict[str, Any] | None:
-    if v is None:
-        return None
+def _cite(c: Citation) -> Cite:
+    return Cite(doc=c.doc, rev=c.rev, page=c.page, quote=c.quote)
+
+
+def _value(v: Read) -> PrintedRead | None:
     if isinstance(v, Ambiguous):
-        return {"type": "ambiguous", "readings": list(v.readings)}
-    return v.model_dump(mode="json", exclude_none=True)
+        return AmbiguousValue(readings=tuple(v.readings))
+    return v
 
 
-def _comparator(c: Comparator) -> dict[str, Any]:
-    return {
-        "doc": c.doc,
-        "rev": c.rev,
-        "kind": c.kind,
-        "facts": [
-            {"name": f.name, "printed": f.printed, "citation": _cite(f.citation)} for f in c.facts
-        ],
-    }
+def _comparator(c: Comparator) -> DraftComparator:
+    return DraftComparator(
+        doc=c.doc,
+        rev=c.rev,
+        kind=c.kind,
+        facts=tuple(
+            VendorFactCite(name=f.name, printed=f.printed, citation=_cite(f.citation))
+            for f in c.facts
+        ),
+    )
 
 
-def _finding(f: DraftFinding) -> dict[str, Any]:
-    where = {"test_step": f.test_step} if f.test_step is not None else {"row": f.row}
-    return {
-        "type": f.type,
-        "layer": "rule",
-        **where,
-        "requirement": f.requirement,
-        "detail": f.detail,
-        "ac": _value(f.ac),
-        "urs_limit": _value(f.urs),
-        "citations": [_cite(c) for c in f.citations],
-    }
+def _finding(f: DraftFinding) -> DraftCheckFinding:
+    return DraftCheckFinding(
+        type=f.type,
+        layer="rule",
+        test_step=f.test_step,
+        row=f.row,
+        requirement=f.requirement,
+        detail=f.detail,
+        ac=_value(f.ac),
+        urs_limit=_value(f.urs),
+        citations=tuple(_cite(c) for c in f.citations),
+    )
 
 
 def protocol_draft(
     package: str, reading: DraftReading, rows: list[DraftRow], findings: list[DraftFinding]
-) -> dict[str, Any]:
+) -> ProtocolDraft:
     doc = reading.doc
-    return {
-        "package": package,
-        "document": {"doc_id": doc.doc_id, "rev": doc.rev, "sha256": doc.sha256},
-        "test_steps": [
-            {
-                "id": r.step.id,
-                "requirements": list(r.step.requirements),
-                "acceptance": {
-                    "printed": r.step.printed,
-                    "value": _value(r.step.value),
-                    "citation": _cite(r.step.citation),
-                },
-                "traced": [
-                    {
-                        "requirement": c.urs.requirement,
-                        "urs_limit": _value(c.urs.value),
-                        "citation": _cite(c.urs.citation),
-                        "not_parsed": c.urs.not_parsed,
-                        "compared": c.not_compared is None,
-                        "deviates": c.deviates,
-                        "not_compared": c.not_compared,
-                        "comparators": [_comparator(x) for x in c.comparators],
-                    }
+    return ProtocolDraft(
+        package=package,
+        document=DraftDocument(doc_id=doc.doc_id, rev=doc.rev, sha256=doc.sha256),
+        test_steps=tuple(
+            DraftTestStep(
+                id=r.step.id,
+                requirements=r.step.requirements,
+                acceptance=DraftAcceptance(
+                    printed=r.step.printed,
+                    value=_value(r.step.value),
+                    citation=_cite(r.step.citation),
+                ),
+                traced=tuple(
+                    DraftTraced(
+                        requirement=c.urs.requirement,
+                        urs_limit=_value(c.urs.value),
+                        citation=None if c.urs.citation is None else _cite(c.urs.citation),
+                        not_parsed=c.urs.not_parsed,
+                        compared=c.not_compared is None,
+                        deviates=c.deviates,
+                        not_compared=c.not_compared,
+                        comparators=tuple(_comparator(x) for x in c.comparators),
+                    )
                     for c in r.traced
-                ],
-                "compared": r.not_compared is None,
-                "not_compared": r.not_compared,
-            }
+                ),
+                compared=r.not_compared is None,
+                not_compared=r.not_compared,
+            )
             for r in rows
-        ],
-        "trace_rows": [
-            {
-                "requirement": t.requirement,
-                "test_steps": list(t.steps),
-                "citation": _cite(t.citation),
-            }
+        ),
+        trace_rows=tuple(
+            DraftTraceRow(requirement=t.requirement, test_steps=t.steps, citation=_cite(t.citation))
             for t in reading.rows
-        ],
-        "findings": [_finding(f) for f in findings],
-    }
+        ),
+        findings=tuple(_finding(f) for f in findings),
+    )
 
 
 def draft_steps(rows: list[DraftRow]) -> tuple[DraftStep, ...]:
