@@ -2,8 +2,8 @@
 
 Dataset versions follow [SemVer](https://semver.org/):
 
-- **MAJOR:** answer-key semantics or schema change.
-- **MINOR:** new Equipment or documents, or defect-weight changes after discovery.
+- **MAJOR:** answer-key semantics or a breaking schema change.
+- **MINOR:** new Equipment or documents, optional schema fields whose defaults leave existing documents and answer keys unchanged, or defect-weight changes after discovery.
 - **PATCH:** fixes.
 
 Every eval run records the dataset version. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
