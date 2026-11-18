@@ -5,28 +5,36 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
 from traceq_dataset.answer_key import FILES
 from traceq_dataset.corpus import Corpus
+from traceq_dataset.review_package import KEY_FILES as PACKAGE_KEY_FILES
 from traceq_eval.ratchet import FAILING
 from traceq_eval.submission import Submission
 
 
-def key_sha256(directory: Path) -> str:
+def key_sha256(directory: Path, files: Sequence[str] = FILES) -> str:
     """One hash over the answer-key files, so a report names the exact key it used."""
     h = hashlib.sha256()
-    for name in FILES:
+    for name in files:
         h.update(name.encode())
         h.update((directory / name).read_bytes())
     return h.hexdigest()
 
 
 def with_metadata(
-    report: dict[str, Any], sub: Submission, corpus: Corpus, key_dir: Path
+    report: dict[str, Any],
+    sub: Submission,
+    corpus: Corpus,
+    key_dir: Path,
+    package_key_dir: Path | None = None,
 ) -> dict[str, Any]:
+    """``package_key_dir``: the Review Package's answer key, for a package report."""
+    package = report.get("review_package")
     return {
         "dataset": {
             "version": version("traceq-dataset"),
@@ -34,6 +42,17 @@ def with_metadata(
             "t0": corpus.t0.isoformat(),
             "seed": corpus.seed,
             "answer_key_sha256": key_sha256(key_dir),
+            **(
+                {}
+                if package is None or package_key_dir is None
+                else {
+                    "review_package": {
+                        "id": package["id"],
+                        "version": package["version"],
+                        "answer_key_sha256": key_sha256(package_key_dir, PACKAGE_KEY_FILES),
+                    }
+                }
+            ),
         },
         "submission": sub.system.model_dump(mode="json", exclude_none=True),
         **report,
@@ -81,6 +100,8 @@ def markdown(report: dict[str, Any]) -> str:
         "",
         f"Fabrication rate: {_fmt(fab['rate'])} ({fab['fabricated']} of {fab['claims']} claims)",
     ]
+    if "review_package" in report:
+        return "\n".join(out + _review_package(report))
     probes = report["probes"]["metrics"]
     out += [
         "",
@@ -121,6 +142,66 @@ def markdown(report: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(out)
+
+
+_PACKAGE_COUNTS = {
+    "ac_reading": "AC reading",
+    "recall": "Defects found",
+    "precision": "Findings that match a defect",
+    "clean_traps_without_finding": "Clean Traps without a finding",
+    "injection_probes_passed": "Injection Probes passed",
+}
+
+
+def _k_of_n(c: dict[str, Any]) -> str:
+    return f"{c['k']} of {c['n']}"
+
+
+def _review_package(report: dict[str, Any]) -> list[str]:
+    """The package section: every figure as k of n, under the package's labels."""
+    rp, cit = report["review_package"], report["citations"]
+    m, counts = rp["metrics"], rp["counts"]
+    out = [
+        "",
+        f"## Review Package {rp['id']} {rp['version']} ({'; '.join(rp['labels'])})",
+        "",
+        "| Figure | k of n | Rate |",
+        "|---|---|---|",
+    ]
+    for name, label in _PACKAGE_COUNTS.items():
+        out.append(f"| {label} | {_k_of_n(counts[name])} | {_fmt(counts[name]['rate'])} |")
+        if name == "recall":
+            out += [
+                f"| {label}: {t.split('.', 1)[1]} | {_k_of_n(c)} | {_fmt(c['rate'])} |"
+                for t, c in counts.items()
+                if t.startswith("recall_by_type.")
+            ]
+    out += [
+        "",
+        f"Test Steps not compared: {m['not_compared']}. Wrong findings: {m['wrong_findings']}"
+        f" ({m['findings_on_clean_traps']} on Clean Traps). Exempt (probe text only): "
+        f"{m['probe_exempt_findings']}. Findings without a citation in the draft (not scored "
+        f"here): {m['findings_without_draft_citation']}.",
+        "",
+        "| Defect | Type | Test Step or row | Found by | URS value read right |",
+        "|---|---|---|---|---|",
+    ]
+    out += [
+        f"| {d['id']} | {d['type']} | {d['test_step'] or d['row']} | {_fmt(d['found_by'])} | "
+        f"{_fmt(d['urs_value_read_right'])} |"
+        for d in rp["defects"]
+    ]
+    out += [
+        "",
+        "## citations",
+        "",
+        f"{cit['total']} citations, verified rate {_fmt(cit['verified_rate'])}: "
+        + _fmt({k: v for k, v in cit["by_status"].items() if v}),
+        "",
+        f"Not scored: {_fmt(report['not_scored'])}",
+        "",
+    ]
+    return out
 
 
 def _ratchet(r: dict[str, Any] | None) -> list[str]:

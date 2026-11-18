@@ -7,9 +7,12 @@ Usage::
 
     uv run python -m traceq_eval world/tp201.yaml submission.json [--key answer_key]
         [--out report] [--baseline baselines/TP-201.json] [--write-baseline PATH]
+        [--package world/tp201-oq-draft.yaml]
 
 ``--baseline`` adds the ratchet against an accepted baseline; ``--write-baseline`` writes
 this run as a baseline candidate (refused when a gate fails), to be accepted through a PR.
+``--package``: the Review Package a submission answers (it must name the same one); its key
+is ``<key>/<package id>`` and its baseline ``baselines/<package id>.json``.
 
 Exit code 0 when every gate (and the ratchet, if asked) passes, 1 when a gate or the ratchet
 fails, 2 when the submission or the baseline is invalid.
@@ -25,11 +28,12 @@ from pydantic import ValidationError
 
 from traceq_dataset.answer_key import load_key
 from traceq_dataset.corpus import build_corpus
+from traceq_dataset.review_package import load_package, load_package_key, render_draft
 from traceq_dataset.world import load
 from traceq_eval import ratchet
 from traceq_eval.citations import PageTexts
 from traceq_eval.report import with_metadata, write
-from traceq_eval.score import score
+from traceq_eval.score import ReviewPackage, score
 from traceq_eval.submission import Submission
 
 
@@ -45,6 +49,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--out", type=Path, default=Path("report"))
     parser.add_argument("--baseline", type=Path)
     parser.add_argument("--write-baseline", type=Path)
+    parser.add_argument(
+        "--package", type=Path, help="Review Package world data, when the submission answers one"
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -54,9 +61,23 @@ def main(argv: list[str]) -> int:
         print(f"invalid input: {e}", file=sys.stderr)
         return 2
     eq = load(args.world)
+    package = load_package(args.package) if args.package else None
+    if sub.review_package != (package.id if package else None):
+        print(
+            f"invalid input: the submission answers Review Package {sub.review_package}, "
+            f"--package gives {package.id if package else None}",
+            file=sys.stderr,
+        )
+        return 2
     corpus = build_corpus(eq)
     key_dir = args.key / eq.tag
-    report = with_metadata(score(sub, load_key(key_dir), PageTexts(corpus)), sub, corpus, key_dir)
+    review, package_key_dir, extra = None, None, []
+    if package:
+        package_key_dir = args.key / package.id
+        draft = render_draft(package, eq)
+        review, extra = ReviewPackage.of(package, draft, load_package_key(package_key_dir)), [draft]
+    scored = score(sub, load_key(key_dir), PageTexts(corpus, extra), package=review)
+    report = with_metadata(scored, sub, corpus, key_dir, package_key_dir)
     if baseline:
         try:
             report["ratchet"] = ratchet.compare(baseline, report)
