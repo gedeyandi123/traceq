@@ -102,8 +102,10 @@ def copied(prompt: str, equipment: str) -> list[str]:
 @pytest.mark.parametrize("prompt", PROMPTS, ids=lambda p: p.name)
 @pytest.mark.parametrize("equipment", ["TP-201", "TP-202", "PW-001"])
 def test_prompt_examples_are_invented(equipment: str, prompt: Prompt) -> None:
-    """Examples are invented, never taken from the development or the held-out Equipment."""
-    assert copied(prompt.system, equipment) == []
+    """Examples are invented, never taken from the development or the held-out Equipment.
+    The message gives counts only: the copied text may be held out."""
+    found = copied(prompt.system, equipment)
+    assert not found, f"{equipment} {prompt.name}: {len(found)} copied"
 
 
 def test_copy_guard_catches_a_requirement() -> None:
