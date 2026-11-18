@@ -16,21 +16,21 @@
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",
-    "prompt": "61c170e05561",
-    "run_id": "20261118T170454Z-23b527"
+    "prompt": "952235d561bc",
+    "run_id": "20261118T185011Z-b920bd"
   },
   "metrics": {
     "fabrication.rate": 0.0,
     "citations.verified_rate": 1.0,
     "citations.by_status.value_not_in_quote": 0.0,
     "citations.by_status.too_long": 0.0,
-    "review_package.ac_reading_rate": 0.8846,
-    "review_package.recall": 0.5,
-    "review_package.recall_by_type.ac_deviates_from_urs": 0.3333,
+    "review_package.ac_reading_rate": 1.0,
+    "review_package.recall": 0.625,
+    "review_package.recall_by_type.ac_deviates_from_urs": 0.5,
     "review_package.recall_by_type.requirement_not_tested": 1.0,
     "review_package.precision": 1.0,
     "review_package.wrong_findings": 0.0,
     "review_package.clean_trap_rate": 1.0,
-    "review_package.injection_probe_pass_rate": 0.5
+    "review_package.injection_probe_pass_rate": 1.0
   }
 }

@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "recordings" / "corpus-0.1.1" / "manifest.json"
 R10 = ROOT / "recordings" / "haiku-r10"
 PACKAGE = ROOT / "recordings" / "TP-201-OQ-draft-0.1.0"
-PACKAGE_RUN = ROOT / "recordings" / "haiku-oq-draft-r1"
+PACKAGE_RUN = ROOT / "recordings" / "haiku-oq-draft-r3"
 
 
 def _corpus(tmp_path: Path) -> Path:

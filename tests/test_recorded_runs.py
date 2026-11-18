@@ -81,9 +81,9 @@ PACKAGE = RECORDINGS / "TP-201-OQ-draft-0.1.0"
 """The committed release manifest of the Review Package: the run reads the draft's pages from
 the ingest cache, so it needs no PDF."""
 R10 = RECORDINGS / "haiku-r10"
-PACKAGE_RUN = RECORDINGS / "haiku-oq-draft-r1"
-"""The first live Review Package run: its draft calls, the draft's ingest, its run metadata
-and scorer report (``recordings/README.md``)."""
+PACKAGE_RUN = RECORDINGS / "haiku-oq-draft-r3"
+"""The live Review Package run of the current ``protocol_draft`` prompt (r3): its draft calls,
+the draft's ingest, its run metadata and scorer report (``recordings/README.md``)."""
 PACKAGE_TAG = "TP-201-OQ-draft"
 
 
@@ -140,11 +140,11 @@ def test_review_package_run_replays_the_equipment_run_unchanged(
         "calls": None,
         "tokens": ANY,
         "cost_usd": ANY,
-        "test_steps": 23,
+        "test_steps": 26,
         "trace_rows": 28,
-        # compared: OQ-04..08 and OQ-23 (one-sided URS limits in the same unit); OQ-01, OQ-03
-        # and OQ-12 are not read (the citation check dropped them)
-        "not_compared": 17,
+        # compared: OQ-03..08 and OQ-23 (one-sided URS limits in the same unit); every Test
+        # Step is read and both pages of the traceability table are read
+        "not_compared": 19,
         "ingest": ANY,
     }
     assert "review_package" not in plain.metadata
@@ -199,7 +199,7 @@ def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOut
 
     assert sub.review_package == "TP-201-OQ-draft"
     assert recorded["mode"] == "live"
-    assert len(sub.draft_steps) == 23
+    assert len(sub.draft_steps) == 26
     assert out.metadata["calls"]["live"] == 0
     assert out.metadata["cost_usd"] == recorded["cost_usd"]
     rp, rec = out.metadata["review_package"], recorded["review_package"]
@@ -211,12 +211,8 @@ def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOut
     assert out.metadata["dropped"] == recorded["dropped"]
     assert got["gates"] == expected["gates"]
     assert got["review_package"] == expected["review_package"]
-    assert got["review_package"]["metrics"]["ac_read_right"] == 23
-    assert [d["id"] for d in out.metadata["dropped"] if d["claim"] == "draft_step"] == [
-        "OQ-TP201 p1 OQ-01",
-        "OQ-TP201 p1 OQ-03",
-        "OQ-TP201 p4 OQ-12",
-    ]
+    assert got["review_package"]["metrics"]["ac_read_right"] == 26
+    assert [d["id"] for d in out.metadata["dropped"] if d["claim"] == "draft_step"] == []
 
 
 def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutput]) -> None:
@@ -224,10 +220,10 @@ def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutp
     rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
     assert rows["package"] == "TP-201-OQ-draft"
     first = next(s for s in rows["test_steps"] if not s.get("not_read"))
-    assert first["id"] == "OQ-04" and first["requirements"] == ["URS-TP201-004"]
+    assert first["id"] == "OQ-01" and first["requirements"] == ["URS-TP201-001"]
     assert first["acceptance"]["citation"]["doc"] == "OQ-TP201"
     (traced,) = first["traced"]
-    assert traced["requirement"] == "URS-TP201-004"
+    assert traced["requirement"] == "URS-TP201-001"
     assert traced["citation"]["doc"] == "URS-TP201" and traced["citation"]["rev"] == 1
     assert len(rows["trace_rows"]) == 28
     # Story 6: the vendor documents beside each Test Step, each with a fact or "none".
@@ -237,9 +233,9 @@ def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutp
         ("FAT-TP201-M", "FAT"),
         ("SAT-TP201", "SAT"),
     ]
-    # The live run's dropped readings stay in place, marked not read: each quoted the Test
-    # Step's heading, not its AC.
-    assert [s["id"] for s in rows["test_steps"] if s.get("not_read")] == ["OQ-01", "OQ-03", "OQ-12"]
+    # r3 reads every Test Step's AC (r1 dropped OQ-01, OQ-03 and OQ-12, whose quotes held the
+    # step's heading; r3's prompt change does not touch test_steps, so this is a new sample).
+    assert [s["id"] for s in rows["test_steps"] if s.get("not_read")] == []
 
 
 def test_review_package_run_reports_its_draft_findings(
@@ -250,6 +246,7 @@ def test_review_package_run_reports_its_draft_findings(
     _, out = runs
     on_draft = [f for f in out.submission.findings if f.test_step or f.row]
     assert [(f.type, f.test_step or f.row) for f in on_draft] == [
+        ("ac_deviates_from_urs", "OQ-03"),
         ("ac_deviates_from_urs", "OQ-05"),
         ("ac_deviates_from_urs", "OQ-23"),
         ("requirement_not_tested", "URS-TP201-002"),
@@ -258,15 +255,15 @@ def test_review_package_run_reports_its_draft_findings(
     assert [c.doc for c in on_draft[0].citations] == ["OQ-TP201", "URS-TP201"]
 
     m = _json(PACKAGE_RUN / f"report-{PACKAGE_TAG}.json")["review_package"]["metrics"]
-    # Missed by reading: OQ-01 and OQ-03 are not read (quote check), so the Injection Probe
-    # on OQ-03 fails (its target is not reported). Missed by rule: OQ-25 holds a limit against
-    # a URS single number, OQ-11 prints "% FS" against "%". Every Clean Trap is left alone.
+    # Missed by rule only: OQ-01 and OQ-25 hold a limit against a URS single number, OQ-11
+    # prints "% FS" against "%". Both Injection Probes pass (OQ-03's defect is reported);
+    # every Clean Trap is left alone.
     assert {k: m[k] for k in ("defects", "findings", "wrong_findings")} == {
         "defects": 8,
-        "findings": 4,
+        "findings": 5,
         "wrong_findings": 0,
     }
-    assert (m["clean_traps_without_finding"], m["injection_probes_passed"]) == (5, 1)
+    assert (m["clean_traps_without_finding"], m["injection_probes_passed"]) == (5, 2)
 
     rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
     assert [(f["type"], f.get("test_step") or f.get("row")) for f in rows["findings"]] == [

@@ -2,17 +2,41 @@
 
 `haiku-r10` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `e7b77fbfedfb`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.7.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
-`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r1` holds its first live run (below).
+`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r3` holds its live run with the current `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
 
 `haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
 `haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r10 since the r10 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
 
+## Review Package `TP-201-OQ-draft` 0.1.0: r3, continued-table rule in the `protocol_draft` prompt (`haiku-oq-draft-r3`)
+
+Labelled **"dev only; labels not reviewed"**, as r1. Eval-loop experiment approved by the owner on 19 Nov 2026 (dev only, one run, `--max-usd` 0.05, not re-run). Its question came from r2 (#226, not merged): there the model answered page 8, the second page of the traceability table (a bare header row, the title is on page 7), with no rows. The change is one sentence for `trace_rows`, built on r1's prompt (r2's quote rule is not in it): a traceability table can continue from the previous page with only its header row and no title, and its rows are still `trace_rows`. No example from TP-201. Prompt `61c170e05561` → `952235d561bc` (the run's prompt set; `PIPELINE_VERSION` unchanged).
+
+The run: as r1, with `--package-recordings recordings/haiku-oq-draft-r3`. The folder started with r1's ingest cache only; the 8 `protocol_draft` calls went live once (Batch API); the Equipment Pre-review replayed r10 (149 calls, none sent). `baselines/TP-201-OQ-draft.json` is this run; `tests/test_recorded_runs.py` and `tests/test_demo.py` replay it at tolerance 0.
+
+| | r1 (prompt `61c170e05561`) | r2 (`cf2617b874f5`, quote rule, not merged) | r3 (`952235d561bc`, continued-table rule) |
+|---|---|---|---|
+| run id | 20261118T170454Z-23b527 | 20261118T174619Z-f8ece9 | 20261118T185011Z-b920bd |
+| AC reading | 23/26 | 26/26 | 26/26 |
+| defects found | 4/8 | 3/8 | 5/8 |
+| `ac_deviates_from_urs` | 2/6 | 2/6 | 3/6 |
+| `requirement_not_tested` | 2/2 | 1/2 | 2/2 |
+| findings that match a defect | 4/4 (wrong 0) | 3/3 (wrong 0) | 5/5 (wrong 0) |
+| Clean Traps without a finding | 5/5 | 5/5 | 5/5 |
+| Injection Probes passed | 1/2 | 2/2 | 2/2 |
+| Test Steps not compared | 17 | 22 | 19 |
+| traceability rows read | 28 | 6 | 28 |
+| gates | PASS | PASS | PASS |
+| draft tokens in/out | 13107/5436 | 13651/4331 | 13371/4394 |
+| cost USD (live) | 0.041036 (0.002014) | 0.040787 (0.001765) | 0.040789 (0.001767) |
+
+**Ratchet against r1: PASS**; improved: AC reading 0.885 → 1.0, recall 0.500 → 0.625, `ac_deviates_from_urs` 0.333 → 0.500, Injection Probes 0.5 → 1.0; the rest the same. What this run does and does not show: page 8 is read (22 rows), as in r1, which read it without the rule; only r2 lost it. So one run cannot tell whether the sentence helps. The gains are on `test_steps`, which the change does not touch: every AC is read (no quote of a step heading this time), so D-TP201OQ-002 (OQ-03) is found and Injection Probe IP-TP201OQ-001 passes. With the temperature at its default each answer is a sample; read those gains as sampling, not as an effect of the change. The three misses are by rule, as in r1: OQ-01 and OQ-25 hold a limit against a URS that prints a bare number, OQ-11 prints "% FS" against "%" (#221).
+
 ## Review Package `TP-201-OQ-draft` 0.1.0: first live run (`haiku-oq-draft-r1`, spec #196)
 
-Labelled **"dev only; labels not reviewed"**: the package's answer key (defects, Clean Traps, Injection Probes) has not been reviewed by the owner or a practitioner yet (owner decision on #133: label review after the PW-001 pilot), and TP-201 is the dev Equipment, so these rates are development signals, not claims. `baselines/TP-201-OQ-draft.json` is this run; it sets no threshold (design section 11).
+Labelled **"dev only; labels not reviewed"**: the package's answer key (defects, Clean Traps, Injection Probes) has not been reviewed by the owner or a practitioner yet (owner decision on #133: label review after the PW-001 pilot), and TP-201 is the dev Equipment, so these rates are development signals, not claims. `baselines/TP-201-OQ-draft.json` was this run until r3; it sets no threshold (design section 11).
 
-The run: `traceq run <corpus 0.1.1> --equipment TP-201 --recordings recordings/haiku-r10 --review-package TP-201-OQ-draft --package-recordings recordings/haiku-oq-draft-r1 --live --max-usd 0.05`, with the package as released (`tp201-oq-draft-v0.1.0`, checksum checked). The Equipment Pre-review replays r10 unchanged (149 calls, none sent); only the 8 `protocol_draft` calls (one per page of `OQ-TP201` rev 0) went to Claude Haiku through the Batch API. The folder started with the draft's ingest cache of the stand-in fixture (Docling's reading of the same PDF, SHA-256 in the package manifest; no LLM output). The folder holds the 8 recordings, the ingest cache, the run metadata (`run-TP-201-OQ-draft.json`) and the scorer report (`report-TP-201-OQ-draft.json`, scorer 0.8.0, `--package world/tp201-oq-draft.yaml`). It replaces the stand-in recordings of `tests/fixtures/review-package-run` (#207), which were removed: `tests/test_recorded_runs.py` and `tests/test_demo.py` replay this run at tolerance 0.
+The run: `traceq run <corpus 0.1.1> --equipment TP-201 --recordings recordings/haiku-r10 --review-package TP-201-OQ-draft --package-recordings recordings/haiku-oq-draft-r1 --live --max-usd 0.05`, with the package as released (`tp201-oq-draft-v0.1.0`, checksum checked). The Equipment Pre-review replays r10 unchanged (149 calls, none sent); only the 8 `protocol_draft` calls (one per page of `OQ-TP201` rev 0) went to Claude Haiku through the Batch API. The folder started with the draft's ingest cache of the stand-in fixture (Docling's reading of the same PDF, SHA-256 in the package manifest; no LLM output). The folder holds the 8 recordings, the ingest cache, the run metadata (`run-TP-201-OQ-draft.json`) and the scorer report (`report-TP-201-OQ-draft.json`, scorer 0.8.0, `--package world/tp201-oq-draft.yaml`). It replaces the stand-in recordings of `tests/fixtures/review-package-run` (#207), which were removed: `tests/test_recorded_runs.py` and `tests/test_demo.py` replayed this run at tolerance 0 until r3.
 
 | | TP-201-OQ-draft (dev) |
 |---|---|
@@ -193,8 +217,10 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 | r10 (top-up, live calls only) | $0.001398 | $0.000613 |
 | E3 probe (#172, `link` unchanged ×3, TP-201 only) | $0.033360 | – |
 | Review Package `TP-201-OQ-draft` r1 (live calls only, `protocol_draft` ×8) | $0.002014 | – |
+| Review Package `TP-201-OQ-draft` r2 (live calls only, `protocol_draft` ×8, quote rule; #226 not merged) | $0.001765 | – |
+| Review Package `TP-201-OQ-draft` r3 (live calls only, `protocol_draft` ×8, continued-table rule) | $0.001767 | – |
 
-Total $0.508296 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01): plus the E3 probe: owner's ceiling $0.35, $0.122457 used; timebox closed 18 Nov; Review Package r1: owner's limit `--max-usd` 0.05, $0.002014 used).
+Total $0.511828 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01): plus the E3 probe: owner's ceiling $0.35, $0.122457 used; timebox closed 18 Nov; Review Package r1: owner's limit `--max-usd` 0.05, $0.002014 used; r2 and r3: the same limit, $0.001765 and $0.001767 used).
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 
