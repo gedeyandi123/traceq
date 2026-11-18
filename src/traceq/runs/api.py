@@ -29,7 +29,14 @@ from fastapi.responses import Response
 from traceq.documents import Corpus
 from traceq.runs.completeness import COMPLETENESS_FILE
 from traceq.runs.protocol_draft import DRAFT_FILE
-from traceq.runs.schemas import Completeness, DroppedClaim, Findings, Matrix, RunSummary
+from traceq.runs.schemas import (
+    Completeness,
+    DroppedClaim,
+    Findings,
+    Matrix,
+    RunPackage,
+    RunSummary,
+)
 
 RUN_FILE = "run.json"
 MATRIX_FILE = "matrix.json"
@@ -69,6 +76,7 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
 
     def summary(path: Path) -> RunSummary:
         meta: dict[str, Any] = read_served(path / RUN_FILE)
+        package: dict[str, Any] | None = meta.get("review_package")
         return RunSummary(
             run_id=str(meta["run_id"]),
             created=str(meta["created"]),
@@ -76,6 +84,14 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
             model=str(meta["model"]),
             mode=meta["mode"],
             pipeline_version=str(meta["pipeline_version"]),
+            review_package=None
+            if package is None
+            else RunPackage(
+                package=str(package["package"]),
+                version=str(package["version"]),
+                doc_id=str(package["document"]["doc_id"]),
+                rev=int(package["document"]["rev"]),
+            ),
         )
 
     @router.get("/runs", operation_id="listRuns")

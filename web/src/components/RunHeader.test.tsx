@@ -65,3 +65,25 @@ test("a creation time that does not parse shows as it is, and the header still r
   expect(screen.getByRole("heading", { level: 1, name: "TP-201" })).toBeDefined();
   expect(screen.getByText("kemarin")).toBeDefined();
 });
+
+test("a Review Package run gets a tab to its Protocol Draft after the findings, and names it", () => {
+  render(
+    <NextIntlClientProvider locale="id" messages={messages}>
+      <RunHeader
+        run={{ ...run, review_package: { package: "TP-201-OQ-draft", version: "0.1.0", doc_id: "OQ-TP201", rev: 0 } }}
+        current="draft"
+        intro="Draf."
+      />
+    </NextIntlClientProvider>,
+  );
+  const tabs = within(screen.getByRole("navigation", { name: "Layar run" })).getAllByRole("link");
+  expect(tabs.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
+    ["Matriks", base],
+    ["Temuan pra-tinjauan", `${base}/findings`],
+    ["Draf protokol", `${base}/draft`],
+    ["Yang tidak dimasukkan", `${base}/left-out`],
+    ["Hasil evaluasi", `${base}/eval`],
+  ]);
+  expect(tabs.find((a) => a.getAttribute("aria-current"))?.textContent).toBe("Draf protokol");
+  expect(screen.getByText("OQ-TP201 rev 0 (TP-201-OQ-draft 0.1.0)")).toBeDefined();
+});

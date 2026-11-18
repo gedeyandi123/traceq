@@ -883,6 +883,20 @@ export interface components {
             citation: components["schemas"]["Cite"];
         };
         /**
+         * RunPackage
+         * @description The Review Package a run reviews and the Protocol Draft it read.
+         */
+        RunPackage: {
+            /** Package */
+            package: string;
+            /** Version */
+            version: string;
+            /** Doc Id */
+            doc_id: string;
+            /** Rev */
+            rev: number;
+        };
+        /**
          * RunSummary
          * @description What identifies a run: its id, Equipment, model and mode.
          */
@@ -902,6 +916,7 @@ export interface components {
             mode: "replay" | "live";
             /** Pipeline Version */
             pipeline_version: string;
+            review_package?: components["schemas"]["RunPackage"] | null;
         };
         /**
          * SiteRuleCite

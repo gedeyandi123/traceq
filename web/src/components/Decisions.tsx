@@ -28,7 +28,7 @@ export type DecisionView = {
 };
 
 /** The screen a decision form returns to. */
-export type DecisionScreen = "matrix" | "findings";
+export type DecisionScreen = "matrix" | "findings" | "draft";
 
 
 type T = ReturnType<typeof useTranslations<"decisions">>;
