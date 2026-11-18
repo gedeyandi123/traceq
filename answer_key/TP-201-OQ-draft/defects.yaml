@@ -1,0 +1,111 @@
+# TP-201-OQ-draft answer key: defects.yaml. Review Package 0.1.0, defect types chosen before the practitioner session; dev only.
+# Generated, do not edit:
+#   uv run python -m traceq_dataset.review_package world/<file>.yaml
+# Refers to corpus-v0.1.1. Never sent to an LLM (design section 6).
+- id: D-TP201OQ-001
+  type: ac_deviates_from_urs
+  severity: major
+  layer: rule
+  detail: OQ-01 accepts 32 to 35 punch stations, which URS-TP201-001 (36 stations) rejects.
+  test_step: OQ-01
+  requirement: URS-TP201-001
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 1, field: OQ-01.acceptance, text: minimal 32 stasiun}
+  compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-001, text: Mesin memiliki 36
+      stasiun punch.}
+- id: D-TP201OQ-002
+  type: ac_deviates_from_urs
+  severity: major
+  layer: rule
+  detail: OQ-03 accepts an output from 100,000 tablets/h, which URS-TP201-003 rev 1 (at least 120,000
+    tablets/h) rejects.
+  test_step: OQ-03
+  requirement: URS-TP201-003
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 1, field: OQ-03.acceptance, text: minimal 100.000 tablet/jam}
+  compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-003, text: Kapasitas produksi
+      minimal 120.000 tablet/jam.}
+- id: D-TP201OQ-003
+  type: ac_deviates_from_urs
+  severity: major
+  layer: rule
+  detail: OQ-05 accepts a pre-compression force from 15 kN, which URS-TP201-005 (at least 20 kN) rejects.
+  test_step: OQ-05
+  requirement: URS-TP201-005
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 2, field: OQ-05.acceptance, text: minimal 15 kN}
+  compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-005, text: Gaya pra-kompresi
+      yang dapat dicapai minimal 20 kN.}
+- id: D-TP201OQ-004
+  type: ac_deviates_from_urs
+  severity: major
+  layer: rule
+  detail: OQ-11 accepts a force measurement error up to ±2 % of full scale, which URS-TP201-016 (at most
+    ±1 % of full scale) rejects.
+  test_step: OQ-11
+  requirement: URS-TP201-016
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 3, field: OQ-11.acceptance, text: maks. ± 2 % FS}
+  compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-016, text: Akurasi pengukuran
+      gaya tekan maksimal ±1% dari skala penuh.}
+- id: D-TP201OQ-005
+  type: ac_deviates_from_urs
+  severity: major
+  layer: rule
+  detail: OQ-23 accepts an extraction flow from 250 m³/h, which URS-TP201-028 (at least 300 m³/h) rejects.
+  test_step: OQ-23
+  requirement: URS-TP201-028
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 6, field: OQ-23.acceptance, text: minimal 250 m³/jam}
+  compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-028, text: Sambungan dust extraction
+      kompatibel dengan sistem pabrik minimal 300 m³/jam.}
+- id: D-TP201OQ-006
+  type: ac_deviates_from_urs
+  severity: major
+  layer: rule
+  detail: OQ-25 accepts a machine height up to 3,200 mm, which URS-TP201-030 (ceiling height 3,000 mm)
+    rejects.
+  test_step: OQ-25
+  requirement: URS-TP201-030
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 7, field: OQ-25.acceptance, text: tinggi maks. 3.200 mm}
+  compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-030, text: Dimensi mesin muat
+      di ruang cetak dengan tinggi plafon 3.000 mm.}
+- id: D-TP201OQ-007
+  type: requirement_not_tested
+  severity: major
+  layer: rule
+  detail: 'The traceability table lists URS-TP201-002 under OQ-02, but the draft has no Test Step OQ-02:
+    the requirement is not tested.'
+  row: URS-TP201-002
+  requirement: URS-TP201-002
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 7, field: trace.URS-TP201-002.requirement, text: URS-TP201-002}
+  - {doc: OQ-TP201, rev: 0, page: 7, field: trace.URS-TP201-002.steps, text: OQ-02}
+- id: D-TP201OQ-008
+  type: requirement_not_tested
+  severity: major
+  layer: rule
+  detail: 'The traceability table lists URS-TP201-027 under OQ-22, but the draft has no Test Step OQ-22:
+    the requirement is not tested.'
+  row: URS-TP201-027
+  requirement: URS-TP201-027
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-027.requirement, text: URS-TP201-027}
+  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-027.steps, text: OQ-22}

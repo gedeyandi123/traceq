@@ -10,6 +10,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+
+- Review Package `TP-201-OQ-draft` 0.1.0 (#203, spec #196), its own version line, labelled "defect types chosen before the practitioner session; dev only": a site OQ Protocol Draft for TP-201 (`OQ-TP201` rev 0, Draft, Indonesian, 26 Test Steps and a traceability table, written against `URS-TP201` rev 1), referring to `corpus-v0.1.1` by version and manifest SHA-256 without changing it. Placements drawn with seed 203 over the TP-201 answer key's 13 comparable requirements (one-sided limits and min = max): 6 `ac_deviates_from_urs` defects and 5 Clean Traps; 2 `requirement_not_tested` rows drawn from the draft's not-compared requirements; 2 Injection Probes in body text (a remarks cell, small print under a step) on defective steps. Answer key `answer_key/TP-201-OQ-draft/` (derived), release manifest `recordings/TP-201-OQ-draft-0.1.0/manifest.json`. TP-201's world data, answer key (missing-document key included) and the corpus are unchanged. No rule, prompt or scorer for it yet.
+
 ### Changed
 
 - Scorer 0.7.0 (#180, owner decision on #133): `same_value` compares units after Unicode NFKC and casefold (`m³/h` equals `m3/h`, as the system's `_same_unit` does), and a `range` whose `min` equals its `max` equals a `number` of that value with the same unit ("380 V"). Plural units (`tablet/h` vs `tablets/h`) and `%` vs `% FS` stay different. Recorded `haiku-r8` reports and both baselines re-scored by replay: TP-201 value 25/38 → 27/38 (URS-TP201-026 and 028); TP-202 counts unchanged; gates, fabrication and probes unchanged. The submission format, dataset version and answer key are unchanged.
