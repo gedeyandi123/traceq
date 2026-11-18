@@ -544,6 +544,7 @@ class DefectType(StrEnum):
     OUTDATED_REFERENCE = "outdated_reference"
     INCONSISTENT_DATA = "inconsistent_data"
     AC_DEVIATES_FROM_URS = "ac_deviates_from_urs"
+    REQUIREMENT_NOT_TESTED = "requirement_not_tested"
     GDP_CORRECTION = "gdp_correction"
     LEFTOVER_FROM_OTHER_EQUIPMENT = "leftover_from_other_equipment"
     DESIGN_CONFLICT = "design_conflict"
