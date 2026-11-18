@@ -3,9 +3,12 @@
 A submission says, for each requirement, its value, its Coverage class and where that comes
 from; it lists the defects found by Pre-review, the documents that should exist but do not,
 the drafted IQ/OQ Test Steps, and what it read in each handwritten entry on a scan
-(``ocr``). Every claim about the corpus carries a citation: document, revision, page and a
-verbatim quote (design section 9, "Citations"). Values use the same normalised shapes as
-the answer key.
+(``ocr``). A submission for a Review Package (``review_package``, spec #196) also carries
+the Protocol Draft's Test Step rows (``draft_steps``: the AC as read, with its citation, and
+whether it was compared) and its findings about the draft name their Test Step or table row.
+Every claim about the corpus carries a citation: document, revision, page and a verbatim
+quote (design section 9, "Citations"). Values use the same normalised shapes as the answer
+key.
 
 The schema is strict (unknown fields fail) so a system cannot drift from it silently. Limits
 the scorer judges, such as the 200-character quote, are not schema errors: a long quote is
@@ -71,6 +74,29 @@ class Present(Model):
 Value = Annotated[Range | Number | OneOf | Text | Present, Field(discriminator="type")]
 
 
+class Limit(Range):
+    """An Acceptance Criterion's limit as a Protocol Draft prints it: a bound may be strict
+    (``< 0,8 µm``)."""
+
+    min_exclusive: bool = False
+    max_exclusive: bool = False
+
+
+class Tolerance(Model):
+    """A nominal value with a tolerance: ``380 V ± 10 %``."""
+
+    type: Literal["tolerance"] = "tolerance"
+    nominal: float
+    tolerance: float
+    tolerance_unit: str
+    unit: str
+
+
+DraftValue = Annotated[Limit | Number | Tolerance | Text, Field(discriminator="type")]
+"""An Acceptance Criterion as read from a Protocol Draft, in the shapes of the Review
+Package key's ``test_steps.yaml``; a criterion without a number is its printed text."""
+
+
 # --- Claims ---------------------------------------------------------------------------
 
 
@@ -102,12 +128,16 @@ class RequirementAnswer(Model):
 
 
 class Finding(Model):
-    """A Pre-review finding. Its citations locate it in the corpus."""
+    """A Pre-review finding. Its citations locate it in the corpus. A finding about a
+    Protocol Draft names the Test Step it is on (``test_step``) or, for a traceability table
+    row, the row's requirement id (``row``)."""
 
     type: DefectType
     severity: Literal["critical", "major", "minor"] | None = None
     detail: str = ""
     citations: tuple[Citation, ...] = Field(min_length=1)
+    test_step: str | None = None
+    row: str | None = None
 
 
 class MissingDocument(Model):
@@ -133,6 +163,24 @@ class TestStep(Model):
     acceptance: Value | None = None
     acceptance_citation: Citation | None = None
     witness: bool | None = None
+
+
+class DraftStep(Model):
+    """A Test Step of the Protocol Draft under review, as read: its Acceptance Criterion with
+    the citation it was copied from, and whether it was compared with the URS (the reason
+    when not)."""
+
+    id: str
+    acceptance: DraftValue | None = None
+    acceptance_citation: Citation | None = None
+    compared: bool
+    not_compared: str | None = Field(default=None, description="Why it was not compared.")
+
+    @model_validator(mode="after")
+    def _reason(self) -> DraftStep:
+        if self.compared == (self.not_compared is not None):
+            raise ValueError(f"{self.id}: a reason exactly when the step was not compared")
+        return self
 
 
 Point = tuple[float, float]
@@ -166,12 +214,18 @@ class Submission(Model):
     missing_documents: tuple[MissingDocument, ...] = ()
     test_steps: tuple[TestStep, ...] = ()
     ocr: tuple[OcrEntry, ...] = ()
+    review_package: str | None = None
+    """The Review Package this submission answers; ``None``: an Equipment run."""
+    draft_steps: tuple[DraftStep, ...] = ()
 
     @model_validator(mode="after")
     def _unique(self) -> Submission:
+        if self.draft_steps and self.review_package is None:
+            raise ValueError("draft_steps need the review_package they belong to")
         for name, ids in (
             ("requirement", [r.id for r in self.requirements]),
             ("test step", [s.id for s in self.test_steps]),
+            ("draft step", [s.id for s in self.draft_steps]),
         ):
             dupes = sorted({i for i in ids if ids.count(i) > 1})
             if dupes:
