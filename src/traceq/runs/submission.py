@@ -13,7 +13,9 @@ Test Steps: an AC only when copied from a verified citation, otherwise none, "to
 a human" (the flag and the AI Finding fields are in ``drafts.json``). The Coverage reason
 is in ``matrix.json``: the submission schema has no field for it. A Review Package run
 names its package (``review_package``) and adds the Protocol Draft's Test Step rows
-(``draft_steps``): the AC as read with its citation, and whether it was compared.
+(``draft_steps``): the AC as read with its citation, and whether it was compared. Its Check
+Findings on the draft follow the Equipment findings, each naming its Test Step (or, for a
+traceability row, the row's requirement id).
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from traceq.documents import CorpusDocument, Page
 from traceq.documents.pages import Quad
 from traceq.protocols import Drafts
 from traceq.review import AiType, Review
+from traceq.review.draft_rules import DraftType
 from traceq.review.printed import Limit, Tolerance
 from traceq.review.rules import CheckType
 from traceq.traceability import Ambiguous, Citation, Linked, Traceability, Value
@@ -63,9 +66,13 @@ class RequirementAnswer(_Model):
 
 
 class Finding(_Model):
-    type: Literal["ambiguous_value"] | CheckType | AiType
+    type: Literal["ambiguous_value"] | CheckType | AiType | DraftType
     detail: str
     citations: tuple[CitationOut, ...]
+    test_step: str | None = None
+    """A finding on the Protocol Draft under review: the Test Step it is on."""
+    row: str | None = None
+    """A finding on a traceability table row of the draft: the row's requirement id."""
 
 
 class MissingDocument(_Model):

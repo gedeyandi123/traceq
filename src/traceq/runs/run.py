@@ -23,12 +23,15 @@ Pre-review then runs unchanged and replay-only, also in a live run: every call c
 before anything is sent. Then the package's Protocol Draft is read (``traceq.review.draft``),
 one call per page, with the draft prompt, whose hash enters the run's prompt set only in such
 a run. The package's own recordings and ingest cache go to ``package_recordings``.
+The draft rules (``traceq.review.draft_rules``) then decide its Check Findings.
 ``protocol_draft.json`` holds the draft's rows (Test Step, AC as read with its citation, the
-URS limit of each traced requirement with its citation, why it was not compared) and its
-traceability rows; ``submission.json`` names the package and carries the draft's Test Step
-rows; ``run.json`` names the package, its version, its corpus release and the Equipment
-recordings replayed, and counts the draft's calls, tokens, cost and Test Steps not compared
-(the run's totals include them). Without a package a run is as above.
+URS limit of each traced requirement with its citation, the comparison or why it was not
+compared, the comparators available), its traceability rows and its findings;
+``submission.json`` names the package and carries the draft's Test Step rows and, after the
+Equipment findings, the draft's findings; ``run.json`` names the package, its version, its
+corpus release and the Equipment recordings replayed, and counts the draft's calls, tokens,
+cost and Test Steps not compared (the run's totals include them). Without a package a run is
+as above.
 
 ``vendor_reuse`` (default true) decides whether a ``covered_by_vendor`` requirement also
 gets a drafted Test Step. Eval runs keep it true: scorer criterion 1 counts a step for a
@@ -54,11 +57,12 @@ from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
 from traceq.review import review
 from traceq.review.draft import DRAFT_PROMPT, DraftReading, DraftRow, draft_rows, read_draft
+from traceq.review.draft_rules import DraftFinding, draft_findings
 from traceq.runs.completeness import COMPLETENESS_FILE, completeness
 from traceq.runs.drafts import drafts
 from traceq.runs.findings import findings
 from traceq.runs.matrix import matrix
-from traceq.runs.protocol_draft import draft_steps, protocol_draft
+from traceq.runs.protocol_draft import draft_findings_out, draft_steps, protocol_draft
 from traceq.runs.submission import Submission, SystemInfo, build
 from traceq.traceability import PIPELINE_VERSION, PROMPTS, Traceability, trace
 
@@ -101,6 +105,7 @@ class _Timed:
 class _Draft:
     reading: DraftReading
     rows: list[DraftRow]
+    findings: list[DraftFinding]
     ingested: Ingested
 
 
@@ -125,7 +130,8 @@ def _read_package(
     reading = read_draft(doc, ingested.pages, llm)
     urs = corpus.current("urs")
     language = urs[0].language if urs else "en"
-    return _Draft(reading, draft_rows(reading, traced.requirements, language), ingested)
+    rows = draft_rows(reading, traced, language)
+    return _Draft(reading, rows, draft_findings(reading, rows), ingested)
 
 
 def _write_json(path: Path, data: Any) -> None:
@@ -202,7 +208,11 @@ def run(
     submission = build(corpus.equipment, system, traced, reviewed, drafted, scans)
     if package is not None and on_draft is not None:
         submission = submission.model_copy(
-            update={"review_package": package.package, "draft_steps": draft_steps(on_draft.rows)}
+            update={
+                "review_package": package.package,
+                "draft_steps": draft_steps(on_draft.rows),
+                "findings": (*submission.findings, *draft_findings_out(on_draft.findings)),
+            }
         )
 
     responses = [c.response for c in llm.calls]
@@ -328,7 +338,8 @@ def run(
     _write_json(folder / COMPLETENESS_FILE, completeness(traced).model_dump(mode="json"))
     if package is not None and on_draft is not None:
         _write_json(
-            folder / DRAFT_FILE, protocol_draft(package.package, on_draft.reading, on_draft.rows)
+            folder / DRAFT_FILE,
+            protocol_draft(package.package, on_draft.reading, on_draft.rows, on_draft.findings),
         )
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)

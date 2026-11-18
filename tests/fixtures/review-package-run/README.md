@@ -11,8 +11,11 @@ a reading whose quote is not on the page, which the citation check drops.
   run replays them from `recordings/haiku-r10`.
 - `ingest/`: Docling's reading of the rendered draft (the PDF of the package release, SHA-256
   in `recordings/TP-201-OQ-draft-0.1.0/manifest.json`), so the replay reads no PDF.
-- `run.json`, `report.json`: the run metadata and the scorer report of the run that wrote
-  them; the replay must reproduce them at tolerance 0.
+- `run.json`, `report.json`: the run metadata and the scorer report of a run of these
+  recordings; the replay must reproduce them at tolerance 0. Since ticket #208 (draft rules)
+  they come from a replay of the recordings (mode `replay`, zero live calls), re-written
+  with the run and `python -m traceq_eval ... --package world/tp201-oq-draft.yaml`; the
+  stand-in run that wrote the recordings counted the same 8 draft calls as live.
 
 A change to the draft prompt stops these recordings from replaying. The live Review Package
 run (after the system tickets, with the owner's spend approval) records real answers in
