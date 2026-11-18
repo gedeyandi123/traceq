@@ -269,7 +269,8 @@ Weights per type are set once discovery confirms which review errors are most co
 | Referenced attachment missing | "See Attachment 4" | Rule + LLM | CPOB Ch. 10 |
 | Outdated reference | WHO TRS 970 for water | LLM | — |
 | Inconsistent data across documents | IQ serial ≠ nameplate | LLM | — |
-| AC deviates from URS | Protocol ±10%, URS ±5% | LLM | — |
+| AC deviates from URS | Protocol ±10%, URS ±5% | Rule (scorer 0.8.0; LLM before) | — |
+| Requirement not tested | Traceability row whose Test Steps the protocol does not print | Rule | — |
 | GDP correction, three variants (overwrite without initials/date, missing reason, obliterated original) | Scanned SAT entry | LLM/vision | PIC/S PI 041-1 §8.7, CPOB 10.8 |
 | Leftover from another Equipment **[D]** | Another tag left in a copied protocol | LLM | — |
 
