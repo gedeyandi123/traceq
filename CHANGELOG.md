@@ -10,6 +10,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+
+- Review Package `TP-201-OQ-draft` 0.1.0 (#203, spec #196), its own version line, labelled "defect types chosen before the practitioner session; dev only": a site OQ Protocol Draft for TP-201 (`OQ-TP201` rev 0, Draft, Indonesian, 26 Test Steps and a traceability table, written against `URS-TP201` rev 1), referring to `corpus-v0.1.1` by version and manifest SHA-256 without changing it. Placements drawn with seed 203 over the TP-201 answer key's 13 comparable requirements (one-sided limits and min = max): 6 `ac_deviates_from_urs` defects and 5 Clean Traps; 2 `requirement_not_tested` rows drawn from the draft's not-compared requirements; 2 Injection Probes in body text (a remarks cell, small print under a step) on defective steps. Answer key `answer_key/TP-201-OQ-draft/` (derived), release manifest `recordings/TP-201-OQ-draft-0.1.0/manifest.json`. TP-201's world data, answer key (missing-document key included) and the corpus are unchanged. No rule, prompt or scorer for it yet.
+
 ### Changed
 
 - Scorer 0.8.0 (#204, spec #196): the taxonomy gains `requirement_not_tested` (layer Rule) and moves `ac_deviates_from_urs` from layer LLM to layer Rule; the scorer takes a defect's layer from the answer key, never from the submission. No committed key re-derives differently (TP-201 holds neither type; TP-202's `--check` passes). The `haiku-r10` reports and both baselines re-written from a zero-call replay: every field unchanged except `scorer_version`. Older recorded reports (`haiku-r7`, `haiku-r8`) keep the scorer that scored them. Known and accepted: the Equipment `ai_review` prompt still emits `ac_deviates_from_urs` as an AI Finding; it is reconciled in the post-freeze reading-quality work, not here.

@@ -1,8 +1,10 @@
 """Deterministic ``corpus-<version>.tar.gz`` of ``t0-2026-06-01/`` (the corpus release asset).
 
-    uv run python scripts/pack_release.py SRC OUT.tar.gz
+    uv run python scripts/pack_release.py SRC OUT.tar.gz [ROOT]
 
-``SRC`` is the folder that contains ``t0-2026-06-01/`` (the build output). Layout of the 0.1.x
+``SRC`` is the folder that contains ``t0-2026-06-01/`` (the build output), or ``ROOT`` when
+given: a Review Package release packs its own folder the same way, for example
+``scripts/pack_release.py dist TP-201-OQ-draft-0.1.0.tar.gz TP-201-OQ-draft``. Layout of the 0.1.x
 assets: GNU tar format, members sorted by POSIX path (not the Windows case-insensitive order),
 mtime 2026-06-01, uid/gid 0 with empty names, modes 755 (folders) and 644 (files), gzip
 without a file name or timestamp and OS byte 3 (unix, as gzip(1)). It also writes
@@ -25,9 +27,9 @@ ROOT_NAME = "t0-2026-06-01"
 MTIME = 1780272000  # 2026-06-01T00:00:00Z
 
 
-def pack(src: Path, out: Path) -> str:
+def pack(src: Path, out: Path, root_name: str = ROOT_NAME) -> str:
     """Write the tarball and its ``.sha256`` file; return the hex digest."""
-    root = src / ROOT_NAME
+    root = src / root_name
     paths = [root, *sorted(root.rglob("*"), key=lambda p: p.relative_to(src).as_posix())]
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w", format=tarfile.GNU_FORMAT) as tar:
@@ -54,10 +56,10 @@ def pack(src: Path, out: Path) -> str:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
+    if len(argv) not in (2, 3):
         print(__doc__, file=sys.stderr)
         return 2
-    print(pack(Path(argv[0]), Path(argv[1])))
+    print(pack(Path(argv[0]), Path(argv[1]), *argv[2:]))
     return 0
 
 

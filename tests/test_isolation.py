@@ -24,7 +24,22 @@ SRC = Path(__file__).parents[1] / "src"
 HARNESS = {"traceq_dataset", "traceq_eval"}
 FORBIDDEN_IMPORTS = HARNESS
 PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS)
-FORBIDDEN_TEXT = ("answer_key", "world/", "world\\", "tp201.yaml", "tp202.yaml", "baselines/")
+FORBIDDEN_TEXT = (
+    "answer_key",
+    "world/",
+    "world\\",
+    "tp201.yaml",
+    "tp202.yaml",
+    "baselines/",
+    # Review Package TP-201-OQ-draft (spec #196): its world data, its key's files and its
+    # baseline. The system reads only its release folder (the draft and manifest.json).
+    "tp201-oq-draft.yaml",
+    "defects.yaml",
+    "clean_traps.yaml",
+    "injection_probes.yaml",
+    "test_steps.yaml",
+    "TP-201-OQ-draft.json",
+)
 
 
 def system_files() -> list[Path]:
@@ -60,6 +75,18 @@ def test_guard_catches_a_leak(tmp_path: Path) -> None:
     bad = tmp_path / "prompt.py"
     bad.write_text("from traceq_dataset.answer_key import derive\nP = 'answer_key/TP-201'\n")
     assert leaks(bad) == ["mentions 'answer_key'", "imports traceq_dataset.answer_key"]
+
+
+def test_guard_catches_a_review_package_leak(tmp_path: Path) -> None:
+    bad = tmp_path / "draft.py"
+    bad.write_text(
+        "W = 'tp201-oq-draft.yaml'\nT = 'clean_traps.yaml'\nB = 'TP-201-OQ-draft.json'\n"
+    )
+    assert leaks(bad) == [
+        "mentions 'tp201-oq-draft.yaml'",
+        "mentions 'clean_traps.yaml'",
+        "mentions 'TP-201-OQ-draft.json'",
+    ]
 
 
 def copied(prompt: str, equipment: str) -> list[str]:
