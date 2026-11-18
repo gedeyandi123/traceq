@@ -21,15 +21,23 @@ its own.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass, field, replace
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from traceq.ai import LLM, Prompt, Request
 from traceq.documents import CorpusDocument, Page, normalise
+from traceq.review.compare import compare
 from traceq.review.printed import PrintedValue, read_printed
-from traceq.traceability import Ambiguous, Citation, Dropped, Requirement
+from traceq.traceability import (
+    Ambiguous,
+    Citation,
+    Dropped,
+    Linked,
+    Requirement,
+    Traceability,
+)
 from traceq.traceability.citations import UNCERTAIN, uncertain, verified
 from traceq.traceability.evidence import Claim
 from traceq.traceability.values import Text
@@ -87,9 +95,6 @@ DRAFT_PROMPT = Prompt(
 )
 """Not in the Pre-review prompt set: its hash enters a run's prompt set only in a Review
 Package run, so an Equipment run's ``system.prompt`` stays as it is."""
-
-NOT_BUILT = "comparison rules not built yet"
-"""The reason a row whose AC and URS limit were both read is not compared in this build."""
 
 
 class _Answer(BaseModel):
@@ -157,12 +162,44 @@ class UrsLimit:
 
 
 @dataclass(frozen=True)
+class VendorFact:
+    name: str
+    """The vendor step id, or the design fact's name."""
+    printed: str
+    """The step's observation, or the design value, as printed."""
+    citation: Citation
+
+
+@dataclass(frozen=True)
+class Comparator:
+    """The vendor facts of one document the requirement's matrix row holds: the FAT/SAT steps
+    offered as Evidence, or the design facts (datasheet, certificate)."""
+
+    doc: str
+    rev: int
+    kind: Literal["FAT", "SAT", "design"]
+    facts: tuple[VendorFact, ...]
+
+
+@dataclass(frozen=True)
+class Comparison:
+    """A Test Step's AC compared with the URS limit of one requirement the table traces it
+    to (``traceq.review.compare``), with the comparators available for that requirement:
+    shown only, never a finding (empty: none)."""
+
+    urs: UrsLimit
+    deviates: bool = False
+    not_compared: str | None = None
+    comparators: tuple[Comparator, ...] = ()
+
+
+@dataclass(frozen=True)
 class DraftRow:
-    """A Test Step in draft order with the URS limits of the requirements the table traces it
-    to, and why it was not compared."""
+    """A Test Step in draft order with its comparison with each requirement the table traces
+    it to, and why it was not compared at all (``None``: compared with at least one)."""
 
     step: StepReading
-    traced: tuple[UrsLimit, ...]
+    traced: tuple[Comparison, ...]
     not_compared: str | None
 
 
@@ -261,13 +298,53 @@ def urs_limit(requirement: Requirement, language: str) -> UrsLimit:
     return UrsLimit(requirement.id, value, c)
 
 
-def draft_rows(
-    reading: DraftReading, requirements: Sequence[Requirement], urs_language: str
-) -> list[DraftRow]:
-    """Every Test Step read, in draft order, with the URS limit of each requirement the
-    draft's traceability table lists it under. The table decides which requirement a Test
-    Step is compared with."""
-    by_id = {r.id: r for r in requirements}
+def comparators(linked: Linked | None) -> tuple[Comparator, ...]:
+    """The vendor facts of a requirement's matrix row, by document in matrix order: the FAT/SAT
+    steps offered as Evidence, then the design facts."""
+    if linked is None:
+        return ()
+    groups: dict[tuple[str, int, Literal["FAT", "SAT", "design"]], list[VendorFact]] = {}
+    for s in linked.steps:
+        key = (s.protocol.doc, s.protocol.rev, s.protocol.stage)
+        groups.setdefault(key, []).append(VendorFact(s.step, s.observed, s.citation))
+    for r in linked.rows:
+        groups.setdefault((r.fact.doc, r.fact.rev, "design"), []).append(
+            VendorFact(r.name, r.printed, r.citation)
+        )
+    return tuple(
+        Comparator(doc, rev, kind, tuple(facts)) for (doc, rev, kind), facts in groups.items()
+    )
+
+
+def _not_compared(step: StepReading, listed: list[str]) -> str | None:
+    """Why a Test Step the table lists is compared with none of its requirements."""
+    if other := [r for r in step.requirements if r not in listed]:
+        return (
+            f"the Test Step names {', '.join(other)}; the traceability table lists it"
+            f" under {', '.join(listed)}"
+        )
+    if (ac := _reason(step.value)) is not None:
+        return f"acceptance criterion: {ac}"
+    return None
+
+
+def _compared(step: StepReading, urs: UrsLimit, before: str | None) -> Comparison:
+    """``before``: why the Test Step is compared with none of its requirements."""
+    if before is not None:
+        return Comparison(urs, not_compared=before)
+    if urs.value is None:
+        return Comparison(urs, not_compared=f"URS limit: {urs.not_parsed}")
+    assert step.value is not None and not isinstance(step.value, Ambiguous)
+    outcome = compare(step.value, urs.value)
+    return Comparison(urs, outcome.deviates, outcome.not_compared)
+
+
+def draft_rows(reading: DraftReading, traced: Traceability, urs_language: str) -> list[DraftRow]:
+    """Every Test Step read, in draft order, compared with the URS limit of each requirement
+    the draft's traceability table lists it under, with that requirement's comparators. The
+    table decides which requirement a Test Step is compared with; a Test Step whose header
+    names another requirement is not compared."""
+    by_id = {r.id: r for r in traced.requirements}
     under: dict[str, list[str]] = {}
     for row in reading.rows:
         for s in row.steps:
@@ -275,19 +352,25 @@ def draft_rows(
                 under[s].append(row.requirement)
     out: list[DraftRow] = []
     for step in reading.steps:
-        traced = tuple(
-            urs_limit(by_id[r], urs_language)
-            if r in by_id
-            else UrsLimit(r, None, None, "requirement not read from the URS")
-            for r in under.get(step.id, [])
+        listed = under.get(step.id, [])
+        if not listed:
+            out.append(DraftRow(step, (), "not in the traceability table"))
+            continue
+        before = _not_compared(step, listed)
+        rows = tuple(
+            replace(
+                _compared(
+                    step,
+                    urs_limit(by_id[r], urs_language)
+                    if r in by_id
+                    else UrsLimit(r, None, None, "requirement not read from the URS"),
+                    before,
+                ),
+                comparators=comparators(traced.linked.get(r)),
+            )
+            for r in listed
         )
-        if not traced:
-            reason = "not in the traceability table"
-        elif (ac := _reason(step.value)) is not None:
-            reason = f"acceptance criterion: {ac}"
-        elif all(u.value is None for u in traced):
-            reason = f"URS limit: {traced[0].not_parsed}"
-        else:
-            reason = NOT_BUILT
-        out.append(DraftRow(step, traced, reason))
+        reasons = [c.not_compared for c in rows if c.not_compared is not None]
+        compared = len(reasons) < len(rows)
+        out.append(DraftRow(step, rows, None if compared else "; ".join(dict.fromkeys(reasons))))
     return out

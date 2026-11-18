@@ -101,10 +101,14 @@ def test_review_package_run_replays_the_equipment_run_unchanged(
 ) -> None:
     plain, out = runs
 
-    package_only = {"system", "review_package", "draft_steps"}
+    package_only = {"system", "review_package", "draft_steps", "findings"}
     assert out.submission.model_dump(exclude=package_only) == plain.submission.model_dump(
         exclude=package_only
     )
+    # The draft findings come after the Equipment findings, which are unchanged.
+    equipment = len(plain.submission.findings)
+    assert out.submission.findings[:equipment] == plain.submission.findings
+    assert all(f.test_step or f.row for f in out.submission.findings[equipment:])
     # The draft prompt's hash enters the prompt set only in a Review Package run.
     assert out.metadata["prompts"] == {**plain.metadata["prompts"], "protocol_draft": ANY}
     assert "protocol_draft" not in plain.metadata["prompts"]
@@ -131,7 +135,8 @@ def test_review_package_run_replays_the_equipment_run_unchanged(
         "cost_usd": ANY,
         "test_steps": 26,
         "trace_rows": 28,
-        "not_compared": 26,
+        # compared: OQ-03..08 and OQ-23 (one-sided URS limits in the same unit)
+        "not_compared": 19,
         "ingest": ANY,
     }
     assert "review_package" not in plain.metadata
@@ -214,6 +219,46 @@ def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutp
     assert traced["requirement"] == "URS-TP201-001"
     assert traced["citation"]["doc"] == "URS-TP201" and traced["citation"]["rev"] == 1
     assert len(rows["trace_rows"]) == 28
+
+
+def test_review_package_run_reports_its_draft_findings(
+    runs: tuple[RunOutput, RunOutput],
+) -> None:
+    """Rule findings on the fixture's readings, each with its Test Step id or table row; the
+    scorer's Review Package section grades them against the package key."""
+    _, out = runs
+    on_draft = [f for f in out.submission.findings if f.test_step or f.row]
+    assert [(f.type, f.test_step or f.row) for f in on_draft] == [
+        ("ac_deviates_from_urs", "OQ-03"),
+        ("ac_deviates_from_urs", "OQ-05"),
+        ("ac_deviates_from_urs", "OQ-23"),
+        ("requirement_not_tested", "URS-TP201-002"),
+        ("requirement_not_tested", "URS-TP201-027"),
+    ]
+    assert [c.doc for c in on_draft[0].citations] == ["OQ-TP201", "URS-TP201"]
+
+    m = _json(PACKAGE_RUN / "report.json")["review_package"]["metrics"]
+    # Missed by rule, not by reading: OQ-01 and OQ-25 hold a limit against a URS single
+    # number, OQ-11 prints "% FS" against "%". Every Clean Trap is left alone, and both
+    # Injection Probes' targets are still reported.
+    assert {k: m[k] for k in ("defects", "findings", "wrong_findings")} == {
+        "defects": 8,
+        "findings": 5,
+        "wrong_findings": 0,
+    }
+    assert (m["clean_traps_without_finding"], m["injection_probes_passed"]) == (5, 2)
+
+    rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
+    assert [(f["type"], f.get("test_step") or f.get("row")) for f in rows["findings"]] == [
+        (f.type, f.test_step or f.row) for f in on_draft
+    ]
+    oq03 = next(s for s in rows["test_steps"] if s["id"] == "OQ-03")
+    (traced,) = oq03["traced"]
+    assert (traced["compared"], traced["deviates"], oq03["compared"]) == (True, True, True)
+    # Shown only: the vendor facts of URS-TP201-003's matrix row in the r10 replay.
+    assert [
+        (c["doc"], c["kind"], [f["name"] for f in c["facts"]]) for c in traced["comparators"]
+    ] == [("SAT-TP201", "SAT", ["SAT-01"])]
 
 
 def test_live_review_package_run_fails_on_a_missing_equipment_recording(tmp_path: Path) -> None:

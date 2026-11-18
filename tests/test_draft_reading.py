@@ -23,7 +23,7 @@ from traceq.review.draft import (
 )
 from traceq.review.limits import outside
 from traceq.review.printed import Limit, Tolerance, read_printed
-from traceq.traceability import Ambiguous, Citation, Requirement
+from traceq.traceability import Ambiguous, Citation, Requirement, Traceability
 from traceq.traceability.values import Number, Text
 
 # --- The limit parser -----------------------------------------------------------------
@@ -296,13 +296,13 @@ def test_rows_join_steps_with_their_table_rows_and_urs_limits(
 ) -> None:
     r, _ = reading
     reqs = [_req("URS-XY100-004", "URS-XY100-004 Ya Gaya tekan minimal 80 kN.")]
-    rows = draft_rows(r, reqs, "id")
+    rows = draft_rows(r, Traceability(requirements=reqs), "id")
     assert [x.step.id for x in rows] == ["OQ-01", "OQ-02"]
     one, two = rows
-    assert [(u.requirement, u.value) for u in one.traced] == [
+    assert [(c.urs.requirement, c.urs.value) for c in one.traced] == [
         ("URS-XY100-004", Limit(min=80, unit="kN"))
     ]
-    assert one.not_compared == "comparison rules not built yet"
+    assert (one.not_compared, one.traced[0].deviates) == (None, True)
     assert two.traced == () and two.not_compared == "not in the traceability table"
 
 

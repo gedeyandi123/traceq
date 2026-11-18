@@ -1,9 +1,9 @@
 {
-  "run_id": "20261118T112224Z-f0176a",
-  "created": "2026-11-18T11:22:24.822256+00:00",
+  "run_id": "20261118T115616Z-7fbb5c",
+  "created": "2026-11-18T11:56:16.346804+00:00",
   "system": "traceq",
   "pipeline_version": "0.3.0",
-  "mode": "live",
+  "mode": "replay",
   "settings": {
     "vendor_reuse": true
   },
@@ -104,16 +104,16 @@
   },
   "calls": {
     "total": 157,
-    "replayed": 149,
-    "live": 8
+    "replayed": 157,
+    "live": 0
   },
   "tokens": {
     "input": 529781,
     "output": 54110
   },
   "cost_usd": 0.040017,
-  "live_cost_usd": 0.000994,
-  "max_usd": 0.05,
+  "live_cost_usd": 0.0,
+  "max_usd": null,
   "price_table": {
     "batch_discount": 0.5
   },
@@ -423,8 +423,8 @@
     }
   ],
   "duration": {
-    "total_seconds": 0.266,
-    "live_seconds": 0.001
+    "total_seconds": 0.171,
+    "live_seconds": 0.0
   },
   "not_read": [],
   "review_package": {
@@ -442,8 +442,8 @@
     },
     "calls": {
       "total": 8,
-      "replayed": 0,
-      "live": 8
+      "replayed": 8,
+      "live": 0
     },
     "tokens": {
       "input": 6645,
@@ -452,7 +452,7 @@
     "cost_usd": 0.000994,
     "test_steps": 26,
     "trace_rows": 28,
-    "not_compared": 26,
+    "not_compared": 19,
     "ingest": {
       "engine": "Docling (pypdfium2 backend)",
       "version": "docling-1",
