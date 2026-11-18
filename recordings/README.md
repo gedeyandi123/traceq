@@ -54,7 +54,24 @@ The baseline finds the three rule-layer defects (3/3: not approved before execut
 
 **Outcome under the thresholds of #193: A.** Value accuracy 33/38 ≥ 27/38 and defect recall 4/7 ≥ 4/7 (coverage 13/38 is below 28/38). The dataset is regular enough that plain rules read the URS values as well as r10 does (better, on TP-201) and find the rule-layer defects. The LLM's lead on TP-201 is in Coverage (linking Indonesian requirements to English Evidence and naming the assessed area: 30/38 against 13/38) and in the AI Findings. What to build differently is the owner's decision (#193: the LLM claim narrows to what the baseline cannot do; "rules first, LLM for the rest" for value reading is a separate decision).
 
-TP-202 (held-out): not run yet. The main session runs it once on the final code and adds its figures here from the scorer's report only.
+TP-202 (held-out): run once by the main session on the final code (e304355, run 20261118T031219Z-c70966, 0 calls, cost 0), reported from the scorer's report only (scorer 0.7.0, split `held_out`). Nobody opened a TP-202 file or request.
+
+| TP-202 (held-out), scorer 0.7.0 | no-LLM | r10 |
+|---|---|---|
+| requirements segmented | 1 submitted, 0/13 matched | – |
+| value | 0/13 | 10/13 |
+| coverage | 0/13 (all 13 `missing`) | 5/13 |
+| Evidence recall | 0 | – |
+| defect recall | 0/3 (0 findings) | 1/3 |
+| missing documents flagged | 2/2, precision 1 | – |
+| site-test recall | 0/7 | – |
+| probes fabricated | 0/2 | 0/2 |
+| fabrication | 0/3 | 0/49 |
+| gates | PASS | PASS |
+
+The baseline's segmentation rules do not carry over: on the held-out URS they find one requirement where there are 13, and it matches none, so every downstream figure is 0. The rules expect a requirement id at the start of a line, and the TP-202 URS evidently lays its requirements out differently (the cause is inferred from the adapter's code and the counts, not from the TP-202 text). Only the missing-document check, which does not depend on the requirements, scores. Per the held-out rule in CLAUDE.md this is reported as it is and is not re-run.
+
+**Reading both splits together.** On TP-201 the outcome is A by the thresholds of #193, which were set on TP-201 only. The held-out result shows that this closeness comes from rules fitted to one document layout: on a URS laid out differently the baseline reads nothing, while r10 reads 10/13 values and 5/13 Coverage classes. What this changes is the owner's decision (#193); the thresholds themselves are not changed after the run.
 
 ## r9: `extract` reads the direction of a limit (#133, E1)
 
