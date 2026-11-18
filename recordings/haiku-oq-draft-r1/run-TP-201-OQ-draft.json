@@ -1,9 +1,9 @@
 {
-  "run_id": "20261118T115616Z-7fbb5c",
-  "created": "2026-11-18T11:56:16.346804+00:00",
+  "run_id": "20261118T170454Z-23b527",
+  "created": "2026-11-18T17:04:54.377223+00:00",
   "system": "traceq",
   "pipeline_version": "0.3.0",
-  "mode": "replay",
+  "mode": "live",
   "settings": {
     "vendor_reuse": true
   },
@@ -104,16 +104,16 @@
   },
   "calls": {
     "total": 157,
-    "replayed": 157,
-    "live": 0
+    "replayed": 149,
+    "live": 8
   },
   "tokens": {
-    "input": 529781,
-    "output": 54110
+    "input": 536243,
+    "output": 56897
   },
-  "cost_usd": 0.040017,
-  "live_cost_usd": 0.0,
-  "max_usd": null,
+  "cost_usd": 0.041036,
+  "live_cost_usd": 0.002014,
+  "max_usd": 0.05,
   "price_table": {
     "batch_discount": 0.5
   },
@@ -200,7 +200,17 @@
     },
     {
       "claim": "draft_step",
-      "id": "OQ-TP201 p1 OQ-02",
+      "id": "OQ-TP201 p1 OQ-01",
+      "reason": "quote check"
+    },
+    {
+      "claim": "draft_step",
+      "id": "OQ-TP201 p1 OQ-03",
+      "reason": "quote check"
+    },
+    {
+      "claim": "draft_step",
+      "id": "OQ-TP201 p4 OQ-12",
       "reason": "quote check"
     }
   ],
@@ -423,8 +433,8 @@
     }
   ],
   "duration": {
-    "total_seconds": 0.171,
-    "live_seconds": 0.0
+    "total_seconds": 218.652,
+    "live_seconds": 215.704
   },
   "not_read": [],
   "review_package": {
@@ -442,17 +452,17 @@
     },
     "calls": {
       "total": 8,
-      "replayed": 8,
-      "live": 0
+      "replayed": 0,
+      "live": 8
     },
     "tokens": {
-      "input": 6645,
-      "output": 2649
+      "input": 13107,
+      "output": 5436
     },
-    "cost_usd": 0.000994,
-    "test_steps": 26,
+    "cost_usd": 0.002014,
+    "test_steps": 23,
     "trace_rows": 28,
-    "not_compared": 19,
+    "not_compared": 17,
     "ingest": {
       "engine": "Docling (pypdfium2 backend)",
       "version": "docling-1",
