@@ -55,7 +55,8 @@ CPOB (PerBPOM 7/2024) is the primary reference for every defect type and Coverag
 | HSMG-101 | High-shear mixer granulator | Full history | Qualified; Requalification due T0+30d | Due soon in the registry |
 | FBD-101 | Fluid bed dryer | Full history | Qualified; Requalification overdue T0−20d | Overdue; SAT report missing (missing-document recall) |
 | CP-301 | Coating pan | Partial history | Qualified; open Change Control (motor replacement) | Requalification triggered by change |
-| PW-001 | Purified Water System | Phased PQ | PQ Phase 3, month 7 | Long-running monitoring; outdated reference in a superseded protocol |
+| PW-001 | Purified Water System | Held-out package (v1) | Before IQ/OQ | **Held-out eval split only**; never shown in the demo |
+| (tag set when built) | Second purified water system | Phased PQ | PQ Phase 3, month 7 | Long-running monitoring; outdated reference in a superseded protocol |
 | TP-202 | Tablet press, different vendor | Hero, full package | SAT done | **Held-out eval split only**; never shown in the demo |
 | (~20 items) | Balances, sieves, metal detector, deduster, … | Registry rows only | Mixed | Makes the registry look like a real plant |
 
@@ -101,9 +102,13 @@ Same document types, different vendor and layout. The URS is prose and unnumbere
 
 URS, approved IQ/OQ/PQ Protocols, Execution records, Qualification Reports, Deviations, Change Controls, and Requalification history. Format mix follows plant practice **[D: Word / Excel / paper / DMS]**.
 
-### PW-001 (purified water)
+### PW-001 (purified water, held out)
 
-PW-001 is the v1 held-out Equipment (section 11): its URS and vendor package are written by a separate session and are not described here. The phased-PQ content below is for the Registry and monitoring features. Because it is written here, it can never be held out.
+PW-001 is the v1 held-out Equipment (section 11): its URS and vendor package are written by a separate session and are not described here. The package depicts the system before IQ/OQ, so it holds no phased-PQ content (owner, 18 Nov 2026, #195).
+
+### Phased-PQ water system (tag set when built)
+
+The phased-PQ content below is for the Registry and monitoring features. It belongs to a second purified water system, not to PW-001. Because it is written here, it can never be held out. Placing it inside the held-out package would also change that package's bytes and its missing-document key.
 
 At T0 the system is in **Phase 3, month 7**: Phases 1–2 complete, two quarterly trending points, the 12-month clock running. The corpus contains Protocol rev 1 (cites the outdated WHO TRS 970) and its replacement rev 2.
 
@@ -381,7 +386,7 @@ The baseline file is `baselines/<Equipment>.json`, one per Equipment, and `basel
 
 ## 10. Governance
 
-- **Versioning:** SemVer in [`CHANGELOG.md`](../../CHANGELOG.md). MAJOR = answer-key semantics or schema change; MINOR = new Equipment or documents, or weight changes after discovery; PATCH = fixes. Every eval run records the dataset version.
+- **Versioning:** SemVer in [`CHANGELOG.md`](../../CHANGELOG.md). MAJOR = answer-key semantics or a breaking schema change; MINOR = new Equipment or documents, optional schema fields whose defaults leave existing documents and answer keys unchanged (as TP-202 added `Document.layout`), or weight changes after discovery; PATCH = fixes. Every eval run records the dataset version.
 - **Answer-key changes** go through their own PR with written rationale, a reference to the decision table, and a CHANGELOG entry. They are never combined with prompt changes. Exception: an answer-key change and a scorer change may share one PR when an oracle test needs both at once (as in #65); a change to the system under test still goes in its own PR. The TP-202 answer key changes only after the prompt is frozen.
 - **Documentation:** [`DATASHEET.md`](../../DATASHEET.md) follows Datasheets for Datasets (Gebru et al.).
 - **Licences:** code Apache-2.0; dataset and rendered documents CC BY 4.0.
