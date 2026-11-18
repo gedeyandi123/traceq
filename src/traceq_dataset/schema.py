@@ -10,6 +10,7 @@ dataset may not (:meth:`Equipment.pending`).
 from __future__ import annotations
 
 import datetime as dt
+import re
 from collections import Counter
 from enum import StrEnum
 from typing import Annotated, ClassVar, Literal
@@ -196,11 +197,35 @@ class Person(Model):
     employer: str = Field(description="Site or vendor id.")
 
 
+class AssessmentArea(Model):
+    """One area a Vendor Assessment rates, as printed in its scope table."""
+
+    key: str = Field(description="Matched against VendorAssessment.scope and Requirement.scope.")
+    label: str = Field(description="Area name as printed.")
+    activities: str = Field(description="Vendor activities assessed in the area, as printed.")
+
+
 class VendorAssessment(Model):
     """CPOB Ch. 12: the site may rely on vendor results only within the assessed scope."""
 
     assessed_on: Offset
     scope: frozenset[str] = Field(description="Requirement scopes covered, e.g. 'mechanical'.")
+    areas: tuple[AssessmentArea, ...] | None = Field(
+        None,
+        description="Areas the assessment rates, in print order; None = the site's four "
+        "standard areas (mechanical, control, data integrity, documentation).",
+    )
+
+    @model_validator(mode="after")
+    def _scope_in_areas(self) -> VendorAssessment:
+        if self.areas is None:
+            return self
+        keys = [a.key for a in self.areas]
+        errors = [f"duplicate area {k}" for k, n in Counter(keys).items() if n > 1]
+        errors += [f"scope {s} is not an area" for s in sorted(self.scope - set(keys))]
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self
 
 
 class Vendor(Model):
@@ -255,6 +280,13 @@ class Requirement(Model):
         "table, with this label in the first column; without one it is a sentence of the "
         "section's paragraph.",
     )
+    clause: str | None = Field(
+        None,
+        pattern=r"^\d+(\.\d+)+$",
+        description="Matrix URS only: the document's own hierarchical clause number, e.g. "
+        "'4.2.1', printed in the row instead of the key id. Two consecutive requirements of "
+        "a section may share a clause: they are printed in one row.",
+    )
 
     @model_validator(mode="after")
     def _value_in_quote(self) -> Requirement:
@@ -265,6 +297,19 @@ class Requirement(Model):
                 if bound is not None and not any(f in quote for f in number_forms(bound)):
                     raise ValueError(f"{self.id}: value {bound:g} not found in source quote")
         return self
+
+
+def fmt_number(value: float, lang: str) -> str:
+    """``120000`` → ``120.000`` (id) / ``120,000`` (en); ``0.8`` → ``0,8`` (id)."""
+    text = f"{value:,.10g}"
+    return text.translate(str.maketrans(",.", ".,")) if lang == "id" else text
+
+
+def states_number(text: str, value: float, lang: str) -> bool:
+    """``text`` prints ``value`` as the renderer formats it in ``lang``, as a whole number:
+    ``20`` is not stated by ``120`` or ``20.5``."""
+    form = re.escape(fmt_number(value, lang))
+    return re.search(rf"(?<![\d.,]){form}(?![\d]|[.,]\d)", text) is not None
 
 
 def number_forms(value: float) -> set[str]:
@@ -364,6 +409,11 @@ class TestEvidence(Model):
         description="The protocol's Acceptance Criterion when it is not the URS spec, e.g. a "
         "vendor FAT that tests a narrower range (Coverage `partial`, not a defect).",
     )
+    acceptance_text: str | None = Field(
+        None,
+        description="The Acceptance Criterion as the protocol writes it, printed instead of "
+        "the formatted spec. It must state the spec's numbers in the document's language.",
+    )
     instruments: tuple[str, ...] = Field((), description="Instrument ids used in the step.")
     correction: Correction | None = None
 
@@ -451,11 +501,13 @@ class Document(Model):
     executed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     witnessed_by: str | None = Field(None, description="Person id (FAT/SAT only).")
     change_note: str = Field("", description="Revision history entry; empty for rev 0.")
-    layout: Literal["standard", "prose", "record"] = Field(
+    layout: Literal["standard", "prose", "record", "matrix"] = Field(
         "standard",
         description="standard: the TP-201 layouts; prose: a URS written as paragraphs and "
         "unnumbered tables, with no requirement numbers; record: a FAT laid out as one "
-        "test record per step, with an as-built data table (design section 5, TP-202).",
+        "test record per step, with an as-built data table (design section 5, TP-202); "
+        "matrix: a URS as one table per section, each row the document's own clause "
+        "number (Requirement.clause), one or two requirement sentences and criticality.",
     )
     attachments: tuple[str, ...] = Field(
         (),
@@ -475,7 +527,7 @@ class Document(Model):
     """Site documents outside an Equipment's package (design section 4): the VMP and SOP
     govern every Equipment, the Vendor Assessment what the site may rely on from a vendor
     (Coverage condition 1). They are not in an Equipment's ``required_documents``."""
-    LAYOUTS: ClassVar = {"prose": "urs", "record": "fat"}
+    LAYOUTS: ClassVar = {"prose": "urs", "record": "fat", "matrix": "urs"}
     """Document type each non-standard layout is for."""
 
 
@@ -737,6 +789,7 @@ class Equipment(Model):
                 errors.append(f"{t.step}: unknown requirement {t.requirement}")
             if t.protocol not in protocols:
                 errors.append(f"{t.step}: unknown protocol {t.protocol}")
+            errors += self._acceptance_text_errors(t)
         errors += [
             f"{d.doc_id}: unknown requirement {d.requirement}"
             for d in self.designs
@@ -845,11 +898,37 @@ class Equipment(Model):
                 errors.append(f"{name}: issued before calibration")
         return errors
 
+    def _acceptance_text_errors(self, t: TestEvidence) -> list[str]:
+        """Printed instead of the spec, the text must still state the spec's numbers in the
+        language of the step's document (either language if it is not rendered)."""
+        req = next((r for r in self.requirements if r.id == t.requirement), None)
+        spec = t.acceptance or (req.spec if req else None)
+        if t.acceptance_text is None or not isinstance(spec, RangeSpec):
+            return []
+        doc = next((d for d in self.documents if d.id == t.protocol and d.rev == 0), None)
+        langs = (doc.language,) if doc else ("id", "en")
+        text = t.acceptance_text
+        missing = [
+            fmt_number(v, langs[0])
+            for v in (spec.min, spec.max)
+            if v is not None and not any(states_number(text, v, lang) for lang in langs)
+        ]
+        return [f"{t.step}: acceptance_text does not state {m}" for m in missing]
+
     def _urs_layout_errors(self, d: Document, name: str) -> list[str]:
         """A prose URS prints no Kritis column for its sentences, so a critical requirement
-        goes in a table; table labels and intros belong to a prose URS only."""
+        goes in a table; table labels and intros belong to a prose URS only. A matrix URS
+        prints a clause number on every row; clauses belong to a matrix URS only."""
+        if d.layout == "matrix":
+            clauses = self._clause_errors(name)
+        else:
+            clauses = [
+                f"{name}: clause {r.id} needs a matrix URS"
+                for r in self.requirements
+                if r.clause is not None
+            ]
         if d.layout != "prose":
-            errors = [
+            errors = clauses + [
                 f"{name}: table_label {r.id} needs a prose URS"
                 for r in self.requirements
                 if r.table_label is not None
@@ -865,6 +944,32 @@ class Equipment(Model):
             for s in self.urs_intros
             if s not in sections
         ]
+
+    def _clause_errors(self, name: str) -> list[str]:
+        """Every requirement has a clause. A shared clause is one row, so it holds at most
+        two consecutive requirements of one section with the same criticality."""
+        errors = [f"{name}: {r.id} needs a clause" for r in self.requirements if r.clause is None]
+        rows: list[list[Requirement]] = []
+        for r in self.requirements:
+            if r.clause is None:
+                continue
+            if rows and rows[-1][0].clause == r.clause:
+                rows[-1].append(r)
+            else:
+                rows.append([r])
+        seen: set[str] = set()
+        for row in rows:
+            clause = row[0].clause or ""
+            if clause in seen:
+                errors.append(f"{name}: clause {clause} is not on consecutive requirements")
+            seen.add(clause)
+            if len(row) > 2:
+                errors.append(f"{name}: clause {clause} holds more than two requirements")
+            if len({r.section for r in row}) > 1:
+                errors.append(f"{name}: clause {clause} spans two sections")
+            if len({r.critical for r in row}) > 1:
+                errors.append(f"{name}: clause {clause} mixes criticality in one row")
+        return errors
 
     def _risk_errors(self) -> list[str]:
         """One FMEA row per requirement; its criticality agrees with the URS."""
