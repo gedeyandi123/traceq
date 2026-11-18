@@ -37,4 +37,5 @@ export const counts: DecisionCounts = {
   coverage: { ...none, total: 3, undecided: 1, edited: 1, changed: 1, decided_not_proposed: 2 },
   check: { ...none, total: 2, accepted: 1, rejected: 1 },
   ai: { ...none, total: 1, undecided: 1 },
+  draft: none,
 };
