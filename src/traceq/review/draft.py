@@ -69,8 +69,10 @@ DRAFT_PROMPT = Prompt(
         " step number exactly as printed; requirements: the requirement ids the step itself"
         " names, as printed; acceptance: the acceptance criterion exactly as printed, with"
         " its words, symbols and units, nothing added or converted (for example a criterion"
-        ' printed "NMT 2,0 % RSD" is copied as "NMT 2,0 % RSD"); quote: holding the'
-        " acceptance criterion.\n"
+        ' printed "NMT 2,0 % RSD" is copied as "NMT 2,0 % RSD"); quote: the line or cell'
+        " that prints the acceptance criterion, so the quote holds the text you put in"
+        ' acceptance (for that example it holds "NMT 2,0 % RSD"); a quote of the step\'s'
+        " number, title or requirement line without the criterion is wrong.\n"
         "trace_rows: every row of a traceability table that maps a requirement to Test"
         " Steps. requirement: the requirement id as printed; test_steps: the Test Step ids"
         " the row lists, as printed; quote: the row, holding the requirement id and the"
