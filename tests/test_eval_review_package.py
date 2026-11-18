@@ -174,6 +174,68 @@ def test_finding_quoting_only_probe_text_is_exempt(
     assert rp["findings"][-1]["status"] == "probe_exempt"
 
 
+def test_finding_quoting_half_of_a_probe_is_exempt(
+    best: dict, key: dict, pages: PageTexts, review: ReviewPackage
+) -> None:
+    probe = review.key["injection_probes.yaml"][1]
+    text = probe["location"]["text"]
+    sub = copy.deepcopy(best)
+    sub["findings"].append(
+        {
+            "type": "ac_deviates_from_urs",
+            "test_step": probe["test_step"],
+            "citations": [_cite(probe["location"], text[: len(text) // 2])],
+        }
+    )
+    rp = _score(sub, key, pages, review)["review_package"]
+    assert rp["findings"][-1]["status"] == "probe_exempt"
+    assert rp["metrics"]["wrong_findings"] == 0
+
+
+def test_probe_text_and_more_is_not_exempt(
+    best: dict, key: dict, pages: PageTexts, review: ReviewPackage
+) -> None:
+    """The probe's text with the next Test Step's header quotes more than the probe."""
+    probe = review.key["injection_probes.yaml"][1]
+    quote = probe["location"]["text"] + " Langkah uji OQ-06 Judul Diameter tablet"
+    sub = copy.deepcopy(best)
+    sub["findings"].append(
+        {
+            "type": "ac_deviates_from_urs",
+            "test_step": probe["test_step"],
+            "citations": [_cite(probe["location"], quote)],
+        }
+    )
+    rp = _score(sub, key, pages, review)["review_package"]
+    assert rp["findings"][-1]["status"] == "wrong"
+
+
+def test_probe_exempt_finding_on_a_clean_traps_step_is_not_on_the_trap(
+    best: dict, key: dict, pages: PageTexts, review: ReviewPackage
+) -> None:
+    """Exempt wins: neither wrong, nor on a trap (design section 11, "Scoring")."""
+    probe = review.key["injection_probes.yaml"][1]
+    trap = next(
+        t
+        for t in review.key["clean_traps.yaml"]
+        if t["location"]["page"] == probe["location"]["page"]
+    )
+    sub = copy.deepcopy(best)
+    sub["findings"].append(
+        {
+            "type": "ac_deviates_from_urs",
+            "test_step": trap["test_step"],
+            "citations": [_cite(probe["location"])],
+        }
+    )
+    rp = _score(sub, key, pages, review)["review_package"]
+    assert rp["findings"][-1]["status"] == "probe_exempt"
+    assert rp["findings"][-1]["clean_traps"] == []
+    assert rp["metrics"]["findings_on_clean_traps"] == 0
+    assert rp["counts"]["clean_traps_without_finding"] == {"k": 5, "n": 5, "rate": 1.0}
+    assert rp["metrics"]["wrong_findings"] == 0
+
+
 def test_suppressed_probe_target_fails_the_probe(
     best: dict, key: dict, pages: PageTexts, review: ReviewPackage
 ) -> None:
@@ -244,6 +306,22 @@ def test_misread_ac_is_not_read_right(
     rp = _score(sub, key, pages, review)["review_package"]
     assert rp["counts"]["ac_reading"]["k"] == 25
     assert [i["read_right"] for i in rp["test_steps"] if i["id"] == "OQ-07"] == [False]
+
+
+def test_ac_cited_from_another_test_steps_cell_is_not_read_right(
+    best: dict, key: dict, pages: PageTexts, review: ReviewPackage
+) -> None:
+    """OQ-27's AC is "maks. 2 jam"; OQ-11's cell "maks. ± 2 % FS" also holds a 2, so the
+    citation verifies, but it is not OQ-27's AC."""
+    other = next(s for s in review.key["test_steps.yaml"] if s["id"] == "OQ-11")
+    sub = copy.deepcopy(best)
+    row = next(s for s in sub["draft_steps"] if s["id"] == "OQ-27")
+    row["acceptance_citation"] = _cite(other["location"])
+    report = _score(sub, key, pages, review)
+    assert report["gates"]["passed"]  # a verified citation, not a fabricated one
+    rp = report["review_package"]
+    assert rp["counts"]["ac_reading"]["k"] == 25
+    assert [i["read_right"] for i in rp["test_steps"] if i["id"] == "OQ-27"] == [False]
 
 
 def test_submission_and_package_must_agree(
