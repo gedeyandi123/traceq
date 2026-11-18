@@ -1,0 +1,132 @@
+# PW-001 answer key: defects.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: D-PW001-001
+  scenario: S1
+  type: design_conflict
+  severity: major
+  layer: llm
+  reference: null
+  detail: The datasheet specifies a hydrophobic PTFE tank vent filter of 0.45 µm; the URS requires a pore
+    size of at most 0.2 µm (bacteria-retentive).
+  documents:
+  - {doc: URS-PW001, rev: 0}
+  - {doc: DS-PW001, rev: 0}
+  locations:
+  - {doc: URS-PW001, rev: 0, page: 1, field: URS-PW001-007, text: 'Tangki penyimpanan dilengkapi vent
+      filter hidrofobik dengan ukuran pori maks. 0,2 µm.'}
+  - {doc: DS-PW001, rev: 0, page: 1, field: vent_filter_pore_size, text: 0.45 µm}
+- id: D-PW001-002
+  scenario: S2
+  type: vendor_protocol_not_approved
+  severity: major
+  layer: rule
+  reference:
+    primary: CPOB 12.14
+    equivalents: []
+  detail: 'FAT-PW001-K was executed before the site reviewed and released it: the customer signatures
+    are dated after the test date. Its results cannot be used as Vendor Evidence.'
+  documents:
+  - {doc: FAT-PW001-K, rev: 0}
+  locations:
+  - {doc: FAT-PW001-K, rev: 0, page: 1, text: Released for test (customer)}
+  - {doc: FAT-PW001-K, rev: 0, page: 2, text: Tested by}
+- id: D-PW001-003
+  scenario: S3
+  type: failed_result_no_deviation
+  severity: major
+  layer: rule
+  reference:
+    primary: CPOB 12.16
+    equivalents: []
+  detail: SAT-04 records softener outlet hardness 3,5 mg/L against ≤ 1 mg/L as Fail, but the SAT records
+    no Deviation; the failed result must be investigated and recorded.
+  documents:
+  - {doc: SAT-PW001, rev: 0}
+  locations:
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    field: SAT-04.observed
+    text: 3,5 mg/L
+    quad:
+    - [405.15, 675.74]
+    - [448.4, 676.79]
+    - [448.02, 692.53]
+    - [404.77, 691.48]
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    field: SAT-04.result
+    text: Gagal
+    quad:
+    - [501.5, 678.08]
+    - [530.23, 678.78]
+    - [529.85, 694.52]
+    - [501.12, 693.82]
+- id: D-PW001-004
+  scenario: S4
+  type: expired_calibration
+  severity: major
+  layer: rule
+  reference:
+    primary: CPOB Ch. 12
+    equivalents: []
+  detail: Reference meter COND-05 (certificate PKN-25-0388) was used in SAT-09 six days after its calibration
+    expired; the result lacks valid measurement Evidence.
+  documents:
+  - {doc: SAT-PW001, rev: 0}
+  - {doc: PKN-25-0388, rev: 0}
+  locations:
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    field: instrument.COND-05.due
+    text: 12/05/2026
+    quad:
+    - [471.92, 495.48]
+    - [530.77, 496.91]
+    - [530.39, 512.65]
+    - [471.53, 511.22]
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    field: execution.executed_by.date
+    text: 18/05/2026
+    quad:
+    - [479.65, 404.95]
+    - [538.51, 405.96]
+    - [538.24, 421.71]
+    - [479.38, 420.7]
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    field: SAT-09.instruments
+    text: COND-05
+    quad:
+    - [361.59, 180.72]
+    - [408.81, 181.53]
+    - [408.54, 197.27]
+    - [361.32, 196.46]
+  - {doc: PKN-25-0388, rev: 0, page: 1, field: valid_until, text: 12-May-2026}
+- id: D-PW001-005
+  scenario: S5
+  type: ambiguous_value
+  severity: minor
+  layer: llm
+  reference: null
+  detail: 'SAT-10 records "1.150 L/h" on an English form filled in with Indonesian number formats: 1150
+    or 1.15 L/h. Ask the executor to confirm the value.'
+  documents:
+  - {doc: SAT-PW001, rev: 0}
+  locations:
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    field: SAT-10.observed
+    text: 1.150 L/h
+    quad:
+    - [414.95, 210.31]
+    - [463.82, 211.15]
+    - [463.55, 226.9]
+    - [414.68, 226.06]

@@ -1,0 +1,790 @@
+# PW-001 answer key: requirements.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: URS-PW001-010
+  text: Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 2. Air baku}
+  param: feed_water_quality
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-PW001-001
+  text: Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: edi_product_flow
+  value: {type: range, min: 2, unit: m³/h}
+  critical: false
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 1
+    step: FAT-S-01
+    acceptance: NLT 2 m³/h
+    observed: 2.1 m³/h
+    value: {type: number, value: 2.1, unit: m³/h}
+    recorded_result: pass
+    qualifies: true
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    step: SAT-01
+    acceptance: NLT 2 m³/h
+    observed: 2,05 m³/h
+    value: {type: number, value: 2.05, unit: m³/h}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [407.17, 592.66]
+    - [456.08, 593.85]
+    - [455.7, 609.59]
+    - [406.79, 608.4]
+  design_evidence:
+  - doc: DS-PW001
+    rev: 0
+    page: 1
+    field: edi_product_flow
+    text: 2 m³/h
+    value: {type: number, value: 2, unit: m³/h}
+    meets_urs: true
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-PW001-S, SAT-PW001
+  also_valid: []
+- id: URS-PW001-024
+  text: Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: carbon_outlet_free_chlorine
+  value: {type: range, max: 0.05, unit: mg/L}
+  critical: false
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 2
+    step: FAT-S-07
+    acceptance: NMT 0.05 mg/L
+    observed: 0.02 mg/L
+    value: {type: number, value: 0.02, unit: mg/L}
+    recorded_result: pass
+    qualifies: true
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    step: SAT-08
+    acceptance: NMT 0.05 mg/L
+    observed: 0,03 mg/L
+    value: {type: number, value: 0.03, unit: mg/L}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [415.88, 155.89]
+    - [464.76, 156.73]
+    - [464.49, 172.48]
+    - [415.61, 171.64]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-PW001-S, SAT-PW001
+  also_valid: []
+- id: URS-PW001-015
+  text: Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: softener_outlet_hardness
+  value: {type: range, max: 1, unit: mg/L}
+  critical: false
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 1
+    step: FAT-S-05
+    acceptance: ≤ 1 mg/L
+    observed: 0.4 mg/L
+    value: {type: number, value: 0.4, unit: mg/L}
+    recorded_result: pass
+    qualifies: true
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    step: SAT-04
+    acceptance: ≤ 1 mg/L
+    observed: 3,5 mg/L
+    value: {type: number, value: 3.5, unit: mg/L}
+    recorded_result: fail
+    qualifies: false
+    failure: result does not meet the URS
+    quad:
+    - [405.15, 675.74]
+    - [448.4, 676.79]
+    - [448.02, 692.53]
+    - [404.77, 691.48]
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'SAT-04: result does not meet the URS; condition 4: transport-sensitive and not retested at
+    SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-PW001-025
+  text: Konduktivitas permeat RO tidak lebih dari 20 µS/cm.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: ro_permeate_conductivity
+  value: {type: range, max: 20, unit: µS/cm}
+  critical: false
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 2
+    step: FAT-S-08
+    acceptance: NMT 20 µS/cm
+    observed: 4.8 µS/cm
+    value: {type: number, value: 4.8, unit: µS/cm}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-PW001-002
+  text: Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1).
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: edi_outlet_conductivity
+  value: {type: range, max: 1.3, unit: µS/cm}
+  critical: true
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 1
+    step: FAT-S-02
+    acceptance: NMT 1.3 µS/cm
+    observed: 0.12 µS/cm
+    value: {type: number, value: 0.12, unit: µS/cm}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-PW001-035
+  text: Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap
+    1).
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: pou_conductivity
+  value: {type: range, max: 1.3, unit: µS/cm}
+  critical: true
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-PW001-003
+  text: Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: pou_toc
+  value: {type: range, max: 0.5, unit: mg/L}
+  critical: true
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-PW001-013
+  text: Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 3. Kinerja dan mutu air}
+  param: pou_total_aerobic_count
+  value: {type: range, max: 100, unit: CFU/mL}
+  critical: true
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-PW001-004
+  text: Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS
+    316L.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: wetted_material
+  value:
+    type: one_of
+    allowed: [SS 316L]
+  critical: true
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 1
+    step: FAT-S-03
+    acceptance: SS 316L
+    observed: SS 316L
+    value: {type: text, value: SS 316L}
+    recorded_result: pass
+    qualifies: true
+  design_evidence:
+  - doc: DS-PW001
+    rev: 0
+    page: 1
+    field: wetted_material
+    text: SS 316L
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  - doc: MTC-PW001-01
+    rev: 0
+    page: 1
+    field: item-1.material
+    text: SS 316L
+    part: Storage tank
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  - doc: MTC-PW001-01
+    rev: 0
+    page: 1
+    field: item-2.material
+    text: SS 316L
+    part: Distribution loop pipework
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  - doc: MTC-PW001-01
+    rev: 0
+    page: 1
+    field: item-3.material
+    text: SS 316L
+    part: Valves (loop and points of use)
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  - doc: MTC-PW001-01
+    rev: 0
+    page: 1
+    field: item-4.material
+    text: SS 316L
+    part: Bursting disc holder
+    value: {type: text, value: SS 316L}
+    meets_urs: true
+  expected_coverage: covered_by_vendor
+  reason: proved by FAT-PW001-S
+  also_valid: []
+- id: URS-PW001-005
+  text: Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: loop_slope
+  value: {type: range, min: 1, unit: '%'}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    step: SAT-02
+    acceptance: ≥ 1%
+    observed: 1,2%
+    value: {type: number, value: 1.2, unit: '%'}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [406.48, 621.33]
+    - [433.32, 621.98]
+    - [432.94, 637.72]
+    - [406.09, 637.07]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []
+- id: URS-PW001-022
+  text: Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las
+    dan catatan inspeksi las diserahkan.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: orbital_welding
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 2
+    step: FAT-S-06
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-PW001-028
+  text: Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: sample_valve_roughness
+  value: {type: range, max: 1, unit: µm}
+  critical: false
+  evidence: []
+  design_evidence:
+  - doc: DS-PW001
+    rev: 0
+    page: 1
+    field: sample_valve_roughness
+    text: 1.6 µm
+    value: {type: number, value: 1.6, unit: µm}
+    meets_urs: false
+  expected_coverage: conflict
+  reason: DS-PW001 does not meet the URS
+  also_valid: []
+- id: URS-PW001-007
+  text: Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: vent_filter_pore_size
+  value: {type: range, max: 0.2, unit: µm}
+  critical: true
+  evidence: []
+  design_evidence:
+  - doc: DS-PW001
+    rev: 0
+    page: 1
+    field: vent_filter_pore_size
+    text: 0.45 µm
+    value: {type: number, value: 0.45, unit: µm}
+    meets_urs: false
+  expected_coverage: conflict
+  reason: DS-PW001 does not meet the URS
+  also_valid: []
+- id: URS-PW001-018
+  text: Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: tank_working_volume
+  value: {type: range, min: 3, unit: m³}
+  critical: false
+  evidence: []
+  design_evidence:
+  - doc: DS-PW001
+    rev: 0
+    page: 1
+    field: tank_working_volume
+    text: 2.5 m³
+    value: {type: number, value: 2.5, unit: m³}
+    meets_urs: false
+  expected_coverage: conflict
+  reason: DS-PW001 does not meet the URS
+  also_valid: []
+- id: URS-PW001-031
+  text: Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: bursting_disc
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-PW001-020
+  text: Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: loop_pressure_test
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    step: SAT-06
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [403.83, 730.15]
+    - [486.61, 732.16]
+    - [486.22, 747.9]
+    - [403.45, 745.89]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []
+- id: URS-PW001-021
+  text: Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan,
+    konsentrasi, suhu dan waktu kontak).
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: loop_passivation
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    step: SAT-07
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [416.59, 114.8]
+    - [499.38, 116.22]
+    - [499.11, 131.97]
+    - [416.32, 130.54]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []
+- id: URS-PW001-023
+  text: Semua komponen diberi label identitas dan arah aliran ditandai pada pipa.
+  source: {doc: URS-PW001, rev: 0, page: 1, section: 4. Material dan konstruksi}
+  param: component_labelling
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-PW001-011
+  text: Selama sanitasi panas, PLC menutup dan mengunci semua katup titik pengguna secara otomatis.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: sanitisation_valve_lock
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-PW001-S
+    rev: 0
+    page: 1
+    step: FAT-S-04
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'condition 4: transport-sensitive and not retested at SAT (CPOB 12.24)'
+  also_valid: []
+- id: URS-PW001-006
+  text: Sanitasi panas loop distribusi mencapai sekurang-kurangnya 80 °C di pipa kembali (return).
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: sanitisation_temperature
+  value: {type: range, min: 80, unit: °C}
+  critical: true
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-PW001-008
+  text: Lampu UV pada loop dilengkapi sensor intensitas independen dengan alarm di HMI.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: uv_intensity_monitoring
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-PW001-K
+    rev: 0
+    page: 1
+    step: FAT-K-01
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  design_evidence:
+  - doc: DS-PW001
+    rev: 0
+    page: 1
+    field: uv_intensity_monitoring
+    text: 'Yes'
+    value: {type: present, value: true}
+    meets_urs: true
+  expected_coverage: partial
+  reason: 'FAT-K-01: condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  also_valid: []
+- id: URS-PW001-012
+  text: Suhu Air Murni di pipa kembali loop selama operasi normal maks. 25 °C.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: loop_return_temperature
+  value: {type: range, max: 25, unit: °C}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    step: SAT-03
+    acceptance: Not more than 25 °C
+    observed: 23,6 °C
+    value: {type: number, value: 23.6, unit: °C}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [405.85, 647.07]
+    - [443.28, 647.98]
+    - [442.89, 663.72]
+    - [405.47, 662.81]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []
+- id: URS-PW001-034
+  text: Penukar panas HX-301 dipasang langsung di aliran loop yang bersirkulasi terus-menerus, tanpa cabang
+    yang airnya diam.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: heat_exchanger_in_loop
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    step: SAT-12
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [414.01, 264.73]
+    - [496.8, 266.15]
+    - [496.53, 281.9]
+    - [413.74, 280.48]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []
+- id: URS-PW001-017
+  text: Kecepatan alir di pipa kembali loop sekurang-kurangnya 1,0 m/s selama operasi normal.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: loop_return_velocity
+  value: {type: range, min: 1, unit: m/s}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 1
+    step: SAT-05
+    acceptance: At least 1 m/s
+    observed: 1,4 m/s
+    value: {type: number, value: 1.4, unit: m/s}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [404.53, 701.48]
+    - [442.28, 702.4]
+    - [441.9, 718.14]
+    - [404.15, 717.22]
+  design_evidence:
+  - doc: DS-PW001
+    rev: 0
+    page: 1
+    field: loop_return_velocity
+    text: 1.5 m/s
+    value: {type: number, value: 1.5, unit: m/s}
+    meets_urs: true
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []
+- id: URS-PW001-016
+  text: Dua pompa distribusi (kerja/cadangan) bergantian otomatis secara berkala, sehingga tidak ada air
+    diam di pompa yang tidak dipakai.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: standby_pump_alternation
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-PW001-032
+  text: Debit di titik pengguna POU-05 (ruang pencucian) tidak kurang dari 1.000 L/h saat katup dibuka
+    penuh.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: pou05_flow
+  value: {type: range, min: 1000, unit: L/h}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    step: SAT-10
+    acceptance: ≥ 1,000 L/h
+    observed: 1.150 L/h
+    value: {type: number, value: 1150, unit: L/h}
+    recorded_result: pass
+    qualifies: false
+    failure: value awaits confirmation
+    quad:
+    - [414.95, 210.31]
+    - [463.82, 211.15]
+    - [463.55, 226.9]
+    - [414.68, 226.06]
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'SAT-10: value awaits confirmation'
+  also_valid: []
+- id: URS-PW001-026
+  text: Pembacaan sensor konduktivitas online di pipa kembali loop (CIT-302) diverifikasi terhadap meter
+    acuan terkalibrasi; selisihnya maks. 0,1 µS/cm.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: online_conductivity_verification
+  value: {type: range, max: 0.1, unit: µS/cm}
+  critical: true
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    step: SAT-09
+    acceptance: ≤ 0.1 µS/cm
+    observed: 0,04 µS/cm
+    value: {type: number, value: 0.04, unit: µS/cm}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [415.44, 181.64]
+    - [470.34, 182.58]
+    - [470.07, 198.33]
+    - [415.17, 197.39]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []
+- id: URS-PW001-027
+  text: Analyzer TOC online dipasang di pipa kembali loop; nilainya tampil dan terekam di HMI.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: '5. Distribusi, sanitasi dan instrumentasi'}
+  param: online_toc_analyser
+  value: {type: present}
+  critical: true
+  evidence: []
+  design_evidence: []
+  expected_coverage: gap
+  reason: no FAT/SAT step addresses it
+  also_valid: []
+- id: URS-PW001-009
+  text: Data tren konduktivitas, TOC dan suhu yang tersimpan di HMI dapat dicetak sebagai salinan yang
+    jelas.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: 6. Kontrol dan integritas data}
+  param: trend_printout
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-PW001-K
+    rev: 0
+    page: 1
+    step: FAT-K-02
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 1: scope ''data_integrity'' not in vendor assessment'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-K-02: condition 1: scope ''data_integrity'' not in vendor assessment'
+  also_valid: []
+- id: URS-PW001-029
+  text: Pembuatan, perubahan dan pencabutan hak akses pengguna HMI tercatat otomatis, dengan nama pengguna,
+    tanggal dan waktu.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: 6. Kontrol dan integritas data}
+  param: access_change_log
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-PW001-K
+    rev: 0
+    page: 1
+    step: FAT-K-04
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 1: scope ''data_integrity'' not in vendor assessment'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-K-04: condition 1: scope ''data_integrity'' not in vendor assessment'
+  also_valid: []
+- id: URS-PW001-019
+  text: HMI memberi alarm bila konduktivitas online di keluaran EDI melewati batas alarm; alarm tercatat
+    dengan waktu dan nama pengguna yang mengakuinya.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: 6. Kontrol dan integritas data}
+  param: conductivity_alarm
+  value: {type: present}
+  critical: true
+  evidence:
+  - doc: FAT-PW001-K
+    rev: 0
+    page: 1
+    step: FAT-K-03
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-K-03: condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  also_valid: []
+- id: URS-PW001-030
+  text: 'Setelah listrik padam dan pulih, sistem tidak menyala sendiri: PLC kembali ke keadaan aman (pompa
+    berhenti, katup titik pengguna tertutup) dan menunggu konfirmasi operator.'
+  source: {doc: URS-PW001, rev: 0, page: 2, section: 6. Kontrol dan integritas data}
+  param: power_failure_restart
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: FAT-PW001-K
+    rev: 0
+    page: 1
+    step: FAT-K-05
+    acceptance: Present and functional
+    observed: Present and functional
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: false
+    failure: 'condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  design_evidence: []
+  expected_coverage: partial
+  reason: 'FAT-K-05: condition 2: protocol not approved by site before execution (CPOB 12.14)'
+  also_valid: []
+- id: URS-PW001-014
+  text: Pabrik menjalankan rencana pemantauan tertulis; sampel diambil dari setiap titik pengguna dan
+    dari pipa kembali loop.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: 7. Pemantauan}
+  param: monitoring_plan
+  value: {type: present}
+  critical: true
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-PW001-036
+  text: Pabrik menetapkan batas waspada (alert) dan batas bertindak (action) untuk konduktivitas, TOC
+    dan angka lempeng total dari data pemantauan yang terkumpul.
+  source: {doc: URS-PW001, rev: 0, page: 2, section: 7. Pemantauan}
+  param: alert_action_levels
+  value: {type: present}
+  critical: false
+  evidence: []
+  design_evidence: []
+  expected_coverage: site_only
+  reason: cannot be tested by the vendor
+  also_valid: []
+- id: URS-PW001-033
+  text: 'Vendor menyerahkan paket dokumen: gambar as-built, sertifikat material, catatan uji di lokasi,
+    catatan las, sertifikat kalibrasi, catatan uji tekanan dan catatan pasivasi.'
+  source: {doc: URS-PW001, rev: 0, page: 2, section: 8. Dokumentasi serah terima}
+  param: turnover_documentation
+  value: {type: present}
+  critical: false
+  evidence:
+  - doc: SAT-PW001
+    rev: 0
+    page: 2
+    step: SAT-11
+    acceptance: Present and functional
+    observed: Ada dan berfungsi
+    value: {type: present, value: true}
+    recorded_result: pass
+    qualifies: true
+    quad:
+    - [414.51, 236.06]
+    - [497.29, 237.48]
+    - [497.02, 253.23]
+    - [414.24, 251.81]
+  design_evidence: []
+  expected_coverage: covered_by_vendor
+  reason: proved by SAT-PW001
+  also_valid: []

@@ -1,0 +1,53 @@
+# PW-001 answer key: documents.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: URS-PW001
+  type: urs
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: URS-PW001_rev0.pdf}
+- id: DS-PW001
+  type: datasheet
+  stage: design
+  status: in_corpus
+  files:
+  - {rev: 0, file: DS-PW001_rev0.pdf}
+- id: MTC-PW001-01
+  type: material_certificate
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: MTC-PW001-01_rev0.pdf}
+- id: FAT-PW001-S
+  type: fat
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: FAT-PW001-S_rev0.pdf}
+- id: FAT-PW001-K
+  type: fat
+  stage: FAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: FAT-PW001-K_rev0.pdf}
+- id: PKN-25-0388
+  type: calibration_certificate
+  stage: SAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: PKN-25-0388_rev0.pdf}
+- id: PKN-26-0105
+  type: calibration_certificate
+  stage: SAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: PKN-26-0105_rev0.pdf}
+- id: SAT-PW001
+  type: sat
+  stage: SAT
+  status: in_corpus
+  files:
+  - {rev: 0, file: SAT-PW001_rev0.pdf}
+- {id: IQ-PW001, type: iq_protocol, stage: IQ, status: expected_gap}
+- {id: OQ-PW001, type: oq_protocol, stage: OQ, status: expected_gap}
