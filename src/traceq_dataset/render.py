@@ -48,6 +48,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from traceq_dataset.coverage import meets
 from traceq_dataset.schema import (
+    AssessmentArea,
     Correction,
     DesignEvidence,
     Document,
@@ -62,7 +63,9 @@ from traceq_dataset.schema import (
     RangeSpec,
     Requirement,
     Spec,
+    TestEvidence,
     TextObs,
+    fmt_number,
 )
 
 TEMPLATES = Path(__file__).parent / "templates"
@@ -135,12 +138,6 @@ class Rendered:
 # --- Formatting ---------------------------------------------------------------------
 
 
-def fmt_number(value: float, lang: str) -> str:
-    """``120000`` → ``120.000`` (id) / ``120,000`` (en); ``0.8`` → ``0,8`` (id)."""
-    text = f"{value:,.10g}"
-    return text.translate(str.maketrans(",.", ".,")) if lang == "id" else text
-
-
 DECIMAL_POINT = {"en": ".", "id": ","}
 _GROUPED = re.compile(r"\d{1,3}([.,])\d{3}(?:\s+.+)?")
 
@@ -194,6 +191,12 @@ def fmt_spec(spec: Spec, lang: str) -> str:
     if isinstance(spec, PresentSpec):
         return "Ada dan berfungsi" if lang == "id" else "Present and functional"
     raise RenderError(f"cannot render a {spec.type} spec")
+
+
+def fmt_acceptance(step: TestEvidence, requirement: Requirement, lang: str) -> str:
+    """A step's Acceptance Criterion as printed: its ``acceptance_text`` when the protocol
+    words it, else the step's (or the URS) spec formatted in ``lang``."""
+    return step.acceptance_text or fmt_spec(step.acceptance or requirement.spec, lang)
 
 
 def fmt_observation(obs: Observation, lang: str) -> str:
@@ -287,6 +290,8 @@ def render_urs(eq: Equipment, rev: int, t0: dt.date) -> Rendered:
     doc = document(eq, f"URS-{eq.tag.replace('-', '')}", rev)
     if doc.layout == "prose":
         return _render_urs_prose(eq, doc, t0)
+    if doc.layout == "matrix":
+        return _render_urs_matrix(eq, doc, t0)
     lang = doc.language
     latest = max(d.rev for d in eq.documents if d.id == doc.id)
     people = {p.id: p.name for p in eq.people}
@@ -365,7 +370,7 @@ def render_fat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
             continue
         if not t.description:
             raise RenderError(f"{t.step}: needs a description to be rendered")
-        ac = fmt_spec(t.acceptance or reqs[t.requirement].spec, lang)
+        ac = fmt_acceptance(t, reqs[t.requirement], lang)
         obs = fmt_observation(t.observed, lang)
         texts[f"{t.step}.acceptance"], texts[f"{t.step}.observed"] = ac, obs
         steps.append(
@@ -463,6 +468,114 @@ def _render_urs_prose(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
     return _compile("urs_prose.typ", data, issued, texts, doc)
 
 
+MATRIX_LABELS = {
+    "id": {
+        "title": "Spesifikasi Kebutuhan Pengguna (SKP)",
+        "doc_no": "Nomor dokumen",
+        "revision": "Revisi",
+        "issued": "Tanggal berlaku",
+        "equipment": "Peralatan",
+        "purpose": "Tujuan",
+        "purpose_text": "Dokumen ini menetapkan kebutuhan pengguna untuk {tag}. Kebutuhan "
+        "dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau "
+        "integritas data.",
+        "clause": "No.",
+        "requirement": "Persyaratan",
+        "critical": "Kritis",
+        "yes": "Ya",
+        "no": "Tidak",
+        "history": "Riwayat revisi",
+        "date": "Tanggal",
+        "note": "Keterangan",
+        "first": "Terbitan pertama.",
+        "approval": "Pengesahan",
+        "role": "Peran",
+        "name": "Nama",
+        "signature": "Tanda tangan",
+        "roles": ("Disusun oleh", "Diperiksa oleh", "Disetujui oleh"),
+        "page": "Halaman",
+        "of": "dari",
+    },
+    "en": {
+        "title": "User Requirements Specification",
+        "doc_no": "Document no.",
+        "revision": "Revision",
+        "issued": "Effective date",
+        "equipment": "Equipment",
+        "purpose": "Purpose",
+        "purpose_text": "This document states the user requirements for {tag}. Requirements "
+        "marked Critical = Yes directly affect product quality, safety or data integrity.",
+        "clause": "No.",
+        "requirement": "Requirement",
+        "critical": "Critical",
+        "yes": "Yes",
+        "no": "No",
+        "history": "Revision history",
+        "date": "Date",
+        "note": "Description",
+        "first": "First issue.",
+        "approval": "Approval",
+        "role": "Role",
+        "name": "Name",
+        "signature": "Signature",
+        "roles": ("Prepared by", "Checked by", "Approved by"),
+        "page": "Page",
+        "of": "of",
+    },
+}
+"""Printed labels of a matrix URS per document language."""
+
+
+def _render_urs_matrix(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
+    """A URS as one table per section. Each row holds the document's own clause number
+    (``Requirement.clause``; key ids are never printed), the requirement sentence, or the
+    two sentences of consecutive requirements sharing a clause, and the criticality in the
+    document language. Rows do not break across pages, and each sentence's span is placed.
+    An earlier revision prints ``superseded_spec`` where one is set."""
+    lang, rev, issued = doc.language, doc.rev, doc.issued_on.resolve(t0)
+    labels = MATRIX_LABELS[lang]
+    latest = max(d.rev for d in eq.documents if d.id == doc.id)
+    people = _people(eq)
+    texts: dict[str, str] = {}
+    sections: dict[str, list[dict]] = {}
+    for r in eq.requirements:
+        spec = r.superseded_spec if (rev < latest and r.superseded_spec) else r.spec
+        texts[r.id] = requirement_text(r, spec, lang)
+        rows = sections.setdefault(r.section, [])
+        sentence = {"key": r.id, "text": texts[r.id]}
+        if rows and rows[-1]["clause"] == r.clause:
+            rows[-1]["sentences"].append(sentence)
+            continue
+        critical = labels["yes"] if r.critical else labels["no"]
+        rows.append({"clause": r.clause or "", "sentences": [sentence], "critical": critical})
+    history = [
+        {
+            "rev": str(d.rev),
+            "date": fmt_date(d.issued_on.resolve(t0), lang),
+            "note": d.change_note or labels["first"],
+        }
+        for d in sorted(eq.documents, key=lambda d: d.rev)
+        if d.id == doc.id and d.rev <= rev
+    ]
+    roles = zip(labels["roles"], (doc.prepared_by, doc.checked_by, doc.approved_by), strict=True)
+    data = {
+        "doc_id": doc.id,
+        "rev": rev,
+        "lang": lang,
+        "labels": {k: v for k, v in labels.items() if isinstance(v, str)},
+        "issued_on": fmt_date(issued, lang),
+        "equipment": f"{eq.tag} {EN_DASH} {eq.name}",
+        "purpose": labels["purpose_text"].format(tag=eq.tag),
+        "sections": [{"title": t, "rows": rows} for t, rows in sections.items()],
+        "history": history,
+        "signatures": [
+            {"role": role, **_signature(people[pid].name if pid else None, issued, lang)}
+            for role, pid in roles
+        ],
+    }
+    return _compile("urs_matrix.typ", data, issued, texts, doc)
+
+
 def _render_fat_record(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
     """A FAT from another vendor (design section 5, TP-202): as-built machine data, the
     customer's release of the procedure, one test record per step, a deviation statement,
@@ -503,7 +616,7 @@ def _render_fat_record(eq: Equipment, doc: Document, t0: dt.date) -> Rendered:
             continue
         if not t.description:
             raise RenderError(f"{t.step}: needs a description to be rendered")
-        ac = fmt_spec(t.acceptance or reqs[t.requirement].spec, lang)
+        ac = fmt_acceptance(t, reqs[t.requirement], lang)
         records.append(
             {
                 "step": t.step,
@@ -591,7 +704,7 @@ def render_sat(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
         if not t.description:
             raise RenderError(f"{t.step}: needs a description to be rendered")
         used += [i for i in t.instruments if i not in used]
-        ac = fmt_spec(t.acceptance or reqs[t.requirement].spec, lang)
+        ac = fmt_acceptance(t, reqs[t.requirement], lang)
         step = {
             "step": t.step,
             "description": t.description,
@@ -1449,8 +1562,9 @@ ASSESSMENT_AREAS = {
         "Pengendalian dokumen, sertifikat material dan kalibrasi, protokol FAT/SAT.",
     ),
 }
-"""Areas every Vendor Assessment rates, keyed by ``VendorAssessment.scope`` (Indonesian,
-with the English area name the site's vendor questionnaire uses)."""
+"""Areas a Vendor Assessment rates unless world data names its own
+(``VendorAssessment.areas``), keyed by ``VendorAssessment.scope`` (Indonesian, with the
+English area name the site's vendor questionnaire uses)."""
 
 
 def render_vendor_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendered:
@@ -1462,17 +1576,22 @@ def render_vendor_assessment(eq: Equipment, doc_id: str, t0: dt.date) -> Rendere
     assessment = eq.vendor.assessment
     if assessment is None:
         raise RenderError(f"{doc_id}: a Vendor Assessment needs vendor.assessment")
-    unknown = sorted(assessment.scope - set(ASSESSMENT_AREAS))
+    areas = assessment.areas or tuple(
+        AssessmentArea(key=k, label=label, activities=activities)
+        for k, (label, activities) in ASSESSMENT_AREAS.items()
+    )
+    keys = {a.key for a in areas}
+    unknown = sorted(assessment.scope - keys)
     if unknown:
         raise RenderError(f"{doc_id}: no assessment area for scope {unknown}")
     issued = doc.issued_on.resolve(t0)
     texts: dict[str, str] = {}
     rows = []
-    for key, (label, activities) in ASSESSMENT_AREAS.items():
-        texts[f"scope.{key}"] = label
-        relied = "Ya" if key in assessment.scope else "Tidak"
-        rows.append({"key": f"scope.{key}", "cells": [label, relied, activities]})
-    limited = set(ASSESSMENT_AREAS) - assessment.scope
+    for area in areas:
+        texts[f"scope.{area.key}"] = area.label
+        relied = "Ya" if area.key in assessment.scope else "Tidak"
+        rows.append({"key": f"scope.{area.key}", "cells": [area.label, relied, area.activities]})
+    limited = keys - assessment.scope
     conclusion = (
         "Pemasok disetujui untuk seluruh area di atas."
         if not limited
