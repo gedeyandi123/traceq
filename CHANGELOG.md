@@ -16,6 +16,7 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ### Changed
 
+- Scorer 0.8.0 (#204, spec #196): the taxonomy gains `requirement_not_tested` (layer Rule) and moves `ac_deviates_from_urs` from layer LLM to layer Rule; the scorer takes a defect's layer from the answer key, never from the submission. No committed key re-derives differently (TP-201 holds neither type; TP-202's `--check` passes). The `haiku-r10` reports and both baselines re-written from a zero-call replay: every field unchanged except `scorer_version`. Older recorded reports (`haiku-r7`, `haiku-r8`) keep the scorer that scored them. Known and accepted: the Equipment `ai_review` prompt still emits `ac_deviates_from_urs` as an AI Finding; it is reconciled in the post-freeze reading-quality work, not here.
 - Scorer 0.7.0 (#180, owner decision on #133): `same_value` compares units after Unicode NFKC and casefold (`m³/h` equals `m3/h`, as the system's `_same_unit` does), and a `range` whose `min` equals its `max` equals a `number` of that value with the same unit ("380 V"). Plural units (`tablet/h` vs `tablets/h`) and `%` vs `% FS` stay different. Recorded `haiku-r8` reports and both baselines re-scored by replay: TP-201 value 25/38 → 27/38 (URS-TP201-026 and 028); TP-202 counts unchanged; gates, fabrication and probes unchanged. The submission format, dataset version and answer key are unchanged.
 
 ## [0.1.1] - 2026-11-17

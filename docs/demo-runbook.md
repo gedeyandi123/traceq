@@ -92,7 +92,7 @@ Presenter yang memutuskan jauh di bawah halaman perlu menggulir kembali ke baris
 
 ## 6. Yang diketahui salah di rekaman r10 (TP-201, set pengembangan)
 
-Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan scorer `recordings/haiku-r10/report-TP-201.json` (run 20261117T211439Z-f6ddbf, scorer 0.7.0, dinilai ulang sesudah #101; laporan run demo sama persis kecuali run id).
+Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan scorer `recordings/haiku-r10/report-TP-201.json` (run 20261117T211439Z-f6ddbf, scorer 0.8.0, dinilai ulang sesudah #101 dan #204 dengan angka yang sama; laporan run demo sama persis kecuali run id).
 
 - **Kelas cakupan benar 30/38**, nilai benar 29/38. Ukuran pertama tidak muncul di layar eval, yang hanya menampilkan akurasi nilai. Ke-8 kelas yang salah adalah alasan setiap usulan menunggu keputusan manusia.
   - Usulan "Sebagian" dengan alasan "condition 2: date ambiguous" untuk langkah SAT yang sebenarnya *covered_by_vendor* (005, 019, 020, 021, 023).
