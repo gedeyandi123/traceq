@@ -37,8 +37,8 @@ def eq() -> Equipment:
 
 
 @pytest.fixture(scope="module")
-def corpus(eq: Equipment) -> Corpus:
-    return build_corpus(eq)
+def corpus(tp201_corpus: Corpus) -> Corpus:
+    return tp201_corpus
 
 
 @pytest.fixture(scope="module")

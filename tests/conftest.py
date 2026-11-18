@@ -1,16 +1,20 @@
-"""Shared fixtures: the recorded OCR output of the TP-201 scans, no OCR model, as in CI, a
-Postgres database per test session, and the demo issuer on a free local port.
+"""Shared fixtures: TP-201 built and rendered once per session, the recorded ingest output of
+its scans and born-digital PDFs, no OCR model, as in CI, a Postgres database per test session,
+and the demo issuer on a free local port.
 
-``tests/fixtures/ingest/<doc>_rev<n>.json`` is what PP-OCRv6 small read on each scan, in the
-ingest cache's format. To regenerate them, with the OCR model installed
-(``uv sync --extra ocr``), ingest a rendered corpus with a cache directory and copy each
-scan's ``<sha256>-<version>.json`` to ``<doc>_rev<n>.json``.
+``tests/fixtures/ingest/<doc>_rev<n>.json`` is what PP-OCRv6 small read on each scan, and what
+Docling read on each born-digital PDF, in the ingest cache's format. To regenerate them, with
+the OCR model installed (``uv sync --extra ocr``), ingest a rendered TP-201 with a cache
+directory and copy each document's ``<sha256>-<version>.json`` to ``<doc>_rev<n>.json``. A
+scan's recording is seeded under the hash of the bytes a test rendered; a PDF's must hold the
+hash of the bytes it was read from (``tests/test_pdf.py`` checks it is current).
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
 import threading
 import time
@@ -29,6 +33,10 @@ from traceq.app.demo import ADMIN_URL as DEMO_ADMIN_URL
 from traceq.db import APP_ROLE, OWNER_ROLE, ensure_roles, upgrade
 from traceq.documents import Corpus, OcrUnavailable, scan
 from traceq.identity.issuer import create_issuer, new_signing_key
+from traceq_dataset import render
+from traceq_dataset.corpus import Corpus as DatasetCorpus
+from traceq_dataset.corpus import build_corpus
+from traceq_dataset.world import load
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ingest"
 
@@ -49,6 +57,44 @@ def seed_scans() -> Callable[[Path, Path], None]:
     """Put the recorded OCR output of every scan of a corpus into an ingest cache, keyed by
     the bytes the test rendered."""
     return _seed
+
+
+def _seed_born_digital(corpus_dir: Path, cache: Path) -> None:
+    cache.mkdir(parents=True, exist_ok=True)
+    for d in Corpus.load(corpus_dir).documents:
+        if d.format != "born_digital":
+            continue
+        source = FIXTURES / f"{d.doc_id}_rev{d.rev}.json"
+        data = json.loads(source.read_text("utf-8"))
+        if data["doc_sha256"] != d.sha256:
+            pytest.fail(f"{source.name} was read from other bytes; regenerate it")
+        shutil.copyfile(source, cache / f"{d.sha256}-{data['version']}.json")
+
+
+@pytest.fixture(scope="session")
+def seed_born_digital() -> Callable[[Path, Path], None]:
+    """Put the recorded Docling output of every born-digital PDF of TP-201 into an ingest
+    cache, so Docling does not run."""
+    return _seed_born_digital
+
+
+# --- TP-201 ---------------------------------------------------------------------------
+# Built and rendered once per session. Both are shared: a test that writes copies them.
+TP201 = Path(__file__).parents[1] / "world" / "tp201.yaml"
+
+
+@pytest.fixture(scope="session")
+def tp201_corpus() -> DatasetCorpus:
+    """TP-201 as the dataset builds it: what the scorer reads."""
+    return build_corpus(load(TP201))
+
+
+@pytest.fixture(scope="session")
+def tp201_dist(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """TP-201 rendered as a released corpus directory: what the system reads. Read-only."""
+    out = tmp_path_factory.mktemp("tp201-dist")
+    assert render.main([str(TP201), "--out", str(out)]) == 0
+    return next(out.glob("t0-*"))
 
 
 @pytest.fixture

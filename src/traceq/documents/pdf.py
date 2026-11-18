@@ -29,6 +29,9 @@ if TYPE_CHECKING:
 
 PDF_VERSION = "docling-1"
 """Part of the ingest cache key: bump it when a change alters the page text."""
+DOCLING_VERSION = "2.150.0"
+"""The Docling release ``PDF_VERSION`` was recorded with. A test fails when the installed one
+differs, so a Docling upgrade bumps both, rather than reusing cached text under an old key."""
 ENGINE = "Docling (pypdfium2 backend)"
 
 

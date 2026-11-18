@@ -22,15 +22,13 @@ from traceq.runs.run import RunOutput, run
 from traceq.traceability.evidence import TRANSPORT_VOTES
 from traceq_dataset import render
 from traceq_dataset.answer_key import load_key
-from traceq_dataset.corpus import build_corpus
-from traceq_dataset.world import load
+from traceq_dataset.corpus import Corpus as DatasetCorpus
 from traceq_eval.citations import PageTexts
 from traceq_eval.ocr import score_ocr
 from traceq_eval.score import score
 from traceq_eval.submission import Submission
 
 ROOT = Path(__file__).parents[1]
-TP201 = ROOT / "world" / "tp201.yaml"
 KEY = ROOT / "answer_key" / "TP-201"
 MODEL = "scripted"
 PRICES = PriceTable(batch_discount=0.5, models={MODEL: Price(1.0, 2.0)})
@@ -425,10 +423,8 @@ class ScriptedLLM:
 
 
 @pytest.fixture(scope="module")
-def corpus_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    out = tmp_path_factory.mktemp("dist")
-    assert render.main([str(TP201), "--out", str(out)]) == 0
-    return next(out.glob("t0-*"))
+def corpus_dir(tp201_dist: Path) -> Path:
+    return tp201_dist
 
 
 Seed = Callable[[Path, Path], None]
@@ -436,12 +432,16 @@ Seed = Callable[[Path, Path], None]
 
 @pytest.fixture(scope="module")
 def recorded(
-    corpus_dir: Path, seed_scans: Seed, tmp_path_factory: pytest.TempPathFactory
+    corpus_dir: Path,
+    seed_scans: Seed,
+    seed_born_digital: Seed,
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> RunOutput:
-    """The one run here that reads the born-digital PDFs with Docling; the scans come from the
-    recorded OCR output."""
+    """The live run the other tests here read. Ingest comes from the recorded OCR and Docling
+    output (``tests/conftest.py``); ``tests/test_pdf.py`` runs Docling."""
     tmp = tmp_path_factory.mktemp("live")
     seed_scans(corpus_dir, tmp / "recordings" / "ingest")
+    seed_born_digital(corpus_dir, tmp / "recordings" / "ingest")
     return run(
         corpus_dir, tmp / "runs", tmp / "recordings", MODEL, live=ScriptedLLM(), prices=PRICES
     )
@@ -460,15 +460,24 @@ def seeded(recorded: RunOutput) -> Callable[[Path], Path]:
     return seed
 
 
+@pytest.fixture(scope="module")
+def report(recorded: RunOutput, tp201_corpus: DatasetCorpus) -> dict[str, Any]:
+    """The scorer's report on the live run's submission. Read-only."""
+    sub = Submission.model_validate_json(
+        (recorded.folder / "submission.json").read_text(encoding="utf-8")
+    )
+    return score(sub, load_key(KEY), PageTexts(tp201_corpus))
+
+
 def _req(sub: dict[str, Any], rid: str) -> dict[str, Any]:
     return next(r for r in sub["requirements"] if r["id"] == rid)
 
 
-def test_submission_validates_and_passes_the_scorer_gates(recorded: RunOutput) -> None:
+def test_submission_validates_and_passes_the_scorer_gates(
+    recorded: RunOutput, report: dict[str, Any]
+) -> None:
     text = (recorded.folder / "submission.json").read_text(encoding="utf-8")
-    sub = Submission.model_validate_json(text)
-    report = score(sub, load_key(KEY), PageTexts(build_corpus(load(TP201))))
-
+    Submission.model_validate_json(text)
     assert report["gates"]["passed"], report["gates"]
     items = {i["id"]: i for i in report["requirements"]["items"]}
     assert [rid for rid in SCRIPT if items[rid]["value_ok"]] == [
@@ -485,11 +494,12 @@ def test_submission_validates_and_passes_the_scorer_gates(recorded: RunOutput) -
     assert report["requirements"]["metrics"]["superseded_values"] == 0
 
 
-def test_coverage_is_decided_by_the_decision_table(recorded: RunOutput) -> None:
+def test_coverage_is_decided_by_the_decision_table(
+    recorded: RunOutput, report: dict[str, Any]
+) -> None:
     sub = Submission.model_validate_json(
         (recorded.folder / "submission.json").read_text(encoding="utf-8")
     )
-    report = score(sub, load_key(KEY), PageTexts(build_corpus(load(TP201))))
     matrix = json.loads((recorded.folder / "matrix.json").read_text(encoding="utf-8"))
     rows = {r["id"]: r for r in matrix["requirements"]}
 
@@ -587,17 +597,11 @@ def test_an_unverifiable_claim_never_reaches_the_submission(recorded: RunOutput)
     assert FABRICATED_STEP["quote"] not in text
 
 
-def _report(recorded: RunOutput) -> dict[str, Any]:
-    sub = Submission.model_validate_json(
-        (recorded.folder / "submission.json").read_text(encoding="utf-8")
-    )
-    return score(sub, load_key(KEY), PageTexts(build_corpus(load(TP201))))
-
-
-def test_check_findings_match_the_planted_rule_defects(recorded: RunOutput) -> None:
+def test_check_findings_match_the_planted_rule_defects(
+    recorded: RunOutput, report: dict[str, Any]
+) -> None:
     """S4 and S5 are on born-digital FATs; S2 is on scans, which this slice does not read
     yet (its rule is tested on its facts in ``test_review_units``)."""
-    report = _report(recorded)
     found = {d["scenario"]: d["found_by"] for d in report["defects"]["items"]}
     assert found["S4"] and found["S5"]
     metrics = report["defects"]["metrics"]
@@ -617,11 +621,10 @@ def test_check_findings_match_the_planted_rule_defects(recorded: RunOutput) -> N
 
 
 def test_ai_findings_are_cited_kept_apart_and_scored_in_their_layer(
-    recorded: RunOutput,
+    recorded: RunOutput, report: dict[str, Any]
 ) -> None:
     """S3 (inconsistent serial number) and S1 (GDP correction on the SAT scan) come from the
     AI layer; the scorer counts them under the layers the answer key gives them."""
-    report = _report(recorded)
     found = {d["scenario"]: d["found_by"] for d in report["defects"]["items"]}
     assert found["S1"] and found["S3"]
     recall = report["defects"]["metrics"]["recall_by_layer"]
@@ -651,9 +654,8 @@ def test_ai_findings_are_cited_kept_apart_and_scored_in_their_layer(
 
 
 def test_missing_documents_are_what_the_vmp_requires_and_the_corpus_lacks(
-    recorded: RunOutput,
+    recorded: RunOutput, report: dict[str, Any]
 ) -> None:
-    report = _report(recorded)
     metrics = report["documents"]["metrics"]
     assert (metrics["precision"], metrics["recall"]) == (1.0, 1.0)
     assert metrics["flagged_but_in_corpus"] == []
@@ -839,12 +841,13 @@ DRAFTED = 38 - len(COVERED)
 DETERMINISTIC = ("traces_to_requirement", "ac_sourced_or_empty")
 
 
-def test_drafted_steps_pass_scorer_criteria_1_and_2(recorded: RunOutput) -> None:
+def test_drafted_steps_pass_scorer_criteria_1_and_2(
+    recorded: RunOutput, report: dict[str, Any]
+) -> None:
     """With the Vendor Assessment read (#55), a requirement the run proves covered by the
     vendor gets no draft, so criterion 1 passes for it. It still fails on the other
     requirements the key expects ``covered_by_vendor``: the scripted model links no vendor
     step to them, so the run drafts them."""
-    report = _report(recorded)
     steps = report["test_steps"]
     rates = steps["metrics"]["criteria_pass_rate"]
     assert rates["ac_sourced_or_empty"] == 1.0
