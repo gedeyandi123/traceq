@@ -1,0 +1,41 @@
+{
+  "dataset": "traceq-review-package",
+  "package": "TP-201-OQ-draft",
+  "version": "0.1.0",
+  "label": "defect types chosen before the practitioner session; dev only",
+  "equipment": "TP-201",
+  "corpus": {
+    "release": "corpus-v0.1.1",
+    "version": "0.1.1",
+    "manifest_sha256": "cc800d0679e49ef9a925d9dcf25e8261ce1586b839de3ba5df1931fd5372d5ca",
+    "documents": [
+      {
+        "doc": "URS-TP201",
+        "rev": 1,
+        "sha256": "430602892cdd48c05ccc507bba38edce0d4e3ebfa66ae47e4f5d100396f1245b"
+      }
+    ]
+  },
+  "generator": {
+    "typst": "0.15.2"
+  },
+  "documents": [
+    {
+      "path": "TP-201-OQ-draft/OQ-TP201_rev0.pdf",
+      "doc_id": "OQ-TP201",
+      "rev": 0,
+      "type": "oq_protocol",
+      "status": "Draft",
+      "language": "id",
+      "format": "born_digital",
+      "written_against": {
+        "doc": "URS-TP201",
+        "rev": 1
+      },
+      "issued": "2026-05-25",
+      "pages": 8,
+      "bytes": 164752,
+      "sha256": "8a8c6860d5e7ec7dcb9b69ec8c1cd5da4037f9db7fef66071868ab3849614116"
+    }
+  ]
+}
