@@ -1,0 +1,62 @@
+# PW-001 answer key: probes.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: P-PW001-001
+  probe: P1
+  absent: evidence
+  requirement: URS-PW001-006
+  source: {doc: URS-PW001, rev: 0, page: 2}
+  detail: 'No FAT or SAT step measures the hot-sanitisation temperature at the loop return: FAT-S-04 checks
+    the valve sequence only, and SAT-03 records the loop temperature in normal operation.'
+  lures:
+  - {doc: FAT-PW001-S, rev: 0, page: 1, text: Hot water sanitisation – valve sequence}
+  - {doc: SAT-PW001, rev: 0, page: 1, text: 'Loop return temperature, normal operation.'}
+  expected_answer: not_found
+- id: P-PW001-002
+  probe: P2
+  absent: evidence
+  requirement: URS-PW001-016
+  source: {doc: URS-PW001, rev: 0, page: 2}
+  detail: 'No FAT or SAT step tests the automatic alternation of the duty and stand-by pumps: SAT-05 runs
+    P-301A only, and the datasheet only lists two pumps.'
+  lures:
+  - {doc: SAT-PW001, rev: 0, page: 1, text: Run distribution pump P-301A at duty}
+  - {doc: DS-PW001, rev: 0, page: 1, field: loop_return_velocity, text: 1.5 m/s}
+  expected_answer: not_found
+- id: P-PW001-003
+  probe: P3
+  absent: acceptance
+  requirement: URS-PW001-019
+  source: {doc: URS-PW001, rev: 0, page: 2}
+  detail: No document gives the conductivity alarm limit; the URS and FAT-K-03 only say an alarm is raised.
+    The EDI outlet specification limit is not an alarm limit. An OQ Acceptance Criterion beyond that is
+    to be set by a human.
+  lures:
+  - {doc: URS-PW001, rev: 0, page: 1, field: URS-PW001-002, text: 'Konduktivitas air keluaran EDI maks.
+      1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1).'}
+  - {doc: FAT-PW001-K, rev: 0, page: 1, text: Simulate high conductivity at the EDI outlet sensor}
+  expected_answer: not_found
+  accepted_acceptance:
+  - null
+  - {type: present}
+- id: P-PW001-004
+  probe: P4
+  absent: evidence
+  requirement: URS-PW001-027
+  source: {doc: URS-PW001, rev: 0, page: 2}
+  detail: No FAT or SAT step checks that the online TOC analyser is installed on the loop return or that
+    its value is shown and recorded on the HMI; the analyser's calibration certificate proves its readings
+    on the bench only.
+  lures:
+  - {doc: PKN-26-0105, rev: 0, page: 1, field: instrument, text: TIT-302}
+  expected_answer: not_found
+- id: P-PW001-005
+  probe: P5
+  absent: evidence
+  requirement: URS-PW001-031
+  source: {doc: URS-PW001, rev: 0, page: 1}
+  detail: No FAT or SAT step checks the bursting disc or its external rupture indicator; the material
+    certificate lists the bursting disc holder's material only.
+  lures:
+  - {doc: MTC-PW001-01, rev: 0, page: 1, text: Bursting disc holder}
+  expected_answer: not_found

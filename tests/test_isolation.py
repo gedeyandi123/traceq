@@ -30,7 +30,7 @@ FORBIDDEN_TEXT = (
     "world\\",
     "tp201.yaml",
     "tp202.yaml",
-    "pw001.yaml",  # held-out PW-001 (spec #195); its prompt-copy case follows with its key
+    "pw001.yaml",  # held-out PW-001 (spec #195)
     "baselines/",
     # Review Package TP-201-OQ-draft (spec #196): its world data, its key's files and its
     # baseline. The system reads only its release folder (the draft and manifest.json).
@@ -100,7 +100,7 @@ def copied(prompt: str, equipment: str) -> list[str]:
 
 
 @pytest.mark.parametrize("prompt", PROMPTS, ids=lambda p: p.name)
-@pytest.mark.parametrize("equipment", ["TP-201", "TP-202"])
+@pytest.mark.parametrize("equipment", ["TP-201", "TP-202", "PW-001"])
 def test_prompt_examples_are_invented(equipment: str, prompt: Prompt) -> None:
     """Examples are invented, never taken from the development or the held-out Equipment."""
     assert copied(prompt.system, equipment) == []
