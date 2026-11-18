@@ -31,6 +31,31 @@ TP-202 (held-out): reported from the scorer's report only. Gates PASS, ratchet a
 
 **Re-scored after the signature rules took the SOP's scope (#101).** SOP-VAL-002 applies its signature rules to site qualification documents and vendor FAT/SAT protocols, and leaves other vendor documents (data sheets, FDS, certificates) to their issuer's quality system. `missing_signatures` and `segregation_of_duties` now run only on vendor protocols, as `vendor_protocol_not_approved` already did, so a calibration certificate is no longer judged by the site rule. A system change, deterministic: replay only, no calls, calls, tokens and cost unchanged. TP-201 before → after: the three `missing_signature` false positives ("'Calibrated by' has no date" on the three certificates) are gone, findings 11 → 8, defect precision 5/11 → 5/8 (F1 0.555 → 0.667), false positives 5 → 2, on clean documents 4 → 2, recall the same (5/7), fabrication 0/183 → 0/180 (the three findings' citations), every requirement metric the same, gates PASS, ratchet against the r10 baseline PASS. The table above shows the new fabrication count. TP-202 (held-out), from the scorer's report only: gates PASS, ratchet PASS, every count unchanged, so its report and baseline stay as committed.
 
+## No-LLM baseline (#193)
+
+The same pipeline with no model: `traceq run --llm no-llm` answers every prompt with regular expressions and keywords over the request text (`src/traceq/runs/no_llm.py`, model `no-llm-v1`) and runs from r10's ingest cache. The citation check, the rules, the Coverage decision table, the missing documents and the OCR are unchanged. 0 LLM calls, 0 tokens, cost 0. The rules were written once, as for an unseen URS, from TP-201 corpus text and the TP-201 scorer report only, and were not tuned after the first score. `tests/test_no_llm.py` pins these TP-201 figures at tolerance 0; `baselines/TP-201.json` stays r10's.
+
+| TP-201 (dev), scorer 0.7.0 | no-LLM | r10 |
+|---|---|---|
+| value | 33/38 | 29/38 |
+| coverage | 13/38 | 30/38 |
+| `covered_by_vendor` found | 0/14 | 7/14 |
+| Evidence precision | 11/12 | 22/25 |
+| Evidence recall | 7/14 | 13/14 |
+| defect recall | 4/7 | 5/7 |
+| defect precision | 4/4 | 5/8 |
+| false positives | 0 | 2 |
+| missing documents flagged | 2/2, precision 1 | 2/2, precision 1 |
+| probes fabricated | 0/6 | 0/6 |
+| fabrication | 0/157 | 0/180 |
+| gates | PASS | PASS |
+
+The baseline finds the three rule-layer defects (3/3: not approved before execution, expired calibration, out of limit marked Pass) and the ambiguous value, which code flags from the print; it misses `inconsistent_data` and the design conflict (LLM layer 1/3) and the `gdp_correction` (vision 0/1). It never names a Vendor Assessment area, because the area names share no word with the Indonesian requirement text, so condition 1 fails and no requirement is `covered_by_vendor`.
+
+**Outcome under the thresholds of #193: A.** Value accuracy 33/38 ≥ 27/38 and defect recall 4/7 ≥ 4/7 (coverage 13/38 is below 28/38). The dataset is regular enough that plain rules read the URS values as well as r10 does (better, on TP-201) and find the rule-layer defects. The LLM's lead on TP-201 is in Coverage (linking Indonesian requirements to English Evidence and naming the assessed area: 30/38 against 13/38) and in the AI Findings. What to build differently is the owner's decision (#193: the LLM claim narrows to what the baseline cannot do; "rules first, LLM for the rest" for value reading is a separate decision).
+
+TP-202 (held-out): not run yet. The main session runs it once on the final code and adds its figures here from the scorer's report only.
+
 ## r9: `extract` reads the direction of a limit (#133, E1)
 
 | | TP-201 (dev) | TP-202 (held-out) |
