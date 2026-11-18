@@ -61,7 +61,7 @@ TP-202 (held-out): run once by the main session on the final code (e304355, run 
 | requirements segmented | 1 submitted, 0/13 matched | – |
 | value | 0/13 | 10/13 |
 | coverage | 0/13 (all 13 `missing`) | 5/13 |
-| Evidence recall | 0 | – |
+| Evidence recall | 0 (no Evidence submitted; the report gives the rate, not k/n) | – |
 | defect recall | 0/3 (0 findings) | 1/3 |
 | missing documents flagged | 2/2, precision 1 | – |
 | site-test recall | 0/7 | – |
@@ -69,9 +69,7 @@ TP-202 (held-out): run once by the main session on the final code (e304355, run 
 | fabrication | 0/3 | 0/49 |
 | gates | PASS | PASS |
 
-The baseline's segmentation rules do not carry over: on the held-out URS they find one requirement where there are 13, and it matches none, so every downstream figure is 0. The rules expect a requirement id at the start of a line, and the TP-202 URS evidently lays its requirements out differently (the cause is inferred from the adapter's code and the counts, not from the TP-202 text). Only the missing-document check, which does not depend on the requirements, scores. Per the held-out rule in CLAUDE.md this is reported as it is and is not re-run.
-
-**Reading both splits together.** On TP-201 the outcome is A by the thresholds of #193, which were set on TP-201 only. The held-out result shows that this closeness comes from rules fitted to one document layout: on a URS laid out differently the baseline reads nothing, while r10 reads 10/13 values and 5/13 Coverage classes. What this changes is the owner's decision (#193); the thresholds themselves are not changed after the run.
+Segmentation submitted one requirement where the key has 13, and it matches none, so every requirement-based figure is 0; the missing-document check, which does not depend on the requirements, scores 2/2. The cause was not investigated, because that would mean reading the held-out text. Per the held-out rule in CLAUDE.md the result is reported as it is and is not re-run. The A/B outcome above uses the TP-201 thresholds of #193, which are not changed after the run; what the held-out result means for the LLM claim is the owner's decision.
 
 ## r9: `extract` reads the direction of a limit (#133, E1)
 
