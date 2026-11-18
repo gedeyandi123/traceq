@@ -53,9 +53,32 @@ def test_lists_runs_without_scores(client: TestClient) -> None:
             "model": "claude-haiku-5-5",
             "mode": "replay",
             "pipeline_version": "0.2.0",
+            "review_package": None,
         }
     ]
     assert client.get(f"/runs/{RUN_ID}").json() == r.json()[0]
+
+
+def test_a_review_package_run_names_its_package_and_draft(tmp_path: Path) -> None:
+    """So a run screen can link to the Protocol Draft without a token (spec #196, ticket
+    #210): the package, its version and the draft document, from ``run.json``."""
+    folder = tmp_path / RUN_ID
+    folder.mkdir()
+    meta = json.loads((RUNS / RUN_ID / "run.json").read_text(encoding="utf-8"))
+    meta["review_package"] = {
+        "package": "TP-201-OQ-draft",
+        "version": "0.1.0",
+        "document": {"doc_id": "OQ-TP201", "rev": 0, "sha256": "ab" * 32},
+        "test_steps": 26,
+    }
+    (folder / "run.json").write_text(json.dumps(meta), encoding="utf-8")
+    got = TestClient(create_app(tmp_path)).get(f"/runs/{RUN_ID}").json()
+    assert got["review_package"] == {
+        "package": "TP-201-OQ-draft",
+        "version": "0.1.0",
+        "doc_id": "OQ-TP201",
+        "rev": 0,
+    }
 
 
 def test_serves_the_matrix_as_written(client: TestClient) -> None:

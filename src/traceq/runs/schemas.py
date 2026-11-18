@@ -103,6 +103,15 @@ class Matrix(_Model):
     not_read: tuple[NotRead, ...] = ()
 
 
+class RunPackage(_Model):
+    """The Review Package a run reviews and the Protocol Draft it read."""
+
+    package: str
+    version: str
+    doc_id: str
+    rev: int
+
+
 class RunSummary(_Model):
     """What identifies a run: its id, Equipment, model and mode."""
 
@@ -112,6 +121,8 @@ class RunSummary(_Model):
     model: str
     mode: Literal["replay", "live"]
     pipeline_version: str
+    review_package: RunPackage | None = None
+    """For a Review Package run: the package and its Protocol Draft; ``null`` otherwise."""
 
 
 class Source(_Model):

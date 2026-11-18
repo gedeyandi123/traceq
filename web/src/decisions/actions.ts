@@ -8,6 +8,8 @@ import type { DecisionError } from "@/components/Decisions";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 
 const DECISIONS = ["accepted", "rejected", "edited"] as const;
+/** The path of each screen a decision form can be on, after the run's own; the matrix is "". */
+const SCREENS: Partial<Record<string, string>> = { findings: "/findings", draft: "/draft" };
 
 function field(form: FormData, name: string): string | undefined {
   const v = form.get(name);
@@ -19,7 +21,7 @@ function field(form: FormData, name: string): string | undefined {
  * Change is needed; a refusal comes back as the `error` query parameter. */
 export async function decide(form: FormData): Promise<void> {
   const runId = field(form, "run_id") ?? "";
-  const screen = field(form, "screen") === "findings" ? "/findings" : "";
+  const screen = SCREENS[field(form, "screen") ?? ""] ?? "";
   const back = `/runs/${encodeURIComponent(runId)}${screen}`;
   const decision = DECISIONS.find((d) => d === field(form, "decision"));
   const proposalId = Number(field(form, "proposal_id"));

@@ -136,3 +136,32 @@ Ctrl-C pada `demo.py`, eval screen dan `npm start`. Postgres tetap jalan; matika
 - Waktu keputusan: UTC atau WIB?
 - Baris cakupan tanpa "Tolak": apakah "Ubah kelas" cukup untuk menolak usulan AI?
 - D9 (#100): apakah FAT-M-02 dan FAT-M-09 layak menjadi temuan? Di rekaman r10 keduanya tidak lagi tampil, karena `ai_review` kini melaporkan "Kriteria penerimaan menyimpang dari URS" hanya untuk protokol milik site; tanyakan tanpa menunjukkannya di layar.
+
+## 10. Draf protokol OQ (irisan 3, spec #196)
+
+Layar "Draf protokol" menampilkan draf protokol OQ milik site dari Review Package `TP-201-OQ-draft` 0.1.0: setiap langkah uji dalam urutan draf dengan kriteria penerimaan (KP) seperti terbaca, nilai URS yang dibandingkan, pembanding (langkah FAT/SAT dan data desain dari matriks, hanya ditampilkan), dan temuannya atau "Tidak dibandingkan" dengan alasannya; lalu temuan tentang seluruh dokumen. Langkah uji OQ yang dirancang TraceQ sendiri tidak tampil di sini. Draf dimuat bersama paket saat demo dinyalakan; tidak ada unggahan.
+
+**Menyalakan dengan paket.** Ganti perintah demo di bagian 3 langkah 1 dengan:
+
+`uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01 --recordings recordings/haiku-r10 --review-package recordings/TP-201-OQ-draft-0.1.0 --package-recordings tests/fixtures/review-package-run`
+
+Run-nya menjadi run Review Package: Pre-review peralatan diputar ulang dari r10 tanpa perubahan, draf dibaca dari rekaman paket, keduanya hanya dibaca. Tunggu baris `demo: … with the Review Package …` lalu `demo: ready`. Kedua opsi paket wajib bersama; satu saja ditolak sebelum database disentuh.
+
+**Batas yang harus diketahui presenter:**
+
+- Rekaman draf di `tests/fixtures/review-package-run` **bukan jawaban model**: delapan panggilan `protocol_draft` dijawab oleh pengganti model yang membaca halaman dengan pola baris (README fixture itu). Angka di bawah berasal dari rekaman itu. Run live pertama (dengan persetujuan biaya owner) akan menggantinya.
+- Kutipan ke draf (OQ-TP201) **bukan link**: API hanya menyajikan dokumen korpus, dan draf bukan dokumen korpus. Arahkan kursor untuk melihat kutipannya. Kutipan ke URS dan pembanding tetap membuka PDF.
+- Draf dibaca dengan token: tanpa masuk, layar meminta masuk.
+- Penilaian (bagian 3 langkah 2) untuk run Review Package memerlukan `--package world/tp201-oq-draft.yaml`; layar eval untuk run ini belum dilatih.
+
+| ID | Kasus | Langkah | Hasil yang diharapkan | Hasil |
+|---|---|---|---|---|
+| K18 | Demo memuat paket | Nyalakan dengan perintah di atas, buka `/`, lalu run TP-201 | Satu run; header run menulis "Draf protokol: OQ-TP201 rev 0 (TP-201-OQ-draft 0.1.0)"; tab "Draf protokol" di antara "Temuan pra-tinjauan" dan "Yang tidak dimasukkan" | Belum |
+| K19 | "OQ tidak ada" tetap | Tab "Temuan pra-tinjauan" | Sama dengan run tanpa paket: 3 temuan aturan, 4 temuan AI, "Dokumen yang tidak ada" tetap memuat IQ-TP201 dan OQ-TP201; tab "Draf protokol" menautkan ke draf | Belum |
+| K20 | Draf tanpa masuk | Keluar, buka `/runs/<id>/draft` | "Masuk untuk melihat draf protokol"; tidak ada tabel | Belum |
+| K21 | Langkah uji dalam urutan draf | Masuk sebagai Ayu → tab "Draf protokol" | Ringkasan "26 Langkah uji", "19 Langkah uji tidak dibandingkan", "2 Temuan tentang seluruh dokumen"; baris pertama OQ-01 "minimal 32 stasiun" dengan "Tidak dibandingkan: the URS states a single number; …"; OQ-05 "minimal 15 kN" dengan nilai URS "≥ 20 kN", "Menyimpang dari URS" dan temuan "Kriteria penerimaan lebih longgar dari URS"; "0/5 usulan sudah diputuskan" | Belum |
+| K22 | Kutipan | Pada OQ-05: arahkan kursor ke "OQ-TP201 rev 0, hlm. …", lalu klik link "URS-TP201 rev 1, hlm. …" | Kutipan draf tampil sebagai tooltip, bukan link; link URS membuka PDF URS di halaman itu | Belum |
+| K23 | Terima temuan draf | OQ-05 → "Terima" | "Diterima oleh Ayu Kartika Sari, …"; "1/5"; di "Jumlah keputusan": baris "Temuan draf protokol", Diterima 1; halaman kembali ke `/runs/<id>/draft` | Belum |
+| K24 | Tolak temuan dokumen dengan alasan | "Temuan tentang seluruh dokumen" → URS-TP201-002 → "Tolak…" → isi alasan → "Tolak" (tanpa alasan: ditahan browser) | "Ditolak oleh …" dengan alasan; "2/5"; Ditolak 1 | Belum |
+| K25 | Pembaca | Keluar → masuk sebagai Citra → tab "Draf protokol" | Keputusan Ayu terlihat; tidak ada tombol Terima/Tolak atau lipatan "Tolak…"/"Putuskan ulang"; "Hanya membaca: …" | Belum |
+| K26 | Lebar layar | Ulangi K21 pada 1920 px dan pada jendela sempit (di bawah 1199 px dan sekitar 768 px) | Ringkasan dan "Jumlah keputusan" bertumpuk di bawah 1199 px; tabel bergulir ke samping di dalam bingkainya, halaman tidak | Belum |

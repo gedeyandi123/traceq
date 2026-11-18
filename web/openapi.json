@@ -2365,6 +2365,36 @@
         "title": "RequiredDocument",
         "description": "A document the VMP requires for the Equipment, with the annex row cited."
       },
+      "RunPackage": {
+        "properties": {
+          "package": {
+            "type": "string",
+            "title": "Package"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "package",
+          "version",
+          "doc_id",
+          "rev"
+        ],
+        "title": "RunPackage",
+        "description": "The Review Package a run reviews and the Protocol Draft it read."
+      },
       "RunSummary": {
         "properties": {
           "run_id": {
@@ -2394,6 +2424,16 @@
           "pipeline_version": {
             "type": "string",
             "title": "Pipeline Version"
+          },
+          "review_package": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunPackage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,

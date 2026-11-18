@@ -1,6 +1,7 @@
 """Brings the demo to a known state, and resets it when run again (spec #105, ticket #115).
 
     uv run python scripts/demo.py CORPUS_DIR --recordings DIR [--no-compose] [--runs DIR]
+        [--review-package PACKAGE_DIR --package-recordings DIR]
 
 The Equipment is fixed here: demo data is TP-201 (dev) only and the held-out Equipment is
 never loaded. System code names no Equipment, so the choice lives in this script.
@@ -27,6 +28,16 @@ def main() -> int:
         required=True,
         help="the recordings set made on that corpus release (checked as a pair)",
     )
+    p.add_argument(
+        "--review-package",
+        type=Path,
+        help="a released Review Package for the corpus: the run reads its Protocol Draft",
+    )
+    p.add_argument(
+        "--package-recordings",
+        type=Path,
+        help="the recordings of the package's draft calls (only read)",
+    )
     p.add_argument("--runs", type=Path)
     p.add_argument("--issuer-port", type=int)
     p.add_argument("--api-port", type=int)
@@ -36,6 +47,8 @@ def main() -> int:
         "runs": a.runs,
         "issuer_port": a.issuer_port,
         "api_port": a.api_port,
+        "review_package": a.review_package,
+        "package_recordings": a.package_recordings,
     }
     return run_demo(
         DemoSettings(
