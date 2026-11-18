@@ -38,10 +38,29 @@ def test_every_born_digital_pdf_has_a_recording_of_its_rendered_bytes(tp201_dist
     assert stale == [], "regenerate them as tests/conftest.py says"
 
 
-def test_the_installed_docling_is_the_one_the_cache_key_was_recorded_with() -> None:
-    """A Docling upgrade may change page text under the same cache key: upgrading it means
-    bumping ``PDF_VERSION`` and ``DOCLING_VERSION`` together and regenerating the recordings."""
-    assert version("docling") == pdf.DOCLING_VERSION
+RECORDED: dict[str, dict[str, str]] = {
+    "docling-1": {
+        "docling": "2.150.0",
+        "docling-slim": "2.150.0",
+        "docling-core": "2.106.0",
+        "docling-ibm-models": "4.0.4",
+        "docling-parse": "7.25.0",
+        "pypdfium2": "5.15.2",
+    },
+}
+"""Each ``PDF_VERSION`` cache key and the packages that can change page text, at the versions
+it was recorded with. Append-only: a row is never edited."""
+
+
+def test_the_installed_reader_is_the_one_the_cache_key_was_recorded_with() -> None:
+    """An upgrade that may change page text needs a new cache key, or cached text from the old
+    reader would be served as if the new one had read it."""
+    recorded = RECORDED[pdf.PDF_VERSION]
+    installed = {p: version(p) for p in recorded}
+    assert installed == recorded, (
+        f"the reader differs from what {pdf.PDF_VERSION} was recorded with: add a new "
+        "PDF_VERSION with a new row here and regenerate the recordings; never edit an existing row"
+    )
 
 
 def test_docling_reads_a_pdf_as_recorded(tp201_dist: Path) -> None:
