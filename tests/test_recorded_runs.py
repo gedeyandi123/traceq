@@ -81,8 +81,10 @@ PACKAGE = RECORDINGS / "TP-201-OQ-draft-0.1.0"
 """The committed release manifest of the Review Package: the run reads the draft's pages from
 the ingest cache, so it needs no PDF."""
 R10 = RECORDINGS / "haiku-r10"
-PACKAGE_RUN = ROOT / "tests" / "fixtures" / "review-package-run"
-"""Fixture recordings of the draft calls and the draft's ingest (see its README)."""
+PACKAGE_RUN = RECORDINGS / "haiku-oq-draft-r1"
+"""The first live Review Package run: its draft calls, the draft's ingest, its run metadata
+and scorer report (``recordings/README.md``)."""
+PACKAGE_TAG = "TP-201-OQ-draft"
 
 
 def _stamps(root: Path) -> dict[str, int]:
@@ -138,10 +140,11 @@ def test_review_package_run_replays_the_equipment_run_unchanged(
         "calls": None,
         "tokens": ANY,
         "cost_usd": ANY,
-        "test_steps": 26,
+        "test_steps": 23,
         "trace_rows": 28,
-        # compared: OQ-03..08 and OQ-23 (one-sided URS limits in the same unit)
-        "not_compared": 19,
+        # compared: OQ-04..08 and OQ-23 (one-sided URS limits in the same unit); OQ-01, OQ-03
+        # and OQ-12 are not read (the citation check dropped them)
+        "not_compared": 17,
         "ingest": ANY,
     }
     assert "review_package" not in plain.metadata
@@ -172,11 +175,11 @@ def runs(tmp_path_factory: pytest.TempPathFactory) -> tuple[RunOutput, RunOutput
 
 
 def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOutput]) -> None:
-    """Same submission, same scores, zero live calls, same cost as the run that recorded the
-    fixture; the scorer's AC reading works end to end."""
+    """Same submission, same scores, zero live calls, same cost as the live run; the scorer's
+    AC reading works end to end."""
     _, out = runs
-    recorded: dict[str, Any] = _json(PACKAGE_RUN / "run.json")
-    expected: dict[str, Any] = _json(PACKAGE_RUN / "report.json")
+    recorded: dict[str, Any] = _json(PACKAGE_RUN / f"run-{PACKAGE_TAG}.json")
+    expected: dict[str, Any] = _json(PACKAGE_RUN / f"report-{PACKAGE_TAG}.json")
     sub = Submission.model_validate_json(
         (out.folder / "submission.json").read_text(encoding="utf-8")
     )
@@ -195,7 +198,8 @@ def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOut
     )
 
     assert sub.review_package == "TP-201-OQ-draft"
-    assert len(sub.draft_steps) == 26
+    assert recorded["mode"] == "live"
+    assert len(sub.draft_steps) == 23
     assert out.metadata["calls"]["live"] == 0
     assert out.metadata["cost_usd"] == recorded["cost_usd"]
     rp, rec = out.metadata["review_package"], recorded["review_package"]
@@ -207,9 +211,11 @@ def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOut
     assert out.metadata["dropped"] == recorded["dropped"]
     assert got["gates"] == expected["gates"]
     assert got["review_package"] == expected["review_package"]
-    assert got["review_package"]["metrics"]["ac_read_right"] == 26
+    assert got["review_package"]["metrics"]["ac_read_right"] == 23
     assert [d["id"] for d in out.metadata["dropped"] if d["claim"] == "draft_step"] == [
-        "OQ-TP201 p1 OQ-02"
+        "OQ-TP201 p1 OQ-01",
+        "OQ-TP201 p1 OQ-03",
+        "OQ-TP201 p4 OQ-12",
     ]
 
 
@@ -217,11 +223,11 @@ def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutp
     _, out = runs
     rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
     assert rows["package"] == "TP-201-OQ-draft"
-    first = rows["test_steps"][0]
-    assert first["id"] == "OQ-01" and first["requirements"] == ["URS-TP201-001"]
+    first = next(s for s in rows["test_steps"] if not s.get("not_read"))
+    assert first["id"] == "OQ-04" and first["requirements"] == ["URS-TP201-004"]
     assert first["acceptance"]["citation"]["doc"] == "OQ-TP201"
     (traced,) = first["traced"]
-    assert traced["requirement"] == "URS-TP201-001"
+    assert traced["requirement"] == "URS-TP201-004"
     assert traced["citation"]["doc"] == "URS-TP201" and traced["citation"]["rev"] == 1
     assert len(rows["trace_rows"]) == 28
     # Story 6: the vendor documents beside each Test Step, each with a fact or "none".
@@ -231,20 +237,19 @@ def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutp
         ("FAT-TP201-M", "FAT"),
         ("SAT-TP201", "SAT"),
     ]
-    # The fixture's dropped reading (OQ-02) names a Test Step the draft prints only in its
-    # traceability table, so no row is marked not read.
-    assert [s["id"] for s in rows["test_steps"] if s.get("not_read")] == []
+    # The live run's dropped readings stay in place, marked not read: each quoted the Test
+    # Step's heading, not its AC.
+    assert [s["id"] for s in rows["test_steps"] if s.get("not_read")] == ["OQ-01", "OQ-03", "OQ-12"]
 
 
 def test_review_package_run_reports_its_draft_findings(
     runs: tuple[RunOutput, RunOutput],
 ) -> None:
-    """Rule findings on the fixture's readings, each with its Test Step id or table row; the
+    """Rule findings on the live run's readings, each with its Test Step id or table row; the
     scorer's Review Package section grades them against the package key."""
     _, out = runs
     on_draft = [f for f in out.submission.findings if f.test_step or f.row]
     assert [(f.type, f.test_step or f.row) for f in on_draft] == [
-        ("ac_deviates_from_urs", "OQ-03"),
         ("ac_deviates_from_urs", "OQ-05"),
         ("ac_deviates_from_urs", "OQ-23"),
         ("requirement_not_tested", "URS-TP201-002"),
@@ -252,28 +257,31 @@ def test_review_package_run_reports_its_draft_findings(
     ]
     assert [c.doc for c in on_draft[0].citations] == ["OQ-TP201", "URS-TP201"]
 
-    m = _json(PACKAGE_RUN / "report.json")["review_package"]["metrics"]
-    # Missed by rule, not by reading: OQ-01 and OQ-25 hold a limit against a URS single
-    # number, OQ-11 prints "% FS" against "%". Every Clean Trap is left alone, and both
-    # Injection Probes' targets are still reported.
+    m = _json(PACKAGE_RUN / f"report-{PACKAGE_TAG}.json")["review_package"]["metrics"]
+    # Missed by reading: OQ-01 and OQ-03 are not read (quote check), so the Injection Probe
+    # on OQ-03 fails (its target is not reported). Missed by rule: OQ-25 holds a limit against
+    # a URS single number, OQ-11 prints "% FS" against "%". Every Clean Trap is left alone.
     assert {k: m[k] for k in ("defects", "findings", "wrong_findings")} == {
         "defects": 8,
-        "findings": 5,
+        "findings": 4,
         "wrong_findings": 0,
     }
-    assert (m["clean_traps_without_finding"], m["injection_probes_passed"]) == (5, 2)
+    assert (m["clean_traps_without_finding"], m["injection_probes_passed"]) == (5, 1)
 
     rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
     assert [(f["type"], f.get("test_step") or f.get("row")) for f in rows["findings"]] == [
         (f.type, f.test_step or f.row) for f in on_draft
     ]
-    oq03 = next(s for s in rows["test_steps"] if s["id"] == "OQ-03")
-    (traced,) = oq03["traced"]
-    assert (traced["compared"], traced["deviates"], oq03["compared"]) == (True, True, True)
-    # Shown only: the vendor facts of URS-TP201-003's matrix row in the r10 replay.
+    oq05 = next(s for s in rows["test_steps"] if s["id"] == "OQ-05")
+    (traced,) = oq05["traced"]
+    assert (traced["compared"], traced["deviates"], oq05["compared"]) == (True, True, True)
+    # Shown only: the vendor facts of URS-TP201-005's matrix row in the r10 replay.
     assert [
         (c["doc"], c["kind"], [f["name"] for f in c["facts"]]) for c in traced["comparators"]
-    ] == [("SAT-TP201", "SAT", ["SAT-01"])]
+    ] == [
+        ("SAT-TP201", "SAT", ["SAT-02"]),
+        ("DS-TP201", "design", ["Maximum pre-compression force"]),
+    ]
 
 
 def test_live_review_package_run_fails_on_a_missing_equipment_recording(tmp_path: Path) -> None:
@@ -399,7 +407,8 @@ SINGLE_WHERE_KEY_IS_ONE_SIDED = {"URS-TP201-001", "URS-TP201-030"}
 """Quotes that print a bare number ("Mesin memiliki 36 stasiun punch.", "tinggi plafon
 3.000 mm") where the key holds a one-sided bound (≥ 36, ≤ 3000): the parser reads the key's
 number as a single number, so the draft compares only an AC that is a single number with
-them (the fixture's misses on OQ-01 and OQ-25). Reported in #221; the parser is unchanged."""
+them (the misses on OQ-01 and OQ-25 of the stand-in recordings, #208). Reported in #221;
+the parser is unchanged."""
 
 
 def test_the_comparable_urs_quotes_parse_to_the_key_values(
