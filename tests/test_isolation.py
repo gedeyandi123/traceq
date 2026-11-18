@@ -15,15 +15,17 @@ import pytest
 
 from traceq.ai.port import Prompt
 from traceq.protocols.prompts import PROMPTS as PROTOCOLS
+from traceq.review.draft import DRAFT_PROMPT
 from traceq.review.prompts import PROMPTS as REVIEW
 from traceq.traceability.prompts import PROMPTS as TRACEABILITY
 from traceq_dataset.answer_key import load_key
+from traceq_dataset.review_package import load_package, load_package_key
 from traceq_eval.citations import norm
 
 SRC = Path(__file__).parents[1] / "src"
 HARNESS = {"traceq_dataset", "traceq_eval"}
 FORBIDDEN_IMPORTS = HARNESS
-PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS)
+PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS, DRAFT_PROMPT)
 FORBIDDEN_TEXT = (
     "answer_key",
     "world/",
@@ -108,3 +110,21 @@ def test_prompt_examples_are_invented(equipment: str, prompt: Prompt) -> None:
 def test_copy_guard_catches_a_requirement() -> None:
     first = load_key(SRC.parent / "answer_key" / "TP-202")["requirements.yaml"][0]["text"]
     assert copied(f"Example: {first}", "TP-202") == [norm(first)]
+
+
+def test_draft_prompt_takes_nothing_from_the_tp201_draft() -> None:
+    """The draft prompt's examples come neither from TP-201 nor from its Protocol Draft: no
+    Test Step id, AC or Injection Probe text of the package is in it (spec #196)."""
+    root = SRC.parent
+    package = load_package(root / "world" / "tp201-oq-draft.yaml")
+    key = load_package_key(root / "answer_key" / package.id)
+    texts = [
+        *(s.id for s in package.steps),
+        *(t for s in package.steps for t in (s.acceptance.text, s.title)),
+        *(a.text for s in package.steps for a in (s.deviates, s.trap) if a is not None),
+        package.injection_probes.remarks,
+        *(p["location"]["text"] for p in key["injection_probes.yaml"]),
+        package.document.id,
+    ]
+    prompt = norm(DRAFT_PROMPT.system)
+    assert [t for t in texts if norm(t) in prompt] == []

@@ -14,17 +14,19 @@ from collections.abc import Sequence
 from functools import cache
 from pathlib import Path
 from typing import Any
+from unittest.mock import ANY
 
 import pytest
 
 from traceq.ai import MissingRecording, Request, Response
 from traceq.app import cli
-from traceq.runs.run import run
+from traceq.runs.run import RunOutput, run
 from traceq_dataset.answer_key import load_key
 from traceq_dataset.corpus import build_corpus
+from traceq_dataset.review_package import load_package, load_package_key, render_draft
 from traceq_dataset.world import load
 from traceq_eval.citations import PageTexts
-from traceq_eval.score import score
+from traceq_eval.score import ReviewPackage, score
 from traceq_eval.submission import Submission
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,11 +70,14 @@ def test_recorded_live_run_replays_to_its_live_scores(name: str, tag: str, tmp_p
     assert got == {k: expected[k] for k in got}
 
 
-# --- A Review Package run (spec #196, ticket #206) ----------------------------------------
+# --- A Review Package run (spec #196, tickets #206 and #207) ------------------------------
 
 PACKAGE = RECORDINGS / "TP-201-OQ-draft-0.1.0"
-"""The committed release manifest of the Review Package: all the run reads of it so far."""
+"""The committed release manifest of the Review Package: the run reads the draft's pages from
+the ingest cache, so it needs no PDF."""
 R10 = RECORDINGS / "haiku-r10"
+PACKAGE_RUN = ROOT / "tests" / "fixtures" / "review-package-run"
+"""Fixture recordings of the draft calls and the draft's ingest (see its README)."""
 
 
 def _stamps(root: Path) -> dict[str, int]:
@@ -91,35 +96,124 @@ class _NeverSends:
         raise AssertionError("a Review Package run sent an Equipment call")
 
 
-def test_review_package_run_replays_the_equipment_run_unchanged(tmp_path: Path) -> None:
-    before = _stamps(R10)
-    plain = run(MANIFEST, tmp_path / "plain", R10, MODEL, equipment="TP-201")
-    out = run(
-        MANIFEST,
-        tmp_path / "runs",
-        R10,
-        MODEL,
-        equipment="TP-201",
-        review_package=PACKAGE,
-        package_recordings=tmp_path / "package-rec",
-    )
+def test_review_package_run_replays_the_equipment_run_unchanged(
+    runs: tuple[RunOutput, RunOutput],
+) -> None:
+    plain, out = runs
 
-    assert _stamps(R10) == before  # the Equipment store is read, never written
-    assert out.submission.model_dump(exclude={"system"}) == plain.submission.model_dump(
-        exclude={"system"}
+    package_only = {"system", "review_package", "draft_steps"}
+    assert out.submission.model_dump(exclude=package_only) == plain.submission.model_dump(
+        exclude=package_only
     )
-    assert out.submission.system.prompt == plain.submission.system.prompt
-    assert out.metadata["prompts"] == plain.metadata["prompts"]
-    assert out.metadata["calls"] == plain.metadata["calls"]
-    assert out.metadata["calls"]["live"] == 0
-    assert out.metadata["cost_usd"] == plain.metadata["cost_usd"]
-    assert out.metadata["review_package"] == {
+    # The draft prompt's hash enters the prompt set only in a Review Package run.
+    assert out.metadata["prompts"] == {**plain.metadata["prompts"], "protocol_draft": ANY}
+    assert "protocol_draft" not in plain.metadata["prompts"]
+    draft = out.metadata["review_package"]["calls"]["total"]
+    assert draft == 8  # one call per page of the draft
+    assert out.metadata["calls"] == {
+        "total": plain.metadata["calls"]["total"] + draft,
+        "replayed": plain.metadata["calls"]["total"] + draft,
+        "live": 0,
+    }
+    assert out.metadata["live_cost_usd"] == 0.0
+    assert out.metadata["review_package"] | {"calls": None} == {
         "package": "TP-201-OQ-draft",
         "version": "0.1.0",
         "corpus": {"release": "corpus-v0.1.1", "version": "0.1.1"},
         "equipment_recordings": "haiku-r10",
+        "document": {
+            "doc_id": "OQ-TP201",
+            "rev": 0,
+            "sha256": "8a8c6860d5e7ec7dcb9b69ec8c1cd5da4037f9db7fef66071868ab3849614116",
+        },
+        "calls": None,
+        "tokens": ANY,
+        "cost_usd": ANY,
+        "test_steps": 26,
+        "trace_rows": 28,
+        "not_compared": 26,
+        "ingest": ANY,
     }
     assert "review_package" not in plain.metadata
+    assert "review_package" not in json.loads(
+        (plain.folder / "submission.json").read_text(encoding="utf-8")
+    )
+    assert not (plain.folder / "protocol_draft.json").exists()
+
+
+@pytest.fixture(scope="module")
+def runs(tmp_path_factory: pytest.TempPathFactory) -> tuple[RunOutput, RunOutput]:
+    """An Equipment run and a Review Package run, both replayed from the committed stores,
+    which neither writes."""
+    before = _stamps(R10), _stamps(PACKAGE_RUN)
+    out_dir = tmp_path_factory.mktemp("package-run")
+    plain = run(MANIFEST, out_dir / "plain", R10, MODEL, equipment="TP-201")
+    out = run(
+        MANIFEST,
+        out_dir / "runs",
+        R10,
+        MODEL,
+        equipment="TP-201",
+        review_package=PACKAGE,
+        package_recordings=PACKAGE_RUN,
+    )
+    assert (_stamps(R10), _stamps(PACKAGE_RUN)) == before
+    return plain, out
+
+
+def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOutput]) -> None:
+    """Same submission, same scores, zero live calls, same cost as the run that recorded the
+    fixture; the scorer's AC reading works end to end."""
+    _, out = runs
+    recorded: dict[str, Any] = _json(PACKAGE_RUN / "run.json")
+    expected: dict[str, Any] = _json(PACKAGE_RUN / "report.json")
+    sub = Submission.model_validate_json(
+        (out.folder / "submission.json").read_text(encoding="utf-8")
+    )
+    package = load_package(ROOT / "world" / "tp201-oq-draft.yaml")
+    corpus = build_corpus(load(WORLDS["TP-201"]))
+    review = ReviewPackage.of(
+        package,
+        render_draft(package, corpus.eq),
+        load_package_key(ROOT / "answer_key" / "TP-201-OQ-draft"),
+    )
+    got = score(
+        sub,
+        load_key(ROOT / "answer_key" / "TP-201"),
+        PageTexts(corpus, extra=[review.draft]),
+        package=review,
+    )
+
+    assert sub.review_package == "TP-201-OQ-draft"
+    assert len(sub.draft_steps) == 26
+    assert out.metadata["calls"]["live"] == 0
+    assert out.metadata["cost_usd"] == recorded["cost_usd"]
+    rp, rec = out.metadata["review_package"], recorded["review_package"]
+    assert {k: rp[k] for k in ("tokens", "cost_usd", "not_compared")} == {
+        k: rec[k] for k in ("tokens", "cost_usd", "not_compared")
+    }
+    assert rp["calls"] == {"total": 8, "replayed": 8, "live": 0}
+    assert out.metadata["prompts"] == recorded["prompts"]
+    assert out.metadata["dropped"] == recorded["dropped"]
+    assert got["gates"] == expected["gates"]
+    assert got["review_package"] == expected["review_package"]
+    assert got["review_package"]["metrics"]["ac_read_right"] == 26
+    assert [d["id"] for d in out.metadata["dropped"] if d["claim"] == "draft_step"] == [
+        "OQ-TP201 p1 OQ-02"
+    ]
+
+
+def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutput]) -> None:
+    _, out = runs
+    rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
+    assert rows["package"] == "TP-201-OQ-draft"
+    first = rows["test_steps"][0]
+    assert first["id"] == "OQ-01" and first["requirements"] == ["URS-TP201-001"]
+    assert first["acceptance"]["citation"]["doc"] == "OQ-TP201"
+    (traced,) = first["traced"]
+    assert traced["requirement"] == "URS-TP201-001"
+    assert traced["citation"]["doc"] == "URS-TP201" and traced["citation"]["rev"] == 1
+    assert len(rows["trace_rows"]) == 28
 
 
 def test_live_review_package_run_fails_on_a_missing_equipment_recording(tmp_path: Path) -> None:

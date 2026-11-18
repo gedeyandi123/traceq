@@ -134,6 +134,8 @@ Claim = Literal[
     "test_step",
     "acceptance",
     "ai_finding",
+    "draft_step",
+    "trace_row",
 ]
 
 
