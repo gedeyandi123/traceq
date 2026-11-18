@@ -67,6 +67,7 @@ from traceq.runs.protocol_draft import (
     draft_findings_out,
     draft_steps,
     protocol_draft,
+    vendor_documents,
 )
 from traceq.runs.submission import Submission, SystemInfo, build
 from traceq.traceability import PIPELINE_VERSION, PROMPTS, Traceability, trace
@@ -344,7 +345,11 @@ def run(
         _write_json(
             folder / DRAFT_FILE,
             protocol_draft(
-                package.package, on_draft.reading, on_draft.rows, on_draft.findings
+                package.package,
+                on_draft.reading,
+                on_draft.rows,
+                on_draft.findings,
+                vendor_documents(corpus),
             ).model_dump(mode="json"),
         )
     _write_json(folder / "run.json", metadata)

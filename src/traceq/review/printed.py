@@ -118,6 +118,32 @@ def read_printed(
     m = _EXPR.search(text)
     if m is None:
         return Text(value=_spaced(printed))
+    return _read(m, language)
+
+
+def read_quoted(quote: str, printed: str, language: str) -> PrintedValue | Ambiguous[float] | None:
+    """The limit ``quote`` prints where it holds ``printed``, the model's copy of it: the whole
+    expression in the quote that has a number inside the copy, so a qualifier or bound the
+    copy left out (``60 dB(A)`` of ``maks. 60 dB(A)``, ``60 rpm`` of ``20–60 rpm``) is read
+    from the print, never from the copy (spec #196, "Draft reading"). A copy the quote does
+    not hold as printed (only after NFKC, say) is ``None``: not read, never guessed."""
+    text, copy = _spaced(quote), _spaced(printed)
+    i = text.find(copy)
+    if i < 0:
+        i = text.lower().find(copy.lower())
+    if i < 0 or not copy:
+        return None
+    j = i + len(copy)
+    for start in range(j):
+        m = _EXPR.match(text, start)
+        if m is not None and any(
+            m.start(g) >= i and m.start(g) < j for g in ("a", "b", "t") if m[g] is not None
+        ):
+            return _read(m, language)
+    return Text(value=copy)
+
+
+def _read(m: re.Match[str], language: str) -> PrintedValue | Ambiguous[float] | None:
     tokens = [x for x in (m["a"], m["b"], m["t"]) if x is not None]
     numbers = [read_number(x, language) for x in tokens]
     if any(isinstance(x, Ambiguous) for x in numbers):

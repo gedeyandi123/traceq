@@ -7,7 +7,7 @@ import { NextIntlClientProvider } from "next-intl";
 import messages from "../../messages/id.json";
 import type { DecisionView } from "./Decisions";
 import { counts, decision, RUN_ID } from "./decisions.fixture";
-import { deviates, draftView, notTested, proposal } from "./protocolDraft.fixture";
+import { deviates, draftView, notReadStep, notTested, proposal } from "./protocolDraft.fixture";
 import { ProtocolDraftView } from "./ProtocolDraftView";
 
 const action = async () => {};
@@ -57,12 +57,42 @@ test("lists every Test Step in draft order with its AC as read, the URS value an
   expect(first.getByText("Tidak ada temuan")).toBeDefined();
 });
 
-test("shows the comparators available, or none", () => {
+test("shows, per vendor document, the facts for the step's requirement or none", () => {
   renderDraft(imported);
   const [first, second] = stepRows();
-  expect(within(first!).getByText(/FAT-M-02/).textContent).toContain("102 kN");
+  const docs = (row: HTMLElement) =>
+    Array.from(row.querySelectorAll("[data-vendor-doc]")).map((li) => li.textContent);
+  expect(docs(first!)).toEqual([
+    "Datasheet DS-TP201: tidak ada",
+    expect.stringMatching(/^FAT FAT-TP201-M: FAT-M-02: 102 kN/),
+    "SAT SAT-TP201: tidak ada",
+  ]);
   expect(within(first!).getByRole("link", { name: "FAT-TP201-M rev 0, hlm. 1" })).toBeDefined();
-  expect(within(second!).getByText("tidak ada")).toBeDefined();
+  expect(docs(second!)).toEqual([
+    "Datasheet DS-TP201: tidak ada",
+    "FAT FAT-TP201-M: tidak ada",
+    "SAT SAT-TP201: tidak ada",
+  ]);
+});
+
+test("a Test Step whose reading was dropped is listed in draft order, marked not read", () => {
+  const view = draftView([]);
+  const [one, ...rest] = view.test_steps;
+  renderDraft({ ...view, test_steps: [one!, notReadStep, ...rest] });
+  const rows = stepRows();
+  expect(rows.map((r) => r.querySelector("th")?.textContent)).toEqual(["OQ-01", "OQ-02A", "OQ-02", "OQ-03"]);
+  const unread = within(rows[1]!);
+  expect(unread.getByText("Tidak terbaca: bacaannya dibuang oleh pemeriksaan kutipan (quote check)")).toBeDefined();
+  expect(unread.queryByText("Tidak ada temuan")).toBeNull();
+  const summary = within(screen.getByRole("list", { name: "Ringkasan draf" }));
+  const items = summary.getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
+  expect(items).toEqual([
+    ["4 Langkah uji", "#draft-steps"],
+    ["1 Langkah uji tidak terbaca", "#draft-not-read"],
+    ["1 Langkah uji tidak dibandingkan", "#draft-not-compared"],
+    ["0 Temuan tentang seluruh dokumen", "#draft-document"],
+  ]);
+  expect(rows[1]!.id).toBe("draft-not-read");
 });
 
 test("a step that is not compared says so with the reason, and has no finding", () => {

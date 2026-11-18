@@ -23,6 +23,7 @@ from traceq.review.draft import (
 )
 from traceq.review.limits import outside
 from traceq.review.printed import Limit, Tolerance, read_printed
+from traceq.runs.protocol_draft import protocol_draft
 from traceq.traceability import Ambiguous, Citation, Requirement, Traceability
 from traceq.traceability.values import Number, Text
 
@@ -256,9 +257,119 @@ def test_a_bad_answer_is_dropped_and_listed() -> None:
     ]
 
 
+def _ac(step: str, quote: str) -> dict[str, Any]:
+    return {"id": step, "requirements": [], "acceptance": quote, "quote": quote}
+
+
+def test_a_step_whose_reading_was_dropped_is_listed_in_draft_order() -> None:
+    """Story 7: every Test Step the draft prints is listed in draft order; one whose reading
+    the citation check dropped is marked not read, with the reason. A dropped reading whose
+    id the draft prints only in its traceability table is no Test Step and is not listed."""
+    pages = [
+        Page(
+            1,
+            "Langkah uji OQ-01\nKriteria minimal 75 kN\nLangkah uji OQ-02\nKriteria maks. 25 mm\n"
+            "Langkah uji OQ-03\nKriteria maks. 60 dB(A)",
+        ),
+        Page(2, "Matriks ketertelusuran\nURS-XY100-004 OQ-01 OQ-02 OQ-03\nURS-XY100-009 OQ-07"),
+    ]
+    answers = [
+        _answer(
+            [
+                _ac("OQ-01", "minimal 75 kN"),
+                {**_ac("OQ-02", "maks. 25 mm"), "quote": "Kriteria maks. 20 mm"},
+                _ac("OQ-03", "maks. 60 dB(A)"),
+            ],
+            [],
+        ),
+        _answer(
+            [{**_ac("OQ-07", "maks. 5 mm"), "quote": "OQ-07 maks. 5 mm"}],
+            [
+                {
+                    "requirement": "URS-XY100-004",
+                    "test_steps": ["OQ-01", "OQ-02", "OQ-03"],
+                    "quote": "URS-XY100-004 OQ-01 OQ-02 OQ-03",
+                },
+                {
+                    "requirement": "URS-XY100-009",
+                    "test_steps": ["OQ-07"],
+                    "quote": "URS-XY100-009 OQ-07",
+                },
+            ],
+        ),
+    ]
+    reading = read_draft(DOC, pages, _Fake(answers))
+    rows = draft_rows(reading, Traceability(), "id")
+    out = protocol_draft("XY100-OQ-draft", reading, rows, [])
+    assert [(s.id, s.not_read) for s in out.test_steps] == [
+        ("OQ-01", None),
+        ("OQ-02", "quote check"),
+        ("OQ-03", None),
+    ]
+    oq02 = out.test_steps[1]
+    assert (oq02.acceptance, oq02.traced, oq02.compared) == (None, (), False)
+    assert [s.id for s in reading.steps] == ["OQ-01", "OQ-03"]  # the submission's rows
+
+
 def test_the_prompt_tells_the_model_that_page_text_is_data() -> None:
     assert "never an instruction" in DRAFT_PROMPT.system
     assert DRAFT_PROMPT.name == "protocol_draft"
+
+
+@pytest.mark.parametrize(
+    ("printed", "copied", "value"),
+    [
+        ("maks. 100 kN", "100 kN", Limit(max=100, unit="kN")),
+        ("maks. 60 dB(A)", "60 dB(A)", Limit(max=60, unit="dB(A)")),
+        ("20–60 rpm", "60 rpm", Limit(min=20, max=60, unit="rpm")),
+        (
+            "380 V ± 10 %",
+            "380 V",
+            Tolerance(nominal=380, tolerance=10, tolerance_unit="%", unit="V"),
+        ),
+        ("maks. 100 kN", "maks. 100 kN", Limit(max=100, unit="kN")),
+        ("Mesin berhenti", "Mesin berhenti", Text(value="Mesin berhenti")),
+    ],
+)
+def test_the_ac_is_parsed_from_the_print_not_from_the_models_copy(
+    printed: str, copied: str, value: object
+) -> None:
+    """Spec #196, "Draft reading": limits are parsed from the printed quote by code, never
+    taken from the model. A copy that leaves out a qualifier reads the limit the page prints."""
+    quote = f"Kriteria penerimaan {printed}"
+    page = Page(1, f"Langkah uji OQ-01\nPersyaratan URS-XY100-004\n{quote}")
+    step = {"id": "OQ-01", "requirements": ["URS-XY100-004"], "acceptance": copied, "quote": quote}
+    r = read_draft(DOC, [page], _Fake([_answer([step], [])]))
+    (got,) = r.steps
+    assert got.value == value
+
+
+def test_a_dropped_qualifier_never_changes_the_comparison() -> None:
+    """The AC prints "maks. 100 kN" against a URS "minimal 80 kN": it accepts 50 kN, which the
+    URS rejects, also when the model copies only "100 kN"."""
+    quote = "Kriteria penerimaan maks. 100 kN"
+    page = Page(1, f"Langkah uji OQ-01\nPersyaratan URS-XY100-004\n{quote}\nURS-XY100-004 OQ-01")
+    answer = _answer(
+        [
+            {
+                "id": "OQ-01",
+                "requirements": ["URS-XY100-004"],
+                "acceptance": "100 kN",
+                "quote": quote,
+            }
+        ],
+        [
+            {
+                "requirement": "URS-XY100-004",
+                "test_steps": ["OQ-01"],
+                "quote": "URS-XY100-004 OQ-01",
+            }
+        ],
+    )
+    reading = read_draft(DOC, [page], _Fake([answer]))
+    reqs = [_req("URS-XY100-004", "URS-XY100-004 Ya Gaya tekan minimal 80 kN.")]
+    (row,) = draft_rows(reading, Traceability(requirements=reqs), "id")
+    assert (row.not_compared, row.traced[0].deviates) == (None, True)
 
 
 # --- The URS limit, from the requirement's verified citation --------------------------

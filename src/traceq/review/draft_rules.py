@@ -17,12 +17,10 @@ only in length gives the same finding.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Literal
 
-from traceq.documents import normalise
-from traceq.review.draft import DraftReading, DraftRow, TraceRow
+from traceq.review.draft import DraftReading, DraftRow, TraceRow, outside_table, printed_at
 from traceq.review.printed import Limit, PrintedValue, Tolerance
 from traceq.traceability import Ambiguous, Citation
 from traceq.traceability.values import Number, Text
@@ -97,22 +95,12 @@ def ac_deviates_from_urs(rows: list[DraftRow]) -> list[DraftFinding]:
     return out
 
 
-def _outside_table(reading: DraftReading) -> list[str]:
-    """The draft's pages with every traceability row read taken out of its page."""
-    texts = [normalise(p.text) for p in reading.pages]
-    for r in reading.rows:
-        n = r.citation.page - 1
-        texts[n] = texts[n].replace(normalise(r.citation.quote), " ")
-    return texts
-
-
 def _printed(step: str, texts: list[str]) -> bool:
-    pattern = re.compile(rf"(?<![\w-]){re.escape(normalise(step))}(?![\w]|-\w)")
-    return any(pattern.search(t) for t in texts)
+    return any(printed_at(step, t) >= 0 for t in texts)
 
 
 def requirement_not_tested(reading: DraftReading) -> list[DraftFinding]:
-    texts = _outside_table(reading)
+    texts = outside_table(reading)
     read = {s.id for s in reading.steps}
     by_requirement: dict[str, list[TraceRow]] = {}
     for r in reading.rows:

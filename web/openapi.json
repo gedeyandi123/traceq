@@ -1223,7 +1223,25 @@
             "title": "Requirements"
           },
           "acceptance": {
-            "$ref": "#/components/schemas/DraftAcceptance"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftAcceptance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "not_read": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Read"
           },
           "traced": {
             "items": {
@@ -1259,7 +1277,7 @@
           "not_compared"
         ],
         "title": "DraftTestStep",
-        "description": "A Test Step of the draft, in draft order, as read and compared."
+        "description": "A Test Step of the draft, in draft order, as read and compared, or not read: the draft\nprints it, but the citation check dropped its reading (``not_read``)."
       },
       "DraftTraceRow": {
         "properties": {
@@ -2265,6 +2283,13 @@
             },
             "type": "array",
             "title": "Findings"
+          },
+          "vendor_documents": {
+            "items": {
+              "$ref": "#/components/schemas/VendorDocument"
+            },
+            "type": "array",
+            "title": "Vendor Documents"
           }
         },
         "additionalProperties": false,
@@ -2276,7 +2301,8 @@
           "document",
           "test_steps",
           "trace_rows",
-          "findings"
+          "findings",
+          "vendor_documents"
         ],
         "title": "ProtocolDraftView",
         "description": "The Protocol Draft of a Review Package run: its Test Steps in draft order, its\ntraceability rows and its findings, each with its decision state."
@@ -2668,6 +2694,36 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VendorDocument": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "datasheet",
+              "FAT",
+              "SAT"
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "kind"
+        ],
+        "title": "VendorDocument",
+        "description": "A vendor document of the Equipment the comparators of a requirement may come from."
       },
       "VendorFactCite": {
         "properties": {

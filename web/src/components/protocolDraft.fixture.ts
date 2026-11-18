@@ -1,8 +1,9 @@
 // A Protocol Draft as the API serves it, for the render tests of the draft screen (spec #196,
 // ticket #210). Hand-written, not taken from the Review Package: three Test Steps (one
 // looser than the URS, one not compared, one within the URS) and a traceability row whose
-// Test Step is not printed.
-import type { Cite, DraftFindingView, Proposal, ProtocolDraftView } from "@/api/client";
+// Test Step is not printed; the vendor documents a comparator may come from; and a Test Step
+// whose reading the citation check dropped, for the tests that add it.
+import type { Cite, DraftFindingView, DraftTestStep, Proposal, ProtocolDraftView } from "@/api/client";
 
 import { RUN_ID } from "./decisions.fixture";
 
@@ -40,6 +41,17 @@ export const notTested: DraftFindingView["finding"] = {
   ac: null,
   urs_limit: null,
   citations: [cite(DRAFT, 8, "URS-TP201-031 OQ-21")],
+};
+
+/** A Test Step the draft prints whose reading the citation check dropped (story 7). */
+export const notReadStep: DraftTestStep = {
+  id: "OQ-02A",
+  requirements: [],
+  acceptance: null,
+  not_read: "quote check",
+  traced: [],
+  compared: false,
+  not_compared: null,
 };
 
 export function proposal(over: Partial<Proposal>): Proposal {
@@ -149,5 +161,10 @@ export function draftView(findings: DraftFindingView[]): ProtocolDraftView {
     ],
     trace_rows: [],
     findings,
+    vendor_documents: [
+      { doc: "DS-TP201", rev: 0, kind: "datasheet" },
+      { doc: "FAT-TP201-M", rev: 0, kind: "FAT" },
+      { doc: "SAT-TP201", rev: 0, kind: "SAT" },
+    ],
   };
 }

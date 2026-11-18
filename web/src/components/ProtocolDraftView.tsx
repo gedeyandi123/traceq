@@ -86,6 +86,98 @@ function Finding({
   );
 }
 
+type VendorDoc = Draft["vendor_documents"][number];
+type Comparator = DraftTestStep["traced"][number]["comparators"][number];
+
+/** The facts of one document for the step's requirements, prefixed with the requirement when
+ * the step traces to more than one. */
+function Facts({ step, of, runId }: { step: DraftTestStep; of: (c: Comparator) => boolean; runId: string }) {
+  const many = step.traced.length > 1;
+  const facts = step.traced.flatMap((tr) =>
+    tr.comparators.filter(of).flatMap((c) => c.facts.map((f) => ({ requirement: tr.requirement, c, f }))),
+  );
+  return (
+    <ul className={s.facts}>
+      {facts.map(({ requirement, c, f }) => (
+        <li key={`${requirement}/${c.doc}/${f.name}/${f.citation.quote}`}>
+          <span>
+            {many && `${requirement} `}
+            {f.name}: {f.printed}
+          </span>{" "}
+          <CiteLink runId={runId} cite={f.citation} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Story 6: per vendor document (datasheet, FAT, SAT) the facts of the step's requirements, or
+ * "none"; then the facts of any other document (a certificate). Shown only, never a finding. */
+function Comparators({
+  t,
+  step,
+  vendorDocs,
+  runId,
+}: {
+  t: T;
+  step: DraftTestStep;
+  vendorDocs: readonly VendorDoc[];
+  runId: string;
+}) {
+  const same = (d: { doc: string; rev: number }) => (c: Comparator) => c.doc === d.doc && c.rev === d.rev;
+  const listed = (c: Comparator) => vendorDocs.some((d) => same(d)(c));
+  const others = [
+    ...new Map(
+      step.traced.flatMap((tr) =>
+        tr.comparators.filter((c) => !listed(c)).map((c) => [`${c.doc}/${c.rev}`, c] as const),
+      ),
+    ).values(),
+  ];
+  if (vendorDocs.length === 0 && others.length === 0) return <span className={s.muted}>{t("noComparators")}</span>;
+  return (
+    <ul className={s.comparators}>
+      {vendorDocs.map((d) => {
+        const has = step.traced.some((tr) => tr.comparators.some((c) => same(d)(c) && c.facts.length > 0));
+        return (
+          <li key={`${d.doc}/${d.rev}`} data-vendor-doc="">
+            <span className={s.vendorDoc}>
+              {t(`vendorKinds.${d.kind}`)} {d.doc}:
+            </span>{" "}
+            {has ? (
+              <Facts step={step} of={same(d)} runId={runId} />
+            ) : (
+              <span className={s.muted}>{t("noComparators")}</span>
+            )}
+          </li>
+        );
+      })}
+      {others.map((c) => (
+        <li key={`${c.doc}/${c.rev}`}>
+          <span className={s.vendorDoc}>
+            {t(`comparatorKinds.${c.kind}`)} {c.doc}:
+          </span>{" "}
+          <Facts step={step} of={same(c)} runId={runId} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Story 7: a Test Step the draft prints whose reading the citation check dropped: listed in
+ * its place, with the reason, and nothing read or compared. */
+function NotReadRow({ t, step, anchor }: { t: T; step: DraftTestStep; anchor?: string }) {
+  return (
+    <tr id={anchor}>
+      <th scope="row" className={cell.id}>
+        {step.id}
+      </th>
+      <td colSpan={4} className={s.notCompared}>
+        {t("notRead", { reason: step.not_read ?? "" })}
+      </td>
+    </tr>
+  );
+}
+
 function StepRow({
   t,
   step,
@@ -93,6 +185,7 @@ function StepRow({
   runId,
   draftDoc,
   decisions,
+  vendorDocs,
   anchor,
 }: {
   t: T;
@@ -101,9 +194,11 @@ function StepRow({
   runId: string;
   draftDoc: string;
   decisions: DecisionView;
+  vendorDocs: readonly VendorDoc[];
   anchor?: string;
 }) {
   const ac = step.acceptance;
+  if (ac === null) return <NotReadRow t={t} step={step} anchor={anchor} />;
   return (
     <tr id={anchor}>
       <th scope="row" className={cell.id}>
@@ -139,24 +234,7 @@ function StepRow({
         )}
       </td>
       <td>
-        {step.traced.every((tr) => tr.comparators.length === 0) ? (
-          <span className={s.muted}>{t("noComparators")}</span>
-        ) : (
-          <ul className={s.comparators}>
-            {step.traced.flatMap((tr) =>
-              tr.comparators.flatMap((c) =>
-                c.facts.map((f) => (
-                  <li key={`${tr.requirement}/${c.doc}/${f.name}/${f.citation.quote}`}>
-                    <span>
-                      {t(`comparatorKinds.${c.kind}`)} {f.name}: {f.printed}
-                    </span>{" "}
-                    <CiteLink runId={runId} cite={f.citation} />
-                  </li>
-                )),
-              ),
-            )}
-          </ul>
-        )}
+        <Comparators t={t} step={step} vendorDocs={vendorDocs} runId={runId} />
       </td>
       <td className={s.findings}>
         {findings.length === 0 ? (
@@ -172,8 +250,9 @@ function StepRow({
 }
 
 /** The Protocol Draft of a Review Package run: every Test Step in draft order with its AC as
- * read, the URS value it was compared with, the comparators available and its findings (or
- * "not compared" with the reason); then the findings about the whole document. Each finding
+ * read, the URS value it was compared with, per vendor document the comparators available or
+ * "none", and its findings (or "not compared" with the reason; a step whose reading was
+ * dropped "not read" with the reason); then the findings about the whole document. Each finding
  * carries its decision state and, for the deciding role, the decision forms of slice 1.
  * TraceQ's own drafted OQ Test Steps are not shown here. */
 export function ProtocolDraftView({
@@ -190,8 +269,12 @@ export function ProtocolDraftView({
   const stepIds = new Set(draft.test_steps.map((st) => st.id));
   const onStep = (id: string) => draft.findings.filter((f) => f.finding.test_step === id);
   const whole = draft.findings.filter((f) => f.finding.test_step == null || !stepIds.has(f.finding.test_step));
-  const notCompared = draft.test_steps.filter((st) => !st.compared);
+  const notRead = draft.test_steps.filter((st) => st.acceptance === null);
+  const notCompared = draft.test_steps.filter((st) => st.acceptance !== null && !st.compared);
+  const firstNotRead = notRead[0]?.id;
   const firstNotCompared = notCompared[0]?.id;
+  const anchor = (id: string) =>
+    id === firstNotRead ? "draft-not-read" : id === firstNotCompared ? "draft-not-compared" : undefined;
   return (
     <>
       <p className={s.document}>
@@ -204,6 +287,7 @@ export function ProtocolDraftView({
           title={t("summaryTitle")}
           items={[
             { n: draft.test_steps.length, label: t("steps"), href: "#draft-steps" },
+            ...(notRead.length > 0 ? [{ n: notRead.length, label: t("notReadSteps"), href: "#draft-not-read" }] : []),
             { n: notCompared.length, label: t("notComparedSteps"), href: "#draft-not-compared" },
             { n: whole.length, label: t("documentFindings"), href: "#draft-document" },
           ]}
@@ -235,7 +319,8 @@ export function ProtocolDraftView({
                   runId={runId}
                   draftDoc={draftDoc}
                   decisions={decisions}
-                  anchor={st.id === firstNotCompared ? "draft-not-compared" : undefined}
+                  vendorDocs={draft.vendor_documents}
+                  anchor={anchor(st.id)}
                 />
               ))}
             </tbody>

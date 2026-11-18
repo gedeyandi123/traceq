@@ -36,6 +36,7 @@ from traceq.runs.schemas import (
     Findings,
     Matrix,
     ProtocolDraft,
+    VendorDocument,
 )
 from traceq.traceability.coverage import CoverageClass
 
@@ -169,6 +170,8 @@ class ProtocolDraftView(_Model):
     test_steps: tuple[DraftTestStep, ...]
     trace_rows: tuple[DraftTraceRow, ...]
     findings: list[DraftFindingView]
+    vendor_documents: tuple[VendorDocument, ...]
+    """The vendor documents beside each Test Step: each shows its facts or "none"."""
 
 
 def _decision(d: decisions.Decision) -> Decision:
@@ -288,6 +291,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
                 DraftFindingView(finding=f, proposal=by_position.get(i))
                 for i, f in enumerate(draft.findings)
             ],
+            vendor_documents=draft.vendor_documents,
         )
 
     @router.post(

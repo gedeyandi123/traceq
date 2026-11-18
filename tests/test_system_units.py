@@ -178,6 +178,18 @@ def test_replay_only_view_never_sends_and_shares_the_calls(tmp_path: Path) -> No
     assert not (tmp_path / "pkg").exists()
 
 
+def test_replay_only_view_never_reads_the_store_it_writes(tmp_path: Path) -> None:
+    """The Equipment stages replay only from the Equipment run's recordings (spec #196, "Run
+    input"): a recording planted in the package store under an Equipment key is not used."""
+    a = Request(PROMPT, "a", "d")
+    equipment, package = tmp_path / "eq", tmp_path / "pkg"
+    Recorder(package, "m", "1", live=Echo(), budget=Budget(1.0, PRICES)).complete([a])
+    rec = Recorder(package, "m", "1", reads=(equipment,))
+    with pytest.raises(MissingRecording, match="replay only"):
+        rec.replay_only().complete([a])
+    assert [r.text for r in rec.complete([a])] == ["a"]  # the recorder itself still reads it
+
+
 # --- Module boundaries ----------------------------------------------------------------
 
 

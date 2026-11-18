@@ -25,7 +25,9 @@ from traceq.review.draft_rules import DraftFinding, draft_findings
 from traceq.review.printed import read_printed
 from traceq.traceability import Citation, Linked, Requirement, RowFact, StepFact, Traceability
 from traceq.traceability.coverage import Coverage, DesignFact, Protocol, RequirementFacts
-from traceq.traceability.evidence import _Value  # pyright: ignore[reportPrivateUsage]
+from traceq.traceability.evidence import (
+    _Value,  # pyright: ignore[reportPrivateUsage]  # the model's answer shape; no public builder
+)
 from traceq.traceability.values import Range
 
 DOC = CorpusDocument(

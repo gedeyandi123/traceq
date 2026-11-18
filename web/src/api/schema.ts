@@ -484,14 +484,17 @@ export interface components {
         };
         /**
          * DraftTestStep
-         * @description A Test Step of the draft, in draft order, as read and compared.
+         * @description A Test Step of the draft, in draft order, as read and compared, or not read: the draft
+         *     prints it, but the citation check dropped its reading (``not_read``).
          */
         DraftTestStep: {
             /** Id */
             id: string;
             /** Requirements */
             requirements: string[];
-            acceptance: components["schemas"]["DraftAcceptance"];
+            acceptance: components["schemas"]["DraftAcceptance"] | null;
+            /** Not Read */
+            not_read?: string | null;
             /** Traced */
             traced: components["schemas"]["DraftTraced"][];
             /** Compared */
@@ -846,6 +849,8 @@ export interface components {
             trace_rows: components["schemas"]["DraftTraceRow"][];
             /** Findings */
             findings: components["schemas"]["DraftFindingView"][];
+            /** Vendor Documents */
+            vendor_documents: components["schemas"]["VendorDocument"][];
         };
         /**
          * Range
@@ -1014,6 +1019,21 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VendorDocument
+         * @description A vendor document of the Equipment the comparators of a requirement may come from.
+         */
+        VendorDocument: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "datasheet" | "FAT" | "SAT";
         };
         /**
          * VendorFactCite

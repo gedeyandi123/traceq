@@ -10,6 +10,7 @@ ingest cache, so CI downloads no corpus and runs neither Docling nor the OCR mod
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Sequence
 from functools import cache
 from pathlib import Path
@@ -18,9 +19,13 @@ from unittest.mock import ANY
 
 import pytest
 
-from traceq.ai import MissingRecording, Request, Response
+from traceq.ai import BudgetExceeded, MissingRecording, Request, Response
 from traceq.app import cli
+from traceq.review.draft import urs_limit
+from traceq.review.printed import Limit
 from traceq.runs.run import RunOutput, run
+from traceq.traceability import Citation, Requirement
+from traceq.traceability.values import Number
 from traceq_dataset.answer_key import load_key
 from traceq_dataset.corpus import build_corpus
 from traceq_dataset.review_package import load_package, load_package_key, render_draft
@@ -219,6 +224,16 @@ def test_review_package_run_writes_the_draft_rows(runs: tuple[RunOutput, RunOutp
     assert traced["requirement"] == "URS-TP201-001"
     assert traced["citation"]["doc"] == "URS-TP201" and traced["citation"]["rev"] == 1
     assert len(rows["trace_rows"]) == 28
+    # Story 6: the vendor documents beside each Test Step, each with a fact or "none".
+    assert [(d["doc"], d["kind"]) for d in rows["vendor_documents"]] == [
+        ("DS-TP201", "datasheet"),
+        ("FAT-TP201-C", "FAT"),
+        ("FAT-TP201-M", "FAT"),
+        ("SAT-TP201", "SAT"),
+    ]
+    # The fixture's dropped reading (OQ-02) names a Test Step the draft prints only in its
+    # traceability table, so no row is marked not read.
+    assert [s["id"] for s in rows["test_steps"] if s.get("not_read")] == []
 
 
 def test_review_package_run_reports_its_draft_findings(
@@ -338,3 +353,79 @@ def test_cli_refuses_a_package_run_without_package_recordings(tmp_path: Path) ->
     argv = ["run", str(MANIFEST), "--equipment", "TP-201", "--recordings", str(R10)]
     assert cli.main([*argv, "--out", str(tmp_path), "--review-package", str(PACKAGE)]) == 2
     assert not list(tmp_path.iterdir())
+
+
+def test_live_review_package_run_over_its_budget_is_refused_before_sending(
+    tmp_path: Path,
+) -> None:
+    """Story 13: the draft's calls are not recorded, so a live run would send them; their
+    estimate passes ``max_usd``, so nothing is sent and no run folder is written."""
+    store = tmp_path / "package-rec"
+    shutil.copytree(PACKAGE_RUN / "ingest", store / "ingest")  # no PDF in the package folder
+    before = _files(store)
+    live = _NeverSends(MODEL)
+    with pytest.raises(BudgetExceeded, match=r"would pass --max-usd 0\.001"):
+        run(
+            MANIFEST,
+            tmp_path / "runs",
+            R10,
+            MODEL,
+            equipment="TP-201",
+            live=live,
+            max_usd=0.001,
+            review_package=PACKAGE,
+            package_recordings=store,
+        )
+    assert live.sent == []
+    assert _files(store) == before
+    assert not (tmp_path / "runs").exists()
+
+
+def _files(root: Path) -> list[str]:
+    return sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+
+
+def _bounds(v: object) -> tuple[float | None, float | None]:
+    match v:
+        case Limit():
+            return v.min, v.max
+        case Number():
+            return v.value, v.value
+        case _:
+            raise AssertionError(f"not a limit: {v!r}")
+
+
+SINGLE_WHERE_KEY_IS_ONE_SIDED = {"URS-TP201-001", "URS-TP201-030"}
+"""Quotes that print a bare number ("Mesin memiliki 36 stasiun punch.", "tinggi plafon
+3.000 mm") where the key holds a one-sided bound (≥ 36, ≤ 3000): the parser reads the key's
+number as a single number, so the draft compares only an AC that is a single number with
+them (the fixture's misses on OQ-01 and OQ-25). Reported in #221; the parser is unchanged."""
+
+
+def test_the_comparable_urs_quotes_parse_to_the_key_values(
+    runs: tuple[RunOutput, RunOutput],
+) -> None:
+    """Spec #196, "Which URS values are compared": the 13 comparable TP-201 requirements (12
+    one-sided, 1 min = max) read, from the verified URS quote of the r10 replay, the number
+    the answer key holds, so "the first limit printed" is checked, not assumed. The key's
+    units are normalised ("tablets/h" for "tablet/jam"), so only numbers are compared."""
+    plain, _ = runs
+    sources = {r["id"]: r["source"] for r in _json(plain.folder / "matrix.json")["requirements"]}
+    comparable = {
+        r["id"]: r["value"]
+        for r in load_key(ROOT / "answer_key" / "TP-201")["requirements.yaml"]
+        if r["value"]["type"] == "range"
+        and (r["value"].get("min") is None or r["value"].get("max") in (None, r["value"]["min"]))
+    }
+    assert len(comparable) == 13
+
+    single: set[str] = set()
+    for rid, value in comparable.items():
+        s = sources[rid]
+        cited = Citation(s["doc"], s["rev"], s["page"], s["quote"])
+        got = urs_limit(Requirement(rid, s["quote"], cited, True), "id").value
+        lo, hi = _bounds(got)
+        assert value.get("min") in (None, lo) and value.get("max") in (None, hi), (rid, got)
+        if isinstance(got, Number) and value.get("min") != value.get("max"):
+            single.add(rid)
+    assert single == SINGLE_WHERE_KEY_IS_ONE_SIDED
