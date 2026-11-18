@@ -15,7 +15,17 @@ from typing import Any
 import numpy as np
 import pytest
 
-from traceq.documents import Corpus, CorpusDocument, OcrLine, OcrUnavailable, normalise, scan
+from traceq.documents import (
+    Corpus,
+    CorpusDocument,
+    IngestCache,
+    Ingested,
+    OcrLine,
+    OcrUnavailable,
+    Page,
+    normalise,
+    scan,
+)
 from traceq.documents.pages import Quad
 from traceq.documents.xlsx import read_xlsx
 from traceq.runs.submission import ocr_entries
@@ -175,6 +185,22 @@ def test_a_document_is_read_once_then_comes_from_the_cache(
     _doc(Corpus.load(moved), "RA-TP201").path.unlink()
     assert Corpus.load(moved, cache=tmp_path).ingest(ra).pages == read.pages
     assert cached.exists()
+
+
+def test_the_ingest_cache_reads_several_stores_and_writes_one(tmp_path: Path) -> None:
+    equipment, package = tmp_path / "equipment", tmp_path / "package"
+    a = Ingested("a" * 64, "v1", "engine", (Page(1, "A"),), (0.1,), 0.0, None)
+    b = Ingested("b" * 64, "v1", "engine", (Page(1, "B"),), (0.1,), 0.0, None)
+    IngestCache(equipment).put(a)
+    before = sorted(p.name for p in equipment.iterdir())
+
+    cache = IngestCache(package, reads=(equipment,))
+    got = cache.get(a.doc_sha256, "v1")
+    assert got is not None and got.pages == a.pages and got.cached
+    assert cache.get(b.doc_sha256, "v1") is None
+    cache.put(b)
+    assert sorted(p.name for p in equipment.iterdir()) == before
+    assert [p.name for p in package.iterdir()] == [f"{b.doc_sha256}-v1.json"]
 
 
 @pytest.mark.usefixtures("no_ocr_model")

@@ -3,6 +3,7 @@ the entries the OCR model read on a scan."""
 
 from traceq.documents.cache import IngestCache, Ingested
 from traceq.documents.corpus import VERSIONS, Corpus, CorpusDocument, normalise
+from traceq.documents.package import ReviewPackage
 from traceq.documents.pages import OcrLine, Page, Table
 from traceq.documents.scan import OcrUnavailable
 
@@ -15,6 +16,7 @@ __all__ = [
     "OcrLine",
     "OcrUnavailable",
     "Page",
+    "ReviewPackage",
     "Table",
     "normalise",
 ]

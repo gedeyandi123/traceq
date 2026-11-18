@@ -142,6 +142,42 @@ def test_recorder_sends_only_unrecorded_calls(tmp_path: Path) -> None:
         replay.complete([Request(PROMPT, "c", "d")])
 
 
+def _files(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+def test_recorder_reads_several_stores_and_writes_one(tmp_path: Path) -> None:
+    equipment, package = tmp_path / "equipment", tmp_path / "package"
+    a, b = Request(PROMPT, "a", "d"), Request(PROMPT, "b", "d")
+    Recorder(equipment, "m", "1", live=Echo(), budget=Budget(1.0, PRICES)).complete([a])
+    before = _files(equipment)
+
+    echo = Echo()
+    rec = Recorder(package, "m", "1", live=echo, budget=Budget(1.0, PRICES), reads=(equipment,))
+    assert [r.text for r in rec.complete([a, b])] == ["a", "b"]
+    assert [r.user for r in echo.sent] == ["b"]
+    assert [c.replayed for c in rec.calls] == [True, False]
+    assert _files(equipment) == before
+    assert list(_files(package)) == [f"{rec.key(b)}.json"]
+
+
+def test_replay_only_view_never_sends_and_shares_the_calls(tmp_path: Path) -> None:
+    a, b = Request(PROMPT, "a", "d"), Request(PROMPT, "b", "d")
+    Recorder(tmp_path / "eq", "m", "1", live=Echo(), budget=Budget(1.0, PRICES)).complete([a])
+    echo = Echo()
+    rec = Recorder(
+        tmp_path / "pkg", "m", "1", live=echo, budget=Budget(1.0, PRICES), reads=(tmp_path / "eq",)
+    )
+    replay = rec.replay_only()
+    assert replay.model == "m"
+    assert [r.text for r in replay.complete([a])] == ["a"]
+    with pytest.raises(MissingRecording, match="replay only"):
+        replay.complete([a, b])
+    assert echo.sent == []
+    assert [c.replayed for c in rec.calls] == [True]
+    assert not (tmp_path / "pkg").exists()
+
+
 # --- Module boundaries ----------------------------------------------------------------
 
 
