@@ -53,12 +53,14 @@ Dipakai hanya bila praktisi menemukan atau menanyakannya. Angkanya dari runbook 
 
 ## 4. Pertanyaan yang lahir dari demo
 
-Dari runbook bagian 9. Tanyakan sesudah demo (menit 25–29), dalam urutan ini:
+Pertanyaan 1–4 dari runbook bagian 9, pertanyaan 5 dari grilling irisan 3 (18 Nov). Tanyakan sesudah demo (menit 25–29), dalam urutan ini:
 
 1. **Bahasa:** alasan dan temuan sekarang berbahasa Inggris. Perlu bahasa Indonesia, atau bahasa Inggris wajar untuk dokumen vendor?
 2. **Zona waktu:** waktu keputusan sebaiknya ditulis dalam UTC atau WIB?
 3. **Menolak usulan cakupan:** baris cakupan tidak punya "Tolak". Apakah "Ubah kelas" dengan alasan sudah cukup untuk menolak usulan AI?
 4. **D9, tanpa ditunjukkan di layar:** FAT menguji turret 20–60 rpm, sedangkan URS meminta 20–70 rpm (FAT-M-02, juga FAT-M-09 untuk paddle feeder). Apakah ini layak menjadi temuan terhadap FAT, atau cukup dicatat dan diuji ulang di OQ? Kalau F1 di awal sesi sudah menjawabnya, lewati.
+5. **Kepadatan draf, kalau ada waktu:** "Biasanya berapa komentar reviewer pada draf pertama protokol OQ, dan berapa yang menyangkut AC?" Bacakan pertanyaannya saja, tanpa angka dari proyek.
+   *Catatan presenter, jangan dibacakan:* paket review irisan 3 merencanakan 6–10 cacat di satu draf OQ. Kalau jawaban praktisi jauh lebih kecil, paket itu diberi label "lebih padat dari draf biasa" (`docs/design/synthetic-dataset.md` §11).
 
 Lalu, kalau masih ada waktu: D13 (siapa QA approver dan Witness) dan D14 (siapa yang memutuskan alat kerja baru), dari `tp201-practitioner-q16.md`.
 
@@ -80,4 +82,4 @@ Isi selama sesi, kata demi kata. Hasilnya dicatat di #133, dan perubahan kunci a
 
 Hasilnya: k dari 7 temuan dinilai berguna oleh satu praktisi.
 
-**Jawaban lain:** F1–F6, empat pertanyaan bagian 4, D13, D14, dan hal yang disebut praktisi tanpa ditanya.
+**Jawaban lain:** F1–F6, lima pertanyaan bagian 4, D13, D14, dan hal yang disebut praktisi tanpa ditanya.
