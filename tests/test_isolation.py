@@ -30,6 +30,7 @@ FORBIDDEN_TEXT = (
     "world\\",
     "tp201.yaml",
     "tp202.yaml",
+    "pw001.yaml",  # held-out PW-001 (spec #195); its prompt-copy case follows with its key
     "baselines/",
     # Review Package TP-201-OQ-draft (spec #196): its world data, its key's files and its
     # baseline. The system reads only its release folder (the draft and manifest.json).
