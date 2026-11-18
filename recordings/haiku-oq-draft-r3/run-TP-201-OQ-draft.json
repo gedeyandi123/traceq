@@ -1,6 +1,6 @@
 {
-  "run_id": "20261118T170454Z-23b527",
-  "created": "2026-11-18T17:04:54.377223+00:00",
+  "run_id": "20261118T185011Z-b920bd",
+  "created": "2026-11-18T18:50:11.387980+00:00",
   "system": "traceq",
   "pipeline_version": "0.3.0",
   "mode": "live",
@@ -20,7 +20,7 @@
     "site_rules": "55dce8aa92345e83c355de3e75353aaa7553f7ef215f1178fd458025cc837b50",
     "ai_review": "dc5ac53b7c80bfc0d732b98eb33b651fe19194f12308f520dc0ec2b6a83239f1",
     "draft": "73f1a5e017d18b1ebec0e78811f4abf8f9b37796434ac0658f6afa0d80d058e6",
-    "protocol_draft": "67ae7a42b050266db3c46f921e38d6092639a78ef4a13dd4061056094496cb1b"
+    "protocol_draft": "61252389caf1dd1c8f146b862b4426e15a328a4552bf172101b65afed3b74a28"
   },
   "corpus": {
     "equipment": "TP-201",
@@ -108,11 +108,11 @@
     "live": 8
   },
   "tokens": {
-    "input": 536243,
-    "output": 56897
+    "input": 536507,
+    "output": 55855
   },
-  "cost_usd": 0.041036,
-  "live_cost_usd": 0.002014,
+  "cost_usd": 0.040789,
+  "live_cost_usd": 0.001767,
   "max_usd": 0.05,
   "price_table": {
     "batch_discount": 0.5
@@ -197,21 +197,6 @@
       "claim": "acceptance",
       "id": "URS-TP201-037",
       "reason": "to be set by a human: no source cited"
-    },
-    {
-      "claim": "draft_step",
-      "id": "OQ-TP201 p1 OQ-01",
-      "reason": "quote check"
-    },
-    {
-      "claim": "draft_step",
-      "id": "OQ-TP201 p1 OQ-03",
-      "reason": "quote check"
-    },
-    {
-      "claim": "draft_step",
-      "id": "OQ-TP201 p4 OQ-12",
-      "reason": "quote check"
     }
   ],
   "ingest": [
@@ -433,8 +418,8 @@
     }
   ],
   "duration": {
-    "total_seconds": 218.652,
-    "live_seconds": 215.704
+    "total_seconds": 123.99,
+    "live_seconds": 123.81
   },
   "not_read": [],
   "review_package": {
@@ -456,13 +441,13 @@
       "live": 8
     },
     "tokens": {
-      "input": 13107,
-      "output": 5436
+      "input": 13371,
+      "output": 4394
     },
-    "cost_usd": 0.002014,
-    "test_steps": 23,
+    "cost_usd": 0.001767,
+    "test_steps": 26,
     "trace_rows": 28,
-    "not_compared": 17,
+    "not_compared": 19,
     "ingest": {
       "engine": "Docling (pypdfium2 backend)",
       "version": "docling-1",
