@@ -129,7 +129,7 @@ def _decision(m: RowMapping) -> Decision:
         decision=cast(Verdict, m["decision"]),
         coverage=cast(CoverageClass | None, m["coverage"]),
         reason=m["reason"],
-        actor=audit.Actor(subject=m["subject"], issuer=m["issuer"], name=m["name"]),
+        actor=audit.actor_of_row(m),
     )
 
 

@@ -230,6 +230,11 @@ test("a submitted Protocol shows its frozen copy and hash, no live rows, and can
   expect(r026.getByText("Langkah uji tertulis, versi 1")).toBeDefined();
   expect(r026.getByText("Versi 1 oleh Bima Arya Nugraha, 19/11/2026 09.08 UTC")).toBeDefined();
   expect(copy.getByText(/URS-TP201-004 \(URS-TP201 rev 0\): persyaratan yang tidak diuji protokol ini/)).toBeDefined();
+  // Every version of a disposition is frozen and shown, the replaced one too (ticket #263).
+  const history = within(copy.getByRole("list", { name: "Riwayat jawaban (2)" }));
+  expect(history.getByText("Versi 1 oleh Bima Arya Nugraha, 19/11/2026 09.07 UTC")).toBeDefined();
+  expect(history.getByText("Versi 2 oleh Ayu Kartika Sari, 19/11/2026 09.09 UTC")).toBeDefined();
+  expect(history.getByText("Bukan persyaratan · Nomor judul bagian.")).toBeDefined();
 });
 
 test("a reader sees the frozen copy too", () => {

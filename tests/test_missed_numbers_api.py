@@ -167,6 +167,9 @@ def test_answering_needs_a_token_the_deciding_role_and_a_known_protocol(
     assert r.status_code == 403
     assert "deciding role" in r.json()["detail"]
     assert client.post(url({"id": 999999}), headers=decider, json=body()).status_code == 404
+    # An unknown Protocol is 404 before a blank justification is 422.
+    blank = body(justification="  ")
+    assert client.post(url({"id": 999999}), headers=decider, json=blank).status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -220,7 +223,7 @@ def test_an_answer_can_be_changed_every_version_is_kept_and_the_latest_counts(
     assert got["disposition"] == got["dispositions"][-1]
     with transaction(engine(fresh_database.app)) as s:
         trail = [e for e in entries(s) if e.record_type == "missed_number"]
-    assert [e.action for e in trail] == ["missed number answered"] * 2
+    assert [e.action for e in trail] == ["missed number disposition recorded"] * 2
     assert {e.record_id for e in trail} == {f"{protocol['id']}/{URS}/0/{N003}"}
     first, second = trail
     assert first.old_value is None

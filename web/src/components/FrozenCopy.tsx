@@ -93,7 +93,8 @@ function Row({ t, m, when, row, runId }: { t: T; m: MatrixT; when: WhenT; row: F
 /** The frozen copy of a submitted Protocol (spec #247, ticket #252): what the Approver reads,
  * shown instead of live rows. Its hash, the Preparer, every row with the decision in force on
  * its Coverage and each drafted Test Step and who made it, its Test Step and every version of
- * its written one, the missed numbers with their dispositions, and the unquoted text. */
+ * its written one, the missed numbers with every version of their dispositions, and the
+ * unquoted text. */
 export function FrozenCopy({
   t,
   submission,
@@ -150,6 +151,20 @@ export function FrozenCopy({
                   name: n.disposition.author.name,
                 })}
                 <div className={s.reason}>{n.disposition.justification}</div>
+                {n.dispositions.length > 1 && (
+                  <ol aria-label={t("missed.history", { count: n.dispositions.length })}>
+                    {n.dispositions.map((v) => (
+                      <li key={v.version}>
+                        <div>
+                          {t("missed.answeredBy", { version: v.version, name: v.author.name, when: formatWhen(when, v.at) })}
+                        </div>
+                        <div className={s.muted}>
+                          {t(`missed.kinds.${v.kind}`)} · {v.justification}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </li>
             ))}
           </ul>

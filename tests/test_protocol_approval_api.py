@@ -33,7 +33,7 @@ from test_proposals_api import (
     proposals,
     token,
 )
-from test_protocol_submission_api import R002, R026, make_ready, submit
+from test_protocol_submission_api import R002, R026, canonical_sha256, make_ready, submit
 from test_test_step_proposals import add_drafted_run
 from test_written_test_steps_api import STEP, trail, write
 
@@ -286,19 +286,51 @@ def test_the_author_of_a_disposition_in_force_may_not_approve(
     assert r.status_code == 409
 
 
-def test_the_author_of_a_replaced_disposition_may_approve(
+def test_the_author_of_a_replaced_disposition_may_not_approve(
     client: TestClient,
     decider: dict[str, str],
     other: dict[str, str],
     protocol: Any,
 ) -> None:
-    """Like a replaced decision, a replaced disposition is not what the copy rests on: the
-    copy holds the disposition in force only (spec #247, ADR 0012)."""
+    """Like a written Test Step, a disposition is versioned per Protocol and the copy freezes
+    every version: anyone who wrote one did not approve (owner decision on #256, ticket #263)."""
     make_ready(client, decider, protocol)
     dispose(client, other, protocol, number=N003, kind="not_tested_here")
     dispose(client, decider, protocol, number=N003)
     view = submit(client, decider, protocol)
-    assert approve(client, other, protocol, read_by(view))["status"] == "approved"
+    r = client.post(approve_url(protocol), headers=other, json=read_by(view))
+    assert r.status_code == 409
+    assert "Eka Pratama" in r.json()["detail"]
+
+
+def test_the_copy_freezes_every_version_of_a_disposition_and_its_hash_covers_them(
+    client: TestClient, decider: dict[str, str], other: dict[str, str], protocol: Any
+) -> None:
+    make_ready(client, decider, protocol)
+    dispose(client, other, protocol, number=N003, kind="not_tested_here", justification="IQ.")
+    sub = submit(client, decider, protocol)["submission"]
+    [n003, _] = sub["frozen_copy"]["urs"][0]["missed"]
+    got = [
+        (d["version"], d["kind"], d["justification"], d["author"]["name"])
+        for d in n003["dispositions"]
+    ]
+    assert got == [
+        (
+            1,
+            "not_a_requirement",
+            "It numbers the document's heading, not a requirement.",
+            "Ayu Kartika Sari",
+        ),
+        (2, "not_tested_here", "IQ.", "Eka Pratama"),
+    ]
+    assert all(d["at"] for d in n003["dispositions"])
+    assert n003["disposition"] == n003["dispositions"][-1]
+    assert sub["hash"] == canonical_sha256(sub["frozen_copy"])
+    without = json.loads(json.dumps(sub["frozen_copy"]))
+    without["urs"][0]["missed"][0]["dispositions"] = without["urs"][0]["missed"][0]["dispositions"][
+        1:
+    ]
+    assert canonical_sha256(without) != sub["hash"]
 
 
 def test_the_author_of_any_written_version_may_not_approve(

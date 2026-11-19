@@ -11,7 +11,7 @@ transaction.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any, Literal, cast
 
@@ -112,6 +112,10 @@ class AssembledProtocol:
     def status(self) -> Status:
         return self.events[-1].status
 
+    def after(self, event: Event) -> AssembledProtocol:
+        """The Protocol once ``event`` is appended to it."""
+        return replace(self, events=(*self.events, event))
+
 
 def _event(m: RowMapping) -> Event:
     return Event(
@@ -119,7 +123,7 @@ def _event(m: RowMapping) -> Event:
         at=m["at"],
         event=cast(EventKind, m["event"]),
         reason=m["reason"],
-        actor=audit.Actor(subject=m["subject"], issuer=m["issuer"], name=m["name"]),
+        actor=audit.actor_of_row(m),
     )
 
 
@@ -181,12 +185,20 @@ def latest_of_run(session: Session, run_id: str) -> AssembledProtocol | None:
     return None if latest is None else get(session, latest)
 
 
+def locked(session: Session, protocol_id: int, status: Status, refused: str) -> AssembledProtocol:
+    """The Protocol under its per-Protocol lock, its status read inside it: ``NotFound`` when
+    there is none, ``Conflict`` unless it is in ``status`` (``refused`` says what is refused)."""
+    lock_protocol(session, protocol_id)
+    found = get(session, protocol_id)
+    if found is None:
+        raise NotFound(f"no Protocol {protocol_id}")
+    if found.status != status:
+        raise Conflict(f"Protocol {protocol_id} is {found.status}: {refused}")
+    return found
+
+
 def of_equipment(session: Session, equipment: str) -> list[AssembledProtocol]:
     """Every Protocol of the Equipment, oldest first."""
-    return _of_equipment(session, equipment)
-
-
-def _of_equipment(session: Session, equipment: str) -> list[AssembledProtocol]:
     ids = session.execute(
         select(PROTOCOLS.c.id).where(PROTOCOLS.c.equipment == equipment).order_by(PROTOCOLS.c.id)
     ).scalars()
@@ -236,7 +248,7 @@ def start(session: Session, actor: audit.Actor, run_id: str, *, drafted: bool) -
     if equipment is None:
         raise NotFound(f"run {run_id} is not imported")
     _lock(session, _EQUIPMENT_LOCK, equipment)
-    for p in _of_equipment(session, equipment):
+    for p in of_equipment(session, equipment):
         if p.status == "approved":
             raise Conflict(
                 f"Protocol {p.id} of {equipment} is approved: a new version of an approved"
@@ -287,15 +299,9 @@ def withdraw(
     reason = reason.strip()
     if not reason:
         raise Refused("withdrawing a Protocol needs a reason")
-    lock_protocol(session, protocol_id)
-    current = get(session, protocol_id)
-    if current is None:
-        raise NotFound(f"no Protocol {protocol_id}")
-    if current.status != "draft":
-        raise Conflict(
-            f"Protocol {protocol_id} is {current.status}: only a Protocol in Draft status can"
-            " be withdrawn"
-        )
+    current = locked(
+        session, protocol_id, "draft", "only a Protocol in Draft status can be withdrawn"
+    )
     done = append(session, actor, protocol_id, "withdrawn", reason)
     audit.append(
         session,
@@ -307,4 +313,4 @@ def withdraw(
         new={"status": done.status, "event_id": done.id},
         reason=reason,
     )
-    return AssembledProtocol(current.id, current.equipment, current.run_id, (*current.events, done))
+    return current.after(done)

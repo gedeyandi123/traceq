@@ -310,6 +310,7 @@ def test_the_copy_holds_every_row_its_decisions_and_authors(
 
     r026 = frozen[R026]
     assert (r026["test_step"]["origin"], r026["test_step"]["version"]) == ("written", 1)
+    assert r026["test_step"]["decision"] is None
     assert r026["drafts"] == []
     assert [(v["version"], v["removed"], v["author"]) for v in r026["written"]] == [
         (1, False, person)
@@ -322,6 +323,9 @@ def test_the_copy_holds_every_row_its_decisions_and_authors(
     )
     assert r030["test_step"]["origin"] == "written"
     assert r030["test_step"]["proposal_id"] == place(ps, "test_step", R030)["id"]
+    # Edited from its draft: the edited decision sits on the Test Step whose origin it is.
+    assert r030["test_step"]["decision"] == r030["drafts"][0]["decision"]
+    assert r030["test_step"]["decision"]["decision"] == "edited"
     assert r030["drafts"][0]["decision"]["decision"] == "edited"
     assert r030["written"][0]["decision_id"] == r030["drafts"][0]["decision"]["id"]
 
@@ -332,8 +336,28 @@ def test_the_copy_holds_every_row_its_decisions_and_authors(
         (N003, "not_a_requirement", person),
         (N004, "not_tested_here", person),
     ]
+    assert [[d["version"] for d in m["dispositions"]] for m in urs["missed"]] == [[1], [1]]
     assert urs["unquoted"] == COMPLETENESS["urs"][0]["unquoted"]
     assert (annex["numbers"], annex["missed"]) == ("not_applicable", [])
+
+
+def test_a_vendor_row_given_a_written_test_step_is_a_test_step_row_its_undecided_draft_blocks(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    """Pinned (ticket #264): the row's kind decides, as for any Test Step row."""
+    ps = proposals(client, decider)
+    decide(
+        client,
+        decider,
+        place(ps, "coverage", R002),
+        decision="edited",
+        coverage="covered_by_vendor",
+        reason="both FAT steps pass at the limits",
+    )
+    got = write(client, decider, protocol, R002, STEP)
+    assert rows(got)[R002]["kind"] == "test_step"
+    assert rows(got)[R002]["blockers"] == ["draft_undecided"]
+    assert R002 in checklist(got)["draft_undecided"][1]
 
 
 def test_the_copy_keeps_a_vendor_reference_with_its_evidence_and_a_rejected_draft(

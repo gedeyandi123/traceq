@@ -3,10 +3,10 @@ ADR 0012 "Freezing and approval", "Statuses").
 
 Approval is a recorded status bound to the submission the Approver read (its event id and
 hash), not an Electronic Signature (ADR 0007 phase 2). The Approver is neither the Preparer nor
-anyone the frozen copy records as an author: of a decision in force (on Coverage, and every
-current decision on a drafted Test Step, rejections included), of a disposition of a missed
-number in force, or of any version of a written Test Step. The check reads the copy only, so a
-decision recorded after submission does not change it.
+anyone the frozen copy records as an author: of a decision in force (on Coverage, on the Test
+Step, and every current decision on a drafted Test Step, rejections included), or of any
+version of a written Test Step or of a disposition of a missed number (owner decision on #256).
+The check reads the copy only, so a decision recorded after submission does not change it.
 
 A return sends a Submitted Protocol back to Draft with a reason; its copy stays as history.
 Both take the per-Protocol lock and check the status inside it, so approve and return cannot
@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 from traceq.assembly import lifecycle
-from traceq.assembly.lifecycle import Conflict, NotFound, Refused
+from traceq.assembly.lifecycle import Conflict, Refused
 from traceq.assembly.submission import Author, ProtocolCopy, Submission, submissions_of
 
 APPROVAL_NOTE = "a recorded status, not an Electronic Signature (ADR 0007 phase 2)"
@@ -35,7 +35,7 @@ def authors(copy: ProtocolCopy) -> list[Author]:
             found.append(r.test_step.decision.author)
         found.extend(v.author for v in r.written)
     for u in copy.urs or ():
-        found.extend(m.disposition.author for m in u.missed)
+        found.extend(d.author for m in u.missed for d in m.dispositions)
     return found
 
 
@@ -47,15 +47,9 @@ def _submitted(
     session: Session, protocol_id: int
 ) -> tuple[lifecycle.AssembledProtocol, Submission]:
     """The Protocol, locked, and its current submission; refused unless it is Submitted."""
-    lifecycle.lock_protocol(session, protocol_id)
-    current = lifecycle.get(session, protocol_id)
-    if current is None:
-        raise NotFound(f"no Protocol {protocol_id}")
-    if current.status != "submitted":
-        raise Conflict(
-            f"Protocol {protocol_id} is {current.status}: only a Submitted Protocol can be"
-            " approved or returned"
-        )
+    current = lifecycle.locked(
+        session, protocol_id, "submitted", "only a Submitted Protocol can be approved or returned"
+    )
     return current, submissions_of(session, protocol_id)[-1]
 
 
@@ -100,9 +94,7 @@ def approve(
             "hash": latest.hash,
         },
     )
-    return lifecycle.AssembledProtocol(
-        current.id, current.equipment, current.run_id, (*current.events, done)
-    )
+    return current.after(done)
 
 
 def return_to_draft(
@@ -124,6 +116,4 @@ def return_to_draft(
         new={"status": done.status, "event_id": done.id, "submission_event_id": latest.event_id},
         reason=reason,
     )
-    return lifecycle.AssembledProtocol(
-        current.id, current.equipment, current.run_id, (*current.events, done)
-    )
+    return current.after(done)

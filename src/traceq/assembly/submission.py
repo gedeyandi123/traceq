@@ -9,8 +9,9 @@ a person with the deciding role submits and becomes the **Preparer**.
 
 The copy is one JSON document of everything the Protocol rests on: every row, with the
 decision in force on its Coverage and on each of its drafted Test Steps (rejections too) and
-who made it, its Test Step and every version of its written one with its author; the missed
-numbers with their dispositions; the unquoted text. Its hash is the SHA-256 of its canonical
+who made it, its Test Step with the decision it came from and every version of its written one
+with its author; the missed numbers with every version of their dispositions in this Protocol
+and the one in force; the unquoted text. Its hash is the SHA-256 of its canonical
 JSON, the canonicalisation of Proposal hashes. The ``submitted`` event stores both, so a
 decision recorded later (decisions are shared across runs) never changes what the Approver
 reads. Submitting takes the per-Protocol lock and checks the status inside it, and has its
@@ -29,9 +30,16 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 from traceq.assembly import lifecycle
-from traceq.assembly.lifecycle import EVENTS, Conflict, NotFound
-from traceq.assembly.missed import Answer, Key, MissedKind, UrsMissed, missed_of
-from traceq.assembly.rows import ProtocolRow, rows_of, shaped
+from traceq.assembly.lifecycle import EVENTS, Conflict
+from traceq.assembly.missed import (
+    Disposition,
+    Key,
+    MissedKind,
+    MissedNumber,
+    UrsMissed,
+    missed_of,
+)
+from traceq.assembly.rows import ProtocolRow, rows_of, shaped, step_of
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.proposals.decisions import Decision, Verdict
 from traceq.proposals.keys import digest
@@ -141,9 +149,9 @@ class FrozenTestStep(_Frozen):
     """The row's one Test Step and where it came from."""
 
     origin: Literal["accepted_draft", "written"]
-    """``accepted_draft``: a drafted Test Step accepted as drafted (``decision``).
-    ``written``: the written Test Step in force (``version``), edited from the draft
-    ``proposal_id`` when not ``null``."""
+    """``accepted_draft``: a drafted Test Step accepted as drafted (``decision``, the
+    ``accepted`` one). ``written``: the written Test Step in force (``version``), edited from
+    the draft ``proposal_id`` with the ``edited`` decision (``decision``) when not ``null``."""
     proposal_id: int | None
     version: int | None
     decision: FrozenDecision | None
@@ -169,7 +177,7 @@ class FrozenRow(_Frozen):
 
 
 class FrozenDisposition(_Frozen):
-    """The disposition in force on a missed number, and who recorded it."""
+    """A disposition of a missed number, and who recorded it."""
 
     version: int
     kind: MissedKind
@@ -182,6 +190,10 @@ class FrozenMissed(_Frozen):
     number: str
     page: int
     disposition: FrozenDisposition
+    """The disposition in force: the latest of ``dispositions``."""
+    dispositions: tuple[FrozenDisposition, ...]
+    """Every version of its disposition in this Protocol, oldest first, as for a written Test
+    Step: the Approver is none of their authors."""
 
 
 class FrozenUrs(_Frozen):
@@ -203,8 +215,8 @@ class ProtocolCopy(_Frozen):
     rows: tuple[FrozenRow, ...]
     """One per requirement of the run, in requirement order."""
     urs: tuple[FrozenUrs, ...] | None
-    """Per URS of the run's completeness check: the missed numbers with their dispositions,
-    and the unquoted text; ``null`` for a run written before the check existed."""
+    """Per URS of the run's completeness check: the missed numbers with every version of their
+    dispositions, and the unquoted text; ``null`` for a run written before the check existed."""
 
 
 def _author(a: audit.Actor) -> Author:
@@ -239,38 +251,31 @@ def _version(v: WrittenVersion) -> FrozenVersion:
     )
 
 
+class NotFrozen(Exception):
+    """What a copy is made of breaks a rule the submission checks enforce: never, after them."""
+
+
 def _test_step(r: ProtocolRow) -> FrozenTestStep | None:
-    if r.written_step is not None:
-        c = r.written_step.content
-        assert c is not None  # the step in force is never a removal
-        return FrozenTestStep(
-            origin="written",
-            proposal_id=r.written_step.from_proposal_id,
-            version=r.written_step.version,
-            decision=None,
-            description=c.description,
-            method=c.method,
-            instrument=c.instrument,
-            acceptance=c.acceptance,
-        )
-    if r.test_step is None:
+    step = step_of(r)
+    if step is None:
         return None
-    d = r.test_step.draft
-    assert shaped(d.acceptance)  # checked before freezing
+    if not shaped(step.acceptance):
+        raise NotFrozen(f"the Test Step of {r.requirement.id} has no shaped Acceptance Criterion")
     return FrozenTestStep(
-        origin="accepted_draft",
-        proposal_id=r.test_step.standing.proposal_id,
-        version=None,
-        decision=_decision(r.test_step.standing.decisions[0]),
-        description=d.description,
-        method=d.method,
-        instrument=d.instrument,
-        acceptance=d.acceptance,
+        origin=step.origin,
+        proposal_id=step.proposal_id,
+        version=step.version,
+        decision=None if step.decision is None else _decision(step.decision),
+        description=step.description,
+        method=step.method,
+        instrument=step.instrument,
+        acceptance=step.acceptance,
     )
 
 
 def _row(r: ProtocolRow) -> FrozenRow:
-    assert r.kind != "undecided" and r.decided_class is not None  # checked before freezing
+    if r.kind == "undecided" or r.decided_class is None:
+        raise NotFrozen(f"the Coverage of {r.requirement.id} is not decided")
     req = r.requirement
     return FrozenRow(
         requirement=req.id,
@@ -296,13 +301,24 @@ def _row(r: ProtocolRow) -> FrozenRow:
     )
 
 
-def _disposition(a: Answer) -> FrozenDisposition:
+def _disposition(d: Disposition) -> FrozenDisposition:
     return FrozenDisposition(
-        version=a.version,
-        kind=a.kind,
-        justification=a.justification,
-        author=_author(a.actor),
-        at=_utc(a.at),
+        version=d.version,
+        kind=d.kind,
+        justification=d.justification,
+        author=_author(d.actor),
+        at=_utc(d.at),
+    )
+
+
+def _missed(u: UrsMissed, m: MissedNumber) -> FrozenMissed:
+    if m.disposition is None:
+        raise NotFrozen(f"{m.number} of {u.doc} revision {u.rev} has no disposition")
+    return FrozenMissed(
+        number=m.number,
+        page=m.page,
+        disposition=_disposition(m.disposition),
+        dispositions=tuple(_disposition(d) for d in m.dispositions),
     )
 
 
@@ -311,11 +327,7 @@ def _urs(u: UrsMissed) -> FrozenUrs:
         doc=u.doc,
         rev=u.rev,
         numbers=u.numbers,
-        missed=tuple(
-            FrozenMissed(number=m.number, page=m.page, disposition=_disposition(m.answer))
-            for m in u.missed
-            if m.answer is not None  # every one has its disposition: checked before freezing
-        ),
+        missed=tuple(_missed(u, m) for m in u.missed),
         unquoted=u.unquoted,
     )
 
@@ -360,15 +372,9 @@ def submit(
 ) -> lifecycle.AssembledProtocol:
     """Submits a Protocol in Draft status that nothing blocks: freezes its copy and hash in
     the ``submitted`` event. ``check``: the completeness check of the Protocol's run."""
-    lifecycle.lock_protocol(session, protocol_id)
-    current = lifecycle.get(session, protocol_id)
-    if current is None:
-        raise NotFound(f"no Protocol {protocol_id}")
-    if current.status != "draft":
-        raise Conflict(
-            f"Protocol {protocol_id} is {current.status}: only a Protocol in Draft status can"
-            " be submitted"
-        )
+    current = lifecycle.locked(
+        session, protocol_id, "draft", "only a Protocol in Draft status can be submitted"
+    )
     rows = rows_of(session, current)
     urs = missed_of(session, protocol_id, check)
     blocking = [b for b in checklist(rows, urs) if b.count]
@@ -402,6 +408,4 @@ def submit(
         old={"status": current.status},
         new={"status": done.status, "event_id": done.id, "hash": hashed},
     )
-    return lifecycle.AssembledProtocol(
-        current.id, current.equipment, current.run_id, (*current.events, done)
-    )
+    return current.after(done)

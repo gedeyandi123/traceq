@@ -65,6 +65,8 @@ class WrittenContent(BaseModel):
         a = self.acceptance
         if isinstance(a, Present) and a.value is not None:
             raise ValueError("present takes no value")
+        if isinstance(a, Range | Number) and not a.unit.strip():
+            raise ValueError("a range or a number needs a unit")
         if isinstance(a, Range) and a.min is not None and a.max is not None and a.min > a.max:
             raise ValueError("a range's lower bound is above its upper bound")
         if isinstance(a, OneOf) and not all(v.strip() for v in a.allowed):
@@ -134,7 +136,7 @@ def _version(m: RowMapping) -> WrittenVersion:
         content=content,
         from_proposal_id=m["from_proposal_id"],
         decision_id=m["decision_id"],
-        actor=audit.Actor(subject=m["subject"], issuer=m["issuer"], name=m["name"]),
+        actor=audit.actor_of_row(m),
     )
 
 
@@ -235,16 +237,12 @@ def _add(
 
 def _draft_protocol(session: Session, protocol_id: int) -> AssembledProtocol:
     """The Protocol under its lock, refused unless in Draft status."""
-    lifecycle.lock_protocol(session, protocol_id)
-    found = lifecycle.get(session, protocol_id)
-    if found is None:
-        raise NotFound(f"no Protocol {protocol_id}")
-    if found.status != "draft":
-        raise Conflict(
-            f"Protocol {protocol_id} is {found.status}: Test Steps are written only while it"
-            " is in Draft status"
-        )
-    return found
+    return lifecycle.locked(
+        session,
+        protocol_id,
+        "draft",
+        "Test Steps are written only while it is in Draft status",
+    )
 
 
 def _requirements(session: Session, run_id: str) -> set[str]:

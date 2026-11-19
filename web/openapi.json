@@ -909,7 +909,7 @@
     "/protocols/{protocol_id}/approve": {
       "post": {
         "summary": "Approve Protocol",
-        "description": "Approves a Submitted Protocol: a recorded status, not an Electronic Signature (ADR 0007 phase 2). Bound to the\nsubmission the Approver read: ``submission_event_id`` and ``hash`` must be the current\nsubmission's, else 409 (a resubmission after a return has the same hash but a new event id).\nRefused (409) for the Preparer and for anyone the frozen copy records as an author: of a\ndecision in force (Coverage, and every current decision on a drafted Test Step, rejections\nincluded), of a disposition of a missed number in force, or of any version of a written Test\nStep; the check reads the copy only. Refused (409) unless Submitted. Once approved, no new\nProtocol of the Equipment can be started (a new version is step 6). With its Audit Trail\nentry. Needs the approving role.",
+        "description": "Approves a Submitted Protocol: a recorded status, not an Electronic Signature (ADR 0007 phase 2). Bound to the\nsubmission the Approver read: ``submission_event_id`` and ``hash`` must be the current\nsubmission's, else 409 (a resubmission after a return has the same hash but a new event id).\nRefused (409) for the Preparer and for anyone the frozen copy records as an author: of a\ndecision in force (Coverage, and every current decision on a drafted Test Step, rejections\nincluded), or of any version of a written Test Step or of a disposition of a missed number;\nthe check reads the copy only. Refused (409) unless Submitted. Once approved, no new\nProtocol of the Equipment can be started (a new version is step 6). With its Audit Trail\nentry. Needs the approving role.",
         "operationId": "approveProtocol",
         "security": [
           {
@@ -2537,7 +2537,7 @@
           "at"
         ],
         "title": "FrozenDisposition",
-        "description": "The disposition in force on a missed number, and who recorded it."
+        "description": "A disposition of a missed number, and who recorded it."
       },
       "FrozenDraft": {
         "properties": {
@@ -2582,6 +2582,13 @@
           },
           "disposition": {
             "$ref": "#/components/schemas/FrozenDisposition"
+          },
+          "dispositions": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDisposition"
+            },
+            "type": "array",
+            "title": "Dispositions"
           }
         },
         "additionalProperties": false,
@@ -2589,7 +2596,8 @@
         "required": [
           "number",
           "page",
-          "disposition"
+          "disposition",
+          "dispositions"
         ],
         "title": "FrozenMissed"
       },
