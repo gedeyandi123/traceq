@@ -1,0 +1,95 @@
+{
+ "doc_sha256": "762f848aecafca8745d765b60d310ca42ea8db0f11e32c15958ea5240757cf44",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  9.71
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1338380288,
+ "pages": [
+  {
+   "number": 1,
+   "text": "Technical Datasheet\nTSR PW-2 purified water generation and distribution system\nManufacturer PT Tirta Sarana Rekayasa Document no. DS-PW001\nModel TSR PW-2 Revision 0\nMachine serial no. TSR-PW-25-0093 Issue date 24-Oct-2025\nCustomer PT Arunika Farma Lestari Customer equipment tag PW-001\nTreatment skid Distribution loop\nProduct flow at EDI outlet (min.) 2 m³/h Distribution pumps P-301A/B (duty/stand-by), design return velocity 1.5 m/s\nMaterials Sample valves, sanitary diaphragm type, 1.6 µm\nWetted parts: tank, loop pipework, valves SS 316L internal finish Ra\nUV lamp with independent intensity sensor Yes\nStorage tank\nTank vent filter, hydrophobic PTFE 0.45 µm\nStorage tank, working volume 2.5 m³\nDesign values for machine serial no. TSR-PW-25-0093, as built for the customer's order. Values marked max. are limits of the machine.\nPrepared by Teguh Prasetyo Signed electronically 24-Oct-2025",
+   "tables": [
+    [
+     [
+      "Manufacturer",
+      "PT Tirta Sarana Rekayasa",
+      "Document no.",
+      "DS-PW001"
+     ],
+     [
+      "Model",
+      "TSR PW-2",
+      "Revision",
+      "0"
+     ],
+     [
+      "Machine serial no.",
+      "TSR-PW-25-0093",
+      "Issue date",
+      "24-Oct-2025"
+     ],
+     [
+      "Customer",
+      "PT Arunika Farma Lestari",
+      "Customer equipment tag",
+      "PW-001"
+     ]
+    ],
+    [
+     [
+      "Treatment skid",
+      "Distribution loop"
+     ],
+     [
+      "Product flow at EDI outlet (min.)",
+      "2 m³/h",
+      "Distribution pumps P-301A/B (duty/stand-by), design return velocity",
+      "1.5 m/s"
+     ],
+     [
+      "Materials",
+      "Sample valves, sanitary diaphragm type,",
+      "1.6 µm"
+     ],
+     [
+      "Wetted parts: tank, loop pipework, valves",
+      "SS 316L",
+      "internal finish Ra",
+      ""
+     ],
+     [
+      "",
+      "",
+      "UV lamp with independent intensity sensor",
+      "Yes"
+     ]
+    ],
+    [
+     [
+      "Storage tank",
+      ""
+     ],
+     [
+      "Tank vent filter, hydrophobic PTFE",
+      "0.45 µm"
+     ],
+     [
+      "Storage tank, working volume",
+      "2.5 m³"
+     ]
+    ],
+    [
+     [
+      "Prepared by",
+      "Teguh Prasetyo",
+      "Signed electronically",
+      "24-Oct-2025"
+     ]
+    ]
+   ]
+  }
+ ]
+}

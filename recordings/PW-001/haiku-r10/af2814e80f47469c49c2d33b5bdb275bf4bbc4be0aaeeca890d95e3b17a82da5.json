@@ -1,0 +1,85 @@
+{
+  "doc_sha256": "e03b3e04014eebab759407d654294007f3a55fdc179399ca5b39e854af639ab9",
+  "key": "af2814e80f47469c49c2d33b5bdb275bf4bbc4be0aaeeca890d95e3b17a82da5",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "extract",
+  "prompt_hash": "c26e57b8e8b2bdd0d0c2bcd8b3a249710b66533a961d094fdea0379ca15ea04d",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "range",
+            "number",
+            "one_of",
+            "text",
+            "present",
+            "none"
+          ],
+          "type": "string"
+        },
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "number": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quote": {
+          "type": "string"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "min",
+        "max",
+        "number",
+        "unit",
+        "allowed",
+        "text",
+        "quote"
+      ],
+      "type": "object"
+    },
+    "system": "You extract the required value of one URS requirement for pharmaceutical equipment. Answer from the requirement and the page text only.\nkind:\n- range: a limit or interval; set min and/or max. A bounding word in any language makes a one-sided range: 'at least', 'minimum', 'not less than', 'minimal' or '>=' give only min; 'at most', 'maximum', 'not more than', 'up to', 'maksimal' or '<=' give only max; '2-8' gives both.\n- number: one exact or nominal required number, stated without a bounding word; min and max stay null.\n- one_of: a required material, type or option; list the accepted texts in allowed, exactly as printed.\n- text: a required text value that is none of the above.\n- present: a feature or document that must exist, with no number (also when it refers to a limit without stating its value).\n- none: the requirement states no value you can read with certainty.\nNumbers are plain JSON numbers: read the document's decimal and thousands separators (Indonesian documents write 1.000 for one thousand and 0,5 for one half). unit: a short English unit symbol such as mm, kN, rpm, min, bar or °C; null when there is none.\nquote: a verbatim excerpt of the page, at most 200 characters, that states the value with its numbers as printed. Copy characters exactly; never paraphrase. If a value is ambiguous, answer kind none rather than guess.",
+    "user": "{\"id\": \"4.3.3\", \"requirement\": \"Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\"}\n\nDocument URS-PW001, revision 0, page 1.\n\n<page>\nSpesifikasi Kebutuhan Pengguna (SKP)\nNomor dokumen URS-PW001\nRevisi 0\nTanggal berlaku 24/09/2025\nPeralatan PW-001 – Purified water generation and distribution system\nTujuan\nDokumen ini menetapkan kebutuhan pengguna untuk PW-001. Kebutuhan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\n2. Air baku\nNo. Persyaratan Kritis\n2.1 Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\n3. Kinerja dan mutu air\nNo. Persyaratan Kritis\n3.1.1 Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam. Tidak\n3.1.2 Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L. Tidak\n3.1.3 Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃. Tidak\n3.1.4 Konduktivitas permeat RO tidak lebih dari 20 µS/cm. Tidak\n3.2.1 Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\n3.2.2 Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\n3.2.3 Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L. Ya\n3.2.4 Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL. Ya\n4. Material dan konstruksi\nNo. Persyaratan Kritis\n4.1.1 Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS 316L. Ya\n4.2.2 Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase. Tidak\n4.2.3 Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan. Tidak\n4.2.4 Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm. Tidak\n4.3.1 Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm. Ya\n4.3.2 Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³. Tidak\n4.3.3 Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\n4.4.1 Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan. Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak). Tidak\n4.5.1 Semua komponen diberi label identitas dan arah aliran ditandai pada pipa. Tidak\n</page>"
+  },
+  "response": {
+    "input_tokens": 2275,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 103,
+    "text": "{\"kind\":\"present\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"allowed\":[],\"text\":null,\"quote\":\"4.3.3 Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\"}"
+  }
+}
