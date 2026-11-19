@@ -10,6 +10,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+
+- The held-out live run of PW-001 (#241, A5 of #133: run `20261119T021735Z-aa3429`, `claude-haiku-5-5`, prompt `e7b77fbfedfb`, 128 live calls, $0.032311, every gate PASS), committed byte for byte: `recordings/PW-001/haiku-r10/` (the 128 LLM recordings, the ingest cache, `run.json`, `report.json`, scorer 0.8.0) and its baseline `baselines/PW-001.json`. `tests/test_heldout_replay.py` replays it against `recordings/corpus-0.2.0` (no API, Docling or OCR) and compares the SHA-256 of the scored report with the committed one; a failure names only the check, never a value or a differing item. PW-001 is used once (`DATASHEET.md`). `recordings/README.md` gets a per-run spend table.
+
 ## [0.2.0] - 2026-11-19
 
 Dataset release 0.2.0 (MINOR): the held-out Equipment PW-001 and optional schema fields whose defaults leave TP-201 and TP-202 unchanged. The package version is 0.2.0 (#237). TP-201 and TP-202 documents keep their 0.1.1 bytes, and the tests keep replaying `recordings/corpus-0.1.1/`; the PW-001 corpus release follows separately. Everything listed below is part of this release.

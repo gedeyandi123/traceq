@@ -1,0 +1,256 @@
+{
+  "doc_sha256": "5440f6a68f3f0d62c894329b6018c545f16a2526bfc23db827471ce8745e8669",
+  "key": "b247c15c38d936818caa23fe0fe2b17db550f63152aa3934127e665a120b73c3",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "facts",
+  "prompt_hash": "5d4bb1e39c0554a6ba03cd617a52e8eeb52aa699b6dde20ad9bbe9f069514dfc",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "executed_on": {
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "printed": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "range",
+                      "number",
+                      "text",
+                      "present",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "present": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "min",
+                  "max",
+                  "number",
+                  "unit",
+                  "text",
+                  "present"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "name",
+              "printed",
+              "value",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "site_approved_on": {
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "steps": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "acceptance": {
+                "type": "string"
+              },
+              "observed": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "result": {
+                "enum": [
+                  "pass",
+                  "fail",
+                  "none"
+                ],
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              },
+              "test": {
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "range",
+                      "number",
+                      "text",
+                      "present",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "present": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "min",
+                  "max",
+                  "number",
+                  "unit",
+                  "text",
+                  "present"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "step",
+              "test",
+              "acceptance",
+              "observed",
+              "result",
+              "value",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "site_approved_on",
+        "executed_on",
+        "steps",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a vendor document for pharmaceutical equipment: a FAT or SAT protocol and report, a datasheet or a certificate. Report only what the page prints.\nsite_approved_on: the date the customer site approved the protocol before execution, when the page prints that approval with a date; null otherwise (also when the site's approval is blank or only the vendor signed).\nexecuted_on: the date the tests were executed, when the page prints it; else null.\nFor both: date exactly as printed, and a quote that holds it.\nsteps: every test step on the page. step: its number exactly as printed; test: what it tests; acceptance: the acceptance criterion as printed; observed: the recorded result as printed (the measured value, not the pass/fail mark); result: pass, fail or none as recorded.\nrows: every design or certified value on a datasheet or certificate. name: the row label as printed; printed: the value as printed.\nvalue: the value as normalised data.\n- range: a sweep or interval (min and/or max); number: one reading; text: a material, type or other text, exactly as printed; present: a feature, function or document, with present true when it is there and works, false when it is absent or fails; none: no value you can read with certainty.\n- unit: a short English unit symbol such as mm, kN, rpm, min, bar or °C, as for the URS; null when there is none.\nquote: the shortest verbatim excerpt of the page, at most 200 characters: for a step, from its number to its observed result; for a row, the value's own cell alone (for a row 'Bowl volume | 600 L', quote '600 L'), since name already says which row it is. Never join text from cells of another row, a stamp or a correction. Copy characters exactly; never paraphrase or translate. If the page has none, return empty lists.",
+    "user": "Document FAT-PW001-S, revision 0, page 1.\n\n<page>\nFACTORY ACCEPTANCE TEST RECORD\nWater treatment skid\nRecord no. FAT-PW001-S Customer PT Arunika Farma Lestari\nRevision 0 Machine Purified water generation and\nDate of issue 12-Jan-2026 distribution system, customer tag PW-001\nA. Machine data (as built)\nSerial number TSR-PW-25-0093\nModel TSR PW-2\nB. Release of the test procedure\nStep Name Company Signature Date\nIssued Teguh Prasetyo PT Tirta Sarana Rekayasa Signed electronically 12-Jan-2026\nReviewed (customer) Bayu Pratama PT Arunika Farma Lestari Signed electronically 22-Jan-2026\nReleased for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 22-Jan-2026\nC. Test records\nTest case FAT-S-01\nProcedure Product flow at EDI outlet: run the skid on the vendor's test water and read the product flow meter.\nRequired NLT 2 m³/h\nMeasured 2.1 m³/h\nVerdict PASS\nTest case FAT-S-02\nProcedure EDI outlet conductivity: read the conductivity at the EDI outlet on the vendor's test water.\nRequired NMT 1.3 µS/cm\nMeasured 0.12 µS/cm\nVerdict PASS\nTest case FAT-S-03\nProcedure Review of 3.1 certificates of wetted parts (tank, loop pipework, valves).\nRequired SS 316L\nMeasured SS 316L\nVerdict PASS\nTest case FAT-S-04\nProcedure Hot water sanitisation – valve sequence: start the sequence and check that the PLC closes and locks every point-of-use valve.\nRequired Present and functional\nMeasured Present and functional\nVerdict PASS\nTest case FAT-S-05\nProcedure Softener outlet hardness: test a sample at the softener outlet (as CaCO₃).\nRequired ≤ 1 mg/L\nMeasured 0.4 mg/L\nVerdict PASS\n</page>"
+  },
+  "response": {
+    "input_tokens": 2787,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 1082,
+    "text": "{\"site_approved_on\":null,\"executed_on\":null,\"steps\":[{\"step\":\"FAT-S-01\",\"test\":\"Product flow at EDI outlet: run the skid on the vendor's test water and read the product flow meter.\",\"acceptance\":\"NLT 2 m³/h\",\"observed\":\"2.1 m³/h\",\"result\":\"pass\",\"value\":{\"kind\":\"number\",\"min\":null,\"max\":null,\"number\":2.1,\"unit\":\"m³/h\",\"text\":null,\"present\":null},\"quote\":\"FAT-S-01 Procedure Product flow at EDI outlet: run the skid on the vendor's test water and read the product flow meter. Required NLT 2 m³/h Measured 2.1 m³/h Verdict PASS\"},{\"step\":\"FAT-S-02\",\"test\":\"EDI outlet conductivity: read the conductivity at the EDI outlet on the vendor's test water.\",\"acceptance\":\"NMT 1.3 µS/cm\",\"observed\":\"0.12 µS/cm\",\"result\":\"pass\",\"value\":{\"kind\":\"number\",\"min\":null,\"max\":null,\"number\":0.12,\"unit\":\"µS/cm\",\"text\":null,\"present\":null},\"quote\":\"FAT-S-02 Procedure EDI outlet conductivity: read the conductivity at the EDI outlet on the vendor's test water. Required NMT 1.3 µS/cm Measured 0.12 µS/cm Verdict PASS\"},{\"step\":\"FAT-S-03\",\"test\":\"Review of 3.1 certificates of wetted parts (tank, loop pipework, valves).\",\"acceptance\":\"SS 316L\",\"observed\":\"SS 316L\",\"result\":\"pass\",\"value\":{\"kind\":\"text\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"text\":\"SS 316L\",\"present\":null},\"quote\":\"FAT-S-03 Procedure Review of 3.1 certificates of wetted parts (tank, loop pipework, valves). Required SS 316L Measured SS 316L Verdict PASS\"},{\"step\":\"FAT-S-04\",\"test\":\"Hot water sanitisation – valve sequence: start the sequence and check that the PLC closes and locks every point-of-use valve.\",\"acceptance\":\"Present and functional\",\"observed\":\"Present and functional\",\"result\":\"pass\",\"value\":{\"kind\":\"present\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"text\":null,\"present\":true},\"quote\":\"FAT-S-04 Procedure Hot water sanitisation – valve sequence: start the sequence and check that the PLC closes and locks every point-of-use valve. Required Present and functional Measured Present and functional Verdict PASS\"},{\"step\":\"FAT-S-05\",\"test\":\"Softener outlet hardness: test a sample at the softener outlet (as CaCO₃).\",\"acceptance\":\"≤ 1 mg/L\",\"observed\":\"0.4 mg/L\",\"result\":\"pass\",\"value\":{\"kind\":\"number\",\"min\":null,\"max\":null,\"number\":0.4,\"unit\":\"mg/L\",\"text\":null,\"present\":null},\"quote\":\"FAT-S-05 Procedure Softener outlet hardness: test a sample at the softener outlet (as CaCO₃). Required ≤ 1 mg/L Measured 0.4 mg/L Verdict PASS\"}],\"rows\":[]}"
+  }
+}

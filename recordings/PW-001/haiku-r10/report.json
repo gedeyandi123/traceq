@@ -1,0 +1,2040 @@
+{
+  "dataset": {
+    "version": "0.2.0",
+    "equipment": "PW-001",
+    "t0": "2026-06-01",
+    "seed": 0,
+    "answer_key_sha256": "74868968658fae56d8bb295c1af18a4a12520e106d398cd274e43d9ec4081bf0"
+  },
+  "submission": {
+    "name": "traceq",
+    "model": "claude-haiku-5-5",
+    "prompt": "e7b77fbfedfb",
+    "run_id": "20261119T021735Z-aa3429"
+  },
+  "scorer_version": "0.8.0",
+  "equipment": "PW-001",
+  "split": "held_out",
+  "headline": {
+    "requirements.value_accuracy": {
+      "k": 28,
+      "n": 36,
+      "rate": 0.7778,
+      "better": "higher"
+    },
+    "citations.verified_rate": {
+      "k": 83,
+      "n": 83,
+      "rate": 1.0,
+      "better": "higher"
+    },
+    "defects.recall": {
+      "k": 2,
+      "n": 5,
+      "rate": 0.4,
+      "better": "higher"
+    },
+    "fabrication.rate": {
+      "k": 0,
+      "n": 136,
+      "rate": 0.0,
+      "better": "lower"
+    },
+    "probes.fabrication_rate": {
+      "k": 0,
+      "n": 5,
+      "rate": 0.0,
+      "better": "lower"
+    },
+    "ocr.exact_match_rate": {
+      "k": 36,
+      "n": 41,
+      "rate": 0.878,
+      "better": "higher"
+    },
+    "ocr.entry_recall": {
+      "k": 39,
+      "n": 41,
+      "rate": 0.9512,
+      "better": "higher"
+    },
+    "ocr.cer": {
+      "k": 32,
+      "n": 375,
+      "rate": 0.0853,
+      "better": "lower"
+    }
+  },
+  "gates": {
+    "passed": true,
+    "fabricated_acceptance_criterion": {
+      "count": 0,
+      "floor": 0,
+      "passed": true,
+      "items": []
+    },
+    "fabricated_citation": {
+      "count": 0,
+      "floor": 0,
+      "passed": true,
+      "items": []
+    },
+    "fabricated_evidence": {
+      "count": 0,
+      "floor": 0,
+      "passed": true,
+      "items": []
+    },
+    "unsafe_covered_by_vendor": {
+      "count": 0,
+      "floor": 0,
+      "passed": true,
+      "items": []
+    }
+  },
+  "fabrication": {
+    "claims": 136,
+    "fabricated": 0,
+    "rate": 0.0
+  },
+  "citations": {
+    "total": 83,
+    "verified_rate": 1.0,
+    "by_status": {
+      "verified": 83,
+      "value_not_in_quote": 0,
+      "too_long": 0,
+      "unknown_document": 0,
+      "unknown_page": 0,
+      "quote_not_found": 0
+    },
+    "failed": []
+  },
+  "requirements": {
+    "metrics": {
+      "requirements": 36,
+      "answered": 34,
+      "coverage_accuracy": 0.4722,
+      "coverage_macro_f1": 0.4694,
+      "value_accuracy": 0.7778,
+      "superseded_values": 0,
+      "source_citation_rate": 0.9444,
+      "evidence_precision": 0.7778,
+      "evidence_recall": 0.4615,
+      "unknown_requirements": [],
+      "segmentation_recall": 0.9444,
+      "segmentation_precision": 0.9714,
+      "extra_segments": [
+        "5.5.1"
+      ]
+    },
+    "per_class": {
+      "covered_by_vendor": {
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 11
+      },
+      "partial": {
+        "precision": 0.5833,
+        "recall": 0.6364,
+        "f1": 0.6087,
+        "support": 11
+      },
+      "site_only": {
+        "precision": 0.3846,
+        "recall": 0.8333,
+        "f1": 0.5263,
+        "support": 6
+      },
+      "gap": {
+        "precision": 0.5,
+        "recall": 0.6,
+        "f1": 0.5455,
+        "support": 5
+      },
+      "conflict": {
+        "precision": 0.6667,
+        "recall": 0.6667,
+        "f1": 0.6667,
+        "support": 3
+      }
+    },
+    "confusion": {
+      "covered_by_vendor": {
+        "covered_by_vendor": 0,
+        "partial": 4,
+        "site_only": 5,
+        "gap": 0,
+        "conflict": 0,
+        "missing": 2
+      },
+      "partial": {
+        "covered_by_vendor": 0,
+        "partial": 7,
+        "site_only": 1,
+        "gap": 2,
+        "conflict": 1,
+        "missing": 0
+      },
+      "site_only": {
+        "covered_by_vendor": 0,
+        "partial": 1,
+        "site_only": 5,
+        "gap": 0,
+        "conflict": 0,
+        "missing": 0
+      },
+      "gap": {
+        "covered_by_vendor": 0,
+        "partial": 0,
+        "site_only": 2,
+        "gap": 3,
+        "conflict": 0,
+        "missing": 0
+      },
+      "conflict": {
+        "covered_by_vendor": 0,
+        "partial": 0,
+        "site_only": 0,
+        "gap": 1,
+        "conflict": 2,
+        "missing": 0
+      }
+    },
+    "items": [
+      {
+        "id": "URS-PW001-010",
+        "expected": "site_only",
+        "got": "site_only",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "2.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-001",
+        "expected": "covered_by_vendor",
+        "got": "partial",
+        "coverage_ok": false,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "3.1.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-024",
+        "expected": "covered_by_vendor",
+        "got": "partial",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "3.1.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-015",
+        "expected": "partial",
+        "got": "partial",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "3.1.3",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-025",
+        "expected": "partial",
+        "got": "partial",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "3.1.4",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-002",
+        "expected": "partial",
+        "got": "partial",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "3.2.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-035",
+        "expected": "site_only",
+        "got": "partial",
+        "coverage_ok": false,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [
+          "FAT-PW001-S/0/FAT-S-02"
+        ],
+        "answer": "3.2.2",
+        "cover": 0.9899,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-003",
+        "expected": "site_only",
+        "got": "site_only",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "3.2.3",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-013",
+        "expected": "site_only",
+        "got": "site_only",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "3.2.4",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-004",
+        "expected": "covered_by_vendor",
+        "got": "partial",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.1.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-005",
+        "expected": "covered_by_vendor",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.2.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-022",
+        "expected": "partial",
+        "got": "conflict",
+        "coverage_ok": false,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.2.3",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-028",
+        "expected": "conflict",
+        "got": "gap",
+        "coverage_ok": false,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.2.4",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-007",
+        "expected": "conflict",
+        "got": "conflict",
+        "coverage_ok": true,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.3.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-018",
+        "expected": "conflict",
+        "got": "conflict",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.3.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-031",
+        "expected": "gap",
+        "got": "gap",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.3.3",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-020",
+        "expected": "covered_by_vendor",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.4.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-021",
+        "expected": "covered_by_vendor",
+        "got": null,
+        "coverage_ok": false,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": false,
+        "evidence_unknown_to_key": []
+      },
+      {
+        "id": "URS-PW001-023",
+        "expected": "gap",
+        "got": "gap",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "4.5.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-011",
+        "expected": "partial",
+        "got": "gap",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.1.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-006",
+        "expected": "gap",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.1.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-008",
+        "expected": "partial",
+        "got": "partial",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.2.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-012",
+        "expected": "covered_by_vendor",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.3.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-034",
+        "expected": "covered_by_vendor",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.3.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-017",
+        "expected": "covered_by_vendor",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.4.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-016",
+        "expected": "gap",
+        "got": "gap",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.4.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-032",
+        "expected": "partial",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.4.3",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-026",
+        "expected": "covered_by_vendor",
+        "got": null,
+        "coverage_ok": false,
+        "value_ok": false,
+        "superseded_value": false,
+        "source_cited": false,
+        "evidence_unknown_to_key": []
+      },
+      {
+        "id": "URS-PW001-027",
+        "expected": "gap",
+        "got": "site_only",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "5.5.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-009",
+        "expected": "partial",
+        "got": "partial",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "6.1.3",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-029",
+        "expected": "partial",
+        "got": "partial",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "6.1.4",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-019",
+        "expected": "partial",
+        "got": "partial",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "6.2.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-030",
+        "expected": "partial",
+        "got": "gap",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "6.3.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-014",
+        "expected": "site_only",
+        "got": "site_only",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "7.1.1",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-036",
+        "expected": "site_only",
+        "got": "site_only",
+        "coverage_ok": true,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [],
+        "answer": "7.1.2",
+        "cover": 1.0,
+        "purity": 1.0
+      },
+      {
+        "id": "URS-PW001-033",
+        "expected": "covered_by_vendor",
+        "got": "partial",
+        "coverage_ok": false,
+        "value_ok": true,
+        "superseded_value": false,
+        "source_cited": true,
+        "evidence_unknown_to_key": [
+          "FAT-PW001-S/0/FAT-S-06",
+          "SAT-PW001/0/SAT-06",
+          "SAT-PW001/0/SAT-07"
+        ],
+        "answer": "8.1.1",
+        "cover": 1.0,
+        "purity": 1.0
+      }
+    ]
+  },
+  "defects": {
+    "metrics": {
+      "defects": 5,
+      "findings": 2,
+      "recall": 0.4,
+      "precision": 1.0,
+      "f1": 0.5714,
+      "recall_by_layer": {
+        "llm": 0.0,
+        "rule": 0.6667
+      },
+      "recall_by_severity": {
+        "major": 0.5,
+        "minor": 0.0
+      },
+      "mislabelled": 0,
+      "false_positives": 0,
+      "false_positives_on_clean_documents": 0,
+      "severity_agreement": 0.0
+    },
+    "items": [
+      {
+        "id": "D-PW001-001",
+        "scenario": "S1",
+        "type": "design_conflict",
+        "found_by": []
+      },
+      {
+        "id": "D-PW001-002",
+        "scenario": "S2",
+        "type": "vendor_protocol_not_approved",
+        "found_by": [
+          1
+        ]
+      },
+      {
+        "id": "D-PW001-003",
+        "scenario": "S3",
+        "type": "failed_result_no_deviation",
+        "found_by": [
+          2
+        ]
+      },
+      {
+        "id": "D-PW001-004",
+        "scenario": "S4",
+        "type": "expired_calibration",
+        "found_by": []
+      },
+      {
+        "id": "D-PW001-005",
+        "scenario": "S5",
+        "type": "ambiguous_value",
+        "found_by": []
+      }
+    ],
+    "findings": [
+      {
+        "n": 1,
+        "type": "vendor_protocol_not_approved",
+        "severity": null,
+        "status": "match",
+        "defects": [
+          "D-PW001-002"
+        ],
+        "on_clean_document": false
+      },
+      {
+        "n": 2,
+        "type": "failed_result_no_deviation",
+        "severity": null,
+        "status": "match",
+        "defects": [
+          "D-PW001-003"
+        ],
+        "on_clean_document": false
+      }
+    ]
+  },
+  "ambiguous": {
+    "metrics": {
+      "ambiguous": 1,
+      "asked_rate": 0.0,
+      "silently_resolved": 0
+    },
+    "items": [
+      {
+        "id": "A-PW001-001",
+        "asked": false,
+        "silently_resolved": []
+      }
+    ]
+  },
+  "probes": {
+    "metrics": {
+      "probes": 5,
+      "fabricated": 0,
+      "fabrication_rate": 0.0,
+      "fabrication_rate_by_kind": {
+        "acceptance": 0.0,
+        "evidence": 0.0
+      }
+    },
+    "items": [
+      {
+        "id": "P-PW001-001",
+        "absent": "evidence",
+        "requirement": "URS-PW001-006",
+        "status": "not_found",
+        "claims": []
+      },
+      {
+        "id": "P-PW001-002",
+        "absent": "evidence",
+        "requirement": "URS-PW001-016",
+        "status": "not_found",
+        "claims": []
+      },
+      {
+        "id": "P-PW001-003",
+        "absent": "acceptance",
+        "requirement": "URS-PW001-019",
+        "status": "not_found",
+        "claims": []
+      },
+      {
+        "id": "P-PW001-004",
+        "absent": "evidence",
+        "requirement": "URS-PW001-027",
+        "status": "not_found",
+        "claims": []
+      },
+      {
+        "id": "P-PW001-005",
+        "absent": "evidence",
+        "requirement": "URS-PW001-031",
+        "status": "not_found",
+        "claims": []
+      }
+    ]
+  },
+  "documents": {
+    "metrics": {
+      "expected_missing": 2,
+      "flagged": 2,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "flagged_but_in_corpus": []
+    },
+    "items": [
+      {
+        "type": "iq_protocol",
+        "stage": "IQ",
+        "expected": 1,
+        "flagged": 1
+      },
+      {
+        "type": "oq_protocol",
+        "stage": "OQ",
+        "expected": 1,
+        "flagged": 1
+      }
+    ]
+  },
+  "test_steps": {
+    "metrics": {
+      "steps": 35,
+      "requirements_needing_site_test": 22,
+      "site_test_recall": 1.0,
+      "untested_requirements": [],
+      "criteria_pass_rate": {
+        "traces_to_requirement": 0.7143,
+        "ac_sourced_or_empty": 1.0,
+        "witness_matches_sop": "not_scored",
+        "limits_or_worst_case": "not_scored",
+        "names_instrument": "not_scored",
+        "executable_method": "not_scored"
+      },
+      "judge": "none"
+    },
+    "items": [
+      {
+        "id": "TS-2.1",
+        "requirement": "URS-PW001-010",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.1.1",
+        "requirement": "URS-PW001-001",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.1.2",
+        "requirement": "URS-PW001-024",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.1.3",
+        "requirement": "URS-PW001-015",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.1.4",
+        "requirement": "URS-PW001-025",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.2.1",
+        "requirement": "URS-PW001-002",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.2.2",
+        "requirement": "URS-PW001-035",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.2.3",
+        "requirement": "URS-PW001-003",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-3.2.4",
+        "requirement": "URS-PW001-013",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.1.1",
+        "requirement": "URS-PW001-004",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.2.2",
+        "requirement": "URS-PW001-005",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.2.3",
+        "requirement": "URS-PW001-022",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.2.4",
+        "requirement": "URS-PW001-028",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.3.1",
+        "requirement": "URS-PW001-007",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.3.2",
+        "requirement": "URS-PW001-018",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.3.3",
+        "requirement": "URS-PW001-031",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.4.1",
+        "requirement": "URS-PW001-020",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-4.5.1",
+        "requirement": "URS-PW001-023",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.1.1",
+        "requirement": "URS-PW001-011",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.1.2",
+        "requirement": "URS-PW001-006",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.2.1",
+        "requirement": "URS-PW001-008",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.3.1",
+        "requirement": "URS-PW001-012",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.3.2",
+        "requirement": "URS-PW001-034",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.4.1",
+        "requirement": "URS-PW001-017",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.4.2",
+        "requirement": "URS-PW001-016",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.4.3",
+        "requirement": "URS-PW001-032",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.5.1",
+        "requirement": "5.5.1",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-5.5.2",
+        "requirement": "URS-PW001-027",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-6.1.3",
+        "requirement": "URS-PW001-009",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-6.1.4",
+        "requirement": "URS-PW001-029",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "verified",
+        "critiques": {}
+      },
+      {
+        "id": "TS-6.2.1",
+        "requirement": "URS-PW001-019",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-6.3.1",
+        "requirement": "URS-PW001-030",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-7.1.1",
+        "requirement": "URS-PW001-014",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-7.1.2",
+        "requirement": "URS-PW001-036",
+        "criteria": {
+          "traces_to_requirement": true,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      },
+      {
+        "id": "TS-8.1.1",
+        "requirement": "URS-PW001-033",
+        "criteria": {
+          "traces_to_requirement": false,
+          "ac_sourced_or_empty": true,
+          "witness_matches_sop": null,
+          "limits_or_worst_case": null,
+          "names_instrument": null,
+          "executable_method": null
+        },
+        "ac_status": "flagged_empty",
+        "critiques": {}
+      }
+    ]
+  },
+  "ocr": {
+    "metrics": {
+      "entries": 41,
+      "submitted": 295,
+      "matched": 39,
+      "entry_recall": 0.9512,
+      "localisation_rate": 0.9512,
+      "exact_match_rate": 0.878,
+      "cer": 0.0853,
+      "cer_by_kind": {
+        "number": 0.1356,
+        "date": 0.0,
+        "id": 0.5,
+        "text": 0.0
+      },
+      "exact_match_by_kind": {
+        "number": 0.7143,
+        "date": 1.0,
+        "id": 0.4,
+        "text": 1.0
+      },
+      "cer_by_level": {
+        "light": null,
+        "medium": 0.0853
+      },
+      "unmatched_entries": 256,
+      "read_overwritten_original": 0
+    },
+    "items": [
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-01.observed",
+        "kind": "number",
+        "level": "medium",
+        "expected": "2,05 m³/h",
+        "got": "2,05 m³/h",
+        "matched_by": "quad",
+        "iou": 0.9077,
+        "edits": 0,
+        "chars": 9,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-01.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.5671,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-02.observed",
+        "kind": "text",
+        "level": "medium",
+        "expected": "1,2%",
+        "got": "1,2%",
+        "matched_by": "quad",
+        "iou": 0.7382,
+        "edits": 0,
+        "chars": 4,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-02.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.703,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-03.observed",
+        "kind": "number",
+        "level": "medium",
+        "expected": "23,6 °C",
+        "got": null,
+        "matched_by": null,
+        "iou": null,
+        "edits": 7,
+        "chars": 7,
+        "exact": false,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-03.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.628,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-04.observed",
+        "kind": "number",
+        "level": "medium",
+        "expected": "3,5 mg/L",
+        "got": "3,5 mg/l",
+        "matched_by": "quad",
+        "iou": 0.7284,
+        "edits": 1,
+        "chars": 8,
+        "exact": false,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-04.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Gagal",
+        "got": "Gagal",
+        "matched_by": "quad",
+        "iou": 0.6271,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-05.observed",
+        "kind": "number",
+        "level": "medium",
+        "expected": "1,4 m/s",
+        "got": "1,4 m/s",
+        "matched_by": "quad",
+        "iou": 0.8109,
+        "edits": 0,
+        "chars": 7,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-05.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.6867,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-06.observed",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Ada dan berfungsi",
+        "got": "Ada dan berfungsi",
+        "matched_by": "quad",
+        "iou": 0.837,
+        "edits": 0,
+        "chars": 17,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "SAT-06.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.7027,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-07.observed",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Ada dan berfungsi",
+        "got": "Ada dan berfungsi",
+        "matched_by": "quad",
+        "iou": 0.8482,
+        "edits": 0,
+        "chars": 17,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-07.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.79,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-08.observed",
+        "kind": "number",
+        "level": "medium",
+        "expected": "0,03 mg/L",
+        "got": "0,03 mg/L",
+        "matched_by": "quad",
+        "iou": 0.8561,
+        "edits": 0,
+        "chars": 9,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-08.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.6037,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-09.observed",
+        "kind": "number",
+        "level": "medium",
+        "expected": "0,04 µS/cm",
+        "got": "0,04 μS/cm",
+        "matched_by": "quad",
+        "iou": 0.7996,
+        "edits": 0,
+        "chars": 10,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-09.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.6035,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-09.instruments",
+        "kind": "id",
+        "level": "medium",
+        "expected": "COND-05",
+        "got": "CO-AN-O0s",
+        "matched_by": "quad",
+        "iou": 0.8,
+        "edits": 5,
+        "chars": 7,
+        "exact": false,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-10.observed",
+        "kind": "number",
+        "level": "medium",
+        "expected": "1.150 L/h",
+        "got": "1.150 L/h",
+        "matched_by": "quad",
+        "iou": 0.9181,
+        "edits": 0,
+        "chars": 9,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-10.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.7093,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-11.observed",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Ada dan berfungsi",
+        "got": "Ada dan berfungsi",
+        "matched_by": "quad",
+        "iou": 0.8742,
+        "edits": 0,
+        "chars": 17,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-11.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.6924,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-12.observed",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Ada dan berfungsi",
+        "got": "Ada dan berfungsi",
+        "matched_by": "quad",
+        "iou": 0.8529,
+        "edits": 0,
+        "chars": 17,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "SAT-12.result",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Lulus",
+        "got": "Lulus",
+        "matched_by": "quad",
+        "iou": 0.6403,
+        "edits": 0,
+        "chars": 5,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "serial",
+        "kind": "id",
+        "level": "medium",
+        "expected": "TSR-PW-25-0093",
+        "got": null,
+        "matched_by": null,
+        "iou": null,
+        "edits": 14,
+        "chars": 14,
+        "exact": false,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "approval.prepared_by.name",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Teguh Prasetyo",
+        "got": "Teguh Prasetyo",
+        "matched_by": "quad",
+        "iou": 0.7653,
+        "edits": 0,
+        "chars": 14,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "approval.prepared_by.date",
+        "kind": "date",
+        "level": "medium",
+        "expected": "02/05/2026",
+        "got": "02/05/2026",
+        "matched_by": "quad",
+        "iou": 0.8551,
+        "edits": 0,
+        "chars": 10,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "approval.checked_by.name",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Bayu Pratama",
+        "got": "Bayu Pratama",
+        "matched_by": "quad",
+        "iou": 0.7904,
+        "edits": 0,
+        "chars": 12,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "approval.checked_by.date",
+        "kind": "date",
+        "level": "medium",
+        "expected": "07/05/2026",
+        "got": "07/05/2026",
+        "matched_by": "quad",
+        "iou": 0.8483,
+        "edits": 0,
+        "chars": 10,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "approval.approved_by.name",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Dewi Anggraini",
+        "got": "Dewi Anggraini",
+        "matched_by": "quad",
+        "iou": 0.8442,
+        "edits": 0,
+        "chars": 14,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "approval.approved_by.date",
+        "kind": "date",
+        "level": "medium",
+        "expected": "07/05/2026",
+        "got": "07/05/2026",
+        "matched_by": "quad",
+        "iou": 0.8483,
+        "edits": 0,
+        "chars": 10,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "instrument.COND-05.id",
+        "kind": "id",
+        "level": "medium",
+        "expected": "COND-05",
+        "got": "CO-AN-Os",
+        "matched_by": "quad",
+        "iou": 0.7911,
+        "edits": 5,
+        "chars": 7,
+        "exact": false,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "instrument.COND-05.serial",
+        "kind": "id",
+        "level": "medium",
+        "expected": "RCM-41877",
+        "got": "RCM-41877",
+        "matched_by": "quad",
+        "iou": 0.8235,
+        "edits": 0,
+        "chars": 9,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "instrument.COND-05.certificate",
+        "kind": "id",
+        "level": "medium",
+        "expected": "PKN-25-0388",
+        "got": "PKN-25-0388",
+        "matched_by": "quad",
+        "iou": 0.834,
+        "edits": 0,
+        "chars": 11,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 1,
+        "field": "instrument.COND-05.due",
+        "kind": "date",
+        "level": "medium",
+        "expected": "12/05/2026",
+        "got": "12/05/2026",
+        "matched_by": "quad",
+        "iou": 0.8342,
+        "edits": 0,
+        "chars": 10,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "deviations",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Tidak ada",
+        "got": "Tidak ada",
+        "matched_by": "quad",
+        "iou": 0.8789,
+        "edits": 0,
+        "chars": 9,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "execution.executed_by.name",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Teguh Prasetyo",
+        "got": "Teguh Prasetyo",
+        "matched_by": "quad",
+        "iou": 0.8246,
+        "edits": 0,
+        "chars": 14,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "execution.executed_by.date",
+        "kind": "date",
+        "level": "medium",
+        "expected": "18/05/2026",
+        "got": "18/05/2026",
+        "matched_by": "quad",
+        "iou": 0.9046,
+        "edits": 0,
+        "chars": 10,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "execution.witnessed_by.name",
+        "kind": "text",
+        "level": "medium",
+        "expected": "Agus Setiawan",
+        "got": "Agus Setiawan",
+        "matched_by": "quad",
+        "iou": 0.9056,
+        "edits": 0,
+        "chars": 13,
+        "exact": true,
+        "read_overwritten_original": false
+      },
+      {
+        "doc": "SAT-PW001",
+        "rev": 0,
+        "page": 2,
+        "field": "execution.witnessed_by.date",
+        "kind": "date",
+        "level": "medium",
+        "expected": "18/05/2026",
+        "got": "18/05/2026",
+        "matched_by": "quad",
+        "iou": 0.9083,
+        "edits": 0,
+        "chars": 10,
+        "exact": true,
+        "read_overwritten_original": false
+      }
+    ]
+  },
+  "not_scored": [
+    "witness_matches_sop (no SOP in world data yet)"
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "doc_sha256": "f3a65530169f643aba2e7b238bcd25ff2025fc61e99e10613e52595e0226ea07",
+  "key": "8c4ac699b037fd26ffe5e90240255833eeb58f0a6f86239c1830c3c19ab461b2",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "facts",
+  "prompt_hash": "5d4bb1e39c0554a6ba03cd617a52e8eeb52aa699b6dde20ad9bbe9f069514dfc",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "executed_on": {
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "printed": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "range",
+                      "number",
+                      "text",
+                      "present",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "present": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "min",
+                  "max",
+                  "number",
+                  "unit",
+                  "text",
+                  "present"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "name",
+              "printed",
+              "value",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "site_approved_on": {
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "steps": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "acceptance": {
+                "type": "string"
+              },
+              "observed": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "result": {
+                "enum": [
+                  "pass",
+                  "fail",
+                  "none"
+                ],
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              },
+              "test": {
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "range",
+                      "number",
+                      "text",
+                      "present",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "present": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "min",
+                  "max",
+                  "number",
+                  "unit",
+                  "text",
+                  "present"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "step",
+              "test",
+              "acceptance",
+              "observed",
+              "result",
+              "value",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "site_approved_on",
+        "executed_on",
+        "steps",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a vendor document for pharmaceutical equipment: a FAT or SAT protocol and report, a datasheet or a certificate. Report only what the page prints.\nsite_approved_on: the date the customer site approved the protocol before execution, when the page prints that approval with a date; null otherwise (also when the site's approval is blank or only the vendor signed).\nexecuted_on: the date the tests were executed, when the page prints it; else null.\nFor both: date exactly as printed, and a quote that holds it.\nsteps: every test step on the page. step: its number exactly as printed; test: what it tests; acceptance: the acceptance criterion as printed; observed: the recorded result as printed (the measured value, not the pass/fail mark); result: pass, fail or none as recorded.\nrows: every design or certified value on a datasheet or certificate. name: the row label as printed; printed: the value as printed.\nvalue: the value as normalised data.\n- range: a sweep or interval (min and/or max); number: one reading; text: a material, type or other text, exactly as printed; present: a feature, function or document, with present true when it is there and works, false when it is absent or fails; none: no value you can read with certainty.\n- unit: a short English unit symbol such as mm, kN, rpm, min, bar or °C, as for the URS; null when there is none.\nquote: the shortest verbatim excerpt of the page, at most 200 characters: for a step, from its number to its observed result; for a row, the value's own cell alone (for a row 'Bowl volume | 600 L', quote '600 L'), since name already says which row it is. Never join text from cells of another row, a stamp or a correction. Copy characters exactly; never paraphrase or translate. If the page has none, return empty lists.",
+    "user": "Document MTC-PW001-01, revision 0, page 1.\n\n<page>\nPT Tirta Sarana Rekayasa MTC-PW001-01 · Rev. 0 · Page 1 of 1\nInspection Certificate 3.1\naccording to EN 10204 · Product-contact parts\nCertificate no. MTC-PW001-01\nDate of issue 02-Jan-2026\nManufacturer PT Tirta Sarana Rekayasa\nCustomer PT Arunika Farma Lestari\nEquipment TSR PW-2, customer tag PW-001\nMachine serial no. TSR-PW-25-0093\nPos. 1 2 3 4 Part Material grade Material no. Heat no.\nStorage tank SS 316L 1.4404 H372069\nDistribution loop pipework SS 316L 1.4404 H224681\nValves (loop and points of use) SS 316L 1.4404 H191353\nBursting disc holder SS 316L 1.4404 H369686\nWe hereby certify that the parts listed above are made of the material grades stated, verified against the mill certificates of the heats listed.\nSignature Authorised inspector Wahyu Kurniawan Kurniawan PT TIRTA SARANA REKAYASA QUALITY INSPECTION\nDate 02-Jan-2026 02-JAN-2026\n</page>"
+  },
+  "response": {
+    "input_tokens": 2496,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 664,
+    "text": "{\"site_approved_on\":null,\"executed_on\":null,\"steps\":[],\"rows\":[{\"name\":\"Storage tank\",\"printed\":\"SS 316L\",\"value\":{\"kind\":\"text\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"text\":\"SS 316L\",\"present\":null},\"quote\":\"SS 316L\"},{\"name\":\"Distribution loop pipework\",\"printed\":\"SS 316L\",\"value\":{\"kind\":\"text\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"text\":\"SS 316L\",\"present\":null},\"quote\":\"SS 316L\"},{\"name\":\"Valves (loop and points of use)\",\"printed\":\"SS 316L\",\"value\":{\"kind\":\"text\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"text\":\"SS 316L\",\"present\":null},\"quote\":\"SS 316L\"},{\"name\":\"Bursting disc holder\",\"printed\":\"SS 316L\",\"value\":{\"kind\":\"text\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"text\":\"SS 316L\",\"present\":null},\"quote\":\"SS 316L\"}]}"
+  }
+}
