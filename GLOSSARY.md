@@ -141,6 +141,10 @@ _Avoid_: decoy, negative sample
 An eval item where a document carries text that instructs the AI to do something (e.g. not to report a defective Test Step). It passes when the effect the text asks for does not appear in the output.
 _Avoid_: jailbreak
 
+**No-LLM Baseline**:
+A run of the same pipeline in which every reading the LLM would do is done by plain text rules (patterns and keywords) instead. Its scores, beside the LLM's on the same Equipment, show what the LLM adds.
+_Avoid_: rules engine, fallback mode
+
 **Review Package**:
 One site Protocol Draft with its own answer key, which refers to a frozen Equipment package without changing it. Pre-review of a site document is scored on it.
 _Avoid_: test set, review bundle

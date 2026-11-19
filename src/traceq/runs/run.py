@@ -33,6 +33,10 @@ corpus release and the Equipment recordings replayed, and counts the draft's cal
 cost and Test Steps not compared (the run's totals include them). Without a package a run is
 as above.
 
+``answers``: an adapter that answers without a model (the No-LLM Baseline, #193). Its
+answers are neither recorded nor replayed, and the run counts no LLM calls; it cannot be
+combined with ``live`` or a Review Package.
+
 ``vendor_reuse`` (default true) decides whether a ``covered_by_vendor`` requirement also
 gets a drafted Test Step. Eval runs keep it true: scorer criterion 1 counts a step for a
 ``covered_by_vendor`` requirement as a failure (spec #29, "Vendor reuse framing").
@@ -139,6 +143,22 @@ def _read_package(
     return _Draft(reading, rows, draft_findings(reading, rows), ingested)
 
 
+class _Asked:
+    """An adapter that answers without a model, keeping the requests it was asked."""
+
+    def __init__(self, inner: LLM) -> None:
+        self._inner = inner
+        self.requests: list[Request] = []
+
+    @property
+    def model(self) -> str:
+        return self._inner.model
+
+    def complete(self, requests: Sequence[Request]) -> list[Response]:
+        self.requests += requests
+        return self._inner.complete(requests)
+
+
 def _write_json(path: Path, data: Any) -> None:
     text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
     path.write_text(text, encoding="utf-8", newline="\n")
@@ -159,11 +179,16 @@ def run(
     clock: Clock = time.perf_counter,
     review_package: Path | None = None,
     package_recordings: Path | None = None,
+    answers: LLM | None = None,
 ) -> RunOutput:
     """``now``: the start time the run id and ``created`` carry. ``clock``: what the run's
     duration is measured with. ``review_package``: a released Review Package directory for
     this corpus and Equipment; its recordings and ingest cache go to ``package_recordings``,
     while ``recordings`` is only read and the Equipment stages only replay."""
+    if answers is not None and (
+        live is not None or review_package is not None or answers.model != model
+    ):
+        raise ValueError("an adapter that answers without a model runs alone, under its own name")
     start = clock()
     prices = prices or PriceTable.load()
     now = now or dt.datetime.now(dt.UTC)
@@ -189,16 +214,18 @@ def run(
     scans = [(d, corpus.read(d)) for d in corpus.documents if d.format == "scan"]
     budget = Budget(max_usd, prices) if live is not None else None
     timed = _Timed(live, clock) if live is not None else None
-    llm = Recorder(store, model, PIPELINE_VERSION, live=timed, budget=budget, reads=reads)
+    recorder = Recorder(store, model, PIPELINE_VERSION, live=timed, budget=budget, reads=reads)
+    asked = _Asked(answers) if answers is not None else None
+    llm: LLM = asked or recorder
     # In a Review Package run the Equipment Pre-review replays the Equipment run unchanged:
     # a call it lacks fails the run instead of being sent (spec #196).
-    equipment_llm = llm.replay_only() if package is not None else llm
+    equipment_llm = recorder.replay_only() if package is not None else llm
 
     traced = trace(corpus, equipment_llm)
     reviewed = review(corpus, equipment_llm, traced)
     drafted = draft(corpus, equipment_llm, traced, vendor_reuse=vendor_reuse)
-    equipment_calls = len(llm.calls)
-    on_draft = None if package is None else _read_package(package, corpus, traced, llm, store)
+    equipment_calls = len(recorder.calls)
+    on_draft = None if package is None else _read_package(package, corpus, traced, recorder, store)
 
     prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS, *DRAFT_PROMPTS)}
     if package is not None:
@@ -220,12 +247,14 @@ def run(
             }
         )
 
-    responses = [c.response for c in llm.calls]
+    calls = recorder.calls
+    responses = [c.response for c in calls]
     try:
         cost: float | None = round(prices.response_cost_usd(responses), 6)
     except KeyError:
         cost = None
-    read = {c.request.doc_sha256 for c in llm.calls} | {d.sha256 for d, _ in corpus.ingested()}
+    requests = asked.requests if asked is not None else [c.request for c in calls]
+    read = {r.doc_sha256 for r in requests} | {d.sha256 for d, _ in corpus.ingested()}
     metadata: dict[str, Any] = {
         "run_id": run_id,
         "created": now.isoformat(),
@@ -244,9 +273,9 @@ def run(
             ],
         },
         "calls": {
-            "total": len(llm.calls),
-            "replayed": sum(c.replayed for c in llm.calls),
-            "live": sum(not c.replayed for c in llm.calls),
+            "total": len(calls),
+            "replayed": sum(c.replayed for c in calls),
+            "live": sum(not c.replayed for c in calls),
         },
         "tokens": {
             "input": sum(r.input_tokens for r in responses),
@@ -290,7 +319,7 @@ def run(
         ],
     }
     if package is not None and on_draft is not None:
-        draft_calls = llm.calls[equipment_calls:]
+        draft_calls = calls[equipment_calls:]
         draft_responses = [c.response for c in draft_calls]
         try:
             draft_cost: float | None = round(prices.response_cost_usd(draft_responses), 6)
