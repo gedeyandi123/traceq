@@ -13,13 +13,12 @@ from typing import Any
 import pytest
 
 from traceq_dataset.answer_key import load_key
-from traceq_dataset.corpus import Corpus, build_corpus
+from traceq_dataset.corpus import Corpus
 from traceq_dataset.review_package import (
     load_package,
     load_package_key,
     render_draft,
 )
-from traceq_dataset.world import load
 from traceq_eval import __main__ as cli
 from traceq_eval.citations import PageTexts
 from traceq_eval.oracle import perfect_review
@@ -35,8 +34,8 @@ DRAFT = "OQ-TP201"
 
 
 @pytest.fixture(scope="module")
-def corpus() -> Corpus:
-    return build_corpus(load(TP201))
+def corpus(tp201_corpus: Corpus) -> Corpus:
+    return tp201_corpus
 
 
 @pytest.fixture(scope="module")

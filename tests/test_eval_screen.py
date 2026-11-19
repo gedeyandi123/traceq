@@ -17,8 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from traceq_dataset.answer_key import load_key
-from traceq_dataset.corpus import build_corpus
-from traceq_dataset.world import load
+from traceq_dataset.corpus import Corpus
 from traceq_eval import screen
 from traceq_eval.citations import PageTexts
 from traceq_eval.oracle import perfect
@@ -51,8 +50,8 @@ def key() -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def reports(key: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    pages = PageTexts(build_corpus(load(ROOT / "world" / "tp201.yaml")))
+def reports(key: dict[str, Any], tp201_corpus: Corpus) -> dict[str, dict[str, Any]]:
+    pages = PageTexts(tp201_corpus)
     empty = Submission(equipment="TP-201", system=System(name="empty"))
     return {
         "perfect": score(perfect(key, "TP-201"), key, pages),

@@ -86,13 +86,20 @@ def read_rows(r: Request) -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def corpora(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Corpus]:
-    out: dict[str, Corpus] = {}
-    for name in ("tp201", "tp202"):
-        dist = tmp_path_factory.mktemp(name)
-        assert render.main([str(ROOT / "world" / f"{name}.yaml"), "--out", str(dist)]) == 0
-        out[name] = Corpus.load(next(dist.glob("t0-*")))
-    return out
+def corpora(
+    tp201_dist: Path,
+    seed_born_digital: Callable[[Path, Path], None],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, Corpus]:
+    """TP-201 reads its PDFs from the recorded Docling output; TP-202 runs Docling."""
+    cache = tmp_path_factory.mktemp("ingest")
+    seed_born_digital(tp201_dist, cache)
+    dist = tmp_path_factory.mktemp("tp202")
+    assert render.main([str(ROOT / "world" / "tp202.yaml"), "--out", str(dist)]) == 0
+    return {
+        "tp201": Corpus.load(tp201_dist, cache=cache),
+        "tp202": Corpus.load(next(dist.glob("t0-*"))),
+    }
 
 
 def _read(corpus: Corpus, answer: Answer = read_rows) -> tuple[Assessment | None, list[Dropped]]:

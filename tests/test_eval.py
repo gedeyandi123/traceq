@@ -12,8 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from traceq_dataset.answer_key import load_key
-from traceq_dataset.corpus import Corpus, build_corpus
-from traceq_dataset.world import load
+from traceq_dataset.corpus import Corpus
 from traceq_eval import __main__ as cli
 from traceq_eval.citations import PageTexts, Status, partial_ratio, value_in_quote
 from traceq_eval.judge import Criterion, JudgeVerdict, UrsRequirement
@@ -28,8 +27,8 @@ KEY = ROOT / "answer_key" / "TP-201"
 
 
 @pytest.fixture(scope="module")
-def corpus() -> Corpus:
-    return build_corpus(load(TP201))
+def corpus(tp201_corpus: Corpus) -> Corpus:
+    return tp201_corpus
 
 
 @pytest.fixture(scope="module")
