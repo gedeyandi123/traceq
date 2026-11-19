@@ -25,3 +25,9 @@ repos:
         entry: python scripts/check_denylist.py
         language: python
         types: [text]
+      - id: hook-tests
+        name: Claude Code hook tests (node)
+        entry: bash -c 'node .claude/hooks/readonly-bash.test.mjs && node .claude/hooks/heldout-bash.test.mjs'
+        language: system
+        files: ^\.claude/hooks/
+        pass_filenames: false

@@ -29,6 +29,9 @@ Thumbs.db
 # gitleaks binary downloaded in CI
 /gitleaks
 
+# Held-out command logs written by scripts/heldout_run.sh (never committed, never printed)
+/heldout-out/
+
 # Run folders written by `traceq run` (recordings are committed; runs are not)
 /runs/
 
