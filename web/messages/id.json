@@ -125,7 +125,7 @@
     "readOnly": {
       "signedOut": "Hanya membaca: masuk sebagai orang dengan peran pengambil keputusan untuk memutuskan.",
       "noRole": "Hanya membaca: identitas ini tidak memiliki peran pengambil keputusan. Masuk sebagai orang yang memilikinya untuk memutuskan.",
-      "approver": "Identitas ini hanya berperan menyetujui, jadi tidak dapat menyusun atau memutuskan. Identitas ini dapat menyetujui atau mengembalikan Protokol yang berstatus Diserahkan.",
+      "approver": "Identitas ini hanya berperan menyetujui, jadi tidak dapat menyusun atau memutuskan. Identitas ini dapat menyetujui atau mengembalikan protokol yang berstatus Diajukan.",
       "notImported": "Hanya membaca: run ini belum diimpor ke basis data. Impor run (perintah demo) untuk memutuskan.",
       "unavailable": "Hanya membaca: API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
     },
