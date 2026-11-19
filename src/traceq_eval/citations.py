@@ -5,7 +5,8 @@ page text by fuzzy match (ratio ≥ 0.9), and the value it claims appears inside
 
 Page text is what is printed: for a scan, the born-digital render behind the pixels (a
 system reads the scan by OCR, and the fuzzy match absorbs small OCR slips); for a
-spreadsheet, page *n* is sheet *n* with its cell values in row order.
+spreadsheet, page *n* is sheet *n* with its cell values in row order. A Review Package's
+Protocol Draft is rendered from its own world data and checked beside the corpus.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from __future__ import annotations
 import io
 import re
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from enum import StrEnum
@@ -22,7 +23,7 @@ from typing import Any
 from openpyxl import load_workbook
 
 from traceq_dataset.corpus import Corpus, DocKey
-from traceq_dataset.render import fmt_number
+from traceq_dataset.render import Rendered, fmt_number
 from traceq_dataset.validate import page_texts
 
 MIN_RATIO = 0.9
@@ -91,6 +92,8 @@ def value_tokens(value: Mapping[str, Any]) -> list[str | float]:
             return list(value["allowed"])
         case "text":
             return [value["value"]]
+        case "tolerance":
+            return [value["nominal"], value["tolerance"]]
     return []
 
 
@@ -137,18 +140,23 @@ class Verdict:
 
 
 class PageTexts:
-    """Printed text per page of every document of a corpus, read lazily."""
+    """Printed text per page of every document of a corpus, read lazily. ``extra``: documents
+    beside the corpus (a Review Package's Protocol Draft)."""
 
-    def __init__(self, corpus: Corpus) -> None:
+    def __init__(self, corpus: Corpus, extra: Iterable[Rendered] = ()) -> None:
         self.corpus = corpus
+        self.documents: dict[DocKey, Rendered] = {
+            **corpus.rendered,
+            **{(r.doc_id, r.rev): r for r in extra},
+        }
         self._cache: dict[DocKey, list[str]] = {}
 
     def __contains__(self, doc: DocKey) -> bool:
-        return doc in self.corpus.rendered
+        return doc in self.documents
 
     def pages(self, doc: DocKey) -> list[str]:
         if doc not in self._cache:
-            rendered = self.corpus.rendered[doc]
+            rendered = self.documents[doc]
             if rendered.format == "xlsx":
                 wb = load_workbook(io.BytesIO(rendered.data), read_only=True)
                 self._cache[doc] = [

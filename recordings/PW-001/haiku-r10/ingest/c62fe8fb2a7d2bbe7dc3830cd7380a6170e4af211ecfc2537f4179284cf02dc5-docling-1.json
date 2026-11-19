@@ -1,0 +1,164 @@
+{
+ "doc_sha256": "c62fe8fb2a7d2bbe7dc3830cd7380a6170e4af211ecfc2537f4179284cf02dc5",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  7.9,
+  7.9
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1698873344,
+ "pages": [
+  {
+   "number": 1,
+   "text": "Rencana Induk Validasi (Validation Master Plan)\nNomor dokumen VMP-PW001\nRevisi 0\nTanggal berlaku 22/05/2026\nLokasi PT Arunika Farma Lestari\n1. Tujuan\nRencana Induk Validasi ini menetapkan pendekatan kualifikasi peralatan di PT Arunika Farma Lestari: tahapan kualifikasi, tanggung jawab, dan dokumen yang dipersyaratkan untuk setiap peralatan.\n2. Ruang lingkup\nPeralatan produksi sediaan padat oral beserta sistem kendalinya. Kualifikasi kinerja (PQ) dilaksanakan bersama validasi proses dan diatur dalam protokol validasi proses, di luar paket dokumen kualifikasi peralatan.\n3. Tahapan kualifikasi\nTahap Kegiatan\nDesain SKP, penilaian risiko, data desain vendor, dan Kualifikasi Desain (DQ).\nFAT Uji penerimaan di pabrik vendor dengan protokol vendor.\nSAT Uji penerimaan di site setelah instalasi.\nIQ Kualifikasi instalasi dengan protokol yang disusun site.\nOQ Kualifikasi operasional dengan protokol yang disusun site.\n4. Tanggung jawab dan dokumentasi\nPenandatangan, pemisahan tugas, koreksi catatan, dan Saksi diatur dalam Protap SOP-VAL-002.\n5. Penomoran dokumen\nDokumen kualifikasi site diberi nomor jenis dokumen diikuti tag peralatan tanpa tanda hubung, misalnya SKP URSPW001. Dokumen vendor dan sertifikat memakai nomor penerbitnya.\n6. Lampiran 1. Dokumen yang dipersyaratkan: PW-001 – Purified water generation and distribution system\nPeralatan baru PW-001 tidak dirilis untuk penggunaan produksi sebelum seluruh dokumen berikut tersedia dan disetujui.\nNo. dokumen Jenis dokumen Tahap\nURS-PW001 Spesifikasi Kebutuhan Pengguna (SKP) Desain\nDS-PW001 Lembar data teknis vendor Desain\nMTC-PW001-01 Sertifikat material 3.1 bagian kontak produk FAT\nFAT-PW001-S Protokol dan laporan FAT (Water treatment skid) FAT\nFAT-PW001-K Protokol dan laporan FAT (Control panel and HMI) FAT\nPKN-25-0388 Sertifikat kalibrasi: Reference conductivity meter (COND-05) SAT\nPKN-26-0105 Sertifikat kalibrasi: Online TOC analyser (TIT-302) SAT\nSAT-PW001 Protokol dan laporan SAT SAT\nIQ-PW001 Protokol IQ IQ\nOQ-PW001 Protokol OQ OQ",
+   "tables": [
+    [
+     [
+      "Nomor dokumen",
+      "VMP-PW001"
+     ],
+     [
+      "Revisi",
+      "0"
+     ],
+     [
+      "Tanggal berlaku",
+      "22/05/2026"
+     ],
+     [
+      "Lokasi",
+      "PT Arunika Farma Lestari"
+     ]
+    ],
+    [
+     [
+      "Tahap",
+      "Kegiatan"
+     ],
+     [
+      "Desain",
+      "SKP, penilaian risiko, data desain vendor, dan Kualifikasi Desain (DQ)."
+     ],
+     [
+      "FAT",
+      "Uji penerimaan di pabrik vendor dengan protokol vendor."
+     ],
+     [
+      "SAT",
+      "Uji penerimaan di site setelah instalasi."
+     ],
+     [
+      "IQ",
+      "Kualifikasi instalasi dengan protokol yang disusun site."
+     ],
+     [
+      "OQ",
+      "Kualifikasi operasional dengan protokol yang disusun site."
+     ]
+    ],
+    [
+     [
+      "No. dokumen",
+      "Jenis dokumen",
+      "Tahap"
+     ],
+     [
+      "URS-PW001",
+      "Spesifikasi Kebutuhan Pengguna (SKP)",
+      "Desain"
+     ],
+     [
+      "DS-PW001",
+      "Lembar data teknis vendor",
+      "Desain"
+     ],
+     [
+      "MTC-PW001-01",
+      "Sertifikat material 3.1 bagian kontak produk",
+      "FAT"
+     ],
+     [
+      "FAT-PW001-S",
+      "Protokol dan laporan FAT (Water treatment skid)",
+      "FAT"
+     ],
+     [
+      "FAT-PW001-K",
+      "Protokol dan laporan FAT (Control panel and HMI)",
+      "FAT"
+     ],
+     [
+      "PKN-25-0388",
+      "Sertifikat kalibrasi: Reference conductivity meter (COND-05)",
+      "SAT"
+     ],
+     [
+      "PKN-26-0105",
+      "Sertifikat kalibrasi: Online TOC analyser (TIT-302)",
+      "SAT"
+     ],
+     [
+      "SAT-PW001",
+      "Protokol dan laporan SAT",
+      "SAT"
+     ],
+     [
+      "IQ-PW001",
+      "Protokol IQ",
+      "IQ"
+     ],
+     [
+      "OQ-PW001",
+      "Protokol OQ",
+      "OQ"
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 2,
+   "text": "Riwayat revisi\nRev. Tanggal Keterangan\n0 22/05/2026 Terbitan pertama.\nPengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 22/05/2026\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 22/05/2026\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 22/05/2026",
+   "tables": [
+    [
+     [
+      "Rev.",
+      "Tanggal",
+      "Keterangan"
+     ],
+     [
+      "0",
+      "22/05/2026",
+      "Terbitan pertama."
+     ]
+    ],
+    [
+     [
+      "Peran",
+      "Nama",
+      "Tanda tangan",
+      "Tanggal"
+     ],
+     [
+      "Disusun oleh",
+      "Rina Wulandari",
+      "Ditandatangani elektronik",
+      "22/05/2026"
+     ],
+     [
+      "Diperiksa oleh",
+      "Bayu Pratama",
+      "Ditandatangani elektronik",
+      "22/05/2026"
+     ],
+     [
+      "Disetujui oleh",
+      "Dewi Anggraini",
+      "Ditandatangani elektronik",
+      "22/05/2026"
+     ]
+    ]
+   ]
+  }
+ ]
+}

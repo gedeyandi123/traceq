@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import hashlib
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from traceq_dataset.answer_key import (
     FILES,
     TAXONOMY,
     AnswerKeyError,
+    defects,
     derive,
     dump,
     load_key,
@@ -35,8 +37,8 @@ def eq() -> Equipment:
 
 
 @pytest.fixture(scope="module")
-def corpus(eq: Equipment) -> Corpus:
-    return build_corpus(eq)
+def corpus(tp201_corpus: Corpus) -> Corpus:
+    return tp201_corpus
 
 
 @pytest.fixture(scope="module")
@@ -56,6 +58,23 @@ def test_committed_key_matches_the_documents(key: dict, corpus: Corpus) -> None:
 
 def test_every_taxonomy_type_has_a_layer() -> None:
     assert set(TAXONOMY) == set(DefectType)
+
+
+@pytest.mark.parametrize("kind", ["ac_deviates_from_urs", "requirement_not_tested"])
+def test_review_package_rule_types_derive_layer_rule(
+    kind: str, eq: Equipment, corpus: Corpus
+) -> None:
+    """Spec #196: the two Review Package types are decided by rules, so a planted defect of
+    either type carries layer ``rule`` in the derived key, whatever a submission says."""
+    scenarios = tuple(
+        s.model_copy(update={"finding": s.finding.model_copy(update={"type": DefectType(kind)})})
+        if s.finding and s.id == "S5"
+        else s
+        for s in eq.scenarios
+    )
+    changed = dataclasses.replace(corpus, eq=eq.model_copy(update={"scenarios": scenarios}))
+    s5 = next(d for d in defects(changed) if d["scenario"] == "S5")
+    assert (s5["type"], s5["layer"]) == (kind, "rule")
 
 
 def test_every_scenario_is_answered(eq: Equipment, key: dict) -> None:

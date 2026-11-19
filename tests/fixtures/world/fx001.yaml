@@ -1,0 +1,170 @@
+# FX-001: an invented fixture world for the optional dataset fields (ticket #199). Nothing
+# here describes a real plant, vendor or Equipment; values are made up for the tests.
+#
+# It uses: a URS in the matrix layout (clause numbers, one table per section, two
+# requirements in one row), a FAT step whose Acceptance Criterion is printed as written
+# (acceptance_text), a Vendor Assessment with its own areas, and a FAT step recorded "fail"
+# with no Deviation raised.
+
+tag: FX-001
+name: Benchtop test incubator
+serial_no: FXI-0001
+model: FXI 50
+site: site-fx
+site_name: Fixture Site
+
+vendor:
+  id: vendor-fx
+  name: Fixture Instruments Ltd
+  assessment:
+    assessed_on: T0-200d
+    scope: [thermal, mechanical]
+    areas:
+      - {key: thermal, label: "Thermal performance", activities: "Heating, cooling and temperature mapping tests."}
+      - {key: mechanical, label: "Mechanical build", activities: "Chamber, door and materials."}
+      - {key: software, label: "Controller software", activities: "Controller, alarms and audit trail."}
+
+people:
+  - {id: p-qe, name: Alex Fixture, persona: qualification_engineer, employer: site-fx}
+  - {id: p-qs, name: Blair Fixture, persona: qualification_supervisor, employer: site-fx}
+  - {id: p-qa, name: Casey Fixture, persona: qa_approver, employer: site-fx}
+  - {id: p-wit, name: Drew Fixture, persona: witness, employer: site-fx}
+  - {id: p-ve, name: Emery Fixture, persona: vendor_engineer, employer: vendor-fx}
+
+protocols:
+  - {doc_id: FAT-FX001, stage: FAT, vendor: vendor-fx, site_approved_on: T0-130d, executed_on: T0-120d}
+
+requirements:
+  - id: URS-FX001-001
+    section: "3. Performance"
+    clause: "3.1"
+    text: "The chamber temperature can be set from {min} to {max} °C."
+    param: chamber_temperature
+    spec: {type: range, min: 20, max: 60, unit: °C}
+    source: &decision
+      kind: site_decision
+      ref: "Fixture world, invented value"
+      rationale: "Invented for the dataset tests."
+      drafted_by: human
+      reviewed_by: owner
+    scope: thermal
+    critical: true
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-FX001-002
+    section: "3. Performance"
+    clause: "3.2"
+    text: "Temperature uniformity in the chamber is within {max} °C of the setpoint."
+    param: temperature_uniformity
+    spec: {type: range, max: 0.5, unit: °C}
+    source: *decision
+    scope: thermal
+    critical: true
+    transport_sensitive: false
+    intended_coverage: covered_by_vendor
+  - id: URS-FX001-003
+    section: "3. Performance"
+    clause: "3.2"
+    text: "The temperature drifts by no more than {max} °C over 24 hours."
+    param: temperature_stability
+    spec: {type: range, max: 0.3, unit: °C}
+    source: *decision
+    scope: thermal
+    critical: true
+    intended_coverage: gap
+  - id: URS-FX001-004
+    section: "4. Construction"
+    clause: "4.1"
+    text: "Interior chamber surfaces are made of {allowed}."
+    param: chamber_material
+    spec: {type: one_of, allowed: [SS 316L]}
+    source: *decision
+    scope: mechanical
+    intended_coverage: gap
+  - id: URS-FX001-005
+    section: "4. Construction"
+    clause: "4.2"
+    text: "The door raises an alarm when it is left open."
+    param: door_alarm
+    spec: {type: present}
+    source: *decision
+    scope: mechanical
+    transport_sensitive: false
+    intended_coverage: partial
+  - id: URS-FX001-006
+    section: "5. Data"
+    clause: "5.1"
+    text: "The controller keeps an audit trail of setpoint changes."
+    param: audit_trail
+    spec: {type: present}
+    source: *decision
+    scope: software
+    site_only: true
+    intended_coverage: site_only
+
+tests:
+  - step: FAT-01
+    protocol: FAT-FX001
+    requirement: URS-FX001-001
+    description: "Set the chamber to its lowest and highest setpoint and hold each for 30 min."
+    acceptance_text: "Holds every setpoint from 20 to 60 °C"
+    observed: {type: range, min: 20, max: 60, unit: °C}
+    recorded_result: pass
+  - step: FAT-02
+    protocol: FAT-FX001
+    requirement: URS-FX001-002
+    description: "Map the empty chamber with nine probes at 37 °C."
+    observed: {type: number, value: 0.4, unit: °C}
+    recorded_result: pass
+  - step: FAT-03
+    protocol: FAT-FX001
+    requirement: URS-FX001-005
+    description: "Leave the door open for 2 min and check the alarm."
+    observed: {type: present, value: false}
+    recorded_result: fail
+
+scenarios:
+  - id: S1
+    summary: "A FAT step is recorded fail and no Deviation is raised."
+    targets: [FAT-03]
+    finding:
+      type: failed_result_no_deviation
+      severity: major
+      detail: "FAT-03 is recorded Fail, but the FAT raises no Deviation."
+      at:
+        - {doc: FAT-FX001, field: FAT-03.observed}
+
+documents:
+  - id: URS-FX001
+    rev: 0
+    type: urs
+    language: en
+    layout: matrix
+    issued_on: T0-300d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+  - id: FAT-FX001
+    rev: 0
+    type: fat
+    title: Thermal and mechanical
+    language: en
+    issued_on: T0-140d
+    prepared_by: p-ve
+    checked_by: p-qs
+    approved_by: p-qa
+    executed_by: p-ve
+    witnessed_by: p-wit
+  - id: VA-FX-01
+    rev: 0
+    type: vendor_assessment
+    language: id
+    issued_on: T0-200d
+    prepared_by: p-qs
+    checked_by: p-qe
+    approved_by: p-qa
+
+required_documents:
+  - {id: URS-FX001, type: urs, stage: design}
+  - {id: FAT-FX001, type: fat, stage: FAT}
+  - {id: OQ-FX001, type: oq_protocol, stage: OQ, missing: expected_gap}

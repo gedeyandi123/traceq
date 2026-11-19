@@ -1,0 +1,359 @@
+# PW-001 answer key: ocr.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- doc: MTC-PW001-01
+  rev: 0
+  file: MTC-PW001-01_rev0.pdf
+  dpi: 150
+  level: medium
+  skew: [1.3134]
+  entries: []
+- doc: SAT-PW001
+  rev: 0
+  file: SAT-PW001_rev0.pdf
+  dpi: 150
+  level: medium
+  skew: [-1.3925, -0.9838]
+  entries:
+  - field: SAT-01.observed
+    page: 1
+    text: 2,05 m³/h
+    quad:
+    - [407.17, 592.66]
+    - [456.08, 593.85]
+    - [455.7, 609.59]
+    - [406.79, 608.4]
+  - field: SAT-01.result
+    page: 1
+    text: Lulus
+    quad:
+    - [503.52, 595.0]
+    - [529.72, 595.64]
+    - [529.33, 611.38]
+    - [503.14, 610.74]
+  - field: SAT-02.observed
+    page: 1
+    text: 1,2%
+    quad:
+    - [406.48, 621.33]
+    - [433.32, 621.98]
+    - [432.94, 637.72]
+    - [406.09, 637.07]
+  - field: SAT-02.result
+    page: 1
+    text: Lulus
+    quad:
+    - [502.83, 623.67]
+    - [529.02, 624.3]
+    - [528.64, 640.05]
+    - [502.44, 639.41]
+  - field: SAT-03.observed
+    page: 1
+    text: 23,6 °C
+    quad:
+    - [405.85, 647.07]
+    - [443.28, 647.98]
+    - [442.89, 663.72]
+    - [405.47, 662.81]
+  - field: SAT-03.result
+    page: 1
+    text: Lulus
+    quad:
+    - [502.2, 649.41]
+    - [528.39, 650.05]
+    - [528.01, 665.79]
+    - [501.82, 665.16]
+  - field: SAT-04.observed
+    page: 1
+    text: 3,5 mg/L
+    quad:
+    - [405.15, 675.74]
+    - [448.4, 676.79]
+    - [448.02, 692.53]
+    - [404.77, 691.48]
+  - field: SAT-04.result
+    page: 1
+    text: Gagal
+    quad:
+    - [501.5, 678.08]
+    - [530.23, 678.78]
+    - [529.85, 694.52]
+    - [501.12, 693.82]
+  - field: SAT-05.observed
+    page: 1
+    text: 1,4 m/s
+    quad:
+    - [404.53, 701.48]
+    - [442.28, 702.4]
+    - [441.9, 718.14]
+    - [404.15, 717.22]
+  - field: SAT-05.result
+    page: 1
+    text: Lulus
+    quad:
+    - [500.88, 703.82]
+    - [527.07, 704.46]
+    - [526.69, 720.2]
+    - [500.49, 719.57]
+  - field: SAT-06.observed
+    page: 1
+    text: Ada dan berfungsi
+    quad:
+    - [403.83, 730.15]
+    - [486.61, 732.16]
+    - [486.22, 747.9]
+    - [403.45, 745.89]
+  - field: SAT-06.result
+    page: 1
+    text: Lulus
+    quad:
+    - [500.18, 732.49]
+    - [526.37, 733.13]
+    - [525.99, 748.87]
+    - [499.8, 748.23]
+  - field: SAT-07.observed
+    page: 2
+    text: Ada dan berfungsi
+    quad:
+    - [416.59, 114.8]
+    - [499.38, 116.22]
+    - [499.11, 131.97]
+    - [416.32, 130.54]
+  - field: SAT-07.result
+    page: 2
+    text: Lulus
+    quad:
+    - [512.95, 116.45]
+    - [539.15, 116.9]
+    - [538.88, 132.65]
+    - [512.68, 132.2]
+  - field: SAT-08.observed
+    page: 2
+    text: 0,03 mg/L
+    quad:
+    - [415.88, 155.89]
+    - [464.76, 156.73]
+    - [464.49, 172.48]
+    - [415.61, 171.64]
+  - field: SAT-08.result
+    page: 2
+    text: Lulus
+    quad:
+    - [512.25, 157.55]
+    - [538.44, 158.0]
+    - [538.17, 173.75]
+    - [511.98, 173.3]
+  - field: SAT-09.observed
+    page: 2
+    text: 0,04 µS/cm
+    quad:
+    - [415.44, 181.64]
+    - [470.34, 182.58]
+    - [470.07, 198.33]
+    - [415.17, 197.39]
+  - field: SAT-09.result
+    page: 2
+    text: Lulus
+    quad:
+    - [511.8, 183.3]
+    - [538.0, 183.74]
+    - [537.73, 199.49]
+    - [511.53, 199.04]
+  - field: SAT-09.instruments
+    page: 2
+    text: COND-05
+    quad:
+    - [361.59, 180.72]
+    - [408.81, 181.53]
+    - [408.54, 197.27]
+    - [361.32, 196.46]
+  - field: SAT-10.observed
+    page: 2
+    text: 1.150 L/h
+    quad:
+    - [414.95, 210.31]
+    - [463.82, 211.15]
+    - [463.55, 226.9]
+    - [414.68, 226.06]
+  - field: SAT-10.result
+    page: 2
+    text: Lulus
+    quad:
+    - [511.31, 211.97]
+    - [537.51, 212.42]
+    - [537.24, 228.17]
+    - [511.04, 227.72]
+  - field: SAT-11.observed
+    page: 2
+    text: Ada dan berfungsi
+    quad:
+    - [414.51, 236.06]
+    - [497.29, 237.48]
+    - [497.02, 253.23]
+    - [414.24, 251.81]
+  - field: SAT-11.result
+    page: 2
+    text: Lulus
+    quad:
+    - [510.87, 237.71]
+    - [537.07, 238.16]
+    - [536.8, 253.91]
+    - [510.6, 253.46]
+  - field: SAT-12.observed
+    page: 2
+    text: Ada dan berfungsi
+    quad:
+    - [414.01, 264.73]
+    - [496.8, 266.15]
+    - [496.53, 281.9]
+    - [413.74, 280.48]
+  - field: SAT-12.result
+    page: 2
+    text: Lulus
+    quad:
+    - [510.38, 266.39]
+    - [536.57, 266.84]
+    - [536.3, 282.58]
+    - [510.11, 282.13]
+  - field: serial
+    page: 1
+    text: TSR-PW-25-0093
+    quad:
+    - [172.63, 209.72]
+    - [256.91, 211.77]
+    - [256.52, 227.51]
+    - [172.25, 225.46]
+  - field: approval.prepared_by.name
+    page: 1
+    text: Teguh Prasetyo
+    quad:
+    - [135.15, 351.75]
+    - [203.72, 353.41]
+    - [203.34, 369.16]
+    - [134.77, 367.49]
+  - field: approval.prepared_by.date
+    page: 1
+    text: 02/05/2026
+    quad:
+    - [480.88, 360.15]
+    - [539.73, 361.58]
+    - [539.35, 377.33]
+    - [480.49, 375.9]
+  - field: approval.checked_by.name
+    page: 1
+    text: Bayu Pratama
+    quad:
+    - [134.46, 380.42]
+    - [200.57, 382.02]
+    - [200.19, 397.77]
+    - [134.07, 396.16]
+  - field: approval.checked_by.date
+    page: 1
+    text: 07/05/2026
+    quad:
+    - [480.18, 388.82]
+    - [539.04, 390.25]
+    - [538.65, 406.0]
+    - [479.8, 404.56]
+  - field: approval.approved_by.name
+    page: 1
+    text: Dewi Anggraini
+    quad:
+    - [133.83, 406.16]
+    - [203.71, 407.86]
+    - [203.33, 423.6]
+    - [133.45, 421.9]
+  - field: approval.approved_by.date
+    page: 1
+    text: 07/05/2026
+    quad:
+    - [479.55, 414.56]
+    - [538.41, 415.99]
+    - [538.03, 431.74]
+    - [479.17, 430.31]
+  - field: instrument.COND-05.id
+    page: 1
+    text: COND-05
+    quad:
+    - [52.51, 485.28]
+    - [99.72, 486.43]
+    - [99.34, 502.17]
+    - [52.13, 501.03]
+  - field: instrument.COND-05.serial
+    page: 1
+    text: RCM-41877
+    quad:
+    - [301.89, 491.34]
+    - [361.31, 492.79]
+    - [360.93, 508.53]
+    - [301.51, 507.09]
+  - field: instrument.COND-05.certificate
+    page: 1
+    text: PKN-25-0388
+    quad:
+    - [386.9, 493.41]
+    - [453.46, 495.03]
+    - [453.07, 510.77]
+    - [386.52, 509.15]
+  - field: instrument.COND-05.due
+    page: 1
+    text: 12/05/2026
+    quad:
+    - [471.92, 495.48]
+    - [530.77, 496.91]
+    - [530.39, 512.65]
+    - [471.53, 511.22]
+  - field: deviations
+    page: 2
+    text: Tidak ada
+    quad:
+    - [50.82, 321.5]
+    - [97.51, 322.3]
+    - [97.24, 338.05]
+    - [50.55, 337.25]
+  - field: execution.executed_by.name
+    page: 2
+    text: Teguh Prasetyo
+    quad:
+    - [133.87, 399.02]
+    - [202.45, 400.19]
+    - [202.18, 415.94]
+    - [133.6, 414.76]
+  - field: execution.executed_by.date
+    page: 2
+    text: 18/05/2026
+    quad:
+    - [479.65, 404.95]
+    - [538.51, 405.96]
+    - [538.24, 421.71]
+    - [479.38, 420.7]
+  - field: execution.witnessed_by.name
+    page: 2
+    text: Agus Setiawan
+    quad:
+    - [133.38, 427.69]
+    - [200.67, 428.84]
+    - [200.4, 444.59]
+    - [133.11, 443.44]
+  - field: execution.witnessed_by.date
+    page: 2
+    text: 18/05/2026
+    quad:
+    - [479.15, 433.63]
+    - [538.02, 434.64]
+    - [537.75, 450.38]
+    - [478.88, 449.37]
+- doc: PKN-25-0388
+  rev: 0
+  file: PKN-25-0388_rev0.pdf
+  dpi: 200
+  level: light
+  skew: [0.5318]
+  entries: []
+- doc: PKN-26-0105
+  rev: 0
+  file: PKN-26-0105_rev0.pdf
+  dpi: 200
+  level: light
+  skew: [-0.5455]
+  entries: []

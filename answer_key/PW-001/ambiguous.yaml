@@ -1,0 +1,23 @@
+# PW-001 answer key: ambiguous.yaml. Generated, do not edit:
+#   uv run python -m traceq_dataset.answer_key world/<file>.yaml
+# Corpus T0 2026-06-01, seed 0. Never sent to an LLM (design section 6).
+- id: A-PW001-001
+  scenario: S5
+  location:
+    doc: SAT-PW001
+    rev: 0
+    page: 2
+    field: SAT-10.observed
+    text: 1.150 L/h
+    quad:
+    - [414.95, 210.31]
+    - [463.82, 211.15]
+    - [463.55, 226.9]
+    - [414.68, 226.06]
+  readings:
+  - {value: 1150, separator: thousands, convention: id, unit: L/h}
+  - {value: 1.15, separator: decimal, convention: en, unit: L/h}
+  true_value: {type: number, value: 1150, unit: L/h}
+  requirement: URS-PW001-032
+  requirement_value: {type: range, min: 1000, unit: L/h}
+  expected_answer: ask_confirmation

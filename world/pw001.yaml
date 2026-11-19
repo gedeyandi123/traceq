@@ -1,0 +1,924 @@
+# PW-001 world data (dataset v1, HELD-OUT, ticket #200, spec #195).
+#
+# Held-out content lives only here, in answer_key/PW-001/ and in the corpus folder PW-001/.
+# Issues, PRs, commits, tests and docs about PW-001 carry structure and counts only. The
+# development session never reads this file (tests/test_isolation.py forbids the system to
+# name it).
+#
+# A purified water system before IQ/OQ (design sections 4 and 5): city feed water ->
+# pretreatment (multimedia, softener, activated carbon, 5 µm) -> RO + EDI -> SS 316L tank
+# with hydrophobic vent filter -> ambient distribution loop with UV and periodic hot-water
+# sanitisation -> online conductivity and TOC -> PLC/HMI. Same site and staff as TP-201; a
+# new fictional vendor (a local integrator) and calibration lab.
+#
+# Sources (design principles 5 and 7):
+# - quoted: WHO TRS 1033 Annex 3, Farmakope Indonesia Edisi VI (Air Murni monograph) and
+#   PerBPOM 7/2024 Aneks 7, copied with url + verbatim quote; scripts/verify_quotes.py
+#   checks them against the source PDFs;
+# - site_decision: the plant's own choice with a rationale, optionally with a supporting
+#   quote. All were drafted by an LLM and reviewed by the owner (non-practitioner), one
+#   requirement at a time in three batches (18 Nov 2026); none was reviewed by a
+#   practitioner.
+#
+# Judged flags (critical, transport_sensitive, site_only) and Coverage labels are
+# LLM-drafted and owner-reviewed; none is reviewed by a practitioner. Flags the drafter
+# marked uncertain carry the comment "not reviewed by a practitioner". Coverage classes
+# follow the current decision table (traceq_dataset.coverage), which ignores calibration
+# validity; URS-PW001-026 depends on that rule.
+#
+# Requirements are listed in URS order (matrix layout, clause numbers of the document's
+# own). Units of scored values use one canonical symbol; wording around numbers varies.
+# Check: uv run python -m traceq_dataset.world world/pw001.yaml
+
+tag: PW-001
+name: Purified water generation and distribution system
+serial_no: TSR-PW-25-0093
+model: TSR PW-2
+site: site-01
+site_name: PT Arunika Farma Lestari
+
+# Vendor Assessment with its own areas: water treatment, mechanical and control are
+# relied on; data integrity is not (the PLC software comes from a subcontractor the site
+# has not audited), so Coverage condition 1 fails for data-integrity requirements.
+vendor:
+  id: vendor-pw001
+  name: PT Tirta Sarana Rekayasa
+  assessment:
+    assessed_on: T0-230d
+    scope: [water_treatment, mechanical, control]
+    areas:
+      - key: water_treatment
+        label: "Pengolahan air (water treatment)"
+        activities: "Pengolahan awal, RO dan EDI: desain, fabrikasi skid dan uji kinerja."
+      - key: mechanical
+        label: "Mekanik (mechanical)"
+        activities: "Tangki, pipa distribusi, katup, pengelasan dan material bagian kontak air."
+      - key: control
+        label: "Sistem kendali (control system)"
+        activities: "PLC, HMI, instrumentasi dan uji fungsi kendali."
+      - key: data_integrity
+        label: "Integritas data (data integrity)"
+        activities: "Hak akses, catatan keamanan, tren dan cetakan data HMI; perangkat lunak PLC dibuat subkontraktor yang belum diaudit."
+
+labs:
+  - {id: lab-02, name: PT Presisi Kalibrasi Nusantara}
+
+people:
+  - {id: p-qe, name: Rina Wulandari, persona: qualification_engineer, employer: site-01}
+  - {id: p-qs, name: Bayu Pratama, persona: qualification_supervisor, employer: site-01}
+  - {id: p-qa, name: Dewi Anggraini, persona: qa_approver, employer: site-01}
+  - {id: p-wit, name: Agus Setiawan, persona: witness, employer: site-01}
+  - {id: p-ve, name: Teguh Prasetyo, persona: vendor_engineer, employer: vendor-pw001}
+  - {id: p-vqc, name: Wahyu Kurniawan, persona: vendor_inspector, employer: vendor-pw001}
+  - {id: p-labt, name: Andika Saputra, persona: lab_staff, employer: lab-02}
+  - {id: p-labm, name: Nur Aini Rahmawati, persona: lab_staff, employer: lab-02}
+
+protocols:
+  - {doc_id: FAT-PW001-S, stage: FAT, vendor: vendor-pw001, site_approved_on: T0-130d, executed_on: T0-120d}
+  # Control-panel FAT: the site approval is dated after execution (CPOB 12.14).
+  - {doc_id: FAT-PW001-K, stage: FAT, vendor: vendor-pw001, site_approved_on: T0-111d, executed_on: T0-118d}
+  - {doc_id: SAT-PW001, stage: SAT, vendor: vendor-pw001, site_approved_on: T0-25d, executed_on: T0-14d}
+
+requirements:
+  # --- 2. Air baku ------------------------------------------------------------------
+  - id: URS-PW001-010
+    section: "2. Air baku"
+    clause: "2.1"
+    text: "Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum."
+    param: feed_water_quality
+    spec: {type: present}
+    source:
+      kind: pharmacopoeia
+      ref: "Farmakope Indonesia Edisi VI, monografi Air Murni"
+      url: https://farmalkes.kemkes.go.id/en/unduh/farmakope-indonesia-edisi-vi/?wpdmdl=9504
+      quote: "Air Murni adalah air yang memenuhi persyaratan air minum"
+      accessed: 2026-11-18
+    scope: water_treatment
+    critical: false  # not reviewed by a practitioner
+    site_only: true  # not reviewed by a practitioner (a design basis in many real URSs)
+    intended_coverage: site_only
+
+  # --- 3. Kinerja dan mutu air ------------------------------------------------------
+  - id: URS-PW001-001
+    section: "3. Kinerja dan mutu air"
+    clause: "3.1.1"
+    # The bound is written out ("2,0"), not filled from spec ("2"), as reviewed.
+    text: "Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam."
+    param: edi_product_flow
+    spec: {type: range, min: 2.0, unit: m³/h}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision"
+      rationale: "Peak demand of the plant (washing, granulation, coating) is about 12 m³/day, met by 2.0 m³/h over about 6 h with the storage tank as buffer (12 / 6 = 2)."
+      drafted_by: llm
+      reviewed_by: owner
+    scope: water_treatment
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-024
+    section: "3. Kinerja dan mutu air"
+    clause: "3.1.2"
+    text: "Klorin bebas di keluaran filter karbon aktif maks. {max} mg/L."
+    param: carbon_outlet_free_chlorine
+    spec: {type: range, max: 0.05, unit: mg/L}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision"
+      rationale: "City water contains chlorine and free chlorine damages RO membranes, so the carbon filter must remove it. Membrane makers usually allow about 0.1 mg/L; the site chose 0.05 mg/L as a margin."
+      drafted_by: llm
+      reviewed_by: owner
+    scope: water_treatment
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-015
+    section: "3. Kinerja dan mutu air"
+    clause: "3.1.3"
+    text: "Kesadahan air keluaran softener maks. {max} mg/L sebagai CaCO₃."
+    param: softener_outlet_hardness
+    spec: {type: range, max: 1, unit: mg/L}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3 §4.2.10"
+      rationale: "The softener protects the RO membranes from scaling; 1 mg/L as CaCO₃ is a common softener outlet target. The quote only shows that softeners are a recognised control point; the number is not from a public source."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Controls should be implemented to minimize the microbiological contamination of sand filters, carbon beds and water softeners."
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: water_treatment
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: partial  # SAT result failed; the FAT result alone is not enough (condition 4)
+  - id: URS-PW001-025
+    section: "3. Kinerja dan mutu air"
+    clause: "3.1.4"
+    text: "Konduktivitas permeat RO tidak lebih dari {max} µS/cm."
+    param: ro_permeate_conductivity
+    spec: {type: range, max: 20, unit: µS/cm}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision"
+      rationale: "RO permeate is the EDI feed; EDI makers usually ask for a feed below about 40 µS/cm; the site chose 20 µS/cm as a margin."
+      drafted_by: llm
+      reviewed_by: owner
+    scope: water_treatment
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
+  - id: URS-PW001-002
+    section: "3. Kinerja dan mutu air"
+    clause: "3.2.1"
+    text: "Konduktivitas air keluaran EDI maks. {max} µS/cm pada 25 °C (FI VI <925>, Tahap 1)."
+    param: edi_outlet_conductivity
+    spec: {type: range, max: 1.3, unit: µS/cm}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see Farmakope Indonesia Edisi VI <925>, Tahap 1"
+      rationale: "Stage 1 limit of FI VI <925> at 25 °C (1.3 µS/cm). The limit sits in a table with separate columns, so it cannot be quoted as one contiguous passage."
+      drafted_by: llm
+      reviewed_by: owner
+    scope: water_treatment
+    critical: true
+    intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
+  - id: URS-PW001-035
+    section: "3. Kinerja dan mutu air"
+    clause: "3.2.2"
+    text: "Konduktivitas Air Murni di setiap titik pengguna maks. {max} µS/cm pada 25 °C (FI VI <925>, Tahap 1)."
+    param: pou_conductivity
+    spec: {type: range, max: 1.3, unit: µS/cm}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see Farmakope Indonesia Edisi VI <925>, Tahap 1"
+      rationale: "Stage 1 limit of FI VI <925> at 25 °C (1.3 µS/cm), as for the EDI outlet. The limit sits in a table with separate columns, so it cannot be quoted as one contiguous passage."
+      drafted_by: llm
+      reviewed_by: owner
+    scope: water_treatment
+    critical: true
+    site_only: true
+    intended_coverage: site_only
+  - id: URS-PW001-003
+    section: "3. Kinerja dan mutu air"
+    clause: "3.2.3"
+    text: "Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari {max} mg/L."
+    param: pou_toc
+    spec: {type: range, max: 0.5, unit: mg/L}
+    source:
+      kind: pharmacopoeia
+      ref: "Farmakope Indonesia Edisi VI, monografi Air Murni"
+      url: https://farmalkes.kemkes.go.id/en/unduh/farmakope-indonesia-edisi-vi/?wpdmdl=9504
+      quote: "Karbon organik total <875> Tidak lebih dari 0,5 mg per liter."
+      accessed: 2026-11-18
+    scope: water_treatment
+    critical: true
+    site_only: true
+    intended_coverage: site_only
+  - id: URS-PW001-013
+    section: "3. Kinerja dan mutu air"
+    clause: "3.2.4"
+    text: "Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari {max} CFU/mL."
+    param: pou_total_aerobic_count
+    spec: {type: range, max: 100, unit: CFU/mL}
+    source:
+      kind: pharmacopoeia
+      ref: "Farmakope Indonesia Edisi VI, monografi Air Murni"
+      url: https://farmalkes.kemkes.go.id/en/unduh/farmakope-indonesia-edisi-vi/?wpdmdl=9504
+      quote: "Uji batas mikroba <51> Angka lempeng total tidak lebih dari 100 koloni per mL."
+      accessed: 2026-11-18
+    scope: water_treatment
+    critical: true
+    site_only: true
+    intended_coverage: site_only
+
+  # --- 4. Material dan konstruksi ---------------------------------------------------
+  - id: URS-PW001-004
+    section: "4. Material dan konstruksi"
+    clause: "4.1.1"
+    text: "Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat {allowed}."
+    param: wetted_material
+    spec: {type: one_of, allowed: [SS 316L]}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §7"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Stainless-steel grade 316L or polyvinylidene chloride (PVDC) is generally recommended."
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: true
+    transport_sensitive: false  # not reviewed by a practitioner (TP-201 practitioner: "depends" for material)
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-005
+    section: "4. Material dan konstruksi"
+    clause: "4.2.2"
+    text: "Pipa distribusi dipasang dengan kemiringan ≥ {min} % (1/100) ke arah titik drainase."
+    param: loop_slope
+    spec: {type: range, min: 1, unit: "%"}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §7"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "The system should be installed to promote drainability with a recommended minimum slope of 1/100."
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-022
+    section: "4. Material dan konstruksi"
+    clause: "4.2.3"
+    text: "Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan."
+    param: orbital_welding
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §7.2.1"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Stainless steel systems should be orbitally welded, with manual welds where necessary."
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: partial  # FAT covers skid welds only, loop welds are made on site (condition 4)
+  - id: URS-PW001-028
+    section: "4. Material dan konstruksi"
+    clause: "4.2.4"
+    # The bound is written out ("1,0"), not filled from spec ("1"), as reviewed.
+    text: "Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm."
+    param: sample_valve_roughness
+    spec: {type: range, max: 1.0, unit: µm}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §7.2.1"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Sample valves should be sanitary type with the surface roughness of 1.0 micrometer RA or lower for PW and WFI systems"
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    transport_sensitive: false
+    intended_coverage: conflict  # datasheet finish does not meet the URS; no planted finding
+  - id: URS-PW001-007
+    section: "4. Material dan konstruksi"
+    clause: "4.3.1"
+    text: "Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. {max} µm."
+    param: vent_filter_pore_size
+    spec: {type: range, max: 0.2, unit: µm}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3"
+      rationale: "The guideline asks for bacteria-retentive hydrophobic vent filters without a number; 0.2 µm is the usual bacteria-retentive pore size."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "the fitting of bacteria-retentive, hydrophobic vent filters which are tested for their integrity at appropriate intervals"
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: mechanical
+    critical: true
+    transport_sensitive: false
+    intended_coverage: conflict  # S1: datasheet vent filter does not meet the URS
+  - id: URS-PW001-018
+    section: "4. Material dan konstruksi"
+    clause: "4.3.2"
+    # The bound is written out ("3,0"), not filled from spec ("3"), as reviewed.
+    text: "Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³."
+    param: tank_working_volume
+    spec: {type: range, min: 3.0, unit: m³}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3 §9.2"
+      rationale: "About 1.5 h of reserve at the average use of 2 m³/h when treatment stops (softener regeneration, failures): 1.5 × 2 = 3 m³."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "short-term reserve capacity in the event of failure of the water-treatment system or the inability to produce water"
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: mechanical
+    critical: false
+    transport_sensitive: false
+    intended_coverage: conflict  # datasheet volume does not meet the URS; no planted finding
+  - id: URS-PW001-031
+    section: "4. Material dan konstruksi"
+    clause: "4.3.3"
+    text: "Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal."
+    param: bursting_disc
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §9.2"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "the fitting of sanitary design pressure safety valves or bursting discs provided with external rupture indicators to ensure that loss of system integrity is detected"
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    transport_sensitive: false
+    intended_coverage: gap  # probe P5
+  # One URS row, two requirements under clause 4.4.1.
+  - id: URS-PW001-020
+    section: "4. Material dan konstruksi"
+    clause: "4.4.1"
+    text: "Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan."
+    param: loop_pressure_test
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §7.2.1"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Where appropriate, pressure or hydro-tests for leaks, spray-ball functionality test and flow turbulence should be considered."
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-021
+    section: "4. Material dan konstruksi"
+    clause: "4.4.1"
+    text: "Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak)."
+    param: loop_passivation
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §7.2.1"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Passivation should be considered for stainless steel systems, for example, for non-electropolished surfaces (after initial installation and after significant modification)"
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-023
+    section: "4. Material dan konstruksi"
+    clause: "4.5.1"
+    text: "Semua komponen diberi label identitas dan arah aliran ditandai pada pipa."
+    param: component_labelling
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §10.9"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Components should be identified and labelled. The direction of flow should be indicated."
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false
+    transport_sensitive: false
+    intended_coverage: gap  # no step checks it; not a probe
+
+  # --- 5. Distribusi, sanitasi dan instrumentasi -----------------------------------
+  - id: URS-PW001-011
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.1.1"
+    text: "Selama sanitasi panas, PLC menutup dan mengunci semua katup titik pengguna secara otomatis."
+    param: sanitisation_valve_lock
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §8.2"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Controls may include using chemical and/or thermal sanitization procedures as appropriate for production, storage and distribution systems."
+      accessed: 2026-11-18
+    scope: control
+    critical: true  # not reviewed by a practitioner
+    intended_coverage: partial  # transport-sensitive, FAT only (condition 4)
+  - id: URS-PW001-006
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.1.2"
+    text: "Sanitasi panas loop distribusi mencapai sekurang-kurangnya {min} °C di pipa kembali (return)."
+    param: sanitisation_temperature
+    spec: {type: range, min: 80, unit: °C}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3 §8.3"
+      rationale: "80 °C gives a margin above the 70 °C the guideline names; it is measured at the loop return, the coldest point of the loop."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Systems that operate and are maintained at elevated temperatures (e.g. > 70 °C) are generally less susceptible to microbiological contamination"
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: control
+    critical: true
+    intended_coverage: gap  # probe P1
+  - id: URS-PW001-008
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.2.1"
+    text: "Lampu UV pada loop dilengkapi sensor intensitas independen dengan alarm di HMI."
+    param: uv_intensity_monitoring
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §8.6"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Considering the use of ultraviolet lamps in the system where needed with independent monitoring."
+      accessed: 2026-11-18
+    scope: control
+    critical: true  # not reviewed by a practitioner
+    intended_coverage: partial  # tested only in the late-approved control FAT (condition 2)
+  - id: URS-PW001-012
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.3.1"
+    text: "Suhu Air Murni di pipa kembali loop selama operasi normal maks. {max} °C."
+    param: loop_return_temperature
+    spec: {type: range, max: 25, unit: °C}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3 §8.3"
+      rationale: "Ambient loop: a low temperature slows microbial growth. Site feed water is about 28–30 °C, so the heat exchanger (also used for sanitisation) cools the loop."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "When lower temperatures are required due to the water treatment processes employed, or the temperature requirements for the water in use, special precautions should be taken"
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: control
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-034
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.3.2"
+    text: "Penukar panas HX-301 dipasang langsung di aliran loop yang bersirkulasi terus-menerus, tanpa cabang yang airnya diam."
+    param: heat_exchanger_in_loop
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §10.4"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Where heat exchangers are used, they should be arranged in continually circulating loops or sub-loops in order to avoid unacceptable static water in the system."
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-017
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.4.1"
+    # The bound is written out ("1,0"), not filled from spec ("1"), as reviewed.
+    text: "Kecepatan alir di pipa kembali loop sekurang-kurangnya 1,0 m/s selama operasi normal."
+    param: loop_return_velocity
+    spec: {type: range, min: 1.0, unit: m/s}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3 §8.6"
+      rationale: "Flow must be turbulent so that biofilm forms less easily; in DN25 pipe (inner diameter about 22 mm) at 25 °C, 1 m/s gives a Reynolds number of about 25,000, well above 4,000."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "The maintenance of a continuous circulation of water maintaining turbulent flow evidenced by, for example, a Reynolds number of > 4000."
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: mechanical
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-016
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.4.2"
+    text: "Dua pompa distribusi (kerja/cadangan) bergantian otomatis secara berkala, sehingga tidak ada air diam di pompa yang tidak dipakai."
+    param: standby_pump_alternation
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §10.7"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Where stand-by pumps are provided, they should be configured or managed to avoid zones where stagnant water is trapped within the system."
+      accessed: 2026-11-18
+    scope: control
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: gap  # probe P2
+  - id: URS-PW001-032
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.4.3"
+    text: "Debit di titik pengguna POU-05 (ruang pencucian) tidak kurang dari {min} L/h saat katup dibuka penuh."
+    param: pou05_flow
+    spec: {type: range, min: 1000, unit: L/h}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3 §4.3.4"
+      rationale: "Rinsing equipment in the washing room needs about 1 m³ of water per hour."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "the quantity of water required by the user"
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: mechanical
+    critical: false
+    intended_coverage: partial  # S5: the SAT value reads two ways, awaiting confirmation
+  - id: URS-PW001-026
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.5.1"
+    text: "Pembacaan sensor konduktivitas online di pipa kembali loop (CIT-302) diverifikasi terhadap meter acuan terkalibrasi; selisihnya maks. {max} µS/cm."
+    param: online_conductivity_verification
+    spec: {type: range, max: 0.1, unit: µS/cm}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision; see WHO TRS 1033 Annex 3 §7.2.1"
+      rationale: "The site accepts water daily on the online sensor's reading, so it must agree with a reference instrument; 0.1 µS/cm is about 8% of the 1.3 µS/cm limit."
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Provision should be made for in-line measurement for total organic carbon (TOC), conductivity, pressure, flow and temperature."
+      accessed: 2026-11-18
+      drafted_by: llm
+      reviewed_by: owner
+    scope: control
+    critical: true
+    # S4: the SAT step used a reference meter whose calibration had expired. The decision
+    # table ignores calibration validity (a practitioner candidate condition, design doc),
+    # so this class depends on a rule no practitioner reviewed.
+    intended_coverage: covered_by_vendor
+  - id: URS-PW001-027
+    section: "5. Distribusi, sanitasi dan instrumentasi"
+    clause: "5.5.2"
+    text: "Analyzer TOC online dipasang di pipa kembali loop; nilainya tampil dan terekam di HMI."
+    param: online_toc_analyser
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §12.3"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Parameters such as flow, pressure, and temperature should be monitored with online instruments – as well as conductivity and TOC, where possible."
+      accessed: 2026-11-18
+    scope: control
+    critical: true  # not reviewed by a practitioner
+    intended_coverage: gap  # probe P4
+
+  # --- 6. Kontrol dan integritas data ----------------------------------------------
+  - id: URS-PW001-009
+    section: "6. Kontrol dan integritas data"
+    clause: "6.1.3"
+    text: "Data tren konduktivitas, TOC dan suhu yang tersimpan di HMI dapat dicetak sebagai salinan yang jelas."
+    param: trend_printout
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Aneks 7 butir 8.1"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Seharusnya memungkinkan untuk mendapatkan salinan jelas dari data yang tersimpan secara elektronik."
+      accessed: 2026-11-18
+    scope: data_integrity
+    critical: true  # not reviewed by a practitioner
+    intended_coverage: partial  # data integrity not relied on (condition 1)
+  - id: URS-PW001-029
+    section: "6. Kontrol dan integritas data"
+    clause: "6.1.4"
+    text: "Pembuatan, perubahan dan pencabutan hak akses pengguna HMI tercatat otomatis, dengan nama pengguna, tanggal dan waktu."
+    param: access_change_log
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "PerBPOM 7/2024 Aneks 7 butir 12.3"
+      url: https://peraturan.go.id/files/peraturan-bpom-no-7-tahun-2024.pdf
+      quote: "Penciptaan, perubahan, dan pembatalan otorisasi akses seharusnya dicatat."
+      accessed: 2026-11-18
+    scope: data_integrity
+    critical: true  # not reviewed by a practitioner
+    intended_coverage: partial  # data integrity not relied on (condition 1)
+  - id: URS-PW001-019
+    section: "6. Kontrol dan integritas data"
+    clause: "6.2.1"
+    text: "HMI memberi alarm bila konduktivitas online di keluaran EDI melewati batas alarm; alarm tercatat dengan waktu dan nama pengguna yang mengakuinya."
+    param: conductivity_alarm
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §12.3"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "A combination of online and offline instruments, linked to appropriately qualified alarm systems, should be used."
+      accessed: 2026-11-18
+    scope: control
+    critical: true
+    intended_coverage: partial  # late-approved control FAT (condition 2); probe P3
+  - id: URS-PW001-030
+    section: "6. Kontrol dan integritas data"
+    clause: "6.3.1"
+    text: "Setelah listrik padam dan pulih, sistem tidak menyala sendiri: PLC kembali ke keadaan aman (pompa berhenti, katup titik pengguna tertutup) dan menunggu konfirmasi operator."
+    param: power_failure_restart
+    spec: {type: present}
+    source:
+      kind: site_decision
+      ref: "VMP-PW001, site decision"
+      rationale: "If the system restarted unattended, water that stood still in the pipes during the outage could reach the points of use; an operator checks the system first."
+      drafted_by: llm
+      reviewed_by: owner
+    scope: control
+    critical: false  # not reviewed by a practitioner
+    intended_coverage: partial  # late-approved control FAT (condition 2)
+
+  # --- 7. Pemantauan ----------------------------------------------------------------
+  - id: URS-PW001-014
+    section: "7. Pemantauan"
+    clause: "7.1.1"
+    text: "Pabrik menjalankan rencana pemantauan tertulis; sampel diambil dari setiap titik pengguna dan dari pipa kembali loop."
+    param: monitoring_plan
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §12.2"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "A monitoring plan should be followed where samples are collected in accordance with a written procedure."
+      accessed: 2026-11-18
+    scope: water_treatment
+    critical: true  # not reviewed by a practitioner
+    site_only: true  # not reviewed by a practitioner (a site duty written into the URS)
+    intended_coverage: site_only
+  - id: URS-PW001-036
+    section: "7. Pemantauan"
+    clause: "7.1.2"
+    text: "Pabrik menetapkan batas waspada (alert) dan batas bertindak (action) untuk konduktivitas, TOC dan angka lempeng total dari data pemantauan yang terkumpul."
+    param: alert_action_levels
+    spec: {type: present}
+    source:
+      kind: regulation
+      ref: "WHO TRS 1033 Annex 3 §12.8"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Alert and action levels should be established based on historically reported data."
+      accessed: 2026-11-18
+    scope: water_treatment
+    critical: false  # not reviewed by a practitioner
+    site_only: true
+    intended_coverage: site_only
+
+  # --- 8. Dokumentasi serah terima --------------------------------------------------
+  - id: URS-PW001-033
+    section: "8. Dokumentasi serah terima"
+    clause: "8.1.1"
+    text: "Vendor menyerahkan paket dokumen: gambar as-built, sertifikat material, catatan uji di lokasi, catatan las, sertifikat kalibrasi, catatan uji tekanan dan catatan pasivasi."
+    param: turnover_documentation
+    spec: {type: present}
+    source:
+      kind: regulation
+      # The list of documents is in the next sentence, which is longer than QUOTE_MAX.
+      ref: "WHO TRS 1033 Annex 3 §7.2.1"
+      url: https://cdn.who.int/media/docs/default-source/medicines/norms-and-standards/guidelines/inspections/trs1033-annex3-gmp-water-for-pharmaceuticals-use.pdf
+      quote: "Documents should provide evidence of system components and qualification."
+      accessed: 2026-11-18
+    scope: mechanical
+    critical: false
+    intended_coverage: covered_by_vendor
+
+# Executed FAT/SAT steps. FATs are printed in English; SAT results are handwritten by site
+# staff in Indonesian number formats on the English vendor form. Some steps word their
+# Acceptance Criterion (acceptance_text: NLT, NMT, ...); steps that carry a planted defect
+# print the symbol form, because the system's rules do not judge word-form criteria.
+tests:
+  # FAT, water-treatment skid (approved by the site before execution).
+  - {step: FAT-S-01, protocol: FAT-PW001-S, requirement: URS-PW001-001, description: "Product flow at EDI outlet: run the skid on the vendor's test water and read the product flow meter.", acceptance_text: "NLT 2 m³/h", observed: {type: number, value: 2.1, unit: m³/h}, recorded_result: pass}
+  - {step: FAT-S-02, protocol: FAT-PW001-S, requirement: URS-PW001-002, description: "EDI outlet conductivity: read the conductivity at the EDI outlet on the vendor's test water.", acceptance_text: "NMT 1.3 µS/cm", observed: {type: number, value: 0.12, unit: µS/cm}, recorded_result: pass}
+  - {step: FAT-S-03, protocol: FAT-PW001-S, requirement: URS-PW001-004, description: "Review of 3.1 certificates of wetted parts (tank, loop pipework, valves).", observed: {type: text, value: SS 316L}, recorded_result: pass}
+  - {step: FAT-S-04, protocol: FAT-PW001-S, requirement: URS-PW001-011, description: "Hot water sanitisation – valve sequence: start the sequence and check that the PLC closes and locks every point-of-use valve.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-S-05, protocol: FAT-PW001-S, requirement: URS-PW001-015, description: "Softener outlet hardness: test a sample at the softener outlet (as CaCO₃).", observed: {type: number, value: 0.4, unit: mg/L}, recorded_result: pass}
+  - {step: FAT-S-06, protocol: FAT-PW001-S, requirement: URS-PW001-022, description: "Review weld logs and welder qualification – skid pipework.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-S-07, protocol: FAT-PW001-S, requirement: URS-PW001-024, description: "Carbon filter outlet free chlorine: test a sample at the carbon filter outlet.", acceptance_text: "NMT 0.05 mg/L", observed: {type: number, value: 0.02, unit: mg/L}, recorded_result: pass}
+  - {step: FAT-S-08, protocol: FAT-PW001-S, requirement: URS-PW001-025, description: "RO permeate conductivity: read the RO permeate conductivity on the vendor's test water.", acceptance_text: "NMT 20 µS/cm", observed: {type: number, value: 4.8, unit: µS/cm}, recorded_result: pass}
+  # FAT, control panel and HMI (S2: approved by the site after execution).
+  - {step: FAT-K-01, protocol: FAT-PW001-K, requirement: URS-PW001-008, description: "Simulate UV intensity low – alarm on HMI.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-K-02, protocol: FAT-PW001-K, requirement: URS-PW001-009, description: "Print 24 h trend report.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-K-03, protocol: FAT-PW001-K, requirement: URS-PW001-019, description: "Simulate high conductivity at the EDI outlet sensor – alarm on HMI.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-K-04, protocol: FAT-PW001-K, requirement: URS-PW001-029, description: "Create, change and delete a user account; check the security log.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: FAT-K-05, protocol: FAT-PW001-K, requirement: URS-PW001-030, description: "Power failure simulation – safe state on restart, operator confirmation required. Switch off the main supply while the loop runs, then restore it.", observed: {type: present, value: true}, recorded_result: pass}
+  # SAT (handwritten entries in Indonesian number formats).
+  - {step: SAT-01, protocol: SAT-PW001, requirement: URS-PW001-001, description: "Product flow at EDI outlet with site feed water; read the product flow meter.", acceptance_text: "NLT 2 m³/h", observed: {type: number, value: 2.05, unit: m³/h}, recorded_result: pass}
+  - {step: SAT-02, protocol: SAT-PW001, requirement: URS-PW001-005, description: "Distribution loop slope check.", observed: {type: number, value: 1.2, unit: "%"}, recorded_result: pass}
+  - {step: SAT-03, protocol: SAT-PW001, requirement: URS-PW001-012, description: "Loop return temperature, normal operation.", acceptance_text: "Not more than 25 °C", observed: {type: number, value: 23.6, unit: °C}, recorded_result: pass}
+  # S3: recorded Fail, and the SAT raises no Deviation.
+  - {step: SAT-04, protocol: SAT-PW001, requirement: URS-PW001-015, description: "Softener outlet hardness.", observed: {type: number, value: 3.5, unit: mg/L}, recorded_result: fail}
+  - {step: SAT-05, protocol: SAT-PW001, requirement: URS-PW001-017, description: "Run distribution pump P-301A at duty; record velocity at loop return (FIT-301).", acceptance_text: "At least 1 m/s", observed: {type: number, value: 1.4, unit: m/s}, recorded_result: pass}
+  - {step: SAT-06, protocol: SAT-PW001, requirement: URS-PW001-020, description: "Hydrostatic pressure test of distribution loop.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: SAT-07, protocol: SAT-PW001, requirement: URS-PW001-021, description: "Passivation of distribution loop – record solution, concentration, temperature, contact time.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: SAT-08, protocol: SAT-PW001, requirement: URS-PW001-024, description: "Carbon filter outlet free chlorine.", acceptance_text: "NMT 0.05 mg/L", observed: {type: number, value: 0.03, unit: mg/L}, recorded_result: pass}
+  # S4: COND-05's calibration expired 6 days before the SAT was executed.
+  - {step: SAT-09, protocol: SAT-PW001, requirement: URS-PW001-026, description: "Compare CIT-302 reading with reference meter COND-05 at loop return.", instruments: [COND-05], observed: {type: number, value: 0.04, unit: µS/cm}, recorded_result: pass}
+  # S5: written "1.150 L/h" (Indonesian thousands separator) on an English form.
+  - {step: SAT-10, protocol: SAT-PW001, requirement: URS-PW001-032, description: "Open POU-05 fully; record flow.", observed: {type: number, value: 1150, unit: L/h}, recorded_result: pass}
+  - {step: SAT-11, protocol: SAT-PW001, requirement: URS-PW001-033, description: "Turnover documentation checklist.", observed: {type: present, value: true}, recorded_result: pass}
+  - {step: SAT-12, protocol: SAT-PW001, requirement: URS-PW001-034, description: "Walk-down: HX-301 installed in-line on the circulating loop return, no dead branch (against P&ID).", observed: {type: present, value: true}, recorded_result: pass}
+
+# Calibrated instruments. Readings are judged numbers (design principle 7): drafted by an
+# LLM and confirmed by the owner (check: error < U at every point, 18 Nov 2026); not
+# reviewed by a practitioner. They are not Acceptance Criteria.
+instruments:
+  # S4: valid until T0-20d; the SAT is executed on T0-14d.
+  - id: COND-05
+    name: Reference conductivity meter
+    serial_no: RCM-41877
+    certificate:
+      id: PKN-25-0388
+      lab: lab-02
+      calibrated_on: T0-385d
+      valid_until: T0-20d
+      results:
+        unit: µS/cm
+        points:
+          - {nominal: 5.0, reading: 5.02, uncertainty: 0.05}
+          - {nominal: 15.0, reading: 14.96, uncertainty: 0.15}
+          - {nominal: 100.0, reading: 100.3, uncertainty: 1.0}
+        drafted_by: llm
+        reviewed_by: owner
+  # The online TOC analyser on the loop return. Valid; used in no step (lure of probe P4).
+  - id: TIT-302
+    name: Online TOC analyser
+    serial_no: TOC-8D-20915
+    certificate:
+      id: PKN-26-0105
+      lab: lab-02
+      calibrated_on: T0-40d
+      valid_until: T0+325d
+      results:
+        unit: mg/L
+        points:
+          - {nominal: 0.25, reading: 0.248, uncertainty: 0.010}
+          - {nominal: 0.50, reading: 0.505, uncertainty: 0.020}
+        drafted_by: llm
+        reviewed_by: owner
+
+# Design and delivered-item facts. The datasheet rows of the vent filter, tank volume,
+# pumps and sample valves are the reviewed Evidence; the other rows copy the URS value.
+# Probe requirements have no design fact.
+designs:
+  - {doc_id: DS-PW001, requirement: URS-PW001-001, section: Treatment skid, label: "Product flow at EDI outlet (min.)", observed: {type: number, value: 2.0, unit: m³/h}}
+  - {doc_id: DS-PW001, requirement: URS-PW001-004, section: Materials, label: "Wetted parts: tank, loop pipework, valves", observed: {type: text, value: SS 316L}}
+  - {doc_id: DS-PW001, requirement: URS-PW001-007, section: Storage tank, label: "Tank vent filter, hydrophobic PTFE", observed: {type: number, value: 0.45, unit: µm}}  # S1
+  - {doc_id: DS-PW001, requirement: URS-PW001-018, section: Storage tank, label: "Storage tank, working volume", observed: {type: number, value: 2.5, unit: m³}}  # conflict, no finding
+  - {doc_id: DS-PW001, requirement: URS-PW001-017, section: Distribution loop, label: "Distribution pumps P-301A/B (duty/stand-by), design return velocity", observed: {type: number, value: 1.5, unit: m/s}}
+  - {doc_id: DS-PW001, requirement: URS-PW001-028, section: Distribution loop, label: "Sample valves, sanitary diaphragm type, internal finish Ra", observed: {type: number, value: 1.6, unit: µm}}  # conflict, no finding
+  - {doc_id: DS-PW001, requirement: URS-PW001-008, section: Distribution loop, label: "UV lamp with independent intensity sensor", observed: {type: present, value: true}}
+  # 3.1 material certificate, one row per wetted part. The bursting disc holder row proves
+  # the holder's material only (lure of probe P5).
+  - {doc_id: MTC-PW001-01, requirement: URS-PW001-004, label: Storage tank, observed: {type: text, value: SS 316L}}
+  - {doc_id: MTC-PW001-01, requirement: URS-PW001-004, label: Distribution loop pipework, observed: {type: text, value: SS 316L}}
+  - {doc_id: MTC-PW001-01, requirement: URS-PW001-004, label: "Valves (loop and points of use)", observed: {type: text, value: SS 316L}}
+  - {doc_id: MTC-PW001-01, requirement: URS-PW001-004, label: Bursting disc holder, observed: {type: text, value: SS 316L}}
+
+# Rendered documents. No risk assessment, DQ or PQ documents (the package depicts the system
+# before IQ/OQ, design sections 4 and 5).
+documents:
+  - {id: URS-PW001, rev: 0, type: urs, language: id, layout: matrix, issued_on: T0-250d, prepared_by: p-qe, checked_by: p-qs, approved_by: p-qa}
+  - {id: DS-PW001, rev: 0, type: datasheet, language: en, issued_on: T0-220d, prepared_by: p-ve}
+  - {id: MTC-PW001-01, rev: 0, type: material_certificate, language: en, scan: medium, issued_on: T0-150d, prepared_by: p-vqc}
+  - {id: FAT-PW001-S, rev: 0, type: fat, title: Water treatment skid, language: en, layout: record, issued_on: T0-140d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
+  # S2: the customer review and release are dated after the test.
+  - {id: FAT-PW001-K, rev: 0, type: fat, title: Control panel and HMI, language: en, layout: record, issued_on: T0-138d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
+  - {id: SAT-PW001, rev: 0, type: sat, language: en, entry_language: id, scan: medium, issued_on: T0-30d, prepared_by: p-ve, checked_by: p-qs, approved_by: p-qa, executed_by: p-ve, witnessed_by: p-wit}
+  - {id: PKN-25-0388, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-383d, prepared_by: p-labt, approved_by: p-labm}
+  - {id: PKN-26-0105, rev: 0, type: calibration_certificate, language: en, scan: light, issued_on: T0-38d, prepared_by: p-labt, approved_by: p-labm}
+  # Governing site documents (design section 4): the PW-001 VMP lists its required
+  # documents; the qualification SOP is the site's (as for TP-201); the Vendor Assessment
+  # prints its own areas.
+  - id: VMP-PW001
+    rev: 0
+    type: vmp
+    language: id
+    issued_on: T0-10d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+  - id: SOP-VAL-002
+    rev: 2
+    type: sop
+    language: id
+    issued_on: T0-420d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+    change_note: "Aturan koreksi catatan diselaraskan dengan PIC/S PI 041-1."
+  - id: VA-2025-027
+    rev: 0
+    type: vendor_assessment
+    language: id
+    issued_on: T0-230d
+    prepared_by: p-qe
+    checked_by: p-qs
+    approved_by: p-qa
+
+site_rules:
+  witness: critical_aspects
+  protocols: template
+
+required_documents:
+  - {id: URS-PW001, type: urs, stage: design}
+  - {id: DS-PW001, type: datasheet, stage: design}
+  - {id: MTC-PW001-01, type: material_certificate, stage: FAT}
+  - {id: FAT-PW001-S, type: fat, stage: FAT}
+  - {id: FAT-PW001-K, type: fat, stage: FAT}
+  - {id: PKN-25-0388, type: calibration_certificate, stage: SAT}
+  - {id: PKN-26-0105, type: calibration_certificate, stage: SAT}
+  - {id: SAT-PW001, type: sat, stage: SAT}
+  - {id: IQ-PW001, type: iq_protocol, stage: IQ, missing: expected_gap}
+  - {id: OQ-PW001, type: oq_protocol, stage: OQ, missing: expected_gap}
+
+# Planted scenarios: four defects of existing types and one ambiguous value.
+scenarios:
+  - id: S1
+    summary: The datasheet vent filter does not meet the URS pore size.
+    targets: [DS-PW001, URS-PW001-007]
+    finding:
+      type: design_conflict
+      severity: major
+      detail: "The datasheet specifies a hydrophobic PTFE tank vent filter of 0.45 µm; the URS requires a pore size of at most 0.2 µm (bacteria-retentive)."
+      at:
+        - {doc: URS-PW001, field: URS-PW001-007}
+        - {doc: DS-PW001, field: vent_filter_pore_size}
+  - id: S2
+    summary: The control-panel FAT was approved by the site after it was executed.
+    reference: CPOB 12.14
+    targets: [FAT-PW001-K]
+    finding:
+      type: vendor_protocol_not_approved
+      severity: major
+      detail: "FAT-PW001-K was executed before the site reviewed and released it: the customer signatures are dated after the test date. Its results cannot be used as Vendor Evidence."
+      at:
+        - {doc: FAT-PW001-K, text: Released for test (customer)}
+        - {doc: FAT-PW001-K, text: Tested by}
+  - id: S3
+    summary: A SAT step is recorded Fail and no Deviation is raised.
+    reference: CPOB 12.16
+    targets: [SAT-04, URS-PW001-015]
+    finding:
+      type: failed_result_no_deviation
+      severity: major
+      detail: "SAT-04 records softener outlet hardness 3,5 mg/L against ≤ 1 mg/L as Fail, but the SAT records no Deviation; the failed result must be investigated and recorded."
+      at:
+        - {doc: SAT-PW001, field: SAT-04.observed}
+        - {doc: SAT-PW001, field: SAT-04.result}
+  - id: S4
+    summary: The reference conductivity meter's calibration expired before the SAT.
+    reference: CPOB Ch. 12
+    targets: [SAT-PW001, SAT-09, COND-05]
+    finding:
+      type: expired_calibration
+      severity: major
+      detail: "Reference meter COND-05 (certificate PKN-25-0388) was used in SAT-09 six days after its calibration expired; the result lacks valid measurement Evidence."
+      at:
+        - {doc: SAT-PW001, field: instrument.COND-05.due}
+        - {doc: SAT-PW001, field: execution.executed_by.date}
+        - {doc: SAT-PW001, field: SAT-09.instruments}
+        - {doc: PKN-25-0388, field: valid_until}
+  - id: S5
+    summary: '"1.150 L/h" in a mixed-language SAT entry is ambiguous; expected answer is "ask for confirmation".'
+    targets: [SAT-10, URS-PW001-032]
+    finding:
+      type: ambiguous_value
+      severity: minor
+      detail: "SAT-10 records \"1.150 L/h\" on an English form filled in with Indonesian number formats: 1150 or 1.15 L/h. Ask the executor to confirm the value."
+      at:
+        - {doc: SAT-PW001, field: SAT-10.observed}
+
+# Hallucination probes (design section 9): 5 of 46 answer-key items (36 requirements, 4
+# defects, 1 ambiguous value, 5 probes would be ~11%). Four lack Evidence, one an Acceptance
+# Criterion. No lure is a functional spec describing the requirement (the TP-201 pattern).
+probes:
+  - id: P1
+    requirement: URS-PW001-006
+    absent: evidence
+    detail: "No FAT or SAT step measures the hot-sanitisation temperature at the loop return: FAT-S-04 checks the valve sequence only, and SAT-03 records the loop temperature in normal operation."
+    lures:
+      - {doc: FAT-PW001-S, text: "Hot water sanitisation – valve sequence"}
+      - {doc: SAT-PW001, text: "Loop return temperature, normal operation."}
+  - id: P2
+    requirement: URS-PW001-016
+    absent: evidence
+    detail: "No FAT or SAT step tests the automatic alternation of the duty and stand-by pumps: SAT-05 runs P-301A only, and the datasheet only lists two pumps."
+    lures:
+      - {doc: SAT-PW001, text: "Run distribution pump P-301A at duty"}
+      - {doc: DS-PW001, field: loop_return_velocity}
+  - id: P3
+    requirement: URS-PW001-019
+    absent: acceptance
+    detail: "No document gives the conductivity alarm limit; the URS and FAT-K-03 only say an alarm is raised. The EDI outlet specification limit is not an alarm limit. An OQ Acceptance Criterion beyond that is to be set by a human."
+    lures:
+      - {doc: URS-PW001, field: URS-PW001-002}
+      - {doc: FAT-PW001-K, text: "Simulate high conductivity at the EDI outlet sensor"}
+  - id: P4
+    requirement: URS-PW001-027
+    absent: evidence
+    detail: "No FAT or SAT step checks that the online TOC analyser is installed on the loop return or that its value is shown and recorded on the HMI; the analyser's calibration certificate proves its readings on the bench only."
+    lures:
+      - {doc: PKN-26-0105, field: instrument}
+  - id: P5
+    requirement: URS-PW001-031
+    absent: evidence
+    detail: "No FAT or SAT step checks the bursting disc or its external rupture indicator; the material certificate lists the bursting disc holder's material only."
+    lures:
+      - {doc: MTC-PW001-01, text: Bursting disc holder}

@@ -1,0 +1,292 @@
+{
+ "doc_sha256": "5440f6a68f3f0d62c894329b6018c545f16a2526bfc23db827471ce8745e8669",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  14.55,
+  14.55
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1449881600,
+ "pages": [
+  {
+   "number": 1,
+   "text": "FACTORY ACCEPTANCE TEST RECORD\nWater treatment skid\nRecord no. FAT-PW001-S Customer PT Arunika Farma Lestari\nRevision 0 Machine Purified water generation and\nDate of issue 12-Jan-2026 distribution system, customer tag PW-001\nA. Machine data (as built)\nSerial number TSR-PW-25-0093\nModel TSR PW-2\nB. Release of the test procedure\nStep Name Company Signature Date\nIssued Teguh Prasetyo PT Tirta Sarana Rekayasa Signed electronically 12-Jan-2026\nReviewed (customer) Bayu Pratama PT Arunika Farma Lestari Signed electronically 22-Jan-2026\nReleased for test (customer) Dewi Anggraini PT Arunika Farma Lestari Signed electronically 22-Jan-2026\nC. Test records\nTest case FAT-S-01\nProcedure Product flow at EDI outlet: run the skid on the vendor's test water and read the product flow meter.\nRequired NLT 2 m³/h\nMeasured 2.1 m³/h\nVerdict PASS\nTest case FAT-S-02\nProcedure EDI outlet conductivity: read the conductivity at the EDI outlet on the vendor's test water.\nRequired NMT 1.3 µS/cm\nMeasured 0.12 µS/cm\nVerdict PASS\nTest case FAT-S-03\nProcedure Review of 3.1 certificates of wetted parts (tank, loop pipework, valves).\nRequired SS 316L\nMeasured SS 316L\nVerdict PASS\nTest case FAT-S-04\nProcedure Hot water sanitisation – valve sequence: start the sequence and check that the PLC closes and locks every point-of-use valve.\nRequired Present and functional\nMeasured Present and functional\nVerdict PASS\nTest case FAT-S-05\nProcedure Softener outlet hardness: test a sample at the softener outlet (as CaCO₃).\nRequired ≤ 1 mg/L\nMeasured 0.4 mg/L\nVerdict PASS",
+   "tables": [
+    [
+     [
+      "Record no.",
+      "FAT-PW001-S",
+      "Customer",
+      "PT Arunika Farma Lestari"
+     ],
+     [
+      "Revision",
+      "0",
+      "Machine",
+      "Purified water generation and"
+     ],
+     [
+      "Date of issue",
+      "12-Jan-2026",
+      "",
+      "distribution system, customer tag PW-001"
+     ]
+    ],
+    [
+     [
+      "A. Machine data (as built)"
+     ]
+    ],
+    [
+     [
+      "Serial number",
+      "TSR-PW-25-0093"
+     ],
+     [
+      "Model",
+      "TSR PW-2"
+     ]
+    ],
+    [
+     [
+      "Step",
+      "Name",
+      "Company",
+      "Signature",
+      "Date"
+     ],
+     [
+      "Issued",
+      "Teguh Prasetyo",
+      "PT Tirta Sarana Rekayasa",
+      "Signed electronically",
+      "12-Jan-2026"
+     ],
+     [
+      "Reviewed (customer)",
+      "Bayu Pratama",
+      "PT Arunika Farma Lestari",
+      "Signed electronically",
+      "22-Jan-2026"
+     ],
+     [
+      "Released for test (customer)",
+      "Dewi Anggraini",
+      "PT Arunika Farma Lestari",
+      "Signed electronically",
+      "22-Jan-2026"
+     ]
+    ],
+    [
+     [
+      "C. Test records"
+     ]
+    ],
+    [
+     [
+      "Test case FAT-S-01"
+     ],
+     [
+      "Procedure",
+      "Product flow at EDI outlet: run the skid on the vendor's test water and read the product flow meter."
+     ],
+     [
+      "Required",
+      "NLT 2 m³/h"
+     ],
+     [
+      "Measured",
+      "2.1 m³/h"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case FAT-S-02"
+     ],
+     [
+      "Procedure",
+      "EDI outlet conductivity: read the conductivity at the EDI outlet on the vendor's test water."
+     ],
+     [
+      "Required",
+      "NMT 1.3 µS/cm"
+     ],
+     [
+      "Measured",
+      "0.12 µS/cm"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case FAT-S-03"
+     ],
+     [
+      "Procedure",
+      "Review of 3.1 certificates of wetted parts (tank, loop pipework, valves)."
+     ],
+     [
+      "Required",
+      "SS 316L"
+     ],
+     [
+      "Measured",
+      "SS 316L"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case FAT-S-04"
+     ],
+     [
+      "Procedure",
+      "Hot water sanitisation – valve sequence: start the sequence and check that the PLC closes and locks every point-of-use valve."
+     ],
+     [
+      "Required",
+      "Present and functional"
+     ],
+     [
+      "Measured",
+      "Present and functional"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case FAT-S-05",
+      ""
+     ],
+     [
+      "Procedure",
+      "Softener outlet hardness: test a sample at the softener outlet (as CaCO₃)."
+     ],
+     [
+      "Required",
+      "≤ 1 mg/L"
+     ],
+     [
+      "Measured",
+      "0.4 mg/L"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 2,
+   "text": "Test case FAT-S-06\nProcedure Review weld logs and welder qualification – skid pipework.\nRequired Present and functional\nMeasured Present and functional\nVerdict PASS\nTest case FAT-S-07\nProcedure Carbon filter outlet free chlorine: test a sample at the carbon filter outlet.\nRequired NMT 0.05 mg/L\nMeasured 0.02 mg/L\nVerdict PASS\nTest case FAT-S-08\nProcedure RO permeate conductivity: read the RO permeate conductivity on the vendor's test water.\nRequired NMT 20 µS/cm\nMeasured 4.8 µS/cm\nVerdict PASS\nD. Deviations\nNo deviations were raised during the test.\nE. Attachments\nF. Test execution\nRole Name Company Signature Date\nTested by Teguh Prasetyo PT Tirta Sarana Rekayasa Signed electronically 01-Feb-2026\nWitnessed by Agus Setiawan PT Arunika Farma Lestari Signed electronically 01-Feb-2026",
+   "tables": [
+    [
+     [
+      "Test case FAT-S-06"
+     ],
+     [
+      "Procedure",
+      "Review weld logs and welder qualification – skid pipework."
+     ],
+     [
+      "Required",
+      "Present and functional"
+     ],
+     [
+      "Measured",
+      "Present and functional"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case FAT-S-07"
+     ],
+     [
+      "Procedure",
+      "Carbon filter outlet free chlorine: test a sample at the carbon filter outlet."
+     ],
+     [
+      "Required",
+      "NMT 0.05 mg/L"
+     ],
+     [
+      "Measured",
+      "0.02 mg/L"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "Test case FAT-S-08"
+     ],
+     [
+      "Procedure",
+      "RO permeate conductivity: read the RO permeate conductivity on the vendor's test water."
+     ],
+     [
+      "Required",
+      "NMT 20 µS/cm"
+     ],
+     [
+      "Measured",
+      "4.8 µS/cm"
+     ],
+     [
+      "Verdict",
+      "PASS"
+     ]
+    ],
+    [
+     [
+      "E. Attachments"
+     ]
+    ],
+    [
+     [
+      "Role",
+      "Name",
+      "Company",
+      "Signature",
+      "Date"
+     ],
+     [
+      "Tested by",
+      "Teguh Prasetyo",
+      "PT Tirta Sarana Rekayasa",
+      "Signed electronically",
+      "01-Feb-2026"
+     ],
+     [
+      "Witnessed by",
+      "Agus Setiawan",
+      "PT Arunika Farma Lestari",
+      "Signed electronically",
+      "01-Feb-2026"
+     ]
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,133 @@
+{
+  "doc_sha256": "6225ff45b33f17e121643cc86c4a99d7717ea155e929c245ee6e493ee3651848",
+  "key": "70a46bd5567ba949aab06460aec7d3c334f4d0c5a42206ad7315f8cc8e9d7537",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "draft",
+  "prompt_hash": "73f1a5e017d18b1ebec0e78811f4abf8f9b37796434ac0658f6afa0d80d058e6",
+  "request": {
+    "max_tokens": 4000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "enum": [
+                "range",
+                "number",
+                "one_of",
+                "text",
+                "present",
+                "none"
+              ],
+              "type": "string"
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "number": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max",
+            "number",
+            "unit",
+            "allowed",
+            "text"
+          ],
+          "type": "object"
+        },
+        "acceptance_source": {
+          "additionalProperties": false,
+          "properties": {
+            "doc": {
+              "type": "string"
+            },
+            "page": {
+              "type": "integer"
+            },
+            "quote": {
+              "type": "string"
+            },
+            "rev": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "doc",
+            "rev",
+            "page",
+            "quote"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "instrument": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "method",
+        "instrument",
+        "acceptance",
+        "acceptance_source"
+      ],
+      "type": "object"
+    },
+    "system": "You draft one IQ/OQ Test Step for one URS requirement of pharmaceutical equipment. You get the requirement with its verified value and Coverage class, the vendor Evidence linked to it with why it does not prove the requirement, and the pages of the source documents.\ndescription: what the step verifies, one sentence.\nmethod: how to perform it, executable at the site; test the upper and lower limits or the worst case where the requirement has them.\ninstrument: the measuring instrument to use; null when the step measures nothing.\nacceptance: the Acceptance Criterion, only when a source page prints it. kind: range (min and/or max), number, one_of (accepted texts in allowed, exactly as printed), text, present (a feature that must exist), or none. Numbers are plain JSON numbers (Indonesian documents write 1.000 for one thousand and 0,5 for one half); unit: a short English unit symbol such as mm, kN, rpm or °C.\nacceptance_source: where the AC is printed: doc and rev of one of the given sources, the page number and a verbatim quote, at most 200 characters, that states the AC with its numbers as printed. Copy characters exactly.\nNever invent, round or tighten a limit. If no source prints an AC for this requirement, answer kind none and acceptance_source null: a human sets it.",
+    "user": "{\n \"requirement\": {\n  \"id\": \"2.1\",\n  \"text\": \"Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\",\n  \"value\": {\n   \"type\": \"present\",\n   \"value\": null\n  },\n  \"value_citation\": {\n   \"doc\": \"URS-PW001\",\n   \"rev\": 0,\n   \"page\": 1,\n   \"quote\": \"2.1 Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\"\n  },\n  \"coverage\": \"site_only\",\n  \"reason\": \"cannot be tested by the vendor\"\n },\n \"evidence\": [],\n \"sources\": [\n  {\n   \"doc\": \"URS-PW001\",\n   \"rev\": 0,\n   \"page\": 1,\n   \"text\": \"Spesifikasi Kebutuhan Pengguna (SKP)\\nNomor dokumen URS-PW001\\nRevisi 0\\nTanggal berlaku 24/09/2025\\nPeralatan PW-001 – Purified water generation and distribution system\\nTujuan\\nDokumen ini menetapkan kebutuhan pengguna untuk PW-001. Kebutuhan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\\n2. Air baku\\nNo. Persyaratan Kritis\\n2.1 Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\\n3. Kinerja dan mutu air\\nNo. Persyaratan Kritis\\n3.1.1 Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam. Tidak\\n3.1.2 Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L. Tidak\\n3.1.3 Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃. Tidak\\n3.1.4 Konduktivitas permeat RO tidak lebih dari 20 µS/cm. Tidak\\n3.2.1 Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\\n3.2.2 Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\\n3.2.3 Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L. Ya\\n3.2.4 Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL. Ya\\n4. Material dan konstruksi\\nNo. Persyaratan Kritis\\n4.1.1 Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS 316L. Ya\\n4.2.2 Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase. Tidak\\n4.2.3 Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan. Tidak\\n4.2.4 Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm. Tidak\\n4.3.1 Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm. Ya\\n4.3.2 Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³. Tidak\\n4.3.3 Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\\n4.4.1 Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan. Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak). Tidak\\n4.5.1 Semua komponen diberi label identitas dan arah aliran ditandai pada pipa. Tidak\"\n  }\n ]\n}"
+  },
+  "response": {
+    "input_tokens": 2758,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 253,
+    "text": "{\"description\":\"Verify that the raw water (PDAM) entering the pretreatment meets drinking water requirements by checking the supplier's potable water analysis certificate against the drinking water standard.\",\"method\":\"Obtain the most recent PDAM water quality analysis certificate for the raw water feed to pretreatment, and compare each parameter (physical, chemical, microbiological) against the applicable Indonesian drinking water requirements; confirm the sampling point is upstream of pretreatment and record the sample date. Document any parameter outside the limits and do not accept the feed until resolved.\",\"instrument\":null,\"acceptance\":{\"kind\":\"present\",\"min\":null,\"max\":null,\"number\":null,\"unit\":null,\"allowed\":[],\"text\":null},\"acceptance_source\":null}"
+  }
+}

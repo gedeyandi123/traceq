@@ -1,0 +1,56 @@
+{
+  "doc_sha256": "290863c68336269ae6c3b45489dfbc5de518ee93e28e20569c29c275f104e98f",
+  "key": "019eb14207735e6bc431f9c6c2ff9ef3b3c10a2721a6a5d9882722c816b60998",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "link",
+  "prompt_hash": "914fa1a4844c574d28fc05a8c7de5dcd336f59e55c523935f45e6bc0dc356828",
+  "request": {
+    "max_tokens": 2000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "area": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rows": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "site_only": {
+          "type": "boolean"
+        },
+        "steps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "transport_sensitive": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "steps",
+        "rows",
+        "site_only",
+        "transport_sensitive",
+        "area"
+      ],
+      "type": "object"
+    },
+    "system": "You trace one URS requirement for pharmaceutical equipment to vendor Evidence. You get the requirement and lists of vendor test steps and design values, each with an id.\nsteps: ids of the test steps whose result tests what the requirement asks. A step that checks something else (another part, a document about a different property) is not Evidence.\nrows: ids of the design or certified values that state what the requirement asks about (the same parameter, material or feature).\nsite_only: true when the vendor cannot test the requirement because it depends on the site (utility connections, the production room, plant systems).\ntransport_sensitive: true when transport or installation can change the result, so a factory test alone does not prove it (calibration, alignment, measurement accuracy).\narea: the one area, from the areas given, whose vendor activities the requirement belongs to, copied exactly; null when no area fits or none is given.\nUse only the ids given; return empty lists when nothing fits.",
+    "user": "{\n \"requirement\": {\n  \"id\": \"3.2.4\",\n  \"text\": \"Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL. Ya\",\n  \"value\": {\n   \"type\": \"range\",\n   \"min\": null,\n   \"max\": 100.0,\n   \"unit\": \"CFU/mL\"\n  }\n },\n \"steps\": [\n  {\n   \"id\": \"FAT-PW001-K/FAT-K-01\",\n   \"test\": \"Simulate UV intensity low – alarm on HMI.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Present and functional\"\n  },\n  {\n   \"id\": \"FAT-PW001-K/FAT-K-02\",\n   \"test\": \"Print 24 h trend report.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Present and functional\"\n  },\n  {\n   \"id\": \"FAT-PW001-K/FAT-K-03\",\n   \"test\": \"Simulate high conductivity at the EDI outlet sensor – alarm on HMI.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Present and functional\"\n  },\n  {\n   \"id\": \"FAT-PW001-K/FAT-K-04\",\n   \"test\": \"Create, change and delete a user account; check the security log.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Present and functional\"\n  },\n  {\n   \"id\": \"FAT-PW001-S/FAT-S-01\",\n   \"test\": \"Product flow at EDI outlet: run the skid on the vendor's test water and read the product flow meter.\",\n   \"acceptance\": \"NLT 2 m³/h\",\n   \"observed\": \"2.1 m³/h\"\n  },\n  {\n   \"id\": \"FAT-PW001-S/FAT-S-02\",\n   \"test\": \"EDI outlet conductivity: read the conductivity at the EDI outlet on the vendor's test water.\",\n   \"acceptance\": \"NMT 1.3 µS/cm\",\n   \"observed\": \"0.12 µS/cm\"\n  },\n  {\n   \"id\": \"FAT-PW001-S/FAT-S-03\",\n   \"test\": \"Review of 3.1 certificates of wetted parts (tank, loop pipework, valves).\",\n   \"acceptance\": \"SS 316L\",\n   \"observed\": \"SS 316L\"\n  },\n  {\n   \"id\": \"FAT-PW001-S/FAT-S-05\",\n   \"test\": \"Softener outlet hardness: test a sample at the softener outlet (as CaCO₃).\",\n   \"acceptance\": \"≤ 1 mg/L\",\n   \"observed\": \"0.4 mg/L\"\n  },\n  {\n   \"id\": \"FAT-PW001-S/FAT-S-06\",\n   \"test\": \"Review weld logs and welder qualification – skid pipework.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Present and functional\"\n  },\n  {\n   \"id\": \"FAT-PW001-S/FAT-S-07\",\n   \"test\": \"Carbon filter outlet free chlorine: test a sample at the carbon filter outlet.\",\n   \"acceptance\": \"NMT 0.05 mg/L\",\n   \"observed\": \"0.02 mg/L\"\n  },\n  {\n   \"id\": \"FAT-PW001-S/FAT-S-08\",\n   \"test\": \"RO permeate conductivity: read the RO permeate conductivity on the vendor's test water.\",\n   \"acceptance\": \"NMT 20 µS/cm\",\n   \"observed\": \"4.8 µS/cm\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-01\",\n   \"test\": \"Product flow at EDI outlet with site feed water; read the product flow meter.\",\n   \"acceptance\": \"NLT 2 m³/h\",\n   \"observed\": \"2,05 m³/h\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-02\",\n   \"test\": \"Distribution loop slope check.\",\n   \"acceptance\": \"≥ 1%\",\n   \"observed\": \"1,2%\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-04\",\n   \"test\": \"Softener outlet hardness.\",\n   \"acceptance\": \"≤ 1 mg/L\",\n   \"observed\": \"3,5 mg/l\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-05\",\n   \"test\": \"Run distribution pump P-301A at duty; record velocity at loop return (FIT-301).\",\n   \"acceptance\": \"At least 1 m/s\",\n   \"observed\": \"1,4 m/s\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-06\",\n   \"test\": \"Hydrostatic pressure test of distribution loop.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Ada dan berfungsi\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-07\",\n   \"test\": \"Passivation of distribution loop - record solution, concentration, temperature, contact time.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Ada dan berfungsi\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-08\",\n   \"test\": \"Carbon filter outlet free chlorine.\",\n   \"acceptance\": \"NMT 0.05 mg/L\",\n   \"observed\": \"0,03 mg/L\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-10\",\n   \"test\": \"Open POU-05 fully; record flow.\",\n   \"acceptance\": \"≥ 1,000 L/h\",\n   \"observed\": \"1.150 L/h\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-11\",\n   \"test\": \"Turnover documentation checklist.\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Ada dan berfungsi\"\n  },\n  {\n   \"id\": \"SAT-PW001/SAT-12\",\n   \"test\": \"Walk-down: HX-301 installed in-line on the circulating loop return, no dead branch (against P&ID).\",\n   \"acceptance\": \"Present and functional\",\n   \"observed\": \"Ada dan berfungsi\"\n  }\n ],\n \"rows\": [\n  {\n   \"id\": \"DS-PW001#p1.1\",\n   \"name\": \"Product flow at EDI outlet (min.)\",\n   \"value\": \"2 m³/h\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.2\",\n   \"name\": \"Design return velocity (distribution pumps P-301A/B)\",\n   \"value\": \"1.5 m/s\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.3\",\n   \"name\": \"Sample valves\",\n   \"value\": \"sanitary diaphragm type\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.4\",\n   \"name\": \"Sample valves surface finish\",\n   \"value\": \"1.6 µm\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.5\",\n   \"name\": \"Wetted parts: tank, loop pipework, valves\",\n   \"value\": \"SS 316L\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.6\",\n   \"name\": \"UV lamp with independent intensity sensor\",\n   \"value\": \"Yes\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.7\",\n   \"name\": \"Tank vent filter\",\n   \"value\": \"hydrophobic PTFE 0.45 µm\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.8\",\n   \"name\": \"Tank vent filter pore rating\",\n   \"value\": \"0.45 µm\"\n  },\n  {\n   \"id\": \"DS-PW001#p1.9\",\n   \"name\": \"Storage tank, working volume\",\n   \"value\": \"2.5 m³\"\n  },\n  {\n   \"id\": \"MTC-PW001-01#p1.1\",\n   \"name\": \"Storage tank\",\n   \"value\": \"SS 316L\"\n  },\n  {\n   \"id\": \"MTC-PW001-01#p1.2\",\n   \"name\": \"Distribution loop pipework\",\n   \"value\": \"SS 316L\"\n  },\n  {\n   \"id\": \"MTC-PW001-01#p1.3\",\n   \"name\": \"Valves (loop and points of use)\",\n   \"value\": \"SS 316L\"\n  },\n  {\n   \"id\": \"MTC-PW001-01#p1.4\",\n   \"name\": \"Bursting disc holder\",\n   \"value\": \"SS 316L\"\n  }\n ],\n \"areas\": [\n  \"Pengolahan air (water treatment)\",\n  \"Mekanik (mechanical)\",\n  \"Sistem kendali (control system)\",\n  \"Integritas data (data integrity)\"\n ]\n}"
+  },
+  "response": {
+    "input_tokens": 3510,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 275,
+    "text": "{\"steps\": [], \"rows\": [], \"site_only\": true, \"transport_sensitive\": false, \"area\": \"Pengolahan air (water treatment)\"}"
+  }
+}

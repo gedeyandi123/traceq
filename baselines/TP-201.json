@@ -2,12 +2,12 @@
   "version": 1,
   "equipment": "TP-201",
   "dataset": {
-    "version": "0.1.1",
+    "version": "0.2.0",
     "t0": "2026-06-01",
     "seed": 0,
     "answer_key_sha256": "0dd473b2d7087349a688dc23478175f965bbe9b5e193a0c3dc99453a893ffa5d"
   },
-  "scorer_version": "0.7.0",
+  "scorer_version": "0.8.0",
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",

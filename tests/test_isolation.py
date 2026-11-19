@@ -24,7 +24,23 @@ SRC = Path(__file__).parents[1] / "src"
 HARNESS = {"traceq_dataset", "traceq_eval"}
 FORBIDDEN_IMPORTS = HARNESS
 PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS)
-FORBIDDEN_TEXT = ("answer_key", "world/", "world\\", "tp201.yaml", "tp202.yaml", "baselines/")
+FORBIDDEN_TEXT = (
+    "answer_key",
+    "world/",
+    "world\\",
+    "tp201.yaml",
+    "tp202.yaml",
+    "pw001.yaml",  # held-out PW-001 (spec #195)
+    "baselines/",
+    # Review Package TP-201-OQ-draft (spec #196): its world data, its key's files and its
+    # baseline. The system reads only its release folder (the draft and manifest.json).
+    "tp201-oq-draft.yaml",
+    "defects.yaml",
+    "clean_traps.yaml",
+    "injection_probes.yaml",
+    "test_steps.yaml",
+    "TP-201-OQ-draft.json",
+)
 
 
 def system_files() -> list[Path]:
@@ -62,6 +78,18 @@ def test_guard_catches_a_leak(tmp_path: Path) -> None:
     assert leaks(bad) == ["mentions 'answer_key'", "imports traceq_dataset.answer_key"]
 
 
+def test_guard_catches_a_review_package_leak(tmp_path: Path) -> None:
+    bad = tmp_path / "draft.py"
+    bad.write_text(
+        "W = 'tp201-oq-draft.yaml'\nT = 'clean_traps.yaml'\nB = 'TP-201-OQ-draft.json'\n"
+    )
+    assert leaks(bad) == [
+        "mentions 'tp201-oq-draft.yaml'",
+        "mentions 'clean_traps.yaml'",
+        "mentions 'TP-201-OQ-draft.json'",
+    ]
+
+
 def copied(prompt: str, equipment: str) -> list[str]:
     """What a prompt takes from a dataset Equipment: its tag, or one of its URS requirements
     as printed."""
@@ -72,10 +100,12 @@ def copied(prompt: str, equipment: str) -> list[str]:
 
 
 @pytest.mark.parametrize("prompt", PROMPTS, ids=lambda p: p.name)
-@pytest.mark.parametrize("equipment", ["TP-201", "TP-202"])
+@pytest.mark.parametrize("equipment", ["TP-201", "TP-202", "PW-001"])
 def test_prompt_examples_are_invented(equipment: str, prompt: Prompt) -> None:
-    """Examples are invented, never taken from the development or the held-out Equipment."""
-    assert copied(prompt.system, equipment) == []
+    """Examples are invented, never taken from the development or the held-out Equipment.
+    The message gives counts only: the copied text may be held out."""
+    found = copied(prompt.system, equipment)
+    assert not found, f"{equipment} {prompt.name}: {len(found)} copied"
 
 
 NO_LLM = SRC / "traceq" / "runs" / "no_llm.py"

@@ -9,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from traceq_dataset.answer_key import derive
-from traceq_dataset.corpus import Corpus, build_corpus
+from traceq_dataset.corpus import Corpus
 from traceq_dataset.coverage import meets
 from traceq_dataset.render import (
     EVAL_T0,
@@ -306,8 +306,8 @@ def test_dq_reviews_every_requirement(eq: Equipment, dq: Rendered) -> None:
 
 
 @pytest.fixture(scope="module")
-def corpus(eq: Equipment) -> Corpus:
-    return build_corpus(eq)
+def corpus(tp201_corpus: Corpus) -> Corpus:
+    return tp201_corpus
 
 
 def test_design_evidence_is_located(corpus: Corpus) -> None:

@@ -12,8 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from traceq_dataset.answer_key import load_key
-from traceq_dataset.corpus import Corpus, build_corpus
-from traceq_dataset.world import load
+from traceq_dataset.corpus import Corpus
 from traceq_eval import __main__ as cli
 from traceq_eval.citations import PageTexts, Status, partial_ratio, value_in_quote
 from traceq_eval.judge import Criterion, JudgeVerdict, UrsRequirement
@@ -28,8 +27,8 @@ KEY = ROOT / "answer_key" / "TP-201"
 
 
 @pytest.fixture(scope="module")
-def corpus() -> Corpus:
-    return build_corpus(load(TP201))
+def corpus(tp201_corpus: Corpus) -> Corpus:
+    return tp201_corpus
 
 
 @pytest.fixture(scope="module")
@@ -406,6 +405,19 @@ def test_findings_mislabelled_missed_and_false_positive(
     )
     assert m["precision"] == 0.75  # 5 originals + the duplicate, of 8
     assert report["gates"]["passed"]
+
+
+def test_layer_comes_from_the_key(key: dict, pages: PageTexts) -> None:
+    """Spec #196: a defect's layer is the key's; a submission names only the type. TP-201's
+    key has rule defects S2, S4, S5, llm S3, S6, S7 and vision S1. Relabelled in the key as
+    an ``ac_deviates_from_urs`` defect of layer ``rule``, a missed S3 counts against Rule."""
+    changed = copy.deepcopy(key)
+    s3 = next(d for d in changed["defects.yaml"] if d["scenario"] == "S3")
+    s3 |= {"type": "ac_deviates_from_urs", "layer": "rule"}
+    sub = perfect(changed, "TP-201").model_dump(mode="json", exclude_none=True)
+    sub["findings"] = [f for f in sub["findings"] if f["type"] != "ac_deviates_from_urs"]
+    m = score(Submission.model_validate(sub), changed, pages)["defects"]["metrics"]
+    assert m["recall_by_layer"] == {"llm": 1.0, "rule": 0.75, "vision": 1.0}
 
 
 def test_finding_on_the_right_page_but_wrong_text_does_not_match(
