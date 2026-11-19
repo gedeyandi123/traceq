@@ -110,6 +110,32 @@ export async function editDraftedTestStep(form: FormData): Promise<void> {
   back(runId, failed);
 }
 
+/** Answers a printed requirement number the run missed (`not_a_requirement` or
+ * `not_tested_here`, with a justification), then returns to the page. No Reason for Change:
+ * a later answer replaces the earlier, which the API keeps. */
+export async function answerMissedNumber(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const protocolId = Number(field(form, "protocol_id"));
+  const rev = Number(field(form, "rev"));
+  const doc = field(form, "doc") ?? "";
+  const number = field(form, "number") ?? "";
+  const kind = field(form, "kind");
+  if (!Number.isInteger(protocolId) || !Number.isInteger(rev) || doc === "" || number === "") back(runId, "failed");
+  if (kind !== "not_a_requirement" && kind !== "not_tested_here") back(runId, "invalid");
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/missed-numbers", {
+      params: { path: { protocol_id: protocolId } },
+      headers: await bearerHeaders(),
+      body: { doc, rev, number, kind, justification: field(form, "justification") ?? "" },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  back(runId, failed);
+}
+
 /** Withdraws a Protocol in Draft status with the reason given, then returns to the page. */
 export async function withdrawProtocol(form: FormData): Promise<void> {
   const runId = field(form, "run_id") ?? "";

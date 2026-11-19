@@ -1,11 +1,12 @@
 // A Protocol assembled in TraceQ as the API serves it, for the render tests of the Protocol
-// page (spec #247, tickets #249 and #250). Hand-written over the fixture run: five rows, one
+// page (spec #247, tickets #249, #250 and #251). Hand-written over the fixture run: five rows, one
 // of each kind (Coverage changed, Vendor Reference, Test Step with its accepted draft, Test
 // Step with a written Test Step in its second version, Test Step without one).
-import type { Cite, ProtocolEvent, ProtocolRowView, ProtocolView, RowDraft } from "@/api/client";
+import type { Cite, ProtocolEvent, ProtocolRowView, ProtocolUrs, ProtocolView, RowDraft } from "@/api/client";
 import type { components } from "@/api/schema";
 
 type WrittenVersionView = components["schemas"]["WrittenVersionView"];
+type MissedDispositionView = components["schemas"]["MissedDispositionView"];
 
 import { AYU, BIMA, decision, RUN_ID } from "./decisions.fixture";
 import { proposal } from "./protocolDraft.fixture";
@@ -196,6 +197,34 @@ export const rows: ProtocolRowView[] = [
   }),
 ];
 
+/** The run's URS completeness check as the Protocol serves it (ticket #251): URS-TP201 missed
+ * two numbers, one answered twice (the second answer in force), one unanswered; an annex
+ * checked `not_applicable` lists none. The TP-201 demo run misses none. */
+const answers: MissedDispositionView[] = [
+  { id: 1, version: 1, kind: "not_tested_here", justification: "Diuji di IQ.", at: "2026-11-19T09:30:00Z", ...AYU },
+  {
+    id: 2,
+    version: 2,
+    kind: "not_a_requirement",
+    justification: "Nomor ini menandai judul bagian, bukan persyaratan.",
+    at: "2026-11-19T09:40:00Z",
+    ...BIMA,
+  },
+];
+
+export const urs: ProtocolUrs[] = [
+  {
+    ...URS,
+    numbers: "checked",
+    missed: [
+      { number: "URS-TP201-003", page: 1, blocking: false, disposition: answers[1] ?? null, dispositions: answers },
+      { number: "URS-TP201-004", page: 2, blocking: true, disposition: null, dispositions: [] },
+    ],
+    unquoted: [{ page: 1, text: "Spesifikasi Kebutuhan Pengguna (SKP)\nNomor dokumen URS-TP201" }],
+  },
+  { doc: "URS-TP201-ANNEX", rev: 1, numbers: "not_applicable", missed: [], unquoted: [] },
+];
+
 export function event(over: Partial<ProtocolEvent>): ProtocolEvent {
   return { id: 1, event: "started", status: "draft", reason: null, at: "2026-11-19T09:00:00Z", ...AYU, ...over };
 }
@@ -208,6 +237,7 @@ export function protocolView(over: Partial<ProtocolView> = {}): ProtocolView {
     status: "draft",
     events: [event({})],
     rows,
+    urs,
     ...over,
   };
 }
@@ -215,5 +245,6 @@ export function protocolView(over: Partial<ProtocolView> = {}): ProtocolView {
 export const withdrawn = protocolView({
   status: "withdrawn",
   rows: null,
+  urs: null,
   events: [event({}), event({ id: 2, event: "withdrawn", status: "withdrawn", reason: "run yang lebih baru", ...BIMA })],
 });

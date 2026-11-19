@@ -25,6 +25,8 @@ export type ProtocolView = components["schemas"]["ProtocolView"];
 export type ProtocolRowView = components["schemas"]["ProtocolRowView"];
 export type ProtocolEvent = components["schemas"]["ProtocolEvent"];
 export type RowDraft = components["schemas"]["RowDraft"];
+export type ProtocolUrs = components["schemas"]["ProtocolUrs"];
+export type MissedNumberView = components["schemas"]["MissedNumberView"];
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */
