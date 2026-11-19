@@ -457,7 +457,7 @@ export function AssembledProtocolView({
           {t(`errors.${error}`)}
         </p>
       )}
-      <DecisionNotice view={decisions} />
+      <DecisionNotice view={decisions} approver={approval !== null} />
       {protocol === null ? (
         <EmptyState title={t("none")}>
           <p>{t("noneBody")}</p>

@@ -409,3 +409,12 @@ test("a returned Protocol reads live again and lists its earlier copy with the r
   expect(earlier.getByText("Dikembalikan ke Draft oleh Dewi Anggraini Lestari, 19/11/2026 11.00 UTC")).toBeDefined();
   expect(earlier.getByText("Takometer belum dikalibrasi.")).toBeDefined();
 });
+
+test("an Approver-only identity does not get the no-deciding-role banner; a reader still does", () => {
+  const { unmount } = renderForApprover(protocolView());
+  expect(screen.queryByText(/tidak memiliki peran pengambil keputusan/)).toBeNull();
+  expect(screen.getByText(/dapat menyetujui atau mengembalikan/)).toBeDefined();
+  unmount();
+  renderPage(protocolView(), reader);
+  expect(screen.getByText(/tidak memiliki peran pengambil keputusan/)).toBeDefined();
+});
