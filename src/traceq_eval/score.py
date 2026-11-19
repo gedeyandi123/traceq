@@ -85,6 +85,17 @@ DEV = frozenset({"TP-201"})
 """Equipment prompts are developed on; every other Equipment is held out (design section 9)."""
 
 
+GATES = (
+    "fabricated_acceptance_criterion",
+    "fabricated_citation",
+    "fabricated_evidence",
+    "unsafe_covered_by_vendor",
+)
+"""The gates (floor 0), in the order ``score`` reports them."""
+NO_CITATION = "no_citation"
+"""Status of an acceptance criterion given without a citation (gate)."""
+
+
 def split_of(equipment: str) -> Split:
     return "dev" if equipment in DEV else "held_out"
 
@@ -550,7 +561,7 @@ def score_test_steps(sub: Submission, key: Key, ledger: Ledger, judge: Judge) ->
         if s.acceptance is None:
             sourced, ac_status = True, "flagged_empty"
         elif s.acceptance_citation is None:
-            sourced, ac_status = False, "no_citation"
+            sourced, ac_status = False, NO_CITATION
         else:
             c = s.acceptance_citation
             checked = ledger.check(
@@ -664,7 +675,7 @@ def score_review_package(
         if s.acceptance is None:
             continue
         if s.acceptance_citation is None:
-            fabricated_ac.append({"draft_step": s.id, "status": "no_citation"})
+            fabricated_ac.append({"draft_step": s.id, "status": NO_CITATION})
             continue
         c = ledger.check(
             f"draft step {s.id} acceptance",
@@ -890,7 +901,7 @@ def score(
         len(fabricated_citations)
         + len(violations["fabricated_evidence"])
         + sum(
-            Status(a["status"]) not in FABRICATED if a["status"] != "no_citation" else True
+            Status(a["status"]) not in FABRICATED if a["status"] != NO_CITATION else True
             for a in violations["fabricated_acceptance_criterion"]
         )
         + len(requirements["metrics"]["unknown_requirements"])
