@@ -135,7 +135,15 @@ def _audit_value(d: Decision) -> dict[str, Any]:
     }
 
 
-def _check(kind: Kind, proposed_class: str | None, verdict: Verdict, coverage: str | None) -> None:
+def _check(
+    kind: Kind, proposed_class: str | None, verdict: Verdict, coverage: str | None, *, edit: bool
+) -> None:
+    if edit:
+        if kind != "test_step" or verdict != "edited":
+            raise Refused("the edit route records only edited on a drafted Test Step")
+        if coverage is not None:
+            raise Refused("a drafted Test Step edited takes no class")
+        return
     if verdict not in ALLOWED[kind]:
         allowed = " or ".join(sorted(ALLOWED[kind]))
         raise Refused(f"a {kind} Proposal is {allowed}, not {verdict}")
@@ -159,11 +167,15 @@ def record(
     verdict: Verdict,
     coverage: CoverageClass | None,
     reason: str | None,
+    *,
+    edit: bool = False,
 ) -> Decision:
     """Adds a decision on the content ``run_id`` proposed, with its Audit Trail entry.
 
     A Reason for Change is mandatory for ``rejected`` and ``edited``, and for any decision
-    that replaces an earlier one on the same content."""
+    that replaces an earlier one on the same content. ``edit``: the Protocol's edit route
+    records ``edited`` on a drafted Test Step, with no class, in the transaction that writes
+    the Test Step it produces (spec #247); nothing else may."""
     held = session.execute(
         select(PROPOSALS.c.kind, RUN_PROPOSALS.c.content_hash, RUN_PROPOSALS.c.proposed)
         .join(PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
@@ -174,7 +186,13 @@ def record(
     kind = cast(Kind, held.kind)
     content_hash: str = held.content_hash
     proposed: dict[str, Any] = held.proposed
-    _check(kind, proposed.get("coverage") if kind == "coverage" else None, verdict, coverage)
+    _check(
+        kind,
+        proposed.get("coverage") if kind == "coverage" else None,
+        verdict,
+        coverage,
+        edit=edit,
+    )
     reason = (reason or "").strip() or None
     if reason is None and verdict != "accepted":
         raise Refused(f"{verdict} needs a Reason for Change")

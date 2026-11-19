@@ -12,7 +12,7 @@ import s from "./Decisions.module.css";
 export type ReadOnlyReason = "signedOut" | "noRole" | "notImported" | "unavailable";
 
 /** Why the API refused a decision, as the screen reports it. */
-export type DecisionError = "refused" | "forbidden" | "unauthorized" | "failed";
+export type DecisionError = "refused" | "conflict" | "forbidden" | "unauthorized" | "failed";
 
 export type DecisionAccess =
   | { mode: "decide"; action: (formData: FormData) => void | Promise<void> }
@@ -37,6 +37,8 @@ type ClassT = ReturnType<typeof useTranslations<"matrix">>;
 function summary(t: T, classes: ClassT, d: Decision): string {
   const when = formatWhen(t, d.at);
   if (d.decision === "edited") {
+    // A drafted Test Step edited carries no class: it is edited into a written Test Step.
+    if (d.coverage === null) return t("made.editedStep", { name: d.name, when });
     return t("made.edited", { class: classes(`classes.${d.coverage ?? "none"}`), name: d.name, when });
   }
   return t(`made.${d.decision}`, { name: d.name, when });

@@ -1,8 +1,11 @@
 // A Protocol assembled in TraceQ as the API serves it, for the render tests of the Protocol
-// page (spec #247, ticket #249). Hand-written over the fixture run: four rows, one of each
-// kind (Coverage changed, Vendor Reference, Test Step with its accepted draft, Test Step
-// without one).
+// page (spec #247, tickets #249 and #250). Hand-written over the fixture run: five rows, one
+// of each kind (Coverage changed, Vendor Reference, Test Step with its accepted draft, Test
+// Step with a written Test Step in its second version, Test Step without one).
 import type { Cite, ProtocolEvent, ProtocolRowView, ProtocolView, RowDraft } from "@/api/client";
+import type { components } from "@/api/schema";
+
+type WrittenVersionView = components["schemas"]["WrittenVersionView"];
 
 import { AYU, BIMA, decision, RUN_ID } from "./decisions.fixture";
 import { proposal } from "./protocolDraft.fixture";
@@ -56,12 +59,48 @@ function row(over: Partial<ProtocolRowView> & { requirement: string }): Protocol
     evidence: [],
     test_step: null,
     drafts: [],
+    written: [],
+    prefill: null,
     blockers: [],
     ...over,
   };
 }
 
 const accepted = draft("URS-TP201-002", 70, {}, true);
+
+/** A Test Step a human wrote for URS-TP201-026, then changed: version 2 is in force. */
+export const written: WrittenVersionView[] = [
+  {
+    id: 1,
+    version: 1,
+    removed: false,
+    test_step: {
+      description: "Verifikasi tombol darurat.",
+      method: "Tekan tombol darurat saat turret berputar.",
+      instrument: null,
+      acceptance: { type: "present", value: null },
+    },
+    from_proposal_id: null,
+    decision_id: null,
+    at: "2026-11-19T09:10:00Z",
+    ...AYU,
+  },
+  {
+    id: 2,
+    version: 2,
+    removed: false,
+    test_step: {
+      description: "Verifikasi tombol darurat menghentikan turret.",
+      method: "Tekan tombol darurat saat turret berputar, ukur waktu berhenti.",
+      instrument: "Stopwatch",
+      acceptance: { type: "range", min: null, max: 2, unit: "s" },
+    },
+    from_proposal_id: null,
+    decision_id: null,
+    at: "2026-11-19T09:20:00Z",
+    ...BIMA,
+  },
+];
 
 export const rows: ProtocolRowView[] = [
   row({
@@ -76,6 +115,7 @@ export const rows: ProtocolRowView[] = [
     test_step: {
       origin: "accepted_draft",
       proposal_id: 70,
+      version: null,
       description: accepted.draft.description,
       method: accepted.draft.method,
       instrument: accepted.draft.instrument,
@@ -104,6 +144,35 @@ export const rows: ProtocolRowView[] = [
       },
     ],
     drafts: [draft("URS-TP201-010", 71)],
+    prefill: {
+      origin: "draft",
+      description: "Verifikasi URS-TP201-010 di lokasi.",
+      method: "Atur turret ke 20 dan 70 rpm, baca takometer.",
+      instrument: "TACH-07 Takometer digital",
+      acceptance: { type: "range", min: 20, max: 70, unit: "rpm" },
+    },
+  }),
+  row({
+    requirement: "URS-TP201-026",
+    decided_class: "site_only",
+    test_step: {
+      origin: "written",
+      proposal_id: null,
+      version: 2,
+      description: "Verifikasi tombol darurat menghentikan turret.",
+      method: "Tekan tombol darurat saat turret berputar, ukur waktu berhenti.",
+      instrument: "Stopwatch",
+      acceptance: { type: "range", min: null, max: 2, unit: "s" },
+      acceptance_flag: null,
+    },
+    written,
+    prefill: {
+      origin: "written",
+      description: "Verifikasi tombol darurat menghentikan turret.",
+      method: "Tekan tombol darurat saat turret berputar, ukur waktu berhenti.",
+      instrument: "Stopwatch",
+      acceptance: { type: "range", min: null, max: 2, unit: "s" },
+    },
   }),
   row({
     requirement: "URS-TP201-030",
@@ -117,6 +186,13 @@ export const rows: ProtocolRowView[] = [
         instrument: null,
       }),
     ],
+    prefill: {
+      origin: "withdrawn",
+      description: "Verifikasi URS-TP201-030 dari protokol yang ditarik.",
+      method: "Ukur ketebalan tablet.",
+      instrument: null,
+      acceptance: { type: "number", value: 4.5, unit: "mm" },
+    },
   }),
 ];
 

@@ -19,6 +19,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import Engine
 
+from traceq.assembly import written
+from traceq.assembly.lifecycle import Conflict
 from traceq.audit import Actor
 from traceq.db import transaction
 from traceq.identity import Principal
@@ -321,11 +323,16 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         who: Annotated[Principal, Depends(principal)],
     ) -> Decision:
         """Records one Proposal Decision on the content this run proposed, with its Audit
-        Trail entry. Earlier decisions stay. Needs the deciding role."""
+        Trail entry. Earlier decisions stay. Accepting a drafted Test Step is refused (409)
+        while the open Protocol of its Equipment holds a written Test Step for its
+        requirement; ``edited`` on a drafted Test Step goes through ``editDraftedTestStep``.
+        Needs the deciding role."""
         if not who.may_decide:
             raise HTTPException(403, "recording a decision needs the deciding role")
         try:
             with transaction(database()) as session:
+                if body.decision == "accepted":
+                    written.guard_accepting(session, run_id, proposal_id)
                 made = decisions.record(
                     session,
                     actor_of(who),
@@ -339,6 +346,8 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(404, str(e)) from e
         except decisions.Refused as e:
             raise HTTPException(422, str(e)) from e
+        except Conflict as e:
+            raise HTTPException(409, str(e)) from e
         return _decision(made)
 
     @router.get("/runs/{run_id}/decision-counts", operation_id="decisionCounts")

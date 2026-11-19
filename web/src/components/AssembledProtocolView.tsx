@@ -6,18 +6,25 @@ import { DecisionCell, DecisionNotice } from "./Decisions";
 import type { DecisionAccess, DecisionView } from "./Decisions";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
+import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
 import { Button, cell, CoveragePill, DataTable, EmptyState, SectionHeading } from "./ui/ui";
 
 import s from "./AssembledProtocolView.module.css";
 
 /** Why the API refused a start or a withdrawal, as the page reports it. */
-export type ProtocolError = "conflict" | "refused" | "forbidden" | "unauthorized" | "failed";
+export type ProtocolError = "conflict" | "refused" | "invalid" | "forbidden" | "unauthorized" | "failed";
 
-/** The start and withdraw forms' server actions, for a viewer with the deciding role; `null`
- * for any other viewer, who sees no controls. */
+type Action = (formData: FormData) => void | Promise<void>;
+
+/** The forms' server actions (start, withdraw, write or remove a written Test Step, edit a
+ * drafted one), for a viewer with the deciding role; `null` for any other viewer, who sees
+ * no controls. */
 export type ProtocolControls = {
-  start: (formData: FormData) => void | Promise<void>;
-  withdraw: (formData: FormData) => void | Promise<void>;
+  start: Action;
+  withdraw: Action;
+  write: Action;
+  remove: Action;
+  edit: Action;
 } | null;
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
@@ -126,7 +133,21 @@ function Coverage({ t, m, row, runId }: { t: T; m: MatrixT; row: ProtocolRowView
   );
 }
 
-function Content({ t, m, row }: { t: T; m: MatrixT; row: ProtocolRowView }) {
+function Content({
+  t,
+  m,
+  row,
+  runId,
+  protocolId,
+  controls,
+}: {
+  t: T;
+  m: MatrixT;
+  row: ProtocolRowView;
+  runId: string;
+  protocolId: number;
+  controls: ProtocolControls;
+}) {
   const step = row.test_step;
   return (
     <div>
@@ -143,7 +164,11 @@ function Content({ t, m, row }: { t: T; m: MatrixT; row: ProtocolRowView }) {
       )}
       {step && (
         <dl className={s.step}>
-          <dt className={s.stepOrigin}>{t("fromDraft")}</dt>
+          <dt className={s.stepOrigin}>
+            {step.origin === "written"
+              ? t(step.proposal_id === null ? "writtenStep" : "editedStep", { version: step.version ?? 1 })
+              : t("fromDraft")}
+          </dt>
           <dt>{t("description")}</dt>
           <dd>{step.description}</dd>
           <dt>{t("method")}</dt>
@@ -161,6 +186,17 @@ function Content({ t, m, row }: { t: T; m: MatrixT; row: ProtocolRowView }) {
           {t(`blockers.${b}`)}
         </div>
       ))}
+      {controls !== null && row.kind !== "undecided" && (
+        <WriteForm
+          t={t}
+          row={row}
+          runId={runId}
+          protocolId={protocolId}
+          write={controls.write}
+          remove={controls.remove}
+        />
+      )}
+      <Versions t={t} m={m} versions={row.written} />
     </div>
   );
 }
@@ -172,6 +208,7 @@ function Draft({
   runId,
   access,
   vendor,
+  edit,
 }: {
   t: T;
   m: MatrixT;
@@ -179,6 +216,8 @@ function Draft({
   runId: string;
   access: DecisionAccess;
   vendor: boolean;
+  /** The edit form, when the viewer may edit this draft now. */
+  edit: { protocolId: number; action: Action } | null;
 }) {
   const x = d.draft;
   return (
@@ -197,6 +236,7 @@ function Draft({
       </div>
       {vendor && <div className={s.muted}>{t("vendorDraftNote")}</div>}
       <DecisionCell proposal={d.proposal} runId={runId} screen="protocol" access={access} />
+      {edit && <EditDraftForm t={t} d={d} runId={runId} protocolId={edit.protocolId} edit={edit.action} />}
     </div>
   );
 }
@@ -206,11 +246,15 @@ function Rows({
   rows,
   runId,
   access,
+  protocolId,
+  controls,
 }: {
   t: T;
   rows: readonly ProtocolRowView[];
   runId: string;
   access: DecisionAccess;
+  protocolId: number;
+  controls: ProtocolControls;
 }) {
   const m = useTranslations("matrix");
   return (
@@ -235,7 +279,7 @@ function Rows({
               <Coverage t={t} m={m} row={r} runId={runId} />
             </td>
             <td>
-              <Content t={t} m={m} row={r} />
+              <Content t={t} m={m} row={r} runId={runId} protocolId={protocolId} controls={controls} />
             </td>
             <td className={s.drafts}>
               {r.drafts.length === 0 ? (
@@ -250,6 +294,11 @@ function Rows({
                     runId={runId}
                     access={access}
                     vendor={r.kind === "vendor_reference"}
+                    edit={
+                      controls !== null && r.test_step?.origin !== "written"
+                        ? { protocolId, action: controls.edit }
+                        : null
+                    }
                   />
                 ))
               )}
@@ -264,8 +313,9 @@ function Rows({
 /** The Protocol assembled in TraceQ from a run (spec #247, ADR 0012): its status and every
  * status change, and while in Draft status one row per requirement computed from the current
  * decisions (Coverage decided by a human, the kind of row, the Vendor Reference's Evidence or
- * the accepted drafted Test Step, and what blocks), each drafted Test Step with the decision
- * controls of slice 1. Without a Protocol, the start control; the known limits always. A
+ * its Test Step, accepted or written, and what blocks), each drafted Test Step with the
+ * decision controls of slice 1 and its edit form, each row's write form with the four
+ * Acceptance Criterion shapes and every version of its written Test Step. Without a Protocol, the start control; the known limits always. A
  * viewer without the deciding role sees no controls. Never the site's Protocol Draft. */
 export function AssembledProtocolView({
   protocol,
@@ -311,7 +361,14 @@ export function AssembledProtocolView({
           </p>
           <section className={s.section} aria-labelledby="protocol-rows">
             <SectionHeading id="protocol-rows" title={t("rows")} count={rows.length} note={t("rowsNote")} />
-            <Rows t={t} rows={rows} runId={runId} access={decisions.access} />
+            <Rows
+              t={t}
+              rows={rows}
+              runId={runId}
+              access={decisions.access}
+              protocolId={protocol?.id ?? 0}
+              controls={controls}
+            />
           </section>
         </>
       )}

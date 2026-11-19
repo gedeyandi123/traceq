@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { api } from "@/api/client";
 import { bearerHeaders } from "@/auth/session";
 import type { ProtocolError } from "@/components/AssembledProtocolView";
+import { stepFrom } from "@/protocol/form";
 
 function field(form: FormData, name: string): string | undefined {
   const v = form.get(name);
@@ -34,6 +35,73 @@ export async function startProtocol(form: FormData): Promise<void> {
     const { response } = await api.POST("/runs/{run_id}/protocol", {
       params: { path: { run_id: runId } },
       headers: await bearerHeaders(),
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  back(runId, failed);
+}
+
+/** Adds a version of a requirement's written Test Step from the write form, with no Reason
+ * for Change, then returns to the page. A form that is not a complete Test Step in one of the
+ * four Acceptance Criterion shapes is not sent. */
+export async function writeTestStep(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const protocolId = Number(field(form, "protocol_id"));
+  const requirement = field(form, "requirement") ?? "";
+  const step = stepFrom(form);
+  if (!Number.isInteger(protocolId) || requirement === "") back(runId, "failed");
+  if (step === null) back(runId, "invalid");
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/test-steps/{requirement}", {
+      params: { path: { protocol_id: protocolId, requirement } },
+      headers: await bearerHeaders(),
+      body: { test_step: step },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  back(runId, failed);
+}
+
+/** Removes a requirement's written Test Step (a version that takes it back), then returns. */
+export async function removeTestStep(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const protocolId = Number(field(form, "protocol_id"));
+  const requirement = field(form, "requirement") ?? "";
+  if (!Number.isInteger(protocolId) || requirement === "") back(runId, "failed");
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/test-steps/{requirement}", {
+      params: { path: { protocol_id: protocolId, requirement } },
+      headers: await bearerHeaders(),
+      body: { test_step: null },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  back(runId, failed);
+}
+
+/** Edits a drafted Test Step: the `edited` decision with its Reason for Change and the Test
+ * Step it gives, in one request, then returns to the page. */
+export async function editDraftedTestStep(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const protocolId = Number(field(form, "protocol_id"));
+  const proposalId = Number(field(form, "proposal_id"));
+  const step = stepFrom(form);
+  if (!Number.isInteger(protocolId) || !Number.isInteger(proposalId)) back(runId, "failed");
+  if (step === null) back(runId, "invalid");
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/drafts/{proposal_id}/edit", {
+      params: { path: { protocol_id: protocolId, proposal_id: proposalId } },
+      headers: await bearerHeaders(),
+      body: { reason: field(form, "reason") ?? "", test_step: step },
     });
     failed = error(response.status);
   } catch {

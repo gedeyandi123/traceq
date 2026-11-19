@@ -287,6 +287,7 @@ def test_decided_coverage_gives_a_test_step_row_blocking_until_its_draft_is_acce
     assert row["test_step"] == {
         "origin": "accepted_draft",
         "proposal_id": place(ps, "test_step", "URS-TP201-002")["id"],
+        "version": None,
         "description": "Verifies URS-TP201-002 on site.",
         "method": "Set the turret to 20 rpm and to 70 rpm and read the tachometer.",
         "instrument": "TACH-07 Digital tachometer",

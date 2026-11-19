@@ -1,7 +1,8 @@
 """The routes of the Protocol assembled in TraceQ (spec #247, "API"): start the Protocol of a
-run's Equipment, read the Protocol of a run, withdraw a Protocol in Draft status.
+run's Equipment, read the Protocol of a run, add a version of a written Test Step, edit a
+drafted Test Step, withdraw a Protocol in Draft status.
 
-Every route needs a valid bearer token; starting and withdrawing need the deciding role, so the
+Every route needs a valid bearer token; every write needs the deciding role, so the
 Audit Trail names who did it. Reading is open to any signed-in role. Accepting and rejecting a
 drafted Test Step go through ``recordDecision``. Errors: 401 without a token, 403 without the
 role, 404 unknown, 409 for a refused state change with the reason in words.
@@ -20,11 +21,20 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from traceq.assembly import lifecycle
+from traceq.assembly import lifecycle, written
 from traceq.assembly.lifecycle import EventKind, Status
-from traceq.assembly.rows import Blocker, DraftOfRow, ProtocolRow, RowKind, rows_of
+from traceq.assembly.rows import (
+    Blocker,
+    DraftOfRow,
+    PrefillOrigin,
+    ProtocolRow,
+    RowKind,
+    rows_of,
+)
+from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.db import transaction
 from traceq.identity import Principal
+from traceq.proposals import decisions
 from traceq.proposals.api import Proposal, actor_of, proposal_view
 from traceq.runs.api import DRAFTS_FILE, find_run
 from traceq.runs.schemas import Cite, DraftedTestStep, EvidenceStep
@@ -63,16 +73,56 @@ class RowDraft(_Model):
 class RowTestStep(_Model):
     """The one Test Step of a Test Step row."""
 
-    origin: Literal["accepted_draft"] = "accepted_draft"
-    """``accepted_draft``: a drafted Test Step accepted as drafted."""
+    origin: Literal["accepted_draft", "written"]
+    """``accepted_draft``: a drafted Test Step accepted as drafted. ``written``: a Test Step a
+    human wrote in this Protocol, or edited from a draft."""
     proposal_id: int | None
-    """The drafted Test Step's Proposal."""
+    """For an accepted draft: its Proposal. For a written one: the draft it was edited from,
+    ``null`` when written without one."""
+    version: int | None
+    """For a written Test Step: the version in force."""
     description: str
     method: str
     instrument: str | None
     acceptance: Value | None
     """The Acceptance Criterion; ``null`` while it is "to be set by a human"."""
     acceptance_flag: str | None
+
+
+class WrittenVersionView(_Model):
+    """A version of a written Test Step: its full content, or a removal, who and when."""
+
+    id: int
+    version: int
+    """1, 2, ... per Protocol and requirement."""
+    removed: bool
+    """A removal takes the written Test Step back: the row falls back to its accepted draft
+    or to Vendor Reference."""
+    test_step: WrittenContent | None
+    """The full content; ``null`` for a removal."""
+    from_proposal_id: int | None
+    """For a version made by editing a drafted Test Step: that draft's Proposal."""
+    decision_id: int | None
+    """For a version made by editing a drafted Test Step: the ``edited`` decision."""
+    subject: str
+    issuer: str
+    name: str
+    """The name shown for the person at the time."""
+    at: datetime
+
+
+class RowPrefill(_Model):
+    """What the row's write form starts from."""
+
+    origin: PrefillOrigin
+    """``written``: the written Test Step in force. ``withdrawn``: its latest version in the
+    most recent withdrawn Protocol of the Equipment (it does not carry over; saving it makes a
+    version of this Protocol). ``draft``: the first drafted Test Step of the requirement."""
+    description: str
+    method: str
+    instrument: str | None
+    acceptance: Acceptance | None
+    """``null`` when the source has no Acceptance Criterion in one of the four shapes."""
 
 
 class ProtocolRowView(_Model):
@@ -97,6 +147,10 @@ class ProtocolRowView(_Model):
     """For a Test Step row: its Test Step, ``null`` while it has none."""
     drafts: list[RowDraft]
     """The drafted Test Steps of the requirement, with their decision state."""
+    written: list[WrittenVersionView]
+    """Every version of the requirement's written Test Step in this Protocol, oldest first."""
+    prefill: RowPrefill | None
+    """What the write form starts from; ``null`` with no source at all."""
     blockers: list[Blocker]
     """What blocks this row: ``coverage_undecided``, ``no_test_step``."""
 
@@ -123,6 +177,22 @@ class Withdrawal(_Model):
     """Why the Protocol is given up."""
 
 
+class NewWrittenVersion(_Model):
+    """A version of a requirement's written Test Step. No Reason for Change."""
+
+    test_step: WrittenContent | None
+    """The full content; ``null`` removes the written Test Step."""
+
+
+class DraftEdit(_Model):
+    """An edit of a drafted Test Step: the ``edited`` decision and the Test Step it gives."""
+
+    reason: str
+    """The Reason for Change of the ``edited`` decision."""
+    test_step: WrittenContent
+    """The Test Step as edited, saved as a version of the written Test Step."""
+
+
 def _event(e: lifecycle.Event) -> ProtocolEvent:
     return ProtocolEvent(
         id=e.id,
@@ -140,10 +210,61 @@ def _draft(d: DraftOfRow) -> RowDraft:
     return RowDraft(draft=d.draft, proposal=proposal_view(d.standing))
 
 
+def _version(v: WrittenVersion) -> WrittenVersionView:
+    return WrittenVersionView(
+        id=v.id,
+        version=v.version,
+        removed=v.removed,
+        test_step=v.content,
+        from_proposal_id=v.from_proposal_id,
+        decision_id=v.decision_id,
+        subject=v.actor.subject,
+        issuer=v.actor.issuer,
+        name=v.actor.name,
+        at=v.at,
+    )
+
+
+def _written_step(v: WrittenVersion) -> RowTestStep:
+    c = v.content
+    assert c is not None  # the step in force is never a removal
+    return RowTestStep(
+        origin="written",
+        proposal_id=v.from_proposal_id,
+        version=v.version,
+        description=c.description,
+        method=c.method,
+        instrument=c.instrument,
+        acceptance=c.acceptance,
+        acceptance_flag=None,
+    )
+
+
+def _row_step(r: ProtocolRow) -> RowTestStep | None:
+    if r.written_step is not None:
+        return _written_step(r.written_step)
+    return None if r.test_step is None else _test_step(r.test_step)
+
+
+def _prefill(r: ProtocolRow) -> RowPrefill | None:
+    f = r.prefill
+    if f is None:
+        return None
+    return RowPrefill(
+        origin=f.origin,
+        description=f.description,
+        method=f.method,
+        instrument=f.instrument,
+        acceptance=f.acceptance,
+    )
+
+
 def _test_step(d: DraftOfRow) -> RowTestStep:
     s = d.draft
     return RowTestStep(
+        origin="accepted_draft",
         proposal_id=d.standing.proposal_id,
+        version=None,
         description=s.description,
         method=s.method,
         instrument=s.instrument,
@@ -162,8 +283,10 @@ def _row(r: ProtocolRow) -> ProtocolRowView:
         decided_class=r.decided_class,
         kind=r.kind,
         evidence=req.evidence if r.kind == "vendor_reference" else (),
-        test_step=None if r.test_step is None else _test_step(r.test_step),
+        test_step=_row_step(r),
         drafts=[_draft(d) for d in r.drafts],
+        written=[_version(v) for v in r.written],
+        prefill=_prefill(r),
         blockers=list(r.blockers),
     )
 
@@ -179,7 +302,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         return db
 
     def view(session: Session, p: lifecycle.AssembledProtocol) -> ProtocolView:
-        rows = rows_of(session, p.run_id) if p.status == "draft" else None
+        rows = rows_of(session, p) if p.status == "draft" else None
         return ProtocolView(
             id=p.id,
             equipment=p.equipment,
@@ -222,6 +345,71 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             if found is None:
                 raise HTTPException(404, f"no Protocol was started from run {run_id}")
             return view(session, found)
+
+    def reread(session: Session, protocol_id: int) -> ProtocolView:
+        found = lifecycle.get(session, protocol_id)
+        assert found is not None  # just written under its lock
+        return view(session, found)
+
+    @router.post(
+        "/protocols/{protocol_id}/test-steps/{requirement}",
+        operation_id="writeTestStep",
+        status_code=201,
+    )
+    def write_test_step(
+        protocol_id: int,
+        requirement: str,
+        body: NewWrittenVersion,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ProtocolView:
+        """Adds a version of the requirement's written Test Step in a Protocol in Draft
+        status: its full content (the Acceptance Criterion a range, number, one of or
+        present; never free text), or a removal (``test_step`` ``null``). No Reason for
+        Change; every version is kept, with its Audit Trail entry. Refused (409) unless the
+        Protocol is in Draft status, while a drafted Test Step of the requirement is
+        accepted, and for a removal with nothing to remove. Needs the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "writing a Test Step needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                written.write(session, actor_of(who), protocol_id, requirement, body.test_step)
+                return reread(session, protocol_id)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.post(
+        "/protocols/{protocol_id}/drafts/{proposal_id}/edit",
+        operation_id="editDraftedTestStep",
+        status_code=201,
+    )
+    def edit_drafted_test_step(
+        protocol_id: int,
+        proposal_id: int,
+        body: DraftEdit,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ProtocolView:
+        """Edits a drafted Test Step of the Protocol's run, in one transaction: the
+        ``edited`` decision with its Reason for Change, and a version of the written Test
+        Step with the draft it came from, each with its Audit Trail entry. This is the only
+        way to record ``edited`` on a drafted Test Step. Refused (409) unless the Protocol is
+        in Draft status, and while the requirement holds a written Test Step or another of
+        its drafts is accepted. Needs the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "editing a drafted Test Step needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                written.edit(
+                    session, actor_of(who), protocol_id, proposal_id, body.reason, body.test_step
+                )
+                return reread(session, protocol_id)
+        except (lifecycle.NotFound, decisions.NotInRun) as e:
+            raise HTTPException(404, str(e)) from e
+        except decisions.Refused as e:
+            raise HTTPException(422, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
 
     @router.post("/protocols/{protocol_id}/withdraw", operation_id="withdrawProtocol")
     def withdraw_protocol(
