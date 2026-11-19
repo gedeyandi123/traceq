@@ -7,7 +7,7 @@
     "answer_key_sha256": "163c9675271ae3b23f7fdffc1235eb18a32904da584863cc58ea46a6d9310bd8"
   },
   "dataset": {
-    "version": "0.1.1",
+    "version": "0.2.0",
     "t0": "2026-06-01",
     "seed": 0,
     "answer_key_sha256": "0dd473b2d7087349a688dc23478175f965bbe9b5e193a0c3dc99453a893ffa5d"
