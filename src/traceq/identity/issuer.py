@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException
 from jwt.algorithms import RSAAlgorithm
 from pydantic import BaseModel
 
-from traceq.identity.tokens import DECIDING_ROLE
+from traceq.identity.tokens import APPROVING_ROLE, DECIDING_ROLE
 
 LOOPBACK = ("127.0.0.1", "localhost")
 
@@ -36,7 +36,8 @@ class Persona(BaseModel):
     roles: list[str]
 
 
-# Fictional people. Two hold the deciding role, one may only read.
+# Fictional people. Two hold the deciding role, one may only read, and one holds only the
+# approving role (ADR 0012): no persona both decides and approves.
 PERSONAS = (
     Persona(
         username="ayu",
@@ -51,6 +52,12 @@ PERSONAS = (
         roles=[DECIDING_ROLE],
     ),
     Persona(username="citra", subject="demo-0003", name="Citra Maharani Putri", roles=[]),
+    Persona(
+        username="dewi",
+        subject="demo-0004",
+        name="Dewi Anggraini Lestari",
+        roles=[APPROVING_ROLE],
+    ),
 )
 
 

@@ -21,9 +21,11 @@ import pytest
 
 from traceq.ai import BudgetExceeded, MissingRecording, Request, Response
 from traceq.app import cli
+from traceq.proposals.keys import digest, proposals_of
 from traceq.review.draft import urs_limit
 from traceq.review.printed import Limit
 from traceq.runs.run import RunOutput, run
+from traceq.runs.schemas import DraftedTestSteps, Findings, Matrix, ProtocolDraft
 from traceq.traceability import Citation, Requirement
 from traceq.traceability.values import Number
 from traceq_dataset.answer_key import load_key
@@ -279,6 +281,36 @@ def test_review_package_run_reports_its_draft_findings(
         ("SAT-TP201", "SAT", ["SAT-02"]),
         ("DS-TP201", "design", ["Maximum pre-compression force"]),
     ]
+
+
+PROPOSAL_KEYS = "56878c4a2b92f26f84b3d4adc1e3a8a24453d790225a61a3517bc42598913801"
+"""The digest of every (kind, subject hash, ordinal, content hash) of the Coverage, Check, AI
+and draft Proposals of the demo run (r10 with the Review Package run r3), taken before the
+drafted Test Steps became Proposals (spec #247): decisions on them must still apply."""
+
+
+def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
+    runs: tuple[RunOutput, RunOutput],
+) -> None:
+    _, out = runs
+    proposed = proposals_of(
+        "TP-201",
+        Matrix.model_validate(_json(out.folder / "matrix.json")),
+        Findings.model_validate(_json(out.folder / "findings.json")),
+        ProtocolDraft.model_validate(_json(out.folder / "protocol_draft.json")),
+        DraftedTestSteps.model_validate(_json(out.folder / "drafts.json")),
+    )
+    earlier = [p for p in proposed if p.kind != "test_step"]
+    assert len(earlier) == 50
+    assert digest([[p.kind, p.subject_hash, p.ordinal, p.content_hash] for p in earlier]) == (
+        PROPOSAL_KEYS
+    )
+    steps = proposed[len(earlier) :]
+    assert all(p.kind == "test_step" and p.position is None for p in steps)
+    assert len(steps) == len({p.subject_hash for p in steps}) == 31
+    without_ac = [p for p in steps if p.proposed["acceptance"] is None]
+    as_text = [p for p in steps if (p.proposed["acceptance"] or {}).get("type") == "text"]
+    assert (len(without_ac), len(as_text)) == (19, 2)
 
 
 def test_live_review_package_run_fails_on_a_missing_equipment_recording(tmp_path: Path) -> None:

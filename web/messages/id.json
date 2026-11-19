@@ -13,6 +13,7 @@
     "run": "Run",
     "matrix": "Matriks",
     "findings": "Temuan pra-tinjauan",
+    "protocol": "Protokol (disusun di TraceQ)",
     "leftOut": "Yang tidak dimasukkan",
     "eval": "Hasil evaluasi",
     "draft": "Draf protokol"
@@ -31,7 +32,8 @@
     "signedInAs": "Masuk sebagai {name} (identitas demo)",
     "out": "Keluar",
     "lead": "Pilih siapa yang memakai aplikasi. Perannya menentukan apakah keputusan dapat dibuat.",
-    "role": "Peran"
+    "role": "Peran",
+    "canApprove": "Dapat menyetujui"
   },
   "runs": {
     "title": "Run analisis",
@@ -109,7 +111,8 @@
     "made": {
       "accepted": "Diterima oleh {name}, {when}",
       "rejected": "Ditolak oleh {name}, {when}",
-      "edited": "Diubah ke {class} oleh {name}, {when}"
+      "edited": "Diubah ke {class} oleh {name}, {when}",
+      "editedStep": "Disunting oleh {name}, {when}"
     },
     "earlier": "Keputusan sebelumnya atas isi ini:",
     "previous": "Keputusan sebelumnya, atas isi lain: {summary}",
@@ -122,6 +125,7 @@
     "readOnly": {
       "signedOut": "Hanya membaca: masuk sebagai orang dengan peran pengambil keputusan untuk memutuskan.",
       "noRole": "Hanya membaca: identitas ini tidak memiliki peran pengambil keputusan. Masuk sebagai orang yang memilikinya untuk memutuskan.",
+      "approver": "Identitas ini hanya berperan menyetujui, jadi tidak dapat menyusun atau memutuskan. Identitas ini dapat menyetujui atau mengembalikan protokol yang berstatus Diajukan.",
       "notImported": "Hanya membaca: run ini belum diimpor ke basis data. Impor run (perintah demo) untuk memutuskan.",
       "unavailable": "Hanya membaca: API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
     },
@@ -129,13 +133,15 @@
       "refused": "Keputusan ditolak API. Alasan perubahan wajib untuk menolak, mengubah kelas, atau mengganti keputusan; mengubah kelas perlu kelas yang lain.",
       "forbidden": "Keputusan ditolak API: identitas ini tidak memiliki peran pengambil keputusan.",
       "unauthorized": "Keputusan ditolak API: token tidak diterima. Masuk lagi.",
-      "failed": "Keputusan tidak tersimpan. Coba lagi."
+      "failed": "Keputusan tidak tersimpan. Coba lagi.",
+      "conflict": "Keputusan ditolak API: persyaratan ini sudah memiliki langkah uji tertulis di protokol yang terbuka. Hapus dulu langkah uji tertulis itu."
     },
     "kinds": {
       "coverage": "Baris cakupan",
       "check": "Temuan pemeriksaan",
       "ai": "Temuan AI",
-      "draft": "Temuan draf protokol"
+      "draft": "Temuan draf protokol",
+      "test_step": "Langkah uji rancangan TraceQ"
     },
     "counts": {
       "title": "Jumlah keputusan",
@@ -315,5 +321,194 @@
     "signedOutBody": "Draf, temuan dan keputusannya dibaca dengan token: masuk dengan identitas demo mana pun.",
     "unavailable": "Draf protokol tidak dapat dimuat",
     "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
+  },
+  "protocol": {
+    "title": "Protokol (disusun di TraceQ)",
+    "intro": "Protokol IQ/OQ peralatan ini yang disusun di TraceQ dari keputusan manusia atas run ini: satu baris per persyaratan. Bukan draf protokol lokasi yang ditinjau di layar Draf protokol.",
+    "approval": {
+      "note": "Menyetujui mencatat status Disetujui yang terikat pada salinan beku dan hash di bawah. Ini status yang dicatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2).",
+      "approve": "Setujui protokol",
+      "return": "Kembalikan ke Draft",
+      "returnReason": "Alasan pengembalian",
+      "approvedNote": "Disetujui: status yang dicatat atas salinan beku dan hash di bawah, bukan Tanda Tangan Elektronik (ADR 0007 fase 2). Versi baru protokol ini adalah langkah 6."
+    },
+    "limitsTitle": "Batas yang diketahui",
+    "limits": {
+      "oneStep": "Satu langkah uji per persyaratan.",
+      "combined": "IQ dan OQ digabung dalam satu protokol.",
+      "noPrint": "Tidak ada protokol cetak atau ekspor.",
+      "notSignature": "Persetujuan adalah status yang dicatat, bukan Tanda Tangan Elektronik.",
+      "noNewVersion": "Belum ada versi baru setelah protokol disetujui (langkah 6)."
+    },
+    "none": "Belum ada protokol yang dimulai dari run ini",
+    "noneBody": "Orang dengan peran pengambil keputusan memulai protokol peralatan dari run yang sudah diimpor. Satu protokol per peralatan boleh terbuka sekaligus.",
+    "start": "Mulai protokol dari run ini",
+    "startAgain": "Mulai protokol baru dari run ini",
+    "status": "Status protokol {id}",
+    "statuses": {
+      "draft": "Draft (sedang disusun)",
+      "submitted": "Diajukan",
+      "approved": "Disetujui",
+      "withdrawn": "Ditarik"
+    },
+    "history": "Riwayat status",
+    "events": {
+      "started": "Dimulai oleh {name}, {when}",
+      "submitted": "Diajukan oleh {name}, {when}",
+      "approved": "Disetujui oleh {name}, {when}",
+      "returned": "Dikembalikan ke Draft oleh {name}, {when}",
+      "withdrawn": "Ditarik oleh {name}, {when}"
+    },
+    "startedFrom": "Dimulai dari run {run}",
+    "withdraw": "Tarik protokol",
+    "withdrawReason": "Alasan penarikan",
+    "withdrawnNote": "Protokol ini ditarik. Protokol baru untuk peralatan ini dapat dimulai.",
+    "rows": "Baris protokol",
+    "rowsNote": "Dihitung dari keputusan saat ini selama protokol berstatus Draft. Baris referensi vendor tidak diuji ulang di lokasi.",
+    "notDraftRows": "Baris hanya dihitung selama protokol berstatus Draft.",
+    "summary": "{rows} baris: {blocking} masih memblokir, {vendor} referensi vendor, {testStep} baris langkah uji",
+    "requirement": "Persyaratan",
+    "coverage": "Cakupan (keputusan manusia)",
+    "content": "Isi protokol",
+    "drafts": "Langkah uji rancangan TraceQ",
+    "kinds": {
+      "undecided": "Belum dapat ditentukan",
+      "vendor_reference": "Referensi vendor",
+      "test_step": "Langkah uji"
+    },
+    "blockers": {
+      "coverage_undecided": "Memblokir: cakupan belum diputuskan atas isi run ini",
+      "draft_undecided": "Memblokir: langkah uji rancangan belum diputuskan (terima, sunting, atau tolak)",
+      "no_test_step": "Memblokir: belum ada langkah uji; terima atau sunting langkah uji rancangan, atau tulis satu",
+      "acceptance_not_shaped": "Memblokir: kriteria penerimaan belum ada atau berupa teks bebas; sunting rancangan untuk menetapkannya"
+    },
+    "checklist": {
+      "title": "Yang memblokir pengajuan",
+      "note": "Protokol dapat diajukan jika semua jumlah nol. Yang mengajukan menjadi Penyusun (Preparer).",
+      "items": {
+        "coverage_undecided": "Cakupan belum diputuskan atas isi run ini: {count}",
+        "draft_undecided": "Langkah uji rancangan belum diputuskan: {count}",
+        "no_test_step": "Baris langkah uji tanpa langkah uji: {count}",
+        "acceptance_not_shaped": "Kriteria penerimaan belum ada atau berupa teks bebas: {count}",
+        "missed_undecided": "Nomor persyaratan terlewat tanpa jawaban: {count}"
+      },
+      "ready": "Tidak ada yang memblokir: protokol dapat diajukan."
+    },
+    "submit": "Ajukan protokol",
+    "copy": {
+      "title": "Salinan beku yang diajukan",
+      "note": "Isi protokol saat diajukan. Keputusan yang dicatat sesudahnya tidak mengubah salinan ini.",
+      "hash": "Hash (SHA-256)",
+      "preparer": "Penyusun",
+      "submittedBy": "{name}, diajukan {when}",
+      "decisions": {
+        "accepted": "Diterima oleh {name}, {when}",
+        "rejected": "Ditolak oleh {name}, {when}",
+        "edited": "Disunting oleh {name}, {when}"
+      },
+      "undecidedDraft": "Tidak diputuskan (referensi vendor tidak memerlukannya)",
+      "missed": "{number} ({doc} rev {rev}): {kind}, oleh {name}",
+      "missedKinds": {
+        "not_a_requirement": "bukan persyaratan",
+        "not_tested_here": "persyaratan yang tidak diuji protokol ini"
+      },
+      "earlier": "Salinan yang diajukan sebelumnya",
+      "earlierItem": "Diajukan {when}, hash",
+      "returnedBy": "Dikembalikan ke Draft oleh {name}, {when}"
+    },
+    "coverageUndecided": "Belum diputuskan",
+    "coverageChanged": "Berubah sejak diputuskan",
+    "toMatrix": "Putuskan di matriks",
+    "vendorEvidence": "Dibuktikan oleh bukti vendor, tidak diuji ulang di lokasi:",
+    "evidenceStep": "{doc} rev {rev}, langkah {step}",
+    "fromDraft": "Langkah uji rancangan yang diterima",
+    "description": "Deskripsi",
+    "method": "Metode",
+    "instrument": "Instrumen",
+    "noInstrument": "tidak disebut",
+    "ac": "Kriteria penerimaan",
+    "acToSet": "Ditetapkan oleh manusia: {flag}",
+    "noDrafts": "Tidak ada langkah uji rancangan",
+    "vendorDraftNote": "Tidak perlu diputuskan; menerimanya menguji ulang persyaratan ini di lokasi.",
+    "signedOut": "Masuk untuk melihat protokol",
+    "signedOutBody": "Protokol dan keputusannya dibaca dengan token: masuk dengan identitas demo mana pun.",
+    "notImported": "Run ini belum diimpor ke basis data",
+    "notImportedBody": "Protokol disusun dari usulan run yang sudah diimpor. Impor run (perintah demo) terlebih dahulu.",
+    "unavailable": "Protokol tidak dapat dimuat",
+    "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data.",
+    "errors": {
+      "conflict": "Ditolak API: protokol lain untuk peralatan ini masih terbuka atau sudah disetujui, protokol ini bukan lagi Draft, baris ini sudah memiliki langkah uji lain, run ini diimpor sebelum langkah uji rancangan menjadi usulan, masih ada yang memblokir pengajuan, atau persetujuan ditolak: Anda Penyusun atau penulis isi salinan, atau salinan yang dibaca bukan lagi pengajuan saat ini.",
+      "refused": "Ditolak API: alasan atau justifikasi wajib diisi, atau isi langkah uji tidak lengkap.",
+      "forbidden": "Ditolak API: identitas ini tidak memiliki peran yang diperlukan (memutuskan, atau menyetujui).",
+      "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",
+      "failed": "Tidak tersimpan. Coba lagi.",
+      "invalid": "Tidak dikirim: langkah uji perlu deskripsi, metode, dan kriteria penerimaan dalam salah satu dari empat bentuk dengan nilainya; jawaban atas nomor yang terlewat perlu jenis jawaban."
+    },
+    "writtenStep": "Langkah uji tertulis, versi {version}",
+    "editedStep": "Langkah uji rancangan yang disunting, versi {version}",
+    "form": {
+      "write": "Tulis langkah uji",
+      "change": "Ubah langkah uji tertulis",
+      "save": "Simpan versi",
+      "remove": "Hapus langkah uji tertulis",
+      "edit": "Sunting rancangan",
+      "editSetAc": "Sunting rancangan dan tetapkan kriteria penerimaan",
+      "saveEdit": "Simpan suntingan",
+      "reason": "Alasan perubahan",
+      "acceptedFirst": "Langkah uji rancangan persyaratan ini diterima. Tolak atau putuskan ulang dulu sebelum menulis langkah uji.",
+      "prefill": {
+        "withdrawn": "Diisi dari versi terakhir di protokol yang ditarik; tersimpan sebagai versi protokol ini setelah disimpan.",
+        "draft": "Diisi dari langkah uji rancangan."
+      },
+      "shape": "Bentuk",
+      "chooseShape": "Pilih bentuk",
+      "shapes": {
+        "range": "Rentang (satu atau dua batas, dengan satuan)",
+        "number": "Angka (nilai tepat, dengan satuan)",
+        "one_of": "Salah satu dari (nilai yang diizinkan)",
+        "present": "Ada (tanpa nilai)"
+      },
+      "min": "Batas bawah",
+      "max": "Batas atas",
+      "value": "Nilai",
+      "unit": "Satuan",
+      "allowed": "Nilai yang diizinkan (pisahkan dengan ;)",
+      "hint": "Hanya isian bentuk yang dipilih yang dibaca. Teks bebas tidak diterima: setiap langkah uji harus dapat dinilai oleh kode."
+    },
+    "versions": {
+      "title": "Riwayat versi ({count})",
+      "written": "Versi {version} oleh {name}, {when}",
+      "removed": "Versi {version}: dihapus oleh {name}, {when}",
+      "fromDraft": "(disunting dari rancangan)"
+    },
+    "missed": {
+      "title": "Nomor persyaratan tercetak yang terlewat",
+      "note": "Nomor persyaratan yang tercetak di URS tetapi tidak menjadi persyaratan run ini, menurut pemeriksaan kelengkapan URS. Setiap nomor perlu dijawab sebelum protokol diajukan.",
+      "notRun": "Pemeriksaan kelengkapan tidak dijalankan untuk run ini (run ditulis sebelum pemeriksaan ada), jadi tidak ada nomor yang perlu dijawab.",
+      "urs": "{doc} rev {rev}",
+      "notApplicable": "Tidak berlaku: run ini tidak membaca nomor persyaratan tercetak di URS ini, jadi tidak ada nomor yang terlewat.",
+      "noneMissed": "Tidak ada nomor yang terlewat.",
+      "unanswered": "Memblokir: {count} nomor belum dijawab",
+      "page": "hlm. {page}",
+      "blocking": "Memblokir: belum dijawab",
+      "kinds": {
+        "not_a_requirement": "Bukan persyaratan",
+        "not_tested_here": "Persyaratan yang tidak diuji protokol ini"
+      },
+      "answeredBy": "Versi {version} oleh {name}, {when}",
+      "history": "Riwayat jawaban ({count})",
+      "kind": "Jawaban",
+      "chooseKind": "Pilih jawaban",
+      "justification": "Justifikasi",
+      "save": "Simpan jawaban",
+      "answer": "Jawab {number}",
+      "change": "Ubah jawaban {number}"
+    },
+    "unquoted": {
+      "title": "Teks URS yang tidak dikutip",
+      "note": "Teks URS yang tidak dikutip persyaratan mana pun, untuk mencari persyaratan yang hilang. Tidak perlu dijawab dan tidak memblokir.",
+      "none": "Tidak ada.",
+      "show": "{doc} rev {rev}: tampilkan teks ({count})"
+    }
   }
 }

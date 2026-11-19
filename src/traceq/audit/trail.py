@@ -48,6 +48,11 @@ class Actor:
     name: str
 
 
+def actor_of_row(m: RowMapping) -> Actor:
+    """The Actor a table row records in its ``subject``, ``issuer`` and ``name`` columns."""
+    return Actor(subject=m["subject"], issuer=m["issuer"], name=m["name"])
+
+
 @dataclass(frozen=True)
 class Entry:
     id: int
@@ -65,7 +70,7 @@ def _entry(m: RowMapping) -> Entry:
     return Entry(
         id=m["id"],
         at=m["at"],
-        actor=Actor(subject=m["subject"], issuer=m["issuer"], name=m["name"]),
+        actor=actor_of_row(m),
         action=m["action"],
         record_type=m["record_type"],
         record_id=m["record_id"],

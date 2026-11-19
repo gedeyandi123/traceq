@@ -217,7 +217,10 @@ export interface paths {
         /**
          * Record Decision
          * @description Records one Proposal Decision on the content this run proposed, with its Audit
-         *     Trail entry. Earlier decisions stay. Needs the deciding role.
+         *     Trail entry. Earlier decisions stay. Accepting a drafted Test Step is refused (409)
+         *     while the open Protocol of its Equipment holds a written Test Step for its
+         *     requirement; ``edited`` on a drafted Test Step goes through ``editDraftedTestStep``.
+         *     Needs the deciding role.
          */
         post: operations["recordDecision"];
         delete?: never;
@@ -246,10 +249,212 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/protocol": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Protocol
+         * @description The Protocol most recently started from this run: its status and every status
+         *     change, and in Draft status its rows computed from the current decisions. Any
+         *     signed-in role may read it.
+         */
+        get: operations["getProtocol"];
+        put?: never;
+        /**
+         * Start Protocol
+         * @description Starts the Protocol of the run's Equipment from this imported run, in Draft status,
+         *     with its Audit Trail entry. Refused (409) while a Protocol of the Equipment is open
+         *     (Draft or Submitted), once one is approved, and for a run whose folder has
+         *     ``drafts.json`` but which holds no drafted Test Step Proposals. Needs the deciding
+         *     role.
+         */
+        post: operations["startProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/test-steps/{requirement}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Write Test Step
+         * @description Adds a version of the requirement's written Test Step in a Protocol in Draft
+         *     status: its full content (the Acceptance Criterion a range, number, one of or
+         *     present; never free text), or a removal (``test_step`` ``null``). No Reason for
+         *     Change; every version is kept, with its Audit Trail entry. Refused (409) unless the
+         *     Protocol is in Draft status, while a drafted Test Step of the requirement is
+         *     accepted, and for a removal with nothing to remove. Needs the deciding role.
+         */
+        post: operations["writeTestStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/drafts/{proposal_id}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Edit Drafted Test Step
+         * @description Edits a drafted Test Step of the Protocol's run, in one transaction: the
+         *     ``edited`` decision with its Reason for Change, and a version of the written Test
+         *     Step with the draft it came from, each with its Audit Trail entry. This is the only
+         *     way to record ``edited`` on a drafted Test Step. Refused (409) unless the Protocol is
+         *     in Draft status, and while the requirement holds a written Test Step or another of
+         *     its drafts is accepted. Needs the deciding role.
+         */
+        post: operations["editDraftedTestStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/missed-numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Missed Number
+         * @description Records the disposition of a printed requirement number the Protocol's run missed,
+         *     in a Protocol in Draft status: ``not_a_requirement`` or ``not_tested_here``, with a
+         *     non-blank justification (422 without one), and its Audit Trail entry. A later one
+         *     replaces it; every one is kept. 404 for a number the run's completeness check did not
+         *     miss, or one in a URS checked ``not_applicable``; 409 unless the Protocol is in Draft
+         *     status. Needs the deciding role.
+         */
+        post: operations["decideMissedNumber"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Protocol
+         * @description Submits a Protocol in Draft status that no check blocks; the submitter becomes its
+         *     Preparer. Stores the frozen copy and its hash in the ``submitted`` event, with its
+         *     Audit Trail entry; from then on the Protocol shows that copy, and written Test Steps
+         *     and missed-number dispositions are refused. Refused (409) unless in Draft status, and
+         *     while any check of ``checklist`` blocks (the reason lists them with their counts).
+         *     Needs the deciding role.
+         */
+        post: operations["submitProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Protocol
+         * @description Withdraws a Protocol in Draft status, with a reason and its Audit Trail entry, so
+         *     a new Protocol of the Equipment can be started. Needs the deciding role.
+         */
+        post: operations["withdrawProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Protocol
+         * @description Approves a Submitted Protocol: a recorded status, not an Electronic Signature (ADR 0007 phase 2). Bound to the
+         *     submission the Approver read: ``submission_event_id`` and ``hash`` must be the current
+         *     submission's, else 409 (a resubmission after a return has the same hash but a new event id).
+         *     Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
+         *     decision in force (Coverage, and every current decision on a drafted Test Step, rejections
+         *     included), or of any version of a written Test Step or of a disposition of a missed number;
+         *     the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
+         *     Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
+         *     entry. Needs the approving role.
+         */
+        post: operations["approveProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Protocol
+         * @description Returns a Submitted Protocol to Draft with a reason (422 without one) and its Audit
+         *     Trail entry. It reads the current decisions again; the returned copy stays readable in
+         *     ``submissions``. Refused (409) unless Submitted. Needs the approving role.
+         */
+        post: operations["returnProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Acceptance: components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Present"];
         /**
          * AiFinding
          * @description A Pre-review finding of the LLM, every citation verified; advisory (ADR 0002).
@@ -297,6 +502,32 @@ export interface components {
             readings: number[];
         };
         /**
+         * Approval
+         * @description What the Approver read: approval is bound to that submission and its hash.
+         */
+        Approval: {
+            /** Submission Event Id */
+            submission_event_id: number;
+            /** Hash */
+            hash: string;
+        };
+        /**
+         * Author
+         * @description Who: the token's subject and issuer, and the name shown at the time.
+         */
+        Author: {
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
+        /** @enum {string} */
+        Blocker: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped";
+        /** @enum {string} */
+        Check: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped" | "missed_undecided";
+        /**
          * CheckFinding
          * @description A Pre-review finding of a deterministic rule: no model involved.
          */
@@ -318,6 +549,19 @@ export interface components {
             /** Citations */
             citations: components["schemas"]["Cite"][];
             rule: components["schemas"]["Cite"] | null;
+        };
+        /**
+         * ChecklistItem
+         * @description One submission check: how many rows or missed numbers it holds back, and which.
+         */
+        ChecklistItem: {
+            check: components["schemas"]["Check"];
+            /** Count */
+            count: number;
+            /** Requirements */
+            requirements: string[];
+            /** Numbers */
+            numbers: components["schemas"]["MissedKey"][];
         };
         /**
          * Cite
@@ -382,6 +626,7 @@ export interface components {
             check: components["schemas"]["KindCounts"];
             ai: components["schemas"]["KindCounts"];
             draft: components["schemas"]["KindCounts"];
+            test_step: components["schemas"]["KindCounts"];
         };
         /**
          * DesignRow
@@ -475,6 +720,15 @@ export interface components {
             sha256: string;
         };
         /**
+         * DraftEdit
+         * @description An edit of a drafted Test Step: the ``edited`` decision and the Test Step it gives.
+         */
+        DraftEdit: {
+            /** Reason */
+            reason: string;
+            test_step: components["schemas"]["WrittenContent"];
+        };
+        /**
          * DraftFindingView
          * @description A finding on the Protocol Draft and the Proposal it was imported as.
          */
@@ -535,6 +789,53 @@ export interface components {
             comparators: components["schemas"]["DraftComparator"][];
         };
         /**
+         * DraftedTestStep
+         * @description An IQ/OQ Test Step the run drafted for a requirement, an AI Finding a human decides
+         *     (written by ``traceq.runs.drafts``). Not a Test Step of a site Protocol Draft
+         *     (``DraftTestStep``). The AC is present only when copied from a verified citation;
+         *     otherwise ``acceptance_flag`` says why it is "to be set by a human".
+         */
+        DraftedTestStep: {
+            /** Id */
+            id: string;
+            /** Requirement */
+            requirement: string;
+            /** Requirement Text */
+            requirement_text: string;
+            /** Coverage */
+            coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Saved By Reuse */
+            saved_by_reuse: boolean;
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            /** Acceptance */
+            acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
+            acceptance_citation: components["schemas"]["Cite"] | null;
+            /** Acceptance Flag */
+            acceptance_flag: string | null;
+            /**
+             * Layer
+             * @constant
+             */
+            layer: "ai";
+            source: components["schemas"]["Source"];
+            /** Model */
+            model: string;
+            /** Prompt */
+            prompt: string;
+            /** Created */
+            created: string;
+            /**
+             * Reviewer Action
+             * @constant
+             */
+            reviewer_action: "pending";
+        };
+        /**
          * DroppedClaim
          * @description A claim the citation check dropped, with its reason in plain text.
          */
@@ -546,6 +847,8 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** @enum {string} */
+        EventKind: "started" | "submitted" | "approved" | "returned" | "withdrawn";
         /**
          * EvidenceStep
          * @description A vendor FAT/SAT step linked to a requirement, with its verdict.
@@ -596,6 +899,157 @@ export interface components {
             governing_documents: components["schemas"]["GoverningDocument"][];
         };
         /**
+         * FrozenCoverage
+         * @description The Coverage class a human decided, and the decision in force that settled it.
+         */
+        FrozenCoverage: {
+            /**
+             * Coverage Class
+             * @enum {string}
+             */
+            coverage_class: "covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict";
+            decision: components["schemas"]["FrozenDecision"];
+        };
+        /**
+         * FrozenDecision
+         * @description A Proposal Decision in force when the Protocol was submitted, and who made it.
+         */
+        FrozenDecision: {
+            /** Id */
+            id: number;
+            decision: components["schemas"]["Verdict"];
+            /** Coverage */
+            coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Reason */
+            reason: string | null;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * FrozenDisposition
+         * @description A disposition of a missed number, and who recorded it.
+         */
+        FrozenDisposition: {
+            /** Version */
+            version: number;
+            kind: components["schemas"]["MissedKind"];
+            /** Justification */
+            justification: string;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * FrozenDraft
+         * @description A drafted Test Step of the row and the decision in force on it; ``null`` for an
+         *     undecided draft of a Vendor Reference, which needs none.
+         */
+        FrozenDraft: {
+            /** Proposal Id */
+            proposal_id: number;
+            /** Draft Id */
+            draft_id: string;
+            decision: components["schemas"]["FrozenDecision"] | null;
+        };
+        /** FrozenMissed */
+        FrozenMissed: {
+            /** Number */
+            number: string;
+            /** Page */
+            page: number;
+            disposition: components["schemas"]["FrozenDisposition"];
+            /** Dispositions */
+            dispositions: components["schemas"]["FrozenDisposition"][];
+        };
+        /** FrozenRow */
+        FrozenRow: {
+            /** Requirement */
+            requirement: string;
+            /** Text */
+            text: string;
+            source: components["schemas"]["Cite"];
+            coverage: components["schemas"]["FrozenCoverage"];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vendor_reference" | "test_step";
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceStep"][];
+            test_step: components["schemas"]["FrozenTestStep"] | null;
+            /** Drafts */
+            drafts: components["schemas"]["FrozenDraft"][];
+            /** Written */
+            written: components["schemas"]["FrozenVersion"][];
+        };
+        /**
+         * FrozenTestStep
+         * @description The row's one Test Step and where it came from.
+         */
+        FrozenTestStep: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "accepted_draft" | "written";
+            /** Proposal Id */
+            proposal_id: number | null;
+            /** Version */
+            version: number | null;
+            decision: components["schemas"]["FrozenDecision"] | null;
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            acceptance: components["schemas"]["Acceptance"];
+        };
+        /** FrozenUrs */
+        FrozenUrs: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Numbers
+             * @enum {string}
+             */
+            numbers: "checked" | "not_applicable";
+            /** Missed */
+            missed: components["schemas"]["FrozenMissed"][];
+            /** Unquoted */
+            unquoted: components["schemas"]["UnquotedText"][];
+        };
+        /**
+         * FrozenVersion
+         * @description A version of the row's written Test Step: a removal, or its full content.
+         */
+        FrozenVersion: {
+            /** Version */
+            version: number;
+            /** Removed */
+            removed: boolean;
+            test_step: components["schemas"]["WrittenContent"] | null;
+            /** From Proposal Id */
+            from_proposal_id: number | null;
+            /** Decision Id */
+            decision_id: number | null;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
          * GoverningDocument
          * @description A VMP or SOP the run read its required documents and site rules from.
          */
@@ -625,7 +1079,7 @@ export interface components {
             already_imported: boolean;
         };
         /** @enum {string} */
-        Kind: "coverage" | "check" | "ai" | "draft";
+        Kind: "coverage" | "check" | "ai" | "draft" | "test_step";
         /**
          * KindCounts
          * @description The Proposals of one kind in a run, by decision state. ``total`` is the sum of
@@ -721,6 +1175,57 @@ export interface components {
             design: components["schemas"]["DesignRow"][];
         };
         /**
+         * MissedDisposition
+         * @description A disposition of a printed requirement number the run missed. No Reason for Change: a
+         *     later one replaces it, and every one is kept.
+         */
+        MissedDisposition: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /** Number */
+            number: string;
+            kind: components["schemas"]["MissedKind"];
+            /** Justification */
+            justification: string;
+        };
+        /**
+         * MissedDispositionView
+         * @description What a human decided a missed number is: its kind and justification, who and when.
+         */
+        MissedDispositionView: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: number;
+            kind: components["schemas"]["MissedKind"];
+            /** Justification */
+            justification: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** MissedKey */
+        MissedKey: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /** Number */
+            number: string;
+        };
+        /** @enum {string} */
+        MissedKind: "not_a_requirement" | "not_tested_here";
+        /**
          * MissedNumber
          * @description A printed requirement number that did not become a kept requirement.
          */
@@ -729,6 +1234,21 @@ export interface components {
             number: string;
             /** Page */
             page: number;
+        };
+        /**
+         * MissedNumberView
+         * @description A printed requirement number that did not become a requirement of the run.
+         */
+        MissedNumberView: {
+            /** Number */
+            number: string;
+            /** Page */
+            page: number;
+            disposition: components["schemas"]["MissedDispositionView"] | null;
+            /** Dispositions */
+            dispositions: components["schemas"]["MissedDispositionView"][];
+            /** Blocking */
+            blocking: boolean;
         };
         /**
          * MissingDocument
@@ -750,10 +1270,10 @@ export interface components {
          * NewDecision
          * @description A Proposal Decision on the content the run proposed.
          *
-         *     A Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is
-         *     ``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no
-         *     class). A Reason for Change is required for ``rejected`` and ``edited``, and for any
-         *     decision that replaces an earlier one on the same content.
+         *     A Check Finding, AI Finding or drafted Test Step is ``accepted`` or ``rejected``; a
+         *     Coverage row is ``accepted`` or ``edited`` to another class (only ``edited`` when the
+         *     system proposed no class). A Reason for Change is required for ``rejected`` and
+         *     ``edited``, and for any decision that replaces an earlier one on the same content.
          */
         NewDecision: {
             decision: components["schemas"]["Verdict"];
@@ -761,6 +1281,13 @@ export interface components {
             coverage?: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
             reason?: string | null;
+        };
+        /**
+         * NewWrittenVersion
+         * @description A version of a requirement's written Test Step. No Reason for Change.
+         */
+        NewWrittenVersion: {
+            test_step: components["schemas"]["WrittenContent"] | null;
         };
         /**
          * NotRead
@@ -796,6 +1323,8 @@ export interface components {
             /** Allowed */
             allowed: string[];
         };
+        /** @enum {string} */
+        PrefillOrigin: "written" | "withdrawn" | "draft";
         /**
          * Present
          * @description A feature that must exist; ``value`` is set when an observation states it.
@@ -831,6 +1360,23 @@ export interface components {
             previous_class: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
         };
         /**
+         * ProtocolCopy
+         * @description The frozen copy of a submitted Protocol: what the Approver reads.
+         */
+        ProtocolCopy: {
+            /** Protocol Id */
+            protocol_id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            preparer: components["schemas"]["Author"];
+            /** Rows */
+            rows: components["schemas"]["FrozenRow"][];
+            /** Urs */
+            urs: components["schemas"]["FrozenUrs"][] | null;
+        };
+        /**
          * ProtocolDraftView
          * @description The Protocol Draft of a Review Package run: its Test Steps in draft order, its
          *     traceability rows and its findings, each with its decision state.
@@ -851,6 +1397,98 @@ export interface components {
             findings: components["schemas"]["DraftFindingView"][];
             /** Vendor Documents */
             vendor_documents: components["schemas"]["VendorDocument"][];
+        };
+        /**
+         * ProtocolEvent
+         * @description A status change of a Protocol: what, who, when and why.
+         */
+        ProtocolEvent: {
+            /** Id */
+            id: number;
+            event: components["schemas"]["EventKind"];
+            status: components["schemas"]["Status"];
+            /** Reason */
+            reason: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * ProtocolRowView
+         * @description One requirement of the run and what the Protocol holds for it.
+         */
+        ProtocolRowView: {
+            /** Requirement */
+            requirement: string;
+            /** Text */
+            text: string;
+            source: components["schemas"]["Cite"];
+            coverage: components["schemas"]["Proposal"];
+            /** Decided Class */
+            decided_class: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            kind: components["schemas"]["RowKind"];
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceStep"][];
+            test_step: components["schemas"]["RowTestStep"] | null;
+            /** Drafts */
+            drafts: components["schemas"]["RowDraft"][];
+            /** Written */
+            written: components["schemas"]["WrittenVersionView"][];
+            prefill: components["schemas"]["RowPrefill"] | null;
+            /** Blockers */
+            blockers: components["schemas"]["Blocker"][];
+        };
+        /**
+         * ProtocolUrs
+         * @description One URS of the run's completeness check: its missed numbers and its unquoted text.
+         */
+        ProtocolUrs: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Numbers
+             * @enum {string}
+             */
+            numbers: "checked" | "not_applicable";
+            /** Missed */
+            missed: components["schemas"]["MissedNumberView"][];
+            /** Unquoted */
+            unquoted: components["schemas"]["UnquotedText"][];
+        };
+        /**
+         * ProtocolView
+         * @description A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not
+         *     a Protocol Draft: that is the site's document under Pre-review.
+         */
+        ProtocolView: {
+            /** Id */
+            id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            status: components["schemas"]["Status"];
+            /** Events */
+            events: components["schemas"]["ProtocolEvent"][];
+            /** Rows */
+            rows: components["schemas"]["ProtocolRowView"][] | null;
+            /** Urs */
+            urs: components["schemas"]["ProtocolUrs"][] | null;
+            /** Checklist */
+            checklist: components["schemas"]["ChecklistItem"][] | null;
+            submission: components["schemas"]["SubmissionView"] | null;
+            /** Submissions */
+            submissions: components["schemas"]["SubmissionView"][];
         };
         /**
          * Range
@@ -886,6 +1524,61 @@ export interface components {
             /** In Corpus */
             in_corpus: boolean;
             citation: components["schemas"]["Cite"];
+        };
+        /** Return */
+        Return: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * RowDraft
+         * @description A drafted Test Step of the row's requirement, as the run drafted it, and the Proposal it
+         *     was imported as, decided with ``recordDecision`` (accepted or rejected).
+         */
+        RowDraft: {
+            draft: components["schemas"]["DraftedTestStep"];
+            proposal: components["schemas"]["Proposal"];
+        };
+        /** @enum {string} */
+        RowKind: "undecided" | "vendor_reference" | "test_step";
+        /**
+         * RowPrefill
+         * @description What the row's write form starts from.
+         */
+        RowPrefill: {
+            origin: components["schemas"]["PrefillOrigin"];
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            acceptance: components["schemas"]["Acceptance"] | null;
+        };
+        /**
+         * RowTestStep
+         * @description The one Test Step of a Test Step row.
+         */
+        RowTestStep: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "accepted_draft" | "written";
+            /** Proposal Id */
+            proposal_id: number | null;
+            /** Version */
+            version: number | null;
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            /** Acceptance */
+            acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
+            /** Acceptance Flag */
+            acceptance_flag: string | null;
         };
         /**
          * RunPackage
@@ -947,6 +1640,25 @@ export interface components {
         };
         /** @enum {string} */
         State: "decided" | "changed" | "undecided";
+        /** @enum {string} */
+        Status: "draft" | "submitted" | "approved" | "withdrawn";
+        /**
+         * SubmissionView
+         * @description A submission of the Protocol: the frozen copy it stored and that copy's hash.
+         */
+        SubmissionView: {
+            /** Event Id */
+            event_id: number;
+            /** Hash */
+            hash: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            frozen_copy: components["schemas"]["ProtocolCopy"];
+            outcome: components["schemas"]["ProtocolEvent"] | null;
+        };
         /** Text */
         Text: {
             /**
@@ -1048,6 +1760,52 @@ export interface components {
         };
         /** @enum {string} */
         Verdict: "accepted" | "rejected" | "edited";
+        /** Withdrawal */
+        Withdrawal: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * WrittenContent
+         * @description The content of a Test Step a human writes or edits.
+         */
+        WrittenContent: {
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument?: string | null;
+            acceptance: components["schemas"]["Acceptance"];
+        };
+        /**
+         * WrittenVersionView
+         * @description A version of a written Test Step: its full content, or a removal, who and when.
+         */
+        WrittenVersionView: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: number;
+            /** Removed */
+            removed: boolean;
+            test_step: components["schemas"]["WrittenContent"] | null;
+            /** From Proposal Id */
+            from_proposal_id: number | null;
+            /** Decision Id */
+            decision_id: number | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1413,6 +2171,311 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionCounts"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    startProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    writeTestStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+                requirement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewWrittenVersion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editDraftedTestStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decideMissedNumber: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MissedDisposition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submitProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdrawProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Withdrawal"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approveProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Approval"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returnProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Return"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
                 };
             };
             /** @description Validation Error */

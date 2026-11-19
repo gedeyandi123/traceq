@@ -30,7 +30,7 @@ from sqlalchemy import URL, Connection, create_engine, make_url, text
 from sqlalchemy.exc import OperationalError
 
 from traceq.app.demo import ADMIN_URL as DEMO_ADMIN_URL
-from traceq.db import APP_ROLE, OWNER_ROLE, ensure_roles, upgrade
+from traceq.db import APP_ROLE, OWNER_ROLE, engine, ensure_roles, upgrade
 from traceq.documents import Corpus, OcrUnavailable, scan
 from traceq.identity.issuer import create_issuer, new_signing_key
 from traceq_dataset import render
@@ -179,9 +179,16 @@ def databases(new_database: Callable[[], Databases]) -> Databases:
 
 
 @pytest.fixture
-def fresh_database(new_database: Callable[[], Databases]) -> Databases:
-    """A database of its own, just migrated from zero."""
-    return new_database()
+def fresh_database(new_database: Callable[[], Databases]) -> Iterator[Databases]:
+    """A database of its own, just migrated from zero.
+
+    ``traceq.db.engine`` keeps one engine (and pool) per URL for the process, so without the
+    disposal every test would leave its pool's idle connections open until the session ends,
+    and enough such tests exhaust the server's connection slots."""
+    dbs = new_database()
+    yield dbs
+    for url in (dbs.app, dbs.owner):
+        engine(url).dispose()
 
 
 # --- Demo issuer ----------------------------------------------------------------------

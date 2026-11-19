@@ -32,13 +32,26 @@ from traceq.runs.api import create_router as runs_router
 FIXTURE = Path(__file__).parent / "fixtures" / "run"
 RUN_ID = "20261113T090000Z-f1a2b3"
 OTHER_RUN = "20261120T090000Z-c0ffee"
-DATABASE_ROUTES = {
+DECISION_ROUTES = {
     ("post", "/runs/{run_id}/import"),
     ("get", "/runs/{run_id}/proposals"),
     ("post", "/runs/{run_id}/proposals/{proposal_id}/decisions"),
     ("get", "/runs/{run_id}/decision-counts"),
     ("get", "/runs/{run_id}/protocol-draft"),
 }
+# The Protocol assembled in TraceQ (spec #247), tested in ``tests/test_assembled_protocol_api.py``.
+PROTOCOL_ROUTES = {
+    ("post", "/runs/{run_id}/protocol"),
+    ("get", "/runs/{run_id}/protocol"),
+    ("post", "/protocols/{protocol_id}/withdraw"),
+    ("post", "/protocols/{protocol_id}/test-steps/{requirement}"),
+    ("post", "/protocols/{protocol_id}/drafts/{proposal_id}/edit"),
+    ("post", "/protocols/{protocol_id}/missed-numbers"),
+    ("post", "/protocols/{protocol_id}/submit"),
+    ("post", "/protocols/{protocol_id}/approve"),
+    ("post", "/protocols/{protocol_id}/return"),
+}
+DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 
@@ -118,7 +131,7 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
     client = TestClient(create_app(runs))
     good = bearer(token(demo_issuer, decider=True))
     for method, path in DATABASE_ROUTES:
-        url = path.format(run_id=RUN_ID, proposal_id=1)
+        url = path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1, requirement="URS-TP201-002")
         assert client.request(method, url).status_code == 401
         assert client.request(method, url, headers=good).status_code == 401
     # The run-folder routes still work.
@@ -146,7 +159,10 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
     assert database == DATABASE_ROUTES
     assert {m for m, p in routes - database} == {"get"}
     for method, path in database:
-        r = client.request(method, path.format(run_id=RUN_ID, proposal_id=1))
+        r = client.request(
+            method,
+            path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1, requirement="URS-TP201-002"),
+        )
         assert r.status_code == 401, (method, path)
         assert r.headers["www-authenticate"] == "Bearer"
 
@@ -654,6 +670,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "check": {**_zero(), "total": 2, "undecided": 2},
         "ai": {**_zero(), "total": 1, "undecided": 1},
         "draft": _zero(),
+        "test_step": _zero(),
     }
     ps = proposals(client, decider)
     decide(client, decider, place(ps, "coverage", "URS-TP201-002"), decision="accepted")
@@ -667,6 +684,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "check": {**_zero(), "total": 2, "accepted": 1, "rejected": 1},
         "ai": {**_zero(), "total": 1, "undecided": 1},
         "draft": _zero(),
+        "test_step": _zero(),
     }
     add_run(runs, OTHER_RUN, dropped)
     import_run(client, decider, OTHER_RUN)
@@ -676,15 +694,16 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "check": {**_zero(), "total": 1, "accepted": 1, "decided_not_proposed": 1},
         "ai": {**_zero(), "total": 1, "undecided": 1},
         "draft": _zero(),
+        "test_step": _zero(),
     }
     assert client.get("/runs/nope/decision-counts", headers=decider).status_code == 404
 
 
 def test_no_api_text_calls_a_decision_an_approval_or_a_signature() -> None:
-    """The database routes and their schemas; the finding types of the run files name
+    """The decision routes and their schemas; the finding types of the run files name
     signatures and approvals as what a finding is about."""
     schema = openapi_schema()
-    texts = [schema["paths"][p][m] for m, p in DATABASE_ROUTES]
+    texts = [schema["paths"][p][m] for m, p in DECISION_ROUTES]
     components = schema["components"]["schemas"]
     names = (
         "ImportedRun",

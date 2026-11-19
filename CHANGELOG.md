@@ -10,6 +10,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Added
+
+- Demo runbook section 11 and README: the Protocol page (step 5a, spec #247, ticket #254), cases K28 to K38 from start to approval by the fourth persona `dewi`; the browser result is recorded by the main session.
+
 ### Changed
 
 - Re-stamp of the Review Package baseline for dataset 0.2.0 (#133 plan step 5, after #223): `baselines/TP-201-OQ-draft.json` and `recordings/haiku-oq-draft-r3/report-TP-201-OQ-draft.json` change only `dataset.version` (0.1.1 → 0.2.0), as #238 did for r10. A zero-call replay of r3 (157 calls replayed, none live, $0) gives the same metrics; the live run id `20261118T185011Z-b920bd` is kept. Without it the ratchet refused every package run across the dataset MINOR.

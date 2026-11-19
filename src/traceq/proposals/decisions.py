@@ -28,13 +28,16 @@ from traceq.traceability.coverage import CoverageClass
 type Verdict = Literal["accepted", "rejected", "edited"]
 type State = Literal["decided", "changed", "undecided"]
 
-KINDS: tuple[Kind, ...] = ("coverage", "check", "ai", "draft")
+KINDS: tuple[Kind, ...] = ("coverage", "check", "ai", "draft", "test_step")
 ALLOWED: dict[Kind, frozenset[Verdict]] = {
     "coverage": frozenset({"accepted", "edited"}),
     "check": frozenset({"accepted", "rejected"}),
     "ai": frozenset({"accepted", "rejected"}),
     # Accepted: "real, will be fixed". It creates no task or revision (spec #196).
     "draft": frozenset({"accepted", "rejected"}),
+    # Edited only together with the written Test Step it produces, by the Protocol's edit
+    # route, never by ``record`` (spec #247).
+    "test_step": frozenset({"accepted", "rejected"}),
 }
 
 DECISIONS = Table(
@@ -62,6 +65,14 @@ class Refused(Exception):
     """The decision does not fit the Proposal, or a Reason for Change is missing."""
 
 
+class Conflict(Exception):
+    """The decision is refused in the current state of what rests on it (a written Test Step
+    of the open Protocol, spec #247); the message says why in words."""
+
+    # Raised by a check the application passes in (``create_router``'s ``before_accepting``),
+    # so this layer need not import the assembled Protocol above it.
+
+
 @dataclass(frozen=True)
 class Decision:
     id: int
@@ -72,7 +83,7 @@ class Decision:
     content_hash: str
     decision: Verdict
     coverage: CoverageClass | None
-    """For ``edited``: the class the person chose."""
+    """For a Coverage row ``edited``: the class the person chose."""
     reason: str | None
     actor: audit.Actor
 
@@ -118,7 +129,7 @@ def _decision(m: RowMapping) -> Decision:
         decision=cast(Verdict, m["decision"]),
         coverage=cast(CoverageClass | None, m["coverage"]),
         reason=m["reason"],
-        actor=audit.Actor(subject=m["subject"], issuer=m["issuer"], name=m["name"]),
+        actor=audit.actor_of_row(m),
     )
 
 
@@ -132,7 +143,15 @@ def _audit_value(d: Decision) -> dict[str, Any]:
     }
 
 
-def _check(kind: Kind, proposed_class: str | None, verdict: Verdict, coverage: str | None) -> None:
+def _check(
+    kind: Kind, proposed_class: str | None, verdict: Verdict, coverage: str | None, *, edit: bool
+) -> None:
+    if edit:
+        if kind != "test_step" or verdict != "edited":
+            raise Refused("the edit route records only edited on a drafted Test Step")
+        if coverage is not None:
+            raise Refused("a drafted Test Step edited takes no class")
+        return
     if verdict not in ALLOWED[kind]:
         allowed = " or ".join(sorted(ALLOWED[kind]))
         raise Refused(f"a {kind} Proposal is {allowed}, not {verdict}")
@@ -156,11 +175,15 @@ def record(
     verdict: Verdict,
     coverage: CoverageClass | None,
     reason: str | None,
+    *,
+    edit: bool = False,
 ) -> Decision:
     """Adds a decision on the content ``run_id`` proposed, with its Audit Trail entry.
 
     A Reason for Change is mandatory for ``rejected`` and ``edited``, and for any decision
-    that replaces an earlier one on the same content."""
+    that replaces an earlier one on the same content. ``edit``: the Protocol's edit route
+    records ``edited`` on a drafted Test Step, with no class, in the transaction that writes
+    the Test Step it produces (spec #247); nothing else may."""
     held = session.execute(
         select(PROPOSALS.c.kind, RUN_PROPOSALS.c.content_hash, RUN_PROPOSALS.c.proposed)
         .join(PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
@@ -171,7 +194,13 @@ def record(
     kind = cast(Kind, held.kind)
     content_hash: str = held.content_hash
     proposed: dict[str, Any] = held.proposed
-    _check(kind, proposed.get("coverage") if kind == "coverage" else None, verdict, coverage)
+    _check(
+        kind,
+        proposed.get("coverage") if kind == "coverage" else None,
+        verdict,
+        coverage,
+        edit=edit,
+    )
     reason = (reason or "").strip() or None
     if reason is None and verdict != "accepted":
         raise Refused(f"{verdict} needs a Reason for Change")

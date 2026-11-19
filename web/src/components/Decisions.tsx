@@ -12,7 +12,7 @@ import s from "./Decisions.module.css";
 export type ReadOnlyReason = "signedOut" | "noRole" | "notImported" | "unavailable";
 
 /** Why the API refused a decision, as the screen reports it. */
-export type DecisionError = "refused" | "forbidden" | "unauthorized" | "failed";
+export type DecisionError = "refused" | "conflict" | "forbidden" | "unauthorized" | "failed";
 
 export type DecisionAccess =
   | { mode: "decide"; action: (formData: FormData) => void | Promise<void> }
@@ -28,7 +28,7 @@ export type DecisionView = {
 };
 
 /** The screen a decision form returns to. */
-export type DecisionScreen = "matrix" | "findings" | "draft";
+export type DecisionScreen = "matrix" | "findings" | "draft" | "protocol";
 
 
 type T = ReturnType<typeof useTranslations<"decisions">>;
@@ -37,6 +37,8 @@ type ClassT = ReturnType<typeof useTranslations<"matrix">>;
 function summary(t: T, classes: ClassT, d: Decision): string {
   const when = formatWhen(t, d.at);
   if (d.decision === "edited") {
+    // A drafted Test Step edited carries no class: it is edited into a written Test Step.
+    if (d.coverage === null) return t("made.editedStep", { name: d.name, when });
     return t("made.edited", { class: classes(`classes.${d.coverage ?? "none"}`), name: d.name, when });
   }
   return t(`made.${d.decision}`, { name: d.name, when });
@@ -51,14 +53,16 @@ function Made({ t, classes, d }: { t: T; classes: ClassT; d: Decision }) {
   );
 }
 
-/** The read-only line (what is needed to decide) and the outcome of a refused decision. */
-export function DecisionNotice({ view }: { view: DecisionView }) {
+/** The read-only line (what is needed to decide) and the outcome of a refused decision. With
+ * `approver`, an identity without the deciding role is told what it can do instead (the
+ * Protocol screen, where the approving role approves or returns a Submitted Protocol). */
+export function DecisionNotice({ view, approver = false }: { view: DecisionView; approver?: boolean }) {
   const t = useTranslations("decisions");
   if (view.access.mode !== "readOnly" && !view.error) return null;
   return (
     <div className={s.notices}>
       {view.access.mode === "readOnly" && (
-        <p className={s.readOnly}>{t(`readOnly.${view.access.why}`)}</p>
+        <p className={s.readOnly}>{t(`readOnly.${approver && view.access.why === "noRole" ? "approver" : view.access.why}`)}</p>
       )}
       {view.error && (
         <p role="alert" className={s.failure}>
@@ -71,13 +75,16 @@ export function DecisionNotice({ view }: { view: DecisionView }) {
 
 /** How many Proposals of the kinds a screen shows are decided (accepted, edited or rejected
  * on their current content), and under it, folded, the decision counts of the run. Counts of
- * stored decisions, not a score. */
+ * stored decisions, not a score. `also`: kinds decided on another screen, shown in the folded
+ * counts only. */
 export function DecisionTally({
   counts,
   kinds,
+  also = [],
 }: {
   counts: DecisionCounts | undefined;
   kinds: readonly Proposal["kind"][];
+  also?: readonly Proposal["kind"][];
 }) {
   const t = useTranslations("decisions");
   if (!counts) return null;
@@ -107,7 +114,7 @@ export function DecisionTally({
               </tr>
             </thead>
             <tbody>
-              {kinds.map((k) => {
+              {[...kinds, ...also].map((k) => {
                 const c = counts[k];
                 return (
                   <tr key={k}>

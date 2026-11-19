@@ -38,4 +38,5 @@ export const counts: DecisionCounts = {
   check: { ...none, total: 2, accepted: 1, rejected: 1 },
   ai: { ...none, total: 1, undecided: 1 },
   draft: none,
+  test_step: { ...none, total: 2, undecided: 1, accepted: 1 },
 };
