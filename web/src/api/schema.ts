@@ -217,7 +217,10 @@ export interface paths {
         /**
          * Record Decision
          * @description Records one Proposal Decision on the content this run proposed, with its Audit
-         *     Trail entry. Earlier decisions stay. Needs the deciding role.
+         *     Trail entry. Earlier decisions stay. Accepting a drafted Test Step is refused (409)
+         *     while the open Protocol of its Equipment holds a written Test Step for its
+         *     requirement; ``edited`` on a drafted Test Step goes through ``editDraftedTestStep``.
+         *     Needs the deciding role.
          */
         post: operations["recordDecision"];
         delete?: never;
@@ -276,6 +279,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/protocols/{protocol_id}/test-steps/{requirement}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Write Test Step
+         * @description Adds a version of the requirement's written Test Step in a Protocol in Draft
+         *     status: its full content (the Acceptance Criterion a range, number, one of or
+         *     present; never free text), or a removal (``test_step`` ``null``). No Reason for
+         *     Change; every version is kept, with its Audit Trail entry. Refused (409) unless the
+         *     Protocol is in Draft status, while a drafted Test Step of the requirement is
+         *     accepted, and for a removal with nothing to remove. Needs the deciding role.
+         */
+        post: operations["writeTestStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/drafts/{proposal_id}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Edit Drafted Test Step
+         * @description Edits a drafted Test Step of the Protocol's run, in one transaction: the
+         *     ``edited`` decision with its Reason for Change, and a version of the written Test
+         *     Step with the draft it came from, each with its Audit Trail entry. This is the only
+         *     way to record ``edited`` on a drafted Test Step. Refused (409) unless the Protocol is
+         *     in Draft status, and while the requirement holds a written Test Step or another of
+         *     its drafts is accepted. Needs the deciding role.
+         */
+        post: operations["editDraftedTestStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/protocols/{protocol_id}/withdraw": {
         parameters: {
             query?: never;
@@ -301,6 +354,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Acceptance: components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Present"];
         /**
          * AiFinding
          * @description A Pre-review finding of the LLM, every citation verified; advisory (ADR 0002).
@@ -527,6 +581,15 @@ export interface components {
             rev: number;
             /** Sha256 */
             sha256: string;
+        };
+        /**
+         * DraftEdit
+         * @description An edit of a drafted Test Step: the ``edited`` decision and the Test Step it gives.
+         */
+        DraftEdit: {
+            /** Reason */
+            reason: string;
+            test_step: components["schemas"]["WrittenContent"];
         };
         /**
          * DraftFindingView
@@ -866,6 +929,13 @@ export interface components {
             reason?: string | null;
         };
         /**
+         * NewWrittenVersion
+         * @description A version of a requirement's written Test Step. No Reason for Change.
+         */
+        NewWrittenVersion: {
+            test_step: components["schemas"]["WrittenContent"] | null;
+        };
+        /**
          * NotRead
          * @description A vendor document the run could not read.
          */
@@ -899,6 +969,8 @@ export interface components {
             /** Allowed */
             allowed: string[];
         };
+        /** @enum {string} */
+        PrefillOrigin: "written" | "withdrawn" | "draft";
         /**
          * Present
          * @description A feature that must exist; ``value`` is set when an observation states it.
@@ -997,6 +1069,9 @@ export interface components {
             test_step: components["schemas"]["RowTestStep"] | null;
             /** Drafts */
             drafts: components["schemas"]["RowDraft"][];
+            /** Written */
+            written: components["schemas"]["WrittenVersionView"][];
+            prefill: components["schemas"]["RowPrefill"] | null;
             /** Blockers */
             blockers: components["schemas"]["Blocker"][];
         };
@@ -1065,18 +1140,33 @@ export interface components {
         /** @enum {string} */
         RowKind: "undecided" | "vendor_reference" | "test_step";
         /**
+         * RowPrefill
+         * @description What the row's write form starts from.
+         */
+        RowPrefill: {
+            origin: components["schemas"]["PrefillOrigin"];
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            acceptance: components["schemas"]["Acceptance"] | null;
+        };
+        /**
          * RowTestStep
          * @description The one Test Step of a Test Step row.
          */
         RowTestStep: {
             /**
              * Origin
-             * @default accepted_draft
-             * @constant
+             * @enum {string}
              */
-            origin: "accepted_draft";
+            origin: "accepted_draft" | "written";
             /** Proposal Id */
             proposal_id: number | null;
+            /** Version */
+            version: number | null;
             /** Description */
             description: string;
             /** Method */
@@ -1255,6 +1345,47 @@ export interface components {
         Withdrawal: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * WrittenContent
+         * @description The content of a Test Step a human writes or edits.
+         */
+        WrittenContent: {
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument?: string | null;
+            acceptance: components["schemas"]["Acceptance"];
+        };
+        /**
+         * WrittenVersionView
+         * @description A version of a written Test Step: its full content, or a removal, who and when.
+         */
+        WrittenVersionView: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: number;
+            /** Removed */
+            removed: boolean;
+            test_step: components["schemas"]["WrittenContent"] | null;
+            /** From Proposal Id */
+            from_proposal_id: number | null;
+            /** Decision Id */
+            decision_id: number | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         };
     };
     responses: never;
@@ -1675,6 +1806,78 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    writeTestStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+                requirement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewWrittenVersion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editDraftedTestStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftEdit"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {

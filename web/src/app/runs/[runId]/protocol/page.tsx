@@ -8,11 +8,17 @@ import { AssembledProtocolView, type ProtocolError } from "@/components/Assemble
 import { RunHeader } from "@/components/RunHeader";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
-import { startProtocol, withdrawProtocol } from "@/protocol/actions";
+import {
+  editDraftedTestStep,
+  removeTestStep,
+  startProtocol,
+  withdrawProtocol,
+  writeTestStep,
+} from "@/protocol/actions";
 
 export const dynamic = "force-dynamic";
 
-const PROTOCOL_ERRORS: readonly ProtocolError[] = ["conflict", "refused", "forbidden", "unauthorized", "failed"];
+const PROTOCOL_ERRORS: readonly ProtocolError[] = ["conflict", "refused", "invalid", "forbidden", "unauthorized", "failed"];
 
 /** The browser tab reads "<screen> · TraceQ" (the root layout's template); translations only, no fetch. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -68,7 +74,17 @@ export default async function ProtocolPage({
         protocol={protocol.data ?? null}
         runId={runId}
         decisions={decisions}
-        controls={access.mode === "decide" ? { start: startProtocol, withdraw: withdrawProtocol } : null}
+        controls={
+          access.mode === "decide"
+            ? {
+                start: startProtocol,
+                withdraw: withdrawProtocol,
+                write: writeTestStep,
+                remove: removeTestStep,
+                edit: editDraftedTestStep,
+              }
+            : null
+        }
         error={PROTOCOL_ERRORS.find((e) => e === query.protocolError)}
       />
     </>

@@ -120,7 +120,9 @@ def test_migrations_from_zero_leave_grants_and_triggers(fresh_database: Database
 DECISION_REFUSING = (
     "UPDATE proposal_decisions SET reason = 'rewritten'",
     "DELETE FROM proposal_decisions",
-    "TRUNCATE proposal_decisions",
+    # CASCADE: written Test Steps (0007) reference the edited decision they were made with, so
+    # without it Postgres refuses the TRUNCATE on the foreign key before the trigger runs.
+    "TRUNCATE proposal_decisions CASCADE",
 )
 
 

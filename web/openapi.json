@@ -429,7 +429,7 @@
     "/runs/{run_id}/proposals/{proposal_id}/decisions": {
       "post": {
         "summary": "Record Decision",
-        "description": "Records one Proposal Decision on the content this run proposed, with its Audit\nTrail entry. Earlier decisions stay. Needs the deciding role.",
+        "description": "Records one Proposal Decision on the content this run proposed, with its Audit\nTrail entry. Earlier decisions stay. Accepting a drafted Test Step is refused (409)\nwhile the open Protocol of its Equipment holds a written Test Step for its\nrequirement; ``edited`` on a drafted Test Step goes through ``editDraftedTestStep``.\nNeeds the deciding role.",
         "operationId": "recordDecision",
         "security": [
           {
@@ -623,6 +623,134 @@
         }
       }
     },
+    "/protocols/{protocol_id}/test-steps/{requirement}": {
+      "post": {
+        "summary": "Write Test Step",
+        "description": "Adds a version of the requirement's written Test Step in a Protocol in Draft\nstatus: its full content (the Acceptance Criterion a range, number, one of or\npresent; never free text), or a removal (``test_step`` ``null``). No Reason for\nChange; every version is kept, with its Audit Trail entry. Refused (409) unless the\nProtocol is in Draft status, while a drafted Test Step of the requirement is\naccepted, and for a removal with nothing to remove. Needs the deciding role.",
+        "operationId": "writeTestStep",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "requirement",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Requirement"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewWrittenVersion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/drafts/{proposal_id}/edit": {
+      "post": {
+        "summary": "Edit Drafted Test Step",
+        "description": "Edits a drafted Test Step of the Protocol's run, in one transaction: the\n``edited`` decision with its Reason for Change, and a version of the written Test\nStep with the draft it came from, each with its Audit Trail entry. This is the only\nway to record ``edited`` on a drafted Test Step. Refused (409) unless the Protocol is\nin Draft status, and while the requirement holds a written Test Step or another of\nits drafts is accepted. Needs the deciding role.",
+        "operationId": "editDraftedTestStep",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/protocols/{protocol_id}/withdraw": {
       "post": {
         "summary": "Withdraw Protocol",
@@ -681,6 +809,31 @@
   },
   "components": {
     "schemas": {
+      "Acceptance": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Range"
+          },
+          {
+            "$ref": "#/components/schemas/Number"
+          },
+          {
+            "$ref": "#/components/schemas/OneOf"
+          },
+          {
+            "$ref": "#/components/schemas/Present"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "number": "#/components/schemas/Number",
+            "one_of": "#/components/schemas/OneOf",
+            "present": "#/components/schemas/Present",
+            "range": "#/components/schemas/Range"
+          }
+        }
+      },
       "AiFinding": {
         "properties": {
           "layer": {
@@ -1337,6 +1490,25 @@
         ],
         "title": "DraftDocument",
         "description": "The Protocol Draft under review: document, revision and the SHA-256 of its bytes."
+      },
+      "DraftEdit": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "test_step": {
+            "$ref": "#/components/schemas/WrittenContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason",
+          "test_step"
+        ],
+        "title": "DraftEdit",
+        "description": "An edit of a drafted Test Step: the ``edited`` decision and the Test Step it gives."
       },
       "DraftFindingView": {
         "properties": {
@@ -2385,6 +2557,27 @@
         "title": "NewDecision",
         "description": "A Proposal Decision on the content the run proposed.\n\nA Check Finding, AI Finding or drafted Test Step is ``accepted`` or ``rejected``; a\nCoverage row is ``accepted`` or ``edited`` to another class (only ``edited`` when the\nsystem proposed no class). A Reason for Change is required for ``rejected`` and\n``edited``, and for any decision that replaces an earlier one on the same content."
       },
+      "NewWrittenVersion": {
+        "properties": {
+          "test_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WrittenContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "test_step"
+        ],
+        "title": "NewWrittenVersion",
+        "description": "A version of a requirement's written Test Step. No Reason for Change."
+      },
       "NotRead": {
         "properties": {
           "doc_id": {
@@ -2458,6 +2651,14 @@
           "allowed"
         ],
         "title": "OneOf"
+      },
+      "PrefillOrigin": {
+        "type": "string",
+        "enum": [
+          "written",
+          "withdrawn",
+          "draft"
+        ]
       },
       "Present": {
         "properties": {
@@ -2752,6 +2953,23 @@
             "type": "array",
             "title": "Drafts"
           },
+          "written": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenVersionView"
+            },
+            "type": "array",
+            "title": "Written"
+          },
+          "prefill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RowPrefill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "blockers": {
             "items": {
               "$ref": "#/components/schemas/Blocker"
@@ -2772,6 +2990,8 @@
           "evidence",
           "test_step",
           "drafts",
+          "written",
+          "prefill",
           "blockers"
         ],
         "title": "ProtocolRowView",
@@ -2939,13 +3159,62 @@
           "test_step"
         ]
       },
+      "RowPrefill": {
+        "properties": {
+          "origin": {
+            "$ref": "#/components/schemas/PrefillOrigin"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Acceptance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "origin",
+          "description",
+          "method",
+          "instrument",
+          "acceptance"
+        ],
+        "title": "RowPrefill",
+        "description": "What the row's write form starts from."
+      },
       "RowTestStep": {
         "properties": {
           "origin": {
             "type": "string",
-            "const": "accepted_draft",
-            "title": "Origin",
-            "default": "accepted_draft"
+            "enum": [
+              "accepted_draft",
+              "written"
+            ],
+            "title": "Origin"
           },
           "proposal_id": {
             "anyOf": [
@@ -2957,6 +3226,17 @@
               }
             ],
             "title": "Proposal Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           },
           "description": {
             "type": "string",
@@ -3029,7 +3309,9 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "origin",
           "proposal_id",
+          "version",
           "description",
           "method",
           "instrument",
@@ -3427,6 +3709,124 @@
           "reason"
         ],
         "title": "Withdrawal"
+      },
+      "WrittenContent": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/Acceptance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "description",
+          "method",
+          "acceptance"
+        ],
+        "title": "WrittenContent",
+        "description": "The content of a Test Step a human writes or edits."
+      },
+      "WrittenVersionView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WrittenContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "from_proposal_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Proposal Id"
+          },
+          "decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Id"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "removed",
+          "test_step",
+          "from_proposal_id",
+          "decision_id",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "WrittenVersionView",
+        "description": "A version of a written Test Step: its full content, or a removal, who and when."
       }
     },
     "securitySchemes": {

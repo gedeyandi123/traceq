@@ -47,6 +47,7 @@ OPEN: frozenset[Status] = frozenset({"draft", "submitted"})
 # Advisory lock namespaces (the two-key form, apart from the one-key locks on Proposals).
 _EQUIPMENT_LOCK = 1
 _PROTOCOL_LOCK = 2
+_REQUIREMENT_LOCK = 3
 
 _META = MetaData()
 PROTOCOLS = Table(
@@ -123,6 +124,18 @@ def _lock(session: Session, namespace: int, key: str) -> None:
     session.execute(select(func.pg_advisory_xact_lock(namespace, func.hashtext(key))))
 
 
+def lock_protocol(session: Session, protocol_id: int) -> None:
+    """Serialises every write and status change on one Protocol: take it, then check the
+    status again inside the transaction."""
+    _lock(session, _PROTOCOL_LOCK, str(protocol_id))
+
+
+def lock_requirement(session: Session, equipment: str, requirement: str) -> None:
+    """Serialises accepting a drafted Test Step and writing one for the same requirement of an
+    Equipment, so a row never holds two Test Steps."""
+    _lock(session, _REQUIREMENT_LOCK, f"{equipment}/{requirement}")
+
+
 def _load(session: Session, ids: list[int]) -> list[AssembledProtocol]:
     """The Protocols of ``ids``, in that order, with their events."""
     if not ids:
@@ -163,6 +176,11 @@ def latest_of_run(session: Session, run_id: str) -> AssembledProtocol | None:
         select(func.max(PROTOCOLS.c.id)).where(PROTOCOLS.c.run_id == run_id)
     ).scalar_one()
     return None if latest is None else get(session, latest)
+
+
+def of_equipment(session: Session, equipment: str) -> list[AssembledProtocol]:
+    """Every Protocol of the Equipment, oldest first."""
+    return _of_equipment(session, equipment)
 
 
 def _of_equipment(session: Session, equipment: str) -> list[AssembledProtocol]:
@@ -255,7 +273,7 @@ def withdraw(
     reason = reason.strip()
     if not reason:
         raise Refused("withdrawing a Protocol needs a reason")
-    _lock(session, _PROTOCOL_LOCK, str(protocol_id))
+    lock_protocol(session, protocol_id)
     current = get(session, protocol_id)
     if current is None:
         raise NotFound(f"no Protocol {protocol_id}")

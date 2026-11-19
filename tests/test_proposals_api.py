@@ -44,6 +44,8 @@ PROTOCOL_ROUTES = {
     ("post", "/runs/{run_id}/protocol"),
     ("get", "/runs/{run_id}/protocol"),
     ("post", "/protocols/{protocol_id}/withdraw"),
+    ("post", "/protocols/{protocol_id}/test-steps/{requirement}"),
+    ("post", "/protocols/{protocol_id}/drafts/{proposal_id}/edit"),
 }
 DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES
 
@@ -125,7 +127,7 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
     client = TestClient(create_app(runs))
     good = bearer(token(demo_issuer, decider=True))
     for method, path in DATABASE_ROUTES:
-        url = path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1)
+        url = path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1, requirement="URS-TP201-002")
         assert client.request(method, url).status_code == 401
         assert client.request(method, url, headers=good).status_code == 401
     # The run-folder routes still work.
@@ -153,7 +155,10 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
     assert database == DATABASE_ROUTES
     assert {m for m, p in routes - database} == {"get"}
     for method, path in database:
-        r = client.request(method, path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1))
+        r = client.request(
+            method,
+            path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1, requirement="URS-TP201-002"),
+        )
         assert r.status_code == 401, (method, path)
         assert r.headers["www-authenticate"] == "Bearer"
 

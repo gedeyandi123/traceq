@@ -5,7 +5,7 @@ import type { DecisionError, DecisionView } from "@/components/Decisions";
 
 import { decide } from "./actions";
 
-const ERRORS: readonly DecisionError[] = ["refused", "forbidden", "unauthorized", "failed"];
+const ERRORS: readonly DecisionError[] = ["refused", "conflict", "forbidden", "unauthorized", "failed"];
 
 /** The error a decision form came back with, from the `error` query parameter. */
 export function decisionError(raw: string | string[] | undefined): DecisionError | undefined {
