@@ -33,14 +33,30 @@ One documented proof stage: DQ, FAT, SAT, IQ, OQ, or PQ (Indonesian KD/KI/KO/KK 
 _Avoid_: phase, step
 
 **Protocol**:
-A controlled document that defines the Test Steps and Acceptance Criteria for one Qualification Stage, before execution.
+A controlled document that defines the Test Steps and Acceptance Criteria for one Qualification Stage of one Equipment (or IQ and OQ combined), before execution, and names by Vendor Reference each requirement the vendor's Evidence already proves. It has no authority until approved by an authorised person.
 _Avoid_: template, form, checklist
 
 **Protocol Draft**:
-A Protocol that is not yet approved, including one drafted by AI. It has no authority until approved by an authorised person.
+A site's Protocol document before its approval, as received for Pre-review. A Protocol assembled in TraceQ is not a Protocol Draft at any status.
+
+**Preparer**:
+The person who submits a Protocol for approval.
+_Avoid_: author, owner
+
+**Approver**:
+An authorised person, never the Preparer, who approves a submitted Protocol or returns it to the Preparer with a written reason.
+_Avoid_: reviewer, signer
+
+**Protocol Approval**:
+The recorded act that makes a submitted Protocol an approved one. Until Electronic Signatures exist it is a recorded status, not an Electronic Signature.
+_Avoid_: sign-off, signature
 
 **Test Step**:
 One verification step in a Protocol that produces a measured or observed result.
+
+**Vendor Reference**:
+A line of a Protocol stating that one requirement is proven by the vendor's Evidence and is not tested again on site.
+_Avoid_: leveraged evidence, vendor step
 
 **Acceptance Criterion (AC)**:
 The limit, set by a human, that decides whether a Test Step passes or fails.
@@ -150,7 +166,7 @@ One site Protocol Draft with its own answer key, which refers to a frozen Equipm
 _Avoid_: test set, review bundle
 
 **Pre-review**:
-The automated review of a Protocol or Execution before human review: deterministic rules first (Check Findings), then the LLM for the rest (AI Findings).
+The automated review of a Protocol Draft or an Execution before human review: deterministic rules first (Check Findings), then the LLM for the rest (AI Findings).
 _Avoid_: AI review, auto-review
 
 **Mode Cloud / Mode Pabrik**:
