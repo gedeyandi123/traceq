@@ -201,7 +201,7 @@ export function MatrixTable({
       <DecisionNotice view={decisions} />
       <div className={s.overview}>
         <CoverageSummary rows={matrix.requirements} t={t} />
-        <DecisionTally counts={decisions.counts} kinds={["coverage"]} />
+        <DecisionTally counts={decisions.counts} kinds={["coverage"]} also={["test_step"]} />
       </div>
       <DataTable
         className={decisions.access.mode === "readOnly" ? `${s.matrix} ${s.readOnly}` : s.matrix}

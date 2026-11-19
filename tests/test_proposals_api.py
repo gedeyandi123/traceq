@@ -654,6 +654,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "check": {**_zero(), "total": 2, "undecided": 2},
         "ai": {**_zero(), "total": 1, "undecided": 1},
         "draft": _zero(),
+        "test_step": _zero(),
     }
     ps = proposals(client, decider)
     decide(client, decider, place(ps, "coverage", "URS-TP201-002"), decision="accepted")
@@ -667,6 +668,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "check": {**_zero(), "total": 2, "accepted": 1, "rejected": 1},
         "ai": {**_zero(), "total": 1, "undecided": 1},
         "draft": _zero(),
+        "test_step": _zero(),
     }
     add_run(runs, OTHER_RUN, dropped)
     import_run(client, decider, OTHER_RUN)
@@ -676,6 +678,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "check": {**_zero(), "total": 1, "accepted": 1, "decided_not_proposed": 1},
         "ai": {**_zero(), "total": 1, "undecided": 1},
         "draft": _zero(),
+        "test_step": _zero(),
     }
     assert client.get("/runs/nope/decision-counts", headers=decider).status_code == 404
 

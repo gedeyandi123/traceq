@@ -141,6 +141,18 @@ test("an imported run shows each row's decision state, its decisions and the cou
   ]);
 });
 
+test("the decision counts show the drafted Test Steps beside the Coverage rows", () => {
+  renderMatrix({ proposals, counts, access: { mode: "decide", action } });
+
+  const tally = within(screen.getByRole("table", { name: "Jumlah keputusan" }));
+  const row = within(tally.getByRole("row", { name: /Langkah uji rancangan TraceQ/ }));
+  expect(row.getAllByRole("cell").map((c) => c.textContent)).toEqual([
+    "2", "1", "1", "0", "0", "0", "0",
+  ]);
+  // They are decided on the Protocol page, so the matrix's progress counts Coverage only.
+  expect(screen.getByText("1/3 usulan sudah diputuskan")).toBeDefined();
+});
+
 test("a viewer without the deciding role reads the decisions and cannot decide", () => {
   renderMatrix({ proposals, counts, access: { mode: "readOnly", why: "noRole" } });
 

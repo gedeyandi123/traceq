@@ -135,7 +135,8 @@
       "coverage": "Baris cakupan",
       "check": "Temuan pemeriksaan",
       "ai": "Temuan AI",
-      "draft": "Temuan draf protokol"
+      "draft": "Temuan draf protokol",
+      "test_step": "Langkah uji rancangan TraceQ"
     },
     "counts": {
       "title": "Jumlah keputusan",

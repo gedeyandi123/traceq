@@ -2,7 +2,8 @@
 
 A run folder is read through a named list of files, ``SERVED``: ``run.json``,
 ``matrix.json``, ``findings.json``, ``completeness.json`` and, for a Review Package run,
-``protocol_draft.json`` (served with its decisions by the database routes). Nothing else in
+``protocol_draft.json`` (served with its decisions by the database routes), and
+``drafts.json`` (read only when a run is imported as Proposals). Nothing else in
 it is ever opened, so a scorer report written beside them stays private. From ``run.json`` only the
 summary fields and the dropped claims are served, never per-item scores. A cited page
 opens from the released corpus, and only for a document the run read, with the bytes it
@@ -41,7 +42,9 @@ from traceq.runs.schemas import (
 RUN_FILE = "run.json"
 MATRIX_FILE = "matrix.json"
 FINDINGS_FILE = "findings.json"
-SERVED = (RUN_FILE, MATRIX_FILE, FINDINGS_FILE, COMPLETENESS_FILE, DRAFT_FILE)
+DRAFTS_FILE = "drafts.json"
+"""The drafted Test Steps of a run, read by the database routes on import."""
+SERVED = (RUN_FILE, MATRIX_FILE, FINDINGS_FILE, COMPLETENESS_FILE, DRAFT_FILE, DRAFTS_FILE)
 """The only files of a run folder the API opens."""
 _RUN_ID = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_-]{0,63}$")
 _MEDIA = {

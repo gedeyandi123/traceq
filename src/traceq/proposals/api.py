@@ -26,11 +26,19 @@ from traceq.proposals import decisions
 from traceq.proposals.decisions import State, Verdict
 from traceq.proposals.keys import Kind
 from traceq.proposals.store import RunFiles, import_run
-from traceq.runs.api import FINDINGS_FILE, MATRIX_FILE, RUN_FILE, find_run, read_served
+from traceq.runs.api import (
+    DRAFTS_FILE,
+    FINDINGS_FILE,
+    MATRIX_FILE,
+    RUN_FILE,
+    find_run,
+    read_served,
+)
 from traceq.runs.protocol_draft import DRAFT_FILE
 from traceq.runs.schemas import (
     DraftCheckFinding,
     DraftDocument,
+    DraftedTestSteps,
     DraftTestStep,
     DraftTraceRow,
     Findings,
@@ -59,10 +67,10 @@ class ImportedRun(_Model):
 class NewDecision(_Model):
     """A Proposal Decision on the content the run proposed.
 
-    A Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is
-    ``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no
-    class). A Reason for Change is required for ``rejected`` and ``edited``, and for any
-    decision that replaces an earlier one on the same content."""
+    A Check Finding, AI Finding or drafted Test Step is ``accepted`` or ``rejected``; a
+    Coverage row is ``accepted`` or ``edited`` to another class (only ``edited`` when the
+    system proposed no class). A Reason for Change is required for ``rejected`` and
+    ``edited``, and for any decision that replaces an earlier one on the same content."""
 
     decision: Verdict
     coverage: CoverageClass | None = None
@@ -77,7 +85,7 @@ class Decision(_Model):
     id: int
     decision: Verdict
     coverage: CoverageClass | None
-    """For ``edited``: the class the person chose."""
+    """For a Coverage row ``edited``: the class the person chose; ``null`` otherwise."""
     reason: str | None
     run_id: str
     """The run whose Proposal it was made on."""
@@ -97,9 +105,10 @@ class Proposal(_Model):
     """Its identity across runs: the same subject gets the same id in every run."""
     kind: Kind
     """A Coverage row, or the layer of a finding (Check Finding, AI Finding); ``draft``: a
-    Check Finding on the Protocol Draft of a Review Package run."""
+    Check Finding on the Protocol Draft of a Review Package run; ``test_step``: an IQ/OQ Test
+    Step the run drafted (``drafts.json``)."""
     requirement: str | None
-    """For a Coverage row: the requirement id in ``matrix.json``."""
+    """For a Coverage row or a drafted Test Step: the requirement id."""
     position: int | None
     """For a finding: its position in its layer's list in ``findings.json``, from 0; for a
     draft finding, in the findings of the Protocol Draft."""
@@ -147,6 +156,8 @@ class DecisionCounts(_Model):
     ai: KindCounts
     draft: KindCounts
     """Findings on the Protocol Draft of a Review Package run; all zero for another run."""
+    test_step: KindCounts
+    """Drafted IQ/OQ Test Steps; all zero for a run imported without ``drafts.json``."""
 
 
 class DraftFindingView(_Model):
@@ -229,11 +240,15 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         try:
             meta: dict[str, Any] = read_served(folder / RUN_FILE)
             draft = folder / DRAFT_FILE
+            drafted = folder / DRAFTS_FILE
             files = RunFiles(
                 meta=meta,
                 matrix=Matrix.model_validate(read_served(folder / MATRIX_FILE)),
                 findings=Findings.model_validate(read_served(folder / FINDINGS_FILE)),
                 draft=ProtocolDraft.model_validate(read_served(draft)) if draft.is_file() else None,
+                drafted=DraftedTestSteps.model_validate(read_served(drafted))
+                if drafted.is_file()
+                else None,
             )
         except (OSError, ValueError, ValidationError) as e:
             raise HTTPException(422, f"{run_id} is not a run folder that can be imported") from e
@@ -353,6 +368,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             check=kind(got["check"]),
             ai=kind(got["ai"]),
             draft=kind(got["draft"]),
+            test_step=kind(got["test_step"]),
         )
 
     return router

@@ -17,6 +17,11 @@ rests on. Both follow the spec's table:
   for each. Content = detail text, the rule (its type) and the values compared (AC and URS
   limit as parsed). No quote text enters either: a re-run whose quote differs only in length
   is the same Proposal with the same content, while a change in a compared value asks again.
+- Drafted Test Step (``drafts.json``, spec #247): key = Equipment, requirement id. Content =
+  the URS document and revision the requirement is printed in, description, method,
+  instrument, the AC value, the AC citation's document, revision and page (no quote text) and
+  the AC flag. Its wording is in the content on purpose: the text is what a human accepts, so
+  a re-run that words a draft differently asks again.
 
 Wording is left out of Coverage content (the model's paraphrase, every quote), and nothing that
 only describes the run enters a key or a hash (run id, time, model, prompt hash). Two Proposals
@@ -36,6 +41,8 @@ from traceq.runs.schemas import (
     CheckFinding,
     Cite,
     DraftCheckFinding,
+    DraftedTestStep,
+    DraftedTestSteps,
     Findings,
     Matrix,
     MatrixRow,
@@ -43,9 +50,9 @@ from traceq.runs.schemas import (
     ProtocolDraft,
 )
 
-type Kind = Literal["coverage", "check", "ai", "draft"]
+type Kind = Literal["coverage", "check", "ai", "draft", "test_step"]
 """``draft``: a Check Finding on the Protocol Draft under review, kept apart from the
-Equipment's Check Findings."""
+Equipment's Check Findings. ``test_step``: an IQ/OQ Test Step the run drafted."""
 type JsonObject = dict[str, Any]
 
 
@@ -62,7 +69,7 @@ class Proposed:
     proposed: JsonObject
     """The item as written in the run's file."""
     requirement: str | None
-    """For a Coverage row: the requirement id."""
+    """For a Coverage row or a drafted Test Step: the requirement id."""
     position: int | None
     """For a finding: its position in its layer's list in ``findings.json``; for a draft
     finding, in the findings of ``protocol_draft.json``."""
@@ -167,12 +174,30 @@ def _draft(
     return subject, content
 
 
+def _test_step(s: DraftedTestStep) -> JsonObject:
+    cite = s.acceptance_citation
+    return {
+        "urs": {"doc": s.source.doc, "rev": s.source.rev},
+        "description": s.description,
+        "method": s.method,
+        "instrument": s.instrument,
+        "acceptance": None if s.acceptance is None else s.acceptance.model_dump(mode="json"),
+        "acceptance_citation": None
+        if cite is None
+        else {"doc": cite.doc, "rev": cite.rev, "page": cite.page},
+        "acceptance_flag": s.acceptance_flag,
+    }
+
+
 def proposals_of(
-    equipment: str, matrix: Matrix, findings: Findings, draft: ProtocolDraft | None = None
+    equipment: str,
+    matrix: Matrix,
+    findings: Findings,
+    draft: ProtocolDraft | None = None,
+    drafted: DraftedTestSteps | None = None,
 ) -> list[Proposed]:
     """Every Coverage row, Check Finding and AI Finding of a run, then the findings on its
-    Protocol Draft (a Review Package run), in file order. Drafted Test Steps are Proposals too
-    but not imported in this slice."""
+    Protocol Draft (a Review Package run), then its drafted Test Steps, in file order."""
     seen: Counter[str] = Counter()
     out: list[Proposed] = []
 
@@ -216,4 +241,13 @@ def proposals_of(
     if draft is not None:
         for i, d in enumerate(draft.findings):
             add("draft", *_draft(equipment, draft, d), d.model_dump(mode="json"), position=i)
+    if drafted is not None:
+        for s in drafted.test_steps:
+            add(
+                "test_step",
+                {"equipment": equipment, "requirement": s.requirement},
+                _test_step(s),
+                s.model_dump(mode="json"),
+                requirement=s.requirement,
+            )
     return out
