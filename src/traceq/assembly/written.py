@@ -350,7 +350,7 @@ def guard_accepting(session: Session, run_id: str, proposal_id: int) -> None:
     lifecycle.lock_requirement(session, equipment, requirement)
     for p in lifecycle.of_equipment(session, equipment):
         if p.status in lifecycle.OPEN and current(versions_of(session, p.id).get(requirement, ())):
-            raise Conflict(
+            raise decisions.Conflict(
                 f"Protocol {p.id} of {equipment} holds a written Test Step for {requirement}:"
                 " remove it before accepting a draft, so the row holds one Test Step"
             )

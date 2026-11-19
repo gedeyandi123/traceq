@@ -65,6 +65,14 @@ class Refused(Exception):
     """The decision does not fit the Proposal, or a Reason for Change is missing."""
 
 
+class Conflict(Exception):
+    """The decision is refused in the current state of what rests on it (a written Test Step
+    of the open Protocol, spec #247); the message says why in words."""
+
+    # Raised by a check the application passes in (``create_router``'s ``before_accepting``),
+    # so this layer need not import the assembled Protocol above it.
+
+
 @dataclass(frozen=True)
 class Decision:
     id: int

@@ -18,9 +18,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 
-from traceq.assembly import written
-from traceq.assembly.lifecycle import Conflict
 from traceq.audit import Actor
 from traceq.db import transaction
 from traceq.identity import Principal
@@ -220,9 +219,16 @@ def actor_of(who: Principal) -> Actor:
     return Actor(subject=who.subject, issuer=who.issuer, name=who.name)
 
 
-def create_router(runs: Path, db: Engine | None, principal: Callable[..., Principal]) -> APIRouter:
+def create_router(
+    runs: Path,
+    db: Engine | None,
+    principal: Callable[..., Principal],
+    before_accepting: Callable[[Session, str, int], None] | None = None,
+) -> APIRouter:
     """``db``: the database as the application role; none with default settings, when
-    ``principal`` refuses every request."""
+    ``principal`` refuses every request. ``before_accepting``: called with the session, run id
+    and Proposal id before an ``accepted`` decision is recorded, in its transaction; it raises
+    ``decisions.Conflict`` to refuse it (the assembled Protocol's one-Test-Step rule)."""
     router = APIRouter()
 
     def database() -> Engine:
@@ -331,8 +337,8 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(403, "recording a decision needs the deciding role")
         try:
             with transaction(database()) as session:
-                if body.decision == "accepted":
-                    written.guard_accepting(session, run_id, proposal_id)
+                if body.decision == "accepted" and before_accepting is not None:
+                    before_accepting(session, run_id, proposal_id)
                 made = decisions.record(
                     session,
                     actor_of(who),
@@ -346,7 +352,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(404, str(e)) from e
         except decisions.Refused as e:
             raise HTTPException(422, str(e)) from e
-        except Conflict as e:
+        except decisions.Conflict as e:
             raise HTTPException(409, str(e)) from e
         return _decision(made)
 

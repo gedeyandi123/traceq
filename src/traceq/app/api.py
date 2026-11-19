@@ -18,6 +18,7 @@ from typing import Any
 from fastapi import FastAPI
 from sqlalchemy import URL, make_url
 
+from traceq.assembly import written
 from traceq.assembly.api import create_router as assembly_router
 from traceq.db import engine
 from traceq.identity import IdentitySettings, Verifier
@@ -48,7 +49,9 @@ def create_app(
     verifier = None if identity is None else Verifier(identity)
     db = None if database is None else engine(make_url(database))
     principal = authenticate(verifier)
-    app.include_router(proposals_router(runs, db, principal))
+    app.include_router(
+        proposals_router(runs, db, principal, before_accepting=written.guard_accepting)
+    )
     app.include_router(assembly_router(runs, db, principal))
     return app
 
