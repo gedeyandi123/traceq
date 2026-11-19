@@ -52,7 +52,7 @@ The recorded act that makes a submitted Protocol an approved one. Until Electron
 _Avoid_: sign-off, signature
 
 **Test Step**:
-One verification step in a Protocol that produces a measured or observed result.
+One verification step in a Protocol that produces a Result.
 
 **Vendor Reference**:
 A line of a Protocol stating that one requirement is proven by the vendor's Evidence and is not tested again on site.
@@ -63,12 +63,36 @@ The limit, set by a human, that decides whether a Test Step passes or fails.
 _Avoid_: spec limit, threshold
 
 **Execution**:
-Carrying out an approved Protocol and recording actual results with their Evidence.
+Carrying out an approved Protocol and recording a Result for each of its Test Steps, with their Evidence.
 _Avoid_: run, test run
 
+**Performer**:
+The person who carries out a Test Step and records its Result.
+_Avoid_: executor, tester, operator
+
+**Result**:
+The actual value one attempt at a Test Step produced, in the shape of its Acceptance Criterion. Code, not a person, decides whether it passes.
+_Avoid_: reading, outcome, measurement
+
+**Retest**:
+A new attempt at a failed Test Step, justified by that step's Deviation; the earlier attempts stay on record.
+_Avoid_: re-run, repeat test
+
 **Deviation**:
-A result or event during Execution that does not conform to the Protocol or an Acceptance Criterion.
+A failed Result, or an event during Execution, that does not conform to the Protocol or an Acceptance Criterion.
 _Avoid_: error, failure, nonconformance
+
+**Investigation**:
+The written root cause of one Deviation and its impact on the qualification.
+_Avoid_: RCA, root cause analysis (as a record name)
+
+**CAPA (Corrective and Preventive Action)**:
+The action that removes the cause of a Deviation and keeps it from recurring.
+_Avoid_: action item, fix
+
+**Deviation Closure**:
+The recorded act by which an authorised person, never an author of the Investigation, closes a Deviation. Until Electronic Signatures exist it is a recorded status, not an Electronic Signature.
+_Avoid_: sign-off, approval (for a Deviation)
 
 **Qualification Report**:
 A summary of Execution that concludes the status of one Qualification Stage, approved by an authorised person.
@@ -116,7 +140,7 @@ _Avoid_: approval click, e-sign (as a verb)
 What an Electronic Signature asserts: authored, reviewed, approved, executed, or witnessed.
 
 **Witness**:
-A second person who directly verifies the performance of a critical Test Step; never the same person as the performer.
+A second person who directly verifies the performance of a critical Test Step and confirms its Result; never the Performer.
 _Avoid_: checker, second signer
 
 **Reason for Change**:
