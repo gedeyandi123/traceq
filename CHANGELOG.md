@@ -10,6 +10,10 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Changed
+
+- Re-stamp of the Review Package baseline for dataset 0.2.0 (#133 plan step 5, after #223): `baselines/TP-201-OQ-draft.json` and `recordings/haiku-oq-draft-r3/report-TP-201-OQ-draft.json` change only `dataset.version` (0.1.1 → 0.2.0), as #238 did for r10. A zero-call replay of r3 (157 calls replayed, none live, $0) gives the same metrics; the live run id `20261118T185011Z-b920bd` is kept. Without it the ratchet refused every package run across the dataset MINOR.
+
 ### Added
 
 - The held-out live run of PW-001 (#241, A5 of #133: run `20261119T021735Z-aa3429`, `claude-haiku-5-5`, prompt `e7b77fbfedfb`, 128 live calls, $0.032311, every gate PASS), committed byte for byte: `recordings/PW-001/haiku-r10/` (the 128 LLM recordings, the ingest cache, `run.json`, `report.json`, scorer 0.8.0) and its baseline `baselines/PW-001.json`. `tests/test_heldout_replay.py` replays it against `recordings/corpus-0.2.0` (no API, Docling or OCR) and compares the SHA-256 of the scored report with the committed one; a failure names only the check, never a value or a differing item. PW-001 is used once (`DATASHEET.md`). `recordings/README.md` gets a per-run spend table.
