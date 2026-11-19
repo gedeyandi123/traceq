@@ -34,6 +34,8 @@ from traceq.app.demo import (
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "recordings" / "corpus-0.1.1" / "manifest.json"
 R10 = ROOT / "recordings" / "haiku-r10"
+PACKAGE = ROOT / "recordings" / "TP-201-OQ-draft-0.1.0"
+PACKAGE_RUN = ROOT / "recordings" / "haiku-oq-draft-r3"
 
 
 def _corpus(tmp_path: Path) -> Path:
@@ -232,3 +234,55 @@ def test_demo_comes_up_imported_and_a_second_run_resets(
             assert len(got.json()) == 45  # r10, after #101 dropped 3 certificate findings
         finally:
             demo.stop()
+
+
+def test_a_review_package_needs_its_recordings_before_anything_starts(tmp_path: Path) -> None:
+    for package, recordings in ((PACKAGE, None), (None, PACKAGE_RUN)):
+        settings = DemoSettings(
+            corpus=tmp_path / "no-corpus",
+            equipment="TP-201",
+            recordings=R10,
+            review_package=package,
+            package_recordings=recordings,
+        )
+        with pytest.raises(DemoError, match="--review-package and --package-recordings"):
+            bring_up(settings)
+
+
+def test_the_demo_loads_the_review_package_draft_at_start(
+    demo_database: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Spec #196, ticket #210: the draft is loaded with the package at start, no upload; its
+    findings are imported with the run, and the stores it replays are only read."""
+    monkeypatch.setattr("traceq.app.demo.check_corpus", lambda *_a: None)
+    before = sorted(p.stat().st_mtime_ns for p in PACKAGE_RUN.rglob("*"))
+    settings = DemoSettings(
+        corpus=_corpus(tmp_path),
+        equipment="TP-201",
+        recordings=R10,
+        runs=tmp_path / "runs",
+        database=demo_database,
+        issuer_port=_free_port(),
+        api_port=_free_port(),
+        compose=False,
+        review_package=PACKAGE,
+        package_recordings=PACKAGE_RUN,
+    )
+    demo = bring_up(settings)
+    try:
+        assert httpx.get(f"{demo.api_url}/runs/{demo.run_id}").json()["review_package"] == {
+            "package": "TP-201-OQ-draft",
+            "version": "0.1.0",
+            "doc_id": "OQ-TP201",
+            "rev": 0,
+        }
+        token = httpx.post(f"{demo.issuer_url}/demo/token", json={"username": "citra"})
+        got = httpx.get(
+            f"{demo.api_url}/runs/{demo.run_id}/protocol-draft",
+            headers={"Authorization": f"Bearer {token.json()['access_token']}"},
+        ).json()
+        assert got["imported"] is True and len(got["test_steps"]) == 26
+        assert got["findings"] and all(f["proposal"] for f in got["findings"])
+    finally:
+        demo.stop()
+    assert sorted(p.stat().st_mtime_ns for p in PACKAGE_RUN.rglob("*")) == before

@@ -17,6 +17,10 @@ export type DecisionCounts = components["schemas"]["DecisionCounts"];
 export type KindCounts = components["schemas"]["KindCounts"];
 export type CoverageClass = NonNullable<MatrixRow["coverage"]>;
 export type Value = NonNullable<MatrixRow["value"]>;
+export type ProtocolDraftView = components["schemas"]["ProtocolDraftView"];
+export type DraftTestStep = components["schemas"]["DraftTestStep"];
+export type DraftFindingView = components["schemas"]["DraftFindingView"];
+export type PrintedRead = NonNullable<components["schemas"]["DraftAcceptance"]["value"]>;
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */

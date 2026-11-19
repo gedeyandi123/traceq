@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 from traceq.proposals.keys import proposals_of
-from traceq.runs.schemas import Findings, Matrix
+from traceq.runs.schemas import Findings, Matrix, ProtocolDraft
 
 _META = MetaData()
 RUNS = Table(
@@ -67,11 +67,12 @@ RUN_PROPOSALS = Table(
 @dataclass(frozen=True)
 class RunFiles:
     """What an import reads of a run folder: ``run.json`` as written, the matrix and the
-    findings."""
+    findings, and for a Review Package run its Protocol Draft."""
 
     meta: dict[str, Any]
     matrix: Matrix
     findings: Findings
+    draft: ProtocolDraft | None = None
 
 
 @dataclass(frozen=True)
@@ -113,7 +114,7 @@ def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
     if added is None:
         return Imported(run_id, equipment, _count(session, run_id), already_imported=True)
 
-    proposed = proposals_of(equipment, run.matrix, run.findings)
+    proposed = proposals_of(equipment, run.matrix, run.findings, run.draft)
     if proposed:
         session.execute(
             insert(PROPOSALS)

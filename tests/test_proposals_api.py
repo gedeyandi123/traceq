@@ -37,6 +37,7 @@ DATABASE_ROUTES = {
     ("get", "/runs/{run_id}/proposals"),
     ("post", "/runs/{run_id}/proposals/{proposal_id}/decisions"),
     ("get", "/runs/{run_id}/decision-counts"),
+    ("get", "/runs/{run_id}/protocol-draft"),
 }
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
@@ -652,6 +653,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "coverage": {**_zero(), "total": 3, "undecided": 3},
         "check": {**_zero(), "total": 2, "undecided": 2},
         "ai": {**_zero(), "total": 1, "undecided": 1},
+        "draft": _zero(),
     }
     ps = proposals(client, decider)
     decide(client, decider, place(ps, "coverage", "URS-TP201-002"), decision="accepted")
@@ -664,6 +666,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "coverage": {**_zero(), "total": 3, "undecided": 1, "accepted": 1, "edited": 1},
         "check": {**_zero(), "total": 2, "accepted": 1, "rejected": 1},
         "ai": {**_zero(), "total": 1, "undecided": 1},
+        "draft": _zero(),
     }
     add_run(runs, OTHER_RUN, dropped)
     import_run(client, decider, OTHER_RUN)
@@ -672,6 +675,7 @@ def test_counts_per_run_by_kind(client: TestClient, runs: Path, decider: dict[st
         "coverage": {**_zero(), "total": 3, "undecided": 1, "edited": 1, "changed": 1},
         "check": {**_zero(), "total": 1, "accepted": 1, "decided_not_proposed": 1},
         "ai": {**_zero(), "total": 1, "undecided": 1},
+        "draft": _zero(),
     }
     assert client.get("/runs/nope/decision-counts", headers=decider).status_code == 404
 
@@ -682,7 +686,16 @@ def test_no_api_text_calls_a_decision_an_approval_or_a_signature() -> None:
     schema = openapi_schema()
     texts = [schema["paths"][p][m] for m, p in DATABASE_ROUTES]
     components = schema["components"]["schemas"]
-    names = ("ImportedRun", "NewDecision", "Decision", "Proposal", "KindCounts", "DecisionCounts")
+    names = (
+        "ImportedRun",
+        "NewDecision",
+        "Decision",
+        "Proposal",
+        "KindCounts",
+        "DecisionCounts",
+        "DraftFindingView",
+        "ProtocolDraftView",
+    )
     texts += [components[n] for n in names]
     text = json.dumps(texts).lower()
     assert "decision" in text

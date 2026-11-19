@@ -11,23 +11,30 @@ layer, model and prompt of each finding are in ``findings.json``). ``ocr`` holds
 entry the OCR model read on a scan, with its quad. ``test_steps`` are the drafted IQ/OQ
 Test Steps: an AC only when copied from a verified citation, otherwise none, "to be set by
 a human" (the flag and the AI Finding fields are in ``drafts.json``). The Coverage reason
-is in ``matrix.json``: the submission schema has no field for it.
+is in ``matrix.json``: the submission schema has no field for it. A Review Package run
+names its package (``review_package``) and adds the Protocol Draft's Test Step rows
+(``draft_steps``): the AC as read with its citation, and whether it was compared. Its Check
+Findings on the draft follow the Equipment findings, each naming its Test Step (or, for a
+traceability row, the row's requirement id).
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from traceq.documents import CorpusDocument, Page
 from traceq.documents.pages import Quad
 from traceq.protocols import Drafts
 from traceq.review import AiType, Review
+from traceq.review.draft_rules import DraftType
+from traceq.review.printed import Limit, Tolerance
 from traceq.review.rules import CheckType
 from traceq.traceability import Ambiguous, Citation, Linked, Traceability, Value
 from traceq.traceability.coverage import CoverageClass
+from traceq.traceability.values import Number, Text
 
 SUBMISSION_VERSION = 1
 
@@ -59,9 +66,13 @@ class RequirementAnswer(_Model):
 
 
 class Finding(_Model):
-    type: Literal["ambiguous_value"] | CheckType | AiType
+    type: Literal["ambiguous_value"] | CheckType | AiType | DraftType
     detail: str
     citations: tuple[CitationOut, ...]
+    test_step: str | None = None
+    """A finding on the Protocol Draft under review: the Test Step it is on."""
+    row: str | None = None
+    """A finding on a traceability table row of the draft: the row's requirement id."""
 
 
 class MissingDocument(_Model):
@@ -97,6 +108,26 @@ class TestStep(_Model):
     acceptance_citation: CitationOut | None = None
 
 
+DraftValue = Annotated[Limit | Number | Tolerance | Text, Field(discriminator="type")]
+
+
+class DraftStep(_Model):
+    """A Test Step of the Protocol Draft under review, as read: the AC value code read from
+    the print, the citation it was read from, and whether it was compared (why not)."""
+
+    id: str
+    acceptance: DraftValue | None = None
+    acceptance_citation: CitationOut | None = None
+    compared: bool
+    not_compared: str | None = None
+
+    @model_validator(mode="after")
+    def _reason(self) -> DraftStep:
+        if self.compared == (self.not_compared is not None):
+            raise ValueError(f"{self.id}: a reason exactly when the step was not compared")
+        return self
+
+
 class Submission(_Model):
     version: Literal[1] = SUBMISSION_VERSION
     equipment: str
@@ -106,9 +137,12 @@ class Submission(_Model):
     missing_documents: tuple[MissingDocument, ...] = ()
     test_steps: tuple[TestStep, ...] = ()
     ocr: tuple[OcrEntry, ...] = ()
+    review_package: str | None = None
+    """The Review Package this run answers; ``None``: an Equipment run."""
+    draft_steps: tuple[DraftStep, ...] = ()
 
 
-def _cite(c: Citation, value: Value | None = None) -> CitationOut:
+def cite(c: Citation, value: Value | None = None) -> CitationOut:
     return CitationOut(doc=c.doc, rev=c.rev, page=c.page, quote=c.quote, value=value)
 
 
@@ -117,7 +151,7 @@ def _evidence_citations(linked: Linked | None) -> list[CitationOut]:
     the requirement's value, and an ambiguous one must not be claimed."""
     if linked is None:
         return []
-    return [_cite(s.citation) for s in linked.steps] + [_cite(r.citation) for r in linked.rows]
+    return [cite(s.citation) for s in linked.steps] + [cite(r.citation) for r in linked.rows]
 
 
 def _ambiguous(t: Traceability) -> list[Finding]:
@@ -131,7 +165,7 @@ def _ambiguous(t: Traceability) -> list[Finding]:
             findings[s.id] = Finding(
                 type="ambiguous_value",
                 detail=f"{s.step}: '{s.observed}' reads as {readings}; ask for confirmation",
-                citations=(_cite(s.citation),),
+                citations=(cite(s.citation),),
             )
     return list(findings.values())
 
@@ -161,7 +195,7 @@ def build(
     for r in t.requirements:
         claim = t.values.get(r.id)
         linked = t.linked.get(r.id)
-        urs = _cite(r.citation) if claim is None else _cite(claim.citation, claim.value)
+        urs = cite(r.citation) if claim is None else cite(claim.citation, claim.value)
         answers.append(
             RequirementAnswer(
                 id=r.id,
@@ -180,7 +214,7 @@ def build(
         requirements=tuple(answers),
         findings=(
             *(
-                Finding(type=f.type, detail=f.detail, citations=tuple(map(_cite, f.citations)))
+                Finding(type=f.type, detail=f.detail, citations=tuple(map(cite, f.citations)))
                 for f in (*review.findings, *review.ai_findings)
             ),
             *_ambiguous(t),
@@ -198,7 +232,7 @@ def build(
                 acceptance=d.acceptance.value,
                 acceptance_citation=None
                 if d.acceptance.citation is None
-                else _cite(d.acceptance.citation),
+                else cite(d.acceptance.citation),
             )
             for d in (drafts.drafts if drafts else ())
         ),

@@ -136,3 +136,33 @@ Ctrl-C pada `demo.py`, eval screen dan `npm start`. Postgres tetap jalan; matika
 - Waktu keputusan: UTC atau WIB?
 - Baris cakupan tanpa "Tolak": apakah "Ubah kelas" cukup untuk menolak usulan AI?
 - D9 (#100): apakah FAT-M-02 dan FAT-M-09 layak menjadi temuan? Di rekaman r10 keduanya tidak lagi tampil, karena `ai_review` kini melaporkan "Kriteria penerimaan menyimpang dari URS" hanya untuk protokol milik site; tanyakan tanpa menunjukkannya di layar.
+
+## 10. Draf protokol OQ (irisan 3, spec #196)
+
+Layar "Draf protokol" menampilkan draf protokol OQ milik site dari Review Package `TP-201-OQ-draft` 0.1.0: setiap langkah uji dalam urutan draf dengan kriteria penerimaan (KP) seperti terbaca, nilai URS yang dibandingkan, pembanding per dokumen vendor (datasheet, FAT, SAT: langkah FAT/SAT dan data desain dari matriks, atau "tidak ada"; hanya ditampilkan), dan temuannya atau "Tidak dibandingkan" dengan alasannya; lalu temuan tentang seluruh dokumen. Langkah uji yang tercetak di draf tetapi bacaannya dibuang oleh pemeriksaan kutipan tetap tampil di tempatnya dengan "Tidak terbaca: …" dan alasannya (run live pertama r1 punya tiga: OQ-01, OQ-03 dan OQ-12; r3 tidak punya). Langkah uji OQ yang dirancang TraceQ sendiri tidak tampil di sini. Draf dimuat bersama paket saat demo dinyalakan; tidak ada unggahan.
+
+**Menyalakan dengan paket.** Ganti perintah demo di bagian 3 langkah 1 dengan:
+
+`uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01 --recordings recordings/haiku-r10 --review-package recordings/TP-201-OQ-draft-0.1.0 --package-recordings recordings/haiku-oq-draft-r3`
+
+Run-nya menjadi run Review Package: Pre-review peralatan diputar ulang dari r10 tanpa perubahan, draf dibaca dari rekaman paket, keduanya hanya dibaca. Tunggu baris `demo: … with the Review Package …` lalu `demo: ready`. Kedua opsi paket wajib bersama; satu saja ditolak sebelum database disentuh.
+
+**Batas yang harus diketahui presenter:**
+
+- Rekaman draf di `recordings/haiku-oq-draft-r3` adalah **run live ketiga** (Claude Haiku, 19 Nov, prompt dengan aturan tabel yang berlanjut ke halaman berikutnya; `recordings/README.md`), berlabel "dev only; labels not reviewed": kunci jawaban paket belum ditinjau. Angka di bawah berasal dari rekaman itu. Semua 26 langkah uji terbaca dan kedua halaman tabel ketertelusuran terbaca. Ini satu sampel: jangan menyebut angkanya sebagai hasil aturan baru. (r1, run live pertama: tiga langkah uji tidak terbaca karena kutipan berisi judul langkah; r2 tidak di-merge; angka keduanya di `recordings/README.md`.)
+- Kutipan ke draf (OQ-TP201) **bukan link**: API hanya menyajikan dokumen korpus, dan draf bukan dokumen korpus. Arahkan kursor untuk melihat kutipannya. Kutipan ke URS dan pembanding tetap membuka PDF.
+- Draf dibaca dengan token: tanpa masuk, layar meminta masuk.
+- Penilaian (bagian 3 langkah 2) untuk run Review Package memerlukan `--package world/tp201-oq-draft.yaml`; layar eval untuk run ini belum dilatih.
+
+| ID | Kasus | Langkah | Hasil yang diharapkan | Hasil |
+|---|---|---|---|---|
+| K18 | Demo memuat paket | Nyalakan dengan perintah di atas, buka `/`, lalu run TP-201 | Satu run; header run menulis "Draf protokol: OQ-TP201 rev 0 (TP-201-OQ-draft 0.1.0)"; tab "Draf protokol" di antara "Temuan pra-tinjauan" dan "Yang tidak dimasukkan" | ✅ (18 Nov, fixture paket di atas r10, stack kedua di port lain) |
+| K19 | "OQ tidak ada" tetap | Tab "Temuan pra-tinjauan" | Sama dengan run tanpa paket: 3 temuan aturan, 4 temuan AI, "Dokumen yang tidak ada" tetap memuat IQ-TP201 dan OQ-TP201; tab "Draf protokol" menautkan ke draf | ✅ (18 Nov: 3 aturan, 4 AI, IQ dan OQ tidak ada, 0/7; temuan draf tidak tercampur) |
+| K20 | Draf tanpa masuk | Keluar, buka `/runs/<id>/draft` | "Masuk untuk melihat draf protokol"; tidak ada tabel | ✅ (18 Nov) |
+| K21 | Langkah uji dalam urutan draf | Masuk sebagai Ayu → tab "Draf protokol" | Ringkasan "26 Langkah uji", "19 Langkah uji tidak dibandingkan", "2 Temuan tentang seluruh dokumen" (tanpa "tidak terbaca"); baris pertama OQ-01 "Tidak dibandingkan: the URS states a single number…"; OQ-05 "minimal 15 kN" dengan nilai URS "≥ 20 kN", "Menyimpang dari URS" dan temuan "Kriteria penerimaan lebih longgar dari URS"; "0/5 usulan sudah diputuskan" | ✅ (18 Nov; diulang 19 Nov setelah #221); ✅ diulang 19 Nov di browser dengan rekaman live r1 (build produksi :3002, stack kedua): 26, 3 tidak terbaca (OQ-01, OQ-03, OQ-12), 17 tidak dibandingkan, 2 temuan dokumen, OQ-05 seperti di atas, 0/4; ⏳ belum diulang di browser dengan r3 (angka harapan dari data run r3) |
+| K22 | Kutipan | Pada OQ-05: arahkan kursor ke "OQ-TP201 rev 0, hlm. …", lalu klik link "URS-TP201 rev 1, hlm. …" | Kutipan draf tampil sebagai tooltip, bukan link; link URS membuka PDF URS di halaman itu | ✅ (18 Nov: kutipan draf berupa tooltip; link URS menyajikan application/pdf) |
+| K23 | Terima temuan draf | OQ-05 → "Terima" | "Diterima oleh Ayu Kartika Sari, …"; "1/5" (r1: "1/4"); di "Jumlah keputusan": baris "Temuan draf protokol", Diterima 1; halaman kembali ke `/runs/<id>/draft` | ✅ (18 Nov) |
+| K24 | Tolak temuan dokumen dengan alasan | "Temuan tentang seluruh dokumen" → URS-TP201-002 → "Tolak…" → isi alasan → "Tolak" (tanpa alasan: ditahan browser) | "Ditolak oleh …" dengan alasan; "2/5" (r1: "2/4"); Ditolak 1 | ✅ (18 Nov: tanpa alasan formulir tidak valid, `required`) |
+| K25 | Pembaca | Keluar → masuk sebagai Citra → tab "Draf protokol" | Keputusan Ayu terlihat; tidak ada tombol Terima/Tolak atau lipatan "Tolak…"/"Putuskan ulang"; "Hanya membaca: …" | ✅ (18 Nov) |
+| K26 | Lebar layar | Ulangi K21 pada 1920 px dan pada jendela sempit (di bawah 1199 px dan sekitar 768 px) | Ringkasan dan "Jumlah keputusan" bertumpuk di bawah 1199 px; tabel bergulir ke samping di dalam bingkainya, halaman tidak | ✅ (18 dan 19 Nov: 1920 berdampingan; 1100 dan 768 bertumpuk; pada 768 tabel 918 px bergulir di bingkainya, lebar halaman tetap; diukur dengan iframe same-origin) |
+| K27 | Pembanding per dokumen vendor | Pada K21, lihat kolom "Pembanding" baris OQ-05 | OQ-05: datasheet DS-TP201 dengan "Maximum pre-compression force", FAT-TP201-C dan FAT-TP201-M "tidak ada", SAT-TP201 dengan SAT-02 dan link ke PDF SAT; setiap baris yang terbaca menyebut keempat dokumen itu, masing-masing dengan faktanya atau "tidak ada" | ✅ (19 Nov, baris OQ-03 rekaman tiruan); ✅ diulang 19 Nov dengan rekaman live r1: OQ-05 seperti yang diharapkan, link SAT menyajikan application/pdf; 23 baris terbaca semuanya menyebut keempat dokumen; ⏳ belum diulang di browser dengan r3 |

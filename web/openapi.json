@@ -381,6 +381,51 @@
         }
       }
     },
+    "/runs/{run_id}/protocol-draft": {
+      "get": {
+        "summary": "Get Protocol Draft",
+        "description": "The Protocol Draft a Review Package run read: its Test Steps in draft order, its\ntraceability rows and its findings, each with its decision state once the run is\nimported. Any role may read it; deciding goes through ``recordDecision``.",
+        "operationId": "getProtocolDraft",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolDraftView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/runs/{run_id}/proposals/{proposal_id}/decisions": {
       "post": {
         "summary": "Record Decision",
@@ -789,6 +834,9 @@
           },
           "ai": {
             "$ref": "#/components/schemas/KindCounts"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/KindCounts"
           }
         },
         "additionalProperties": false,
@@ -797,7 +845,8 @@
           "run_id",
           "coverage",
           "check",
-          "ai"
+          "ai",
+          "draft"
         ],
         "title": "DecisionCounts",
         "description": "Stored decisions counted per kind of Proposal for one run. Counts, not a measure of\nquality."
@@ -873,6 +922,495 @@
         ],
         "title": "DesignRow",
         "description": "A datasheet or certificate value compared with the URS value."
+      },
+      "DraftAcceptance": {
+        "properties": {
+          "printed": {
+            "type": "string",
+            "title": "Printed"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Limit"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Tolerance"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AmbiguousValue"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "ambiguous": "#/components/schemas/AmbiguousValue",
+                    "number": "#/components/schemas/Number",
+                    "range": "#/components/schemas/Limit",
+                    "text": "#/components/schemas/Text",
+                    "tolerance": "#/components/schemas/Tolerance"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "printed",
+          "value",
+          "citation"
+        ],
+        "title": "DraftAcceptance",
+        "description": "A Test Step's Acceptance Criterion as printed, the value code read from it (none: a\nform the parser does not know) and the verified citation it was read from."
+      },
+      "DraftCheckFinding": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "ac_deviates_from_urs",
+              "requirement_not_tested"
+            ],
+            "title": "Type"
+          },
+          "layer": {
+            "type": "string",
+            "const": "rule",
+            "title": "Layer"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Step"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row"
+          },
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "ac": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Limit"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Tolerance"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AmbiguousValue"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "ambiguous": "#/components/schemas/AmbiguousValue",
+                    "number": "#/components/schemas/Number",
+                    "range": "#/components/schemas/Limit",
+                    "text": "#/components/schemas/Text",
+                    "tolerance": "#/components/schemas/Tolerance"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ac"
+          },
+          "urs_limit": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Limit"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Tolerance"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AmbiguousValue"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "ambiguous": "#/components/schemas/AmbiguousValue",
+                    "number": "#/components/schemas/Number",
+                    "range": "#/components/schemas/Limit",
+                    "text": "#/components/schemas/Text",
+                    "tolerance": "#/components/schemas/Tolerance"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urs Limit"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Cite"
+            },
+            "type": "array",
+            "title": "Citations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "layer",
+          "requirement",
+          "detail",
+          "ac",
+          "urs_limit",
+          "citations"
+        ],
+        "title": "DraftCheckFinding",
+        "description": "A Check Finding (layer Rule) on the draft, with the values it compared, as parsed. It\nis on a Test Step (``test_step``) or, for ``requirement_not_tested``, on a traceability\nrow (``row``, the row's requirement id)."
+      },
+      "DraftComparator": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "FAT",
+              "SAT",
+              "design"
+            ],
+            "title": "Kind"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/VendorFactCite"
+            },
+            "type": "array",
+            "title": "Facts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "kind",
+          "facts"
+        ],
+        "title": "DraftComparator",
+        "description": "The vendor facts of one document a requirement's matrix row holds: shown only, never\na finding."
+      },
+      "DraftDocument": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc_id",
+          "rev",
+          "sha256"
+        ],
+        "title": "DraftDocument",
+        "description": "The Protocol Draft under review: document, revision and the SHA-256 of its bytes."
+      },
+      "DraftFindingView": {
+        "properties": {
+          "finding": {
+            "$ref": "#/components/schemas/DraftCheckFinding"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Proposal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "finding",
+          "proposal"
+        ],
+        "title": "DraftFindingView",
+        "description": "A finding on the Protocol Draft and the Proposal it was imported as."
+      },
+      "DraftTestStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requirements"
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftAcceptance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "not_read": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Read"
+          },
+          "traced": {
+            "items": {
+              "$ref": "#/components/schemas/DraftTraced"
+            },
+            "type": "array",
+            "title": "Traced"
+          },
+          "compared": {
+            "type": "boolean",
+            "title": "Compared"
+          },
+          "not_compared": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Compared"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "requirements",
+          "acceptance",
+          "traced",
+          "compared",
+          "not_compared"
+        ],
+        "title": "DraftTestStep",
+        "description": "A Test Step of the draft, in draft order, as read and compared, or not read: the draft\nprints it, but the citation check dropped its reading (``not_read``)."
+      },
+      "DraftTraceRow": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "test_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Test Steps"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement",
+          "test_steps",
+          "citation"
+        ],
+        "title": "DraftTraceRow",
+        "description": "A row of the draft's traceability table: a requirement and its Test Step ids."
+      },
+      "DraftTraced": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "urs_limit": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Limit"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Tolerance"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AmbiguousValue"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "ambiguous": "#/components/schemas/AmbiguousValue",
+                    "number": "#/components/schemas/Number",
+                    "range": "#/components/schemas/Limit",
+                    "text": "#/components/schemas/Text",
+                    "tolerance": "#/components/schemas/Tolerance"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urs Limit"
+          },
+          "citation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "not_parsed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Parsed"
+          },
+          "compared": {
+            "type": "boolean",
+            "title": "Compared"
+          },
+          "deviates": {
+            "type": "boolean",
+            "title": "Deviates"
+          },
+          "not_compared": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Compared"
+          },
+          "comparators": {
+            "items": {
+              "$ref": "#/components/schemas/DraftComparator"
+            },
+            "type": "array",
+            "title": "Comparators"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement",
+          "urs_limit",
+          "citation",
+          "not_parsed",
+          "compared",
+          "deviates",
+          "not_compared",
+          "comparators"
+        ],
+        "title": "DraftTraced",
+        "description": "A Test Step's AC compared with one requirement the traceability table traces it to."
       },
       "DroppedClaim": {
         "properties": {
@@ -1148,7 +1686,8 @@
         "enum": [
           "coverage",
           "check",
-          "ai"
+          "ai",
+          "draft"
         ]
       },
       "KindCounts": {
@@ -1195,6 +1734,59 @@
         ],
         "title": "KindCounts",
         "description": "The Proposals of one kind in a run, by decision state. ``total`` is the sum of\n``undecided``, ``changed`` and the current decisions ``accepted``, ``edited`` and\n``rejected``."
+      },
+      "Limit": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "range",
+            "title": "Type",
+            "default": "range"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "min_exclusive": {
+            "type": "boolean",
+            "title": "Min Exclusive",
+            "default": false
+          },
+          "max_exclusive": {
+            "type": "boolean",
+            "title": "Max Exclusive",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "unit"
+        ],
+        "title": "Limit",
+        "description": "A limit as printed: either bound may be strict (``< 0,8 µm``)."
       },
       "Matrix": {
         "properties": {
@@ -1654,6 +2246,67 @@
         "title": "Proposal",
         "description": "A Proposal of a run, where it stands in the run's files, and its decision state."
       },
+      "ProtocolDraftView": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "imported": {
+            "type": "boolean",
+            "title": "Imported"
+          },
+          "package": {
+            "type": "string",
+            "title": "Package"
+          },
+          "document": {
+            "$ref": "#/components/schemas/DraftDocument"
+          },
+          "test_steps": {
+            "items": {
+              "$ref": "#/components/schemas/DraftTestStep"
+            },
+            "type": "array",
+            "title": "Test Steps"
+          },
+          "trace_rows": {
+            "items": {
+              "$ref": "#/components/schemas/DraftTraceRow"
+            },
+            "type": "array",
+            "title": "Trace Rows"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/DraftFindingView"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "vendor_documents": {
+            "items": {
+              "$ref": "#/components/schemas/VendorDocument"
+            },
+            "type": "array",
+            "title": "Vendor Documents"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "imported",
+          "package",
+          "document",
+          "test_steps",
+          "trace_rows",
+          "findings",
+          "vendor_documents"
+        ],
+        "title": "ProtocolDraftView",
+        "description": "The Protocol Draft of a Review Package run: its Test Steps in draft order, its\ntraceability rows and its findings, each with its decision state."
+      },
       "Range": {
         "properties": {
           "type": {
@@ -1738,6 +2391,36 @@
         "title": "RequiredDocument",
         "description": "A document the VMP requires for the Equipment, with the annex row cited."
       },
+      "RunPackage": {
+        "properties": {
+          "package": {
+            "type": "string",
+            "title": "Package"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "package",
+          "version",
+          "doc_id",
+          "rev"
+        ],
+        "title": "RunPackage",
+        "description": "The Review Package a run reviews and the Protocol Draft it read."
+      },
       "RunSummary": {
         "properties": {
           "run_id": {
@@ -1767,6 +2450,16 @@
           "pipeline_version": {
             "type": "string",
             "title": "Pipeline Version"
+          },
+          "review_package": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunPackage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -1855,6 +2548,42 @@
           "value"
         ],
         "title": "Text"
+      },
+      "Tolerance": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tolerance",
+            "title": "Type",
+            "default": "tolerance"
+          },
+          "nominal": {
+            "type": "number",
+            "title": "Nominal"
+          },
+          "tolerance": {
+            "type": "number",
+            "title": "Tolerance"
+          },
+          "tolerance_unit": {
+            "type": "string",
+            "title": "Tolerance Unit"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nominal",
+          "tolerance",
+          "tolerance_unit",
+          "unit"
+        ],
+        "title": "Tolerance",
+        "description": "A nominal value with a tolerance: ``380 V ± 10 %``."
       },
       "UnquotedText": {
         "properties": {
@@ -1965,6 +2694,60 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VendorDocument": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "datasheet",
+              "FAT",
+              "SAT"
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "kind"
+        ],
+        "title": "VendorDocument",
+        "description": "A vendor document of the Equipment the comparators of a requirement may come from."
+      },
+      "VendorFactCite": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "printed": {
+            "type": "string",
+            "title": "Printed"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "printed",
+          "citation"
+        ],
+        "title": "VendorFactCite",
+        "description": "A vendor step's observation or a design value, as printed, with its citation."
       },
       "Verdict": {
         "type": "string",

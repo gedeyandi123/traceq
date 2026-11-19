@@ -8,14 +8,20 @@ import { ModeBadge } from "./ui/ui";
 
 import s from "./RunHeader.module.css";
 
-/** The four screens of a run. */
-export type RunTab = "matrix" | "findings" | "leftOut" | "eval";
+/** The screens of a run; ``draft`` only for a Review Package run. */
+export type RunTab = "matrix" | "findings" | "draft" | "leftOut" | "eval";
 
-const PATHS: Record<RunTab, string> = { matrix: "", findings: "/findings", leftOut: "/left-out", eval: "/eval" };
+const PATHS: Record<RunTab, string> = {
+  matrix: "",
+  findings: "/findings",
+  draft: "/draft",
+  leftOut: "/left-out",
+  eval: "/eval",
+};
 const TABS = Object.keys(PATHS) as RunTab[];
 
 /** The header every run screen shares: a breadcrumb back to all runs, the run's Equipment and
- * facts, one tab per screen of the run (the current one marked with `aria-current`), and one
+ * facts (with the Protocol Draft under review, for a Review Package run), one tab per screen of the run (the current one marked with `aria-current`), and one
  * line on what the screen is for. A component the pages render, not a layout: the pages
  * already fetch the run, and a layout cannot see `searchParams`. */
 export function RunHeader({ run, current, intro }: { run: RunSummary; current: RunTab; intro: string }) {
@@ -23,6 +29,9 @@ export function RunHeader({ run, current, intro }: { run: RunSummary; current: R
   const runs = useTranslations("runs");
   const when = useTranslations("decisions");
   const base = `/runs/${encodeURIComponent(run.run_id)}`;
+  const pkg = run.review_package;
+  // The Protocol Draft tab links the Equipment screens to the draft under review.
+  const tabs = TABS.filter((tab) => tab !== "draft" || pkg);
   return (
     <header className={s.header}>
       <nav aria-label={t("breadcrumb")} className={s.crumbs}>
@@ -47,9 +56,15 @@ export function RunHeader({ run, current, intro }: { run: RunSummary; current: R
           <dt>{runs("created")}</dt>
           <dd>{formatWhen(when, run.created)}</dd>
         </div>
+        {pkg && (
+          <div>
+            <dt>{t("draft")}</dt>
+            <dd>{`${pkg.doc_id} rev ${pkg.rev} (${pkg.package} ${pkg.version})`}</dd>
+          </div>
+        )}
       </dl>
       <nav aria-label={t("tabs")} className={s.tabs}>
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <Link
             key={tab}
             href={`${base}${PATHS[tab]}`}

@@ -4,7 +4,7 @@ Usage::
 
     traceq run CORPUS_DIR [--equipment TAG] [--out runs] [--recordings recordings]
         [--model claude-haiku-5-5] [--llm cloud|no-llm] [--live] [--max-usd 1]
-        [--no-vendor-reuse]
+        [--no-vendor-reuse] [--review-package PACKAGE_DIR --package-recordings DIR]
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
         [--issuer URL --database URL [--audience traceq] [--role-claim roles]]
     traceq demo-issuer [--port 9000] [--audience traceq] [--role-claim roles]
@@ -15,10 +15,15 @@ recorded; the run refuses before sending when their estimated cost would pass
 ``--max-usd``. Exit code 0 on success, 2 when a recording is missing, the budget refuses,
 a scan is neither cached nor readable (OCR model not installed) or the corpus is unusable.
 
+``--review-package`` takes a released Review Package for the corpus and Equipment: the
+Equipment calls replay from ``--recordings``, which is read and never written, and are never
+sent, also with ``--live``; the package's calls and ingest are recorded in
+``--package-recordings``.
+
 ``--llm no-llm`` runs the No-LLM Baseline (#193) instead of the model: every prompt is
 answered by rules over the request text, from the ingest cache in ``--recordings``, with no
 LLM call and no recording. Its model is ``no-llm-v1``; it cannot be combined with ``--live``
-(exit code 2). The demo and ``traceq serve`` never use it.
+or ``--review-package`` (exit code 2). The demo and ``traceq serve`` never use it.
 
 ``--no-vendor-reuse`` drafts a Test Step for every requirement, also those the vendor
 covered, for the "could be saved by reuse" framing. Eval runs keep the default
@@ -63,6 +68,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--live", action="store_true", help="send unrecorded calls to the API")
     p.add_argument("--max-usd", type=float, default=1.0)
+    p.add_argument(
+        "--review-package",
+        type=Path,
+        help="released Review Package directory; the Equipment calls then only replay",
+    )
+    p.add_argument(
+        "--package-recordings",
+        type=Path,
+        help="where a Review Package run records (--recordings is then only read)",
+    )
     p.add_argument(
         "--no-vendor-reuse",
         dest="vendor_reuse",
@@ -144,6 +159,8 @@ def main(argv: list[str] | None = None) -> int:
             live=live,
             max_usd=args.max_usd,
             vendor_reuse=args.vendor_reuse,
+            review_package=args.review_package,
+            package_recordings=args.package_recordings,
             answers=answers,
         )
     except (

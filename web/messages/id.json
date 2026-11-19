@@ -14,7 +14,8 @@
     "matrix": "Matriks",
     "findings": "Temuan pra-tinjauan",
     "leftOut": "Yang tidak dimasukkan",
-    "eval": "Hasil evaluasi"
+    "eval": "Hasil evaluasi",
+    "draft": "Draf protokol"
   },
   "common": {
     "cite": "{doc} rev {rev}, hlm. {page}"
@@ -133,7 +134,8 @@
     "kinds": {
       "coverage": "Baris cakupan",
       "check": "Temuan pemeriksaan",
-      "ai": "Temuan AI"
+      "ai": "Temuan AI",
+      "draft": "Temuan draf protokol"
     },
     "counts": {
       "title": "Jumlah keputusan",
@@ -262,5 +264,56 @@
     "notScoredTitle": "Belum ada hasil evaluasi",
     "summaryTitle": "Gerbang dan biaya",
     "ratesTitle": "Ukuran"
+  },
+  "draft": {
+    "title": "Draf protokol",
+    "intro": "Setiap langkah uji draf OQ dalam urutan draf: kriteria penerimaan seperti terbaca, nilai URS yang dibandingkan, pembanding dan temuannya; lalu temuan tentang seluruh dokumen. Terima temuan yang benar; tolak yang salah dengan alasan.",
+    "document": "{doc} rev {rev}, paket tinjauan {package}",
+    "ownSteps": "Langkah uji OQ yang dirancang TraceQ sendiri tidak ditampilkan di sini. Draf ini bukan protokol: OQ tetap tercatat sebagai dokumen yang tidak ada.",
+    "summaryTitle": "Ringkasan draf",
+    "steps": "Langkah uji",
+    "stepsNote": "Urutan seperti di draf. Temuan diputuskan oleh aturan tetap; model hanya membaca draf, setiap bacaan dengan kutipan.",
+    "documentFindings": "Temuan tentang seluruh dokumen",
+    "documentFindingsNote": "Persyaratan di tabel ketertelusuran draf yang langkah ujinya tidak tercetak di draf.",
+    "notComparedSteps": "Langkah uji tidak dibandingkan",
+    "step": "Langkah uji",
+    "ac": "Kriteria penerimaan (terbaca)",
+    "urs": "Persyaratan dan nilai URS",
+    "comparators": "Pembanding",
+    "findings": "Temuan",
+    "requirement": "Persyaratan",
+    "type": "Jenis",
+    "detail": "Rincian",
+    "citations": "Kutipan",
+    "tracesTo": "Kepala langkah: {requirements}",
+    "notParsed": "bentuk yang tidak dibaca kode",
+    "ursNotRead": "Nilai URS tidak terbaca: {reason}",
+    "noComparators": "tidak ada",
+    "notRead": "Tidak terbaca: bacaannya dibuang oleh pemeriksaan kutipan ({reason})",
+    "notReadSteps": "Langkah uji tidak terbaca",
+    "notComparedBecause": "Tidak dibandingkan: {reason}",
+    "deviates": "Menyimpang dari URS",
+    "within": "Sesuai URS",
+    "noFinding": "Tidak ada temuan",
+    "noDocumentFinding": "Tidak ada temuan tentang seluruh dokumen",
+    "noSteps": "Draf ini tidak memiliki langkah uji yang terbaca",
+    "comparatorKinds": { "FAT": "FAT", "SAT": "SAT", "design": "Desain" },
+    "vendorKinds": { "datasheet": "Datasheet", "FAT": "FAT", "SAT": "SAT" },
+    "types": {
+      "ac_deviates_from_urs": "Kriteria penerimaan lebih longgar dari URS",
+      "requirement_not_tested": "Persyaratan tanpa langkah uji"
+    },
+    "values": {
+      "atLeast": "≥ {min} {unit}",
+      "atMost": "≤ {max} {unit}",
+      "above": "> {min} {unit}",
+      "below": "< {max} {unit}",
+      "tolerance": "{nominal} {unit} ± {tolerance} {toleranceUnit}",
+      "ambiguous": "terbaca ganda ({readings})"
+    },
+    "signedOut": "Masuk untuk melihat draf protokol",
+    "signedOutBody": "Draf, temuan dan keputusannya dibaca dengan token: masuk dengan identitas demo mana pun.",
+    "unavailable": "Draf protokol tidak dapat dimuat",
+    "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
   }
 }

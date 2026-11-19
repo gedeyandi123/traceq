@@ -344,6 +344,17 @@ def test_no_llm_cannot_run_live(capsys: pytest.CaptureFixture[str], tmp_path: Pa
     assert "--live" in capsys.readouterr().err
 
 
+def test_no_llm_cannot_read_a_review_package(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """The baseline answers only the Equipment prompts, so a Review Package run (spec #196)
+    refuses it before reading anything."""
+    package = ["--review-package", str(tmp_path), "--package-recordings", str(tmp_path / "p")]
+    code = main(["run", str(tmp_path), "--llm", "no-llm", *package])
+    assert code == 2
+    assert "runs alone" in capsys.readouterr().err
+
+
 def test_the_baseline_scores_its_pinned_tp201_figures(tmp_path: Path) -> None:
     """The figures of ``recordings/README.md`` ("No-LLM baseline"), at tolerance 0. They are
     a comparison point, not a ratchet baseline: ``baselines/TP-201.json`` stays r10's."""

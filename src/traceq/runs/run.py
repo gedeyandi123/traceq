@@ -17,9 +17,25 @@ call, so a run that cannot read one fails before it spends. A live run sends
 only calls that are not yet recorded, and refuses before sending when their estimate would
 pass ``max_usd``.
 
+A run may take a released Review Package beside the corpus (spec #196). The Equipment
+Pre-review then runs unchanged and replay-only, also in a live run: every call comes from
+``recordings``, which is read and never written, and a call missing there fails the run
+before anything is sent. Then the package's Protocol Draft is read (``traceq.review.draft``),
+one call per page, with the draft prompt, whose hash enters the run's prompt set only in such
+a run. The package's own recordings and ingest cache go to ``package_recordings``.
+The draft rules (``traceq.review.draft_rules``) then decide its Check Findings.
+``protocol_draft.json`` holds the draft's rows (Test Step, AC as read with its citation, the
+URS limit of each traced requirement with its citation, the comparison or why it was not
+compared, the comparators available), its traceability rows and its findings;
+``submission.json`` names the package and carries the draft's Test Step rows and, after the
+Equipment findings, the draft's findings; ``run.json`` names the package, its version, its
+corpus release and the Equipment recordings replayed, and counts the draft's calls, tokens,
+cost and Test Steps not compared (the run's totals include them). Without a package a run is
+as above.
+
 ``answers``: an adapter that answers without a model (the No-LLM Baseline, #193). Its
 answers are neither recorded nor replayed, and the run counts no LLM calls; it cannot be
-combined with ``live``.
+combined with ``live`` or a Review Package.
 
 ``vendor_reuse`` (default true) decides whether a ``covered_by_vendor`` requirement also
 gets a drafted Test Step. Eval runs keep it true: scorer criterion 1 counts a step for a
@@ -39,17 +55,26 @@ from typing import Any
 
 from traceq.ai import LLM, Budget, PriceTable, Recorder
 from traceq.ai.port import Request, Response, sha256
-from traceq.documents import Corpus
+from traceq.documents import Corpus, IngestCache, Ingested, ReviewPackage
 from traceq.protocols import PROMPTS as DRAFT_PROMPTS
 from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
 from traceq.review import review
+from traceq.review.draft import DRAFT_PROMPT, DraftReading, DraftRow, draft_rows, read_draft
+from traceq.review.draft_rules import DraftFinding, draft_findings
 from traceq.runs.completeness import COMPLETENESS_FILE, completeness
 from traceq.runs.drafts import drafts
 from traceq.runs.findings import findings
 from traceq.runs.matrix import matrix
+from traceq.runs.protocol_draft import (
+    DRAFT_FILE,
+    draft_findings_out,
+    draft_steps,
+    protocol_draft,
+    vendor_documents,
+)
 from traceq.runs.submission import Submission, SystemInfo, build
-from traceq.traceability import PIPELINE_VERSION, PROMPTS, trace
+from traceq.traceability import PIPELINE_VERSION, PROMPTS, Traceability, trace
 
 SYSTEM_NAME = "traceq"
 INGEST_DIR = "ingest"
@@ -83,6 +108,39 @@ class _Timed:
             return self._live.complete(requests)
         finally:
             self.seconds += self._clock() - start
+
+
+@dataclass(frozen=True)
+class _Draft:
+    reading: DraftReading
+    rows: list[DraftRow]
+    findings: list[DraftFinding]
+    ingested: Ingested
+
+
+def _read_package(
+    package: ReviewPackage, corpus: Corpus, traced: Traceability, llm: LLM, store: Path
+) -> _Draft:
+    """Read the package's Protocol Draft from a corpus of its own, after the Equipment
+    stages: the draft never enters them. Its ingest goes to the package store."""
+    if len(package.documents) != 1:
+        raise ValueError(
+            f"Review Package {package.package} holds {len(package.documents)} documents;"
+            " one Protocol Draft is expected"
+        )
+    drafts = Corpus(
+        root=package.root,
+        equipment=corpus.equipment,
+        documents=package.documents,
+        cache=IngestCache(store / INGEST_DIR),
+    )
+    doc = package.documents[0]
+    ingested = drafts.ingest(doc)
+    reading = read_draft(doc, ingested.pages, llm)
+    urs = corpus.current("urs")
+    language = urs[0].language if urs else "en"
+    rows = draft_rows(reading, traced, language)
+    return _Draft(reading, rows, draft_findings(reading, rows), ingested)
 
 
 class _Asked:
@@ -119,29 +177,60 @@ def run(
     now: dt.datetime | None = None,
     vendor_reuse: bool = True,
     clock: Clock = time.perf_counter,
+    review_package: Path | None = None,
+    package_recordings: Path | None = None,
     answers: LLM | None = None,
 ) -> RunOutput:
     """``now``: the start time the run id and ``created`` carry. ``clock``: what the run's
-    duration is measured with."""
-    if answers is not None and (live is not None or answers.model != model):
+    duration is measured with. ``review_package``: a released Review Package directory for
+    this corpus and Equipment; its recordings and ingest cache go to ``package_recordings``,
+    while ``recordings`` is only read and the Equipment stages only replay."""
+    if answers is not None and (
+        live is not None or review_package is not None or answers.model != model
+    ):
         raise ValueError("an adapter that answers without a model runs alone, under its own name")
     start = clock()
     prices = prices or PriceTable.load()
     now = now or dt.datetime.now(dt.UTC)
     run_id = f"{now:%Y%m%dT%H%M%SZ}-{secrets.token_hex(3)}"
-    corpus = Corpus.load(corpus_dir, equipment, cache=recordings / INGEST_DIR)
+    package: ReviewPackage | None = None
+    store, reads = recordings, tuple[Path, ...]()
+    if review_package is not None:
+        if package_recordings is None or package_recordings.resolve() == recordings.resolve():
+            raise ValueError(
+                "a Review Package run needs package recordings apart from the Equipment"
+                f" recordings {recordings}, which it only reads"
+            )
+        package = ReviewPackage.load(review_package)
+        store, reads = package_recordings, (recordings,)
+    corpus = Corpus.load(
+        corpus_dir,
+        equipment,
+        cache=store / INGEST_DIR,
+        cache_reads=tuple(r / INGEST_DIR for r in reads),
+    )
+    if package is not None:
+        package.check_fits(corpus_dir, corpus.equipment)
     scans = [(d, corpus.read(d)) for d in corpus.documents if d.format == "scan"]
     budget = Budget(max_usd, prices) if live is not None else None
     timed = _Timed(live, clock) if live is not None else None
-    recorder = Recorder(recordings, model, PIPELINE_VERSION, live=timed, budget=budget)
+    recorder = Recorder(store, model, PIPELINE_VERSION, live=timed, budget=budget, reads=reads)
     asked = _Asked(answers) if answers is not None else None
     llm: LLM = asked or recorder
+    # In a Review Package run the Equipment Pre-review replays the Equipment run unchanged:
+    # a call it lacks fails the run instead of being sent (spec #196).
+    equipment_llm = recorder.replay_only() if package is not None else llm
 
-    traced = trace(corpus, llm)
-    reviewed = review(corpus, llm, traced)
-    drafted = draft(corpus, llm, traced, vendor_reuse=vendor_reuse)
+    traced = trace(corpus, equipment_llm)
+    reviewed = review(corpus, equipment_llm, traced)
+    drafted = draft(corpus, equipment_llm, traced, vendor_reuse=vendor_reuse)
+    equipment_calls = len(recorder.calls)
+    on_draft = None if package is None else _read_package(package, corpus, traced, recorder, store)
 
     prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS, *DRAFT_PROMPTS)}
+    if package is not None:
+        # Only in a Review Package run, so an Equipment run's ``system.prompt`` is unchanged.
+        prompt_hashes[DRAFT_PROMPT.name] = DRAFT_PROMPT.hash
     system = SystemInfo(
         name=SYSTEM_NAME,
         model=model,
@@ -149,6 +238,14 @@ def run(
         run_id=run_id,
     )
     submission = build(corpus.equipment, system, traced, reviewed, drafted, scans)
+    if package is not None and on_draft is not None:
+        submission = submission.model_copy(
+            update={
+                "review_package": package.package,
+                "draft_steps": draft_steps(on_draft.rows),
+                "findings": (*submission.findings, *draft_findings_out(on_draft.findings)),
+            }
+        )
 
     calls = recorder.calls
     responses = [c.response for c in calls]
@@ -190,7 +287,12 @@ def run(
         "price_table": {"batch_discount": prices.batch_discount},
         "dropped": [
             {"claim": d.claim, "id": d.id, "reason": d.reason}
-            for d in (*traced.dropped, *reviewed.dropped, *drafted.dropped)
+            for d in (
+                *traced.dropped,
+                *reviewed.dropped,
+                *drafted.dropped,
+                *(on_draft.reading.dropped if on_draft else ()),
+            )
         ],
         "ingest": [
             {
@@ -216,6 +318,42 @@ def run(
             for d in dict.fromkeys((*traced.vendor.not_read, *reviewed.not_read))
         ],
     }
+    if package is not None and on_draft is not None:
+        draft_calls = calls[equipment_calls:]
+        draft_responses = [c.response for c in draft_calls]
+        try:
+            draft_cost: float | None = round(prices.response_cost_usd(draft_responses), 6)
+        except KeyError:
+            draft_cost = None
+        doc, i = on_draft.reading.doc, on_draft.ingested
+        metadata["review_package"] = {
+            "package": package.package,
+            "version": package.version,
+            "corpus": {"release": package.corpus_release, "version": package.corpus_version},
+            "equipment_recordings": recordings.resolve().name,
+            "document": {"doc_id": doc.doc_id, "rev": doc.rev, "sha256": doc.sha256},
+            "calls": {
+                "total": len(draft_calls),
+                "replayed": sum(c.replayed for c in draft_calls),
+                "live": sum(not c.replayed for c in draft_calls),
+            },
+            "tokens": {
+                "input": sum(r.input_tokens for r in draft_responses),
+                "output": sum(r.output_tokens for r in draft_responses),
+            },
+            "cost_usd": draft_cost,
+            "test_steps": len(on_draft.rows),
+            "trace_rows": len(on_draft.reading.rows),
+            "not_compared": sum(r.not_compared is not None for r in on_draft.rows),
+            "ingest": {
+                "engine": i.engine,
+                "version": i.version,
+                "cached": i.cached,
+                "pages": len(i.pages),
+                "seconds_per_page": list(i.seconds_per_page),
+                "peak_ram_bytes": i.peak_ram_bytes,
+            },
+        }
 
     folder = out_dir / run_id
     folder.mkdir(parents=True)
@@ -232,5 +370,16 @@ def run(
         drafts(drafted, model=model, prompt=prompt_hashes["draft"], created=metadata["created"]),
     )
     _write_json(folder / COMPLETENESS_FILE, completeness(traced).model_dump(mode="json"))
+    if package is not None and on_draft is not None:
+        _write_json(
+            folder / DRAFT_FILE,
+            protocol_draft(
+                package.package,
+                on_draft.reading,
+                on_draft.rows,
+                on_draft.findings,
+                vendor_documents(corpus),
+            ).model_dump(mode="json"),
+        )
     _write_json(folder / "run.json", metadata)
     return RunOutput(folder, submission, metadata)

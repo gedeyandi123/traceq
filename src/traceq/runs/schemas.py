@@ -1,4 +1,5 @@
-"""The shape of ``matrix.json``, ``findings.json`` and of the read-only API over run folders.
+"""The shape of ``matrix.json``, ``findings.json``, ``protocol_draft.json`` and of the read-only
+API over run folders.
 
 The pipeline writes both files from these models and the API serves them, so the OpenAPI
 schema, and the TypeScript client generated from it (ADR 0003), describe exactly what a
@@ -12,10 +13,12 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from traceq.review.ai_findings import AiType
+from traceq.review.draft_rules import DraftType
 from traceq.review.facts import SiteRule
+from traceq.review.printed import Limit, Tolerance
 from traceq.review.rules import CheckType
 from traceq.traceability.coverage import CoverageClass, Result, Stage
-from traceq.traceability.values import Value
+from traceq.traceability.values import Number, Text, Value
 
 
 class _Model(BaseModel):
@@ -100,6 +103,15 @@ class Matrix(_Model):
     not_read: tuple[NotRead, ...] = ()
 
 
+class RunPackage(_Model):
+    """The Review Package a run reviews and the Protocol Draft it read."""
+
+    package: str
+    version: str
+    doc_id: str
+    rev: int
+
+
 class RunSummary(_Model):
     """What identifies a run: its id, Equipment, model and mode."""
 
@@ -109,6 +121,8 @@ class RunSummary(_Model):
     model: str
     mode: Literal["replay", "live"]
     pipeline_version: str
+    review_package: RunPackage | None = None
+    """For a Review Package run: the package and its Protocol Draft; ``null`` otherwise."""
 
 
 class Source(_Model):
@@ -237,3 +251,128 @@ class Completeness(_Model):
     requirement, and URS text no kept requirement quotes."""
 
     urs: tuple[UrsCompleteness, ...]
+
+
+# --- protocol_draft.json (spec #196, "Outputs") ---------------------------------------
+
+PrintedRead = Annotated[
+    Limit | Number | Tolerance | Text | AmbiguousValue, Field(discriminator="type")
+]
+"""A limit as code read it from the print: a one- or two-sided limit (``range``, either bound
+may be strict), a single number, a nominal value with a tolerance, text, or a number that
+reads two ways (``ambiguous``)."""
+
+
+class DraftDocument(_Model):
+    """The Protocol Draft under review: document, revision and the SHA-256 of its bytes."""
+
+    doc_id: str
+    rev: int
+    sha256: str
+
+
+class DraftAcceptance(_Model):
+    """A Test Step's Acceptance Criterion as printed, the value code read from it (none: a
+    form the parser does not know) and the verified citation it was read from."""
+
+    printed: str
+    value: PrintedRead | None
+    citation: Cite
+
+
+class VendorFactCite(_Model):
+    """A vendor step's observation or a design value, as printed, with its citation."""
+
+    name: str
+    printed: str
+    citation: Cite
+
+
+class DraftComparator(_Model):
+    """The vendor facts of one document a requirement's matrix row holds: shown only, never
+    a finding."""
+
+    doc: str
+    rev: int
+    kind: Literal["FAT", "SAT", "design"]
+    facts: tuple[VendorFactCite, ...]
+
+
+class DraftTraced(_Model):
+    """A Test Step's AC compared with one requirement the traceability table traces it to."""
+
+    requirement: str
+    urs_limit: PrintedRead | None
+    """The URS limit read from the requirement's verified URS citation."""
+    citation: Cite | None
+    not_parsed: str | None
+    """Why no URS limit was read."""
+    compared: bool
+    deviates: bool
+    not_compared: str | None
+    """Why the AC was not compared with this requirement."""
+    comparators: tuple[DraftComparator, ...]
+    """Empty: none."""
+
+
+class DraftTestStep(_Model):
+    """A Test Step of the draft, in draft order, as read and compared, or not read: the draft
+    prints it, but the citation check dropped its reading (``not_read``)."""
+
+    id: str
+    requirements: tuple[str, ...]
+    """The requirement ids the step's own header prints."""
+    acceptance: DraftAcceptance | None
+    """``None``: not read."""
+    not_read: str | None = None
+    """Why the step's reading was dropped; then nothing else about it is read or compared."""
+    traced: tuple[DraftTraced, ...]
+    compared: bool
+    not_compared: str | None
+    """Why the step was not compared with any requirement."""
+
+
+class DraftTraceRow(_Model):
+    """A row of the draft's traceability table: a requirement and its Test Step ids."""
+
+    requirement: str
+    test_steps: tuple[str, ...]
+    citation: Cite
+
+
+class DraftCheckFinding(_Model):
+    """A Check Finding (layer Rule) on the draft, with the values it compared, as parsed. It
+    is on a Test Step (``test_step``) or, for ``requirement_not_tested``, on a traceability
+    row (``row``, the row's requirement id)."""
+
+    type: DraftType
+    layer: Literal["rule"]
+    test_step: str | None = None
+    row: str | None = None
+    requirement: str
+    detail: str
+    ac: PrintedRead | None
+    urs_limit: PrintedRead | None
+    citations: tuple[Cite, ...]
+
+
+class VendorDocument(_Model):
+    """A vendor document of the Equipment the comparators of a requirement may come from."""
+
+    doc: str
+    rev: int
+    kind: Literal["datasheet", "FAT", "SAT"]
+
+
+class ProtocolDraft(_Model):
+    """The Protocol Draft of a Review Package run: its Test Steps in draft order, its
+    traceability rows and its findings."""
+
+    package: str
+    document: DraftDocument
+    test_steps: tuple[DraftTestStep, ...]
+    trace_rows: tuple[DraftTraceRow, ...]
+    findings: tuple[DraftCheckFinding, ...]
+    vendor_documents: tuple[VendorDocument, ...] = ()
+    """The run's current datasheets, FAT and SAT protocols, in that order: beside each Test
+    Step, each of them shows its facts for the step's requirement or "none"."""
