@@ -200,7 +200,7 @@ def _decision(d: decisions.Decision) -> Decision:
     )
 
 
-def _proposal(s: decisions.Standing) -> Proposal:
+def proposal_view(s: decisions.Standing) -> Proposal:
     return Proposal(
         id=s.proposal_id,
         kind=s.kind,
@@ -214,7 +214,7 @@ def _proposal(s: decisions.Standing) -> Proposal:
     )
 
 
-def _actor(who: Principal) -> Actor:
+def actor_of(who: Principal) -> Actor:
     return Actor(subject=who.subject, issuer=who.issuer, name=who.name)
 
 
@@ -255,7 +255,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         if meta.get("run_id") != run_id:
             raise HTTPException(422, f"the run folder {run_id} names another run id")
         with transaction(database()) as session:
-            done = import_run(session, _actor(who), files)
+            done = import_run(session, actor_of(who), files)
         return ImportedRun(
             run_id=done.run_id,
             equipment=done.equipment,
@@ -273,7 +273,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             stood = decisions.standings(session, run_id)
         if stood is None:
             raise HTTPException(404, f"run {run_id} is not imported")
-        return [_proposal(s) for s in stood]
+        return [proposal_view(s) for s in stood]
 
     @router.get("/runs/{run_id}/protocol-draft", operation_id="getProtocolDraft")
     def get_protocol_draft(
@@ -294,7 +294,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(422, f"{run_id}: the Protocol Draft cannot be read") from e
         with transaction(database()) as session:
             stood = decisions.standings(session, run_id)
-        by_position = {s.position: _proposal(s) for s in (stood or []) if s.kind == "draft"}
+        by_position = {s.position: proposal_view(s) for s in (stood or []) if s.kind == "draft"}
         return ProtocolDraftView(
             run_id=run_id,
             imported=stood is not None,
@@ -328,7 +328,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             with transaction(database()) as session:
                 made = decisions.record(
                     session,
-                    _actor(who),
+                    actor_of(who),
                     run_id,
                     proposal_id,
                     body.decision,

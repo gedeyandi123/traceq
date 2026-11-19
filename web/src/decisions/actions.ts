@@ -9,7 +9,11 @@ import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 
 const DECISIONS = ["accepted", "rejected", "edited"] as const;
 /** The path of each screen a decision form can be on, after the run's own; the matrix is "". */
-const SCREENS: Partial<Record<string, string>> = { findings: "/findings", draft: "/draft" };
+const SCREENS: Partial<Record<string, string>> = {
+  findings: "/findings",
+  draft: "/draft",
+  protocol: "/protocol",
+};
 
 function field(form: FormData, name: string): string | undefined {
   const v = form.get(name);

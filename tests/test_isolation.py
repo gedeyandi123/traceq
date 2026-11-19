@@ -4,11 +4,16 @@ Every package under ``src/`` other than the dataset and the eval scorer is the s
 It may read the released corpus, never world data, the answer key or the scorer: a pipeline or
 prompt built from them would score well and prove nothing. Until the first system package exists
 this test passes vacuously; it starts guarding as soon as one is added.
+
+The other way round, the scorer never reads Protocols, decisions or the database (spec #247).
 """
 
 from __future__ import annotations
 
 import ast
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -145,3 +150,42 @@ def test_draft_prompt_takes_nothing_from_the_tp201_draft() -> None:
     ]
     prompt = norm(DRAFT_PROMPT.system)
     assert [t for t in texts if norm(t) in prompt] == []
+
+
+# --- The other way: eval runs never read Protocols or decisions (spec #247, "Isolation") ---
+SCORER_NEVER_LOADS = ("traceq.assembly", "traceq.proposals", "traceq.db")
+_IMPORT_THE_SCORER = """
+import importlib, json, pkgutil, sys
+import traceq_eval
+for m in pkgutil.walk_packages(traceq_eval.__path__, "traceq_eval."):
+    importlib.import_module(m.name)
+print(json.dumps(sorted(sys.modules)))
+"""
+
+
+def loaded_by(program: str) -> list[str]:
+    """The modules a fresh interpreter has loaded after running ``program``."""
+    done = subprocess.run(
+        [sys.executable, "-c", program], capture_output=True, text=True, check=True
+    )
+    return json.loads(done.stdout)
+
+
+def never_loaded(modules: list[str]) -> list[str]:
+    """The modules of ``modules`` that the scorer must never load."""
+    return [m for m in modules if any(m == p or m.startswith(f"{p}.") for p in SCORER_NEVER_LOADS)]
+
+
+def test_the_scorer_never_loads_protocols_decisions_or_the_database() -> None:
+    """Importing the scorer package and every module of it (it imports ``traceq.runs.run``)
+    loads neither the Protocol package, nor Proposals and their decisions, nor the database."""
+    modules = loaded_by(_IMPORT_THE_SCORER)
+    assert "traceq.runs.run" in modules
+    assert never_loaded(modules) == []
+
+
+def test_the_scorer_guard_catches_a_load() -> None:
+    assert never_loaded(["traceq.proposals.decisions", "traceq.db", "traceq.dbx", "traceq"]) == [
+        "traceq.proposals.decisions",
+        "traceq.db",
+    ]

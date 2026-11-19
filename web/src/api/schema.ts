@@ -246,6 +246,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/protocol": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Protocol
+         * @description The Protocol most recently started from this run: its status and every status
+         *     change, and in Draft status its rows computed from the current decisions. Any
+         *     signed-in role may read it.
+         */
+        get: operations["getProtocol"];
+        put?: never;
+        /**
+         * Start Protocol
+         * @description Starts the Protocol of the run's Equipment from this imported run, in Draft status,
+         *     with its Audit Trail entry. Refused (409) while a Protocol of the Equipment is open
+         *     (Draft or Submitted), once one is approved, and for a run whose folder has
+         *     ``drafts.json`` but which holds no drafted Test Step Proposals. Needs the deciding
+         *     role.
+         */
+        post: operations["startProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Protocol
+         * @description Withdraws a Protocol in Draft status, with a reason and its Audit Trail entry, so
+         *     a new Protocol of the Equipment can be started. Needs the deciding role.
+         */
+        post: operations["withdrawProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -296,6 +347,8 @@ export interface components {
             /** Readings */
             readings: number[];
         };
+        /** @enum {string} */
+        Blocker: "coverage_undecided" | "no_test_step";
         /**
          * CheckFinding
          * @description A Pre-review finding of a deterministic rule: no model involved.
@@ -536,6 +589,53 @@ export interface components {
             comparators: components["schemas"]["DraftComparator"][];
         };
         /**
+         * DraftedTestStep
+         * @description An IQ/OQ Test Step the run drafted for a requirement, an AI Finding a human decides
+         *     (written by ``traceq.runs.drafts``). Not a Test Step of a site Protocol Draft
+         *     (``DraftTestStep``). The AC is present only when copied from a verified citation;
+         *     otherwise ``acceptance_flag`` says why it is "to be set by a human".
+         */
+        DraftedTestStep: {
+            /** Id */
+            id: string;
+            /** Requirement */
+            requirement: string;
+            /** Requirement Text */
+            requirement_text: string;
+            /** Coverage */
+            coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Saved By Reuse */
+            saved_by_reuse: boolean;
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            /** Acceptance */
+            acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
+            acceptance_citation: components["schemas"]["Cite"] | null;
+            /** Acceptance Flag */
+            acceptance_flag: string | null;
+            /**
+             * Layer
+             * @constant
+             */
+            layer: "ai";
+            source: components["schemas"]["Source"];
+            /** Model */
+            model: string;
+            /** Prompt */
+            prompt: string;
+            /** Created */
+            created: string;
+            /**
+             * Reviewer Action
+             * @constant
+             */
+            reviewer_action: "pending";
+        };
+        /**
          * DroppedClaim
          * @description A claim the citation check dropped, with its reason in plain text.
          */
@@ -547,6 +647,8 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** @enum {string} */
+        EventKind: "started" | "submitted" | "approved" | "returned" | "withdrawn";
         /**
          * EvidenceStep
          * @description A vendor FAT/SAT step linked to a requirement, with its verdict.
@@ -854,6 +956,69 @@ export interface components {
             vendor_documents: components["schemas"]["VendorDocument"][];
         };
         /**
+         * ProtocolEvent
+         * @description A status change of a Protocol: what, who, when and why.
+         */
+        ProtocolEvent: {
+            /** Id */
+            id: number;
+            event: components["schemas"]["EventKind"];
+            status: components["schemas"]["Status"];
+            /** Reason */
+            reason: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * ProtocolRowView
+         * @description One requirement of the run and what the Protocol holds for it.
+         */
+        ProtocolRowView: {
+            /** Requirement */
+            requirement: string;
+            /** Text */
+            text: string;
+            source: components["schemas"]["Cite"];
+            coverage: components["schemas"]["Proposal"];
+            /** Decided Class */
+            decided_class: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            kind: components["schemas"]["RowKind"];
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceStep"][];
+            test_step: components["schemas"]["RowTestStep"] | null;
+            /** Drafts */
+            drafts: components["schemas"]["RowDraft"][];
+            /** Blockers */
+            blockers: components["schemas"]["Blocker"][];
+        };
+        /**
+         * ProtocolView
+         * @description A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not
+         *     a Protocol Draft: that is the site's document under Pre-review.
+         */
+        ProtocolView: {
+            /** Id */
+            id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            status: components["schemas"]["Status"];
+            /** Events */
+            events: components["schemas"]["ProtocolEvent"][];
+            /** Rows */
+            rows: components["schemas"]["ProtocolRowView"][] | null;
+        };
+        /**
          * Range
          * @description A required or tested range; either bound may be open.
          */
@@ -887,6 +1052,41 @@ export interface components {
             /** In Corpus */
             in_corpus: boolean;
             citation: components["schemas"]["Cite"];
+        };
+        /**
+         * RowDraft
+         * @description A drafted Test Step of the row's requirement, as the run drafted it, and the Proposal it
+         *     was imported as, decided with ``recordDecision`` (accepted or rejected).
+         */
+        RowDraft: {
+            draft: components["schemas"]["DraftedTestStep"];
+            proposal: components["schemas"]["Proposal"];
+        };
+        /** @enum {string} */
+        RowKind: "undecided" | "vendor_reference" | "test_step";
+        /**
+         * RowTestStep
+         * @description The one Test Step of a Test Step row.
+         */
+        RowTestStep: {
+            /**
+             * Origin
+             * @default accepted_draft
+             * @constant
+             */
+            origin: "accepted_draft";
+            /** Proposal Id */
+            proposal_id: number | null;
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            /** Acceptance */
+            acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
+            /** Acceptance Flag */
+            acceptance_flag: string | null;
         };
         /**
          * RunPackage
@@ -948,6 +1148,8 @@ export interface components {
         };
         /** @enum {string} */
         State: "decided" | "changed" | "undecided";
+        /** @enum {string} */
+        Status: "draft" | "submitted" | "approved" | "withdrawn";
         /** Text */
         Text: {
             /**
@@ -1049,6 +1251,11 @@ export interface components {
         };
         /** @enum {string} */
         Verdict: "accepted" | "rejected" | "edited";
+        /** Withdrawal */
+        Withdrawal: {
+            /** Reason */
+            reason: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1414,6 +1621,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionCounts"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    startProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdrawProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Withdrawal"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
                 };
             };
             /** @description Validation Error */

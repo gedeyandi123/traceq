@@ -8,13 +8,15 @@ import { ModeBadge } from "./ui/ui";
 
 import s from "./RunHeader.module.css";
 
-/** The screens of a run; ``draft`` only for a Review Package run. */
-export type RunTab = "matrix" | "findings" | "draft" | "leftOut" | "eval";
+/** The screens of a run; ``draft`` only for a Review Package run. ``protocol``: the Protocol
+ * assembled in TraceQ from the run, never the site's Protocol Draft. */
+export type RunTab = "matrix" | "findings" | "draft" | "protocol" | "leftOut" | "eval";
 
 const PATHS: Record<RunTab, string> = {
   matrix: "",
   findings: "/findings",
   draft: "/draft",
+  protocol: "/protocol",
   leftOut: "/left-out",
   eval: "/eval",
 };

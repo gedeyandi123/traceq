@@ -17,7 +17,8 @@ const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
 /** Riskiest first: the order of the Coverage summary and the legend. */
 const RISK: readonly CoverageKey[] = ["conflict", "gap", "partial", "site_only", "covered_by_vendor", "none"];
 
-function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
+/** A required or observed value in a few characters. */
+export function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
   switch (v.type) {
     case "range":
       if (v.min != null && v.max != null) {
@@ -218,7 +219,7 @@ export function MatrixTable({
         </thead>
         <tbody>
           {matrix.requirements.map((row) => (
-            <tr key={row.id} data-testid={row.id} className={s[`edge_${row.coverage ?? "none"}`]}>
+            <tr key={row.id} id={row.id} data-testid={row.id} className={s[`edge_${row.coverage ?? "none"}`]}>
               <td>
                 <strong className={cell.id}>{row.id}</strong>
                 <p className={s.text}>{row.text}</p>
