@@ -33,6 +33,7 @@ from traceq.assembly.rows import (
     ProtocolRow,
     RowKind,
     rows_of,
+    step_of,
 )
 from traceq.assembly.submission import Check, ProtocolCopy
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
@@ -161,7 +162,7 @@ class ProtocolRowView(_Model):
     Step is an accepted draft whose Acceptance Criterion is missing or free text)."""
 
 
-# The spec calls a human's ruling on a missed number its "answer"; the API names it a
+# The spec called a human's ruling on a missed number its "answer"; the code names it a
 # disposition, because the schema must never name an answer key (tests/test_api.py).
 
 
@@ -243,7 +244,8 @@ class SubmissionView(_Model):
     at: datetime
     frozen_copy: ProtocolCopy
     """Every row, its decisions in force and who made them, its Test Step and every version
-    of its written one; the missed numbers with their dispositions; the unquoted text."""
+    of its written one; the missed numbers with every version of their dispositions; the
+    unquoted text."""
     outcome: ProtocolEvent | None
     """The approval or the return that followed this submission, with who, when and (for a
     return) why; ``null`` while it awaits one. An approval is a recorded status, not an
@@ -359,25 +361,20 @@ def _version(v: WrittenVersion) -> WrittenVersionView:
     )
 
 
-def _written_step(v: WrittenVersion) -> RowTestStep:
-    c = v.content
-    assert c is not None  # the step in force is never a removal
-    return RowTestStep(
-        origin="written",
-        proposal_id=v.from_proposal_id,
-        version=v.version,
-        description=c.description,
-        method=c.method,
-        instrument=c.instrument,
-        acceptance=c.acceptance,
-        acceptance_flag=None,
-    )
-
-
 def _row_step(r: ProtocolRow) -> RowTestStep | None:
-    if r.written_step is not None:
-        return _written_step(r.written_step)
-    return None if r.test_step is None else _test_step(r.test_step)
+    step = step_of(r)
+    if step is None:
+        return None
+    return RowTestStep(
+        origin=step.origin,
+        proposal_id=step.proposal_id,
+        version=step.version,
+        description=step.description,
+        method=step.method,
+        instrument=step.instrument,
+        acceptance=step.acceptance,
+        acceptance_flag=step.acceptance_flag,
+    )
 
 
 def _prefill(r: ProtocolRow) -> RowPrefill | None:
@@ -393,21 +390,7 @@ def _prefill(r: ProtocolRow) -> RowPrefill | None:
     )
 
 
-def _test_step(d: DraftOfRow) -> RowTestStep:
-    s = d.draft
-    return RowTestStep(
-        origin="accepted_draft",
-        proposal_id=d.standing.proposal_id,
-        version=None,
-        description=s.description,
-        method=s.method,
-        instrument=s.instrument,
-        acceptance=s.acceptance,
-        acceptance_flag=s.acceptance_flag,
-    )
-
-
-def _disposition(a: missed.Answer) -> MissedDispositionView:
+def _disposition(a: missed.Disposition) -> MissedDispositionView:
     return MissedDispositionView(
         id=a.id,
         version=a.version,
@@ -429,8 +412,8 @@ def _urs(u: UrsMissed) -> ProtocolUrs:
             MissedNumberView(
                 number=m.number,
                 page=m.page,
-                disposition=None if m.answer is None else _disposition(m.answer),
-                dispositions=[_disposition(a) for a in m.answers],
+                disposition=None if m.disposition is None else _disposition(m.disposition),
+                dispositions=[_disposition(a) for a in m.dispositions],
                 blocking=m.blocking,
             )
             for m in u.missed
@@ -546,7 +529,8 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
 
     def reread(session: Session, protocol_id: int) -> ProtocolView:
         found = lifecycle.get(session, protocol_id)
-        assert found is not None  # just written under its lock
+        if found is None:  # just written under its lock: never
+            raise lifecycle.NotFound(f"no Protocol {protocol_id}")
         return view(session, found)
 
     @router.post(
@@ -624,11 +608,11 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         miss, or one in a URS checked ``not_applicable``; 409 unless the Protocol is in Draft
         status. Needs the deciding role."""
         if not who.may_decide:
-            raise HTTPException(403, "answering a missed number needs the deciding role")
+            raise HTTPException(403, "recording a disposition needs the deciding role")
         try:
             with transaction(database()) as session:
                 found = lifecycle.get(session, protocol_id)
-                missed.answer(
+                missed.dispose(
                     session,
                     actor_of(who),
                     protocol_id,
@@ -699,8 +683,8 @@ submission the Approver read: ``submission_event_id`` and ``hash`` must be the c
 submission's, else 409 (a resubmission after a return has the same hash but a new event id).
 Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
 decision in force (Coverage, and every current decision on a drafted Test Step, rejections
-included), of a disposition of a missed number in force, or of any version of a written Test
-Step; the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
+included), or of any version of a written Test Step or of a disposition of a missed number;
+the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
 Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
 entry. Needs the approving role.""",
     )

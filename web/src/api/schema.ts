@@ -416,8 +416,8 @@ export interface paths {
          *     submission's, else 409 (a resubmission after a return has the same hash but a new event id).
          *     Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
          *     decision in force (Coverage, and every current decision on a drafted Test Step, rejections
-         *     included), of a disposition of a missed number in force, or of any version of a written Test
-         *     Step; the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
+         *     included), or of any version of a written Test Step or of a disposition of a missed number;
+         *     the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
          *     Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
          *     entry. Needs the approving role.
          */
@@ -931,7 +931,7 @@ export interface components {
         };
         /**
          * FrozenDisposition
-         * @description The disposition in force on a missed number, and who recorded it.
+         * @description A disposition of a missed number, and who recorded it.
          */
         FrozenDisposition: {
             /** Version */
@@ -965,6 +965,8 @@ export interface components {
             /** Page */
             page: number;
             disposition: components["schemas"]["FrozenDisposition"];
+            /** Dispositions */
+            dispositions: components["schemas"]["FrozenDisposition"][];
         };
         /** FrozenRow */
         FrozenRow: {

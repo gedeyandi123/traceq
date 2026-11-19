@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from traceq.assembly import written
 from traceq.assembly.lifecycle import AssembledProtocol
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
-from traceq.proposals.decisions import Standing, standings
+from traceq.proposals.decisions import Decision, Standing, standings
 from traceq.proposals.store import RUN_PROPOSALS
 from traceq.runs.schemas import DraftedTestStep, MatrixRow
 from traceq.traceability.coverage import CoverageClass
@@ -91,6 +91,75 @@ class ProtocolRow:
     """For a Test Step row: the written Test Step in force, if any."""
     prefill: Prefill | None
     blockers: tuple[Blocker, ...]
+
+
+@dataclass(frozen=True)
+class RowStep:
+    """The one Test Step of a Test Step row, wherever it came from: what the page shows and
+    what the frozen copy holds."""
+
+    origin: Literal["accepted_draft", "written"]
+    proposal_id: int | None
+    """For an accepted draft: its Proposal. For a written one: the draft it was edited from,
+    ``None`` when written without one."""
+    version: int | None
+    """For a written Test Step: the version in force."""
+    decision: Decision | None
+    """For an accepted draft: the ``accepted`` decision in force. For a written one edited from
+    a draft: the ``edited`` decision recorded with it; ``None`` when written without one."""
+    description: str
+    method: str
+    instrument: str | None
+    acceptance: Value | None
+    acceptance_flag: str | None
+
+
+def _edited(r: ProtocolRow, v: WrittenVersion) -> Decision | None:
+    """The ``edited`` decision recorded with the version, among the row's drafts' decisions."""
+    if v.decision_id is None:
+        return None
+    for d in r.drafts:
+        for x in d.standing.decisions:
+            if x.id == v.decision_id:
+                return x
+    raise LookupError(
+        f"the edited decision {v.decision_id} of {r.requirement.id} version {v.version} is not"
+        " among its drafts' decisions"
+    )
+
+
+def step_of(r: ProtocolRow) -> RowStep | None:
+    """The row's one Test Step: the written one in force, else the accepted draft."""
+    v = r.written_step
+    if v is not None:
+        c = v.content
+        if c is None:
+            raise ValueError(f"the written Test Step in force of {r.requirement.id} is a removal")
+        return RowStep(
+            origin="written",
+            proposal_id=v.from_proposal_id,
+            version=v.version,
+            decision=_edited(r, v),
+            description=c.description,
+            method=c.method,
+            instrument=c.instrument,
+            acceptance=c.acceptance,
+            acceptance_flag=None,
+        )
+    if r.test_step is None:
+        return None
+    d = r.test_step.draft
+    return RowStep(
+        origin="accepted_draft",
+        proposal_id=r.test_step.standing.proposal_id,
+        version=None,
+        decision=r.test_step.standing.decisions[0],
+        description=d.description,
+        method=d.method,
+        instrument=d.instrument,
+        acceptance=d.acceptance,
+        acceptance_flag=d.acceptance_flag,
+    )
 
 
 def _decided_class(s: Standing, proposed: dict[str, Any]) -> CoverageClass | None:

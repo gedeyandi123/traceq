@@ -1,15 +1,19 @@
-"""The printed requirement numbers a run missed, and the answers on them (spec #247, "Missed
-requirement numbers", "Concurrency"; ADR 0012 "Submission").
+"""The printed requirement numbers a run missed, and the dispositions on them (spec #247,
+"Missed requirement numbers", "Concurrency"; ADR 0012 "Submission").
 
-The missed numbers come from the run's URS completeness check (``completeness.json``), per URS
-document and revision; a URS checked ``not_applicable`` has none. A Qualification Engineer
-answers each, in a Protocol in Draft status, as ``not_a_requirement`` or ``not_tested_here``
-with a written justification, and may change the answer: every answer is kept, numbered 1,
-2, ... per URS document, revision and number, and the latest counts. A number without an
-answer blocks submission. Unquoted text is shown and never answered, so it never blocks.
+The missed numbers come from the run's URS completeness check (``completeness.json``, read
+through the served-file guard), per URS document and revision; a URS checked
+``not_applicable`` has none. A Qualification Engineer records a disposition of each, in a
+Protocol in Draft status, as ``not_a_requirement`` or ``not_tested_here`` with a written
+justification, and may change it: every disposition is kept, versioned 1, 2, ... per URS
+document, revision and number, like a written Test Step, and the latest is in force. A number
+without a disposition blocks submission. Unquoted text is shown and needs no disposition, so
+it never blocks.
 
-Answers belong to one Protocol and do not carry over to a later one. Every answer takes the
-per-Protocol lock and checks the status inside it, and has its Audit Trail entry.
+Dispositions belong to one Protocol and do not carry over to a later one. Recording one takes
+the per-Protocol lock and checks the status inside it, and has its Audit Trail entry. The
+tables keep their first names (``missed_number_answers``): the spec called a disposition an
+answer, and the API never names one (``tests/test_api.py``).
 """
 
 from __future__ import annotations
@@ -35,7 +39,8 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 from traceq.assembly import lifecycle
-from traceq.assembly.lifecycle import Conflict, NotFound, Refused
+from traceq.assembly.lifecycle import NotFound, Refused
+from traceq.runs.api import read_served
 from traceq.runs.completeness import COMPLETENESS_FILE
 from traceq.runs.schemas import Completeness, UnquotedText
 
@@ -44,7 +49,7 @@ type MissedKind = Literal["not_a_requirement", "not_tested_here"]
 ``not_tested_here``: a requirement this Protocol does not test."""
 
 _META = MetaData()
-ANSWERS = Table(
+DISPOSITIONS = Table(
     "missed_number_answers",
     _META,
     Column("id", BigInteger, primary_key=True),
@@ -66,7 +71,7 @@ type Key = tuple[str, int, str]
 
 
 @dataclass(frozen=True)
-class Answer:
+class Disposition:
     id: int
     at: datetime
     protocol_id: int
@@ -84,16 +89,17 @@ class MissedNumber:
     number: str
     page: int
     """The first page it is printed on; shown, not part of the key."""
-    answers: tuple[Answer, ...]
-    """Every answer on it in this Protocol, oldest first; the latest counts."""
+    dispositions: tuple[Disposition, ...]
+    """Every disposition of it in this Protocol, oldest first; the latest is in force."""
 
     @property
-    def answer(self) -> Answer | None:
-        return self.answers[-1] if self.answers else None
+    def disposition(self) -> Disposition | None:
+        """The disposition in force."""
+        return self.dispositions[-1] if self.dispositions else None
 
     @property
     def blocking(self) -> bool:
-        return not self.answers
+        return not self.dispositions
 
 
 @dataclass(frozen=True)
@@ -111,11 +117,11 @@ def check_of(folder: Path | None) -> Completeness | None:
     path = None if folder is None else folder / COMPLETENESS_FILE
     if path is None or not path.is_file():
         return None
-    return Completeness.model_validate_json(path.read_text(encoding="utf-8"))
+    return Completeness.model_validate(read_served(path))
 
 
-def _answer(m: RowMapping) -> Answer:
-    return Answer(
+def _disposition(m: RowMapping) -> Disposition:
+    return Disposition(
         id=m["id"],
         at=m["at"],
         protocol_id=m["protocol_id"],
@@ -125,18 +131,21 @@ def _answer(m: RowMapping) -> Answer:
         version=m["version"],
         kind=cast(MissedKind, m["kind"]),
         justification=m["justification"],
-        actor=audit.Actor(subject=m["subject"], issuer=m["issuer"], name=m["name"]),
+        actor=audit.actor_of_row(m),
     )
 
 
-def answers_of(session: Session, protocol_id: int) -> dict[Key, tuple[Answer, ...]]:
-    """Every answer of the Protocol per URS document, revision and number, oldest first."""
-    out: dict[Key, list[Answer]] = {}
+def dispositions_of(session: Session, protocol_id: int) -> dict[Key, tuple[Disposition, ...]]:
+    """Every disposition of the Protocol per URS document, revision and number, oldest
+    first."""
+    out: dict[Key, list[Disposition]] = {}
     for m in session.execute(
-        select(ANSWERS).where(ANSWERS.c.protocol_id == protocol_id).order_by(ANSWERS.c.version)
+        select(DISPOSITIONS)
+        .where(DISPOSITIONS.c.protocol_id == protocol_id)
+        .order_by(DISPOSITIONS.c.version)
     ).mappings():
-        a = _answer(m)
-        out.setdefault((a.doc, a.rev, a.number), []).append(a)
+        d = _disposition(m)
+        out.setdefault((d.doc, d.rev, d.number), []).append(d)
     return {k: tuple(v) for k, v in out.items()}
 
 
@@ -149,18 +158,18 @@ def _missable(check: Completeness | None) -> set[Key]:
 def missed_of(
     session: Session, protocol_id: int, check: Completeness | None
 ) -> list[UrsMissed] | None:
-    """Per URS of the run's completeness check, its missed numbers with their answers in this
-    Protocol and its unquoted text; ``None`` when the check did not run."""
+    """Per URS of the run's completeness check, its missed numbers with their dispositions in
+    this Protocol and its unquoted text; ``None`` when the check did not run."""
     if check is None:
         return None
-    answers = answers_of(session, protocol_id)
+    dispositions = dispositions_of(session, protocol_id)
     return [
         UrsMissed(
             doc=u.doc,
             rev=u.rev,
             numbers=u.numbers,
             missed=tuple(
-                MissedNumber(m.number, m.page, answers.get((u.doc, u.rev, m.number), ()))
+                MissedNumber(m.number, m.page, dispositions.get((u.doc, u.rev, m.number), ()))
                 for m in u.missed
             )
             if u.numbers == "checked"
@@ -171,20 +180,20 @@ def missed_of(
     ]
 
 
-def _audit_value(a: Answer) -> dict[str, Any]:
+def _audit_value(d: Disposition) -> dict[str, Any]:
     return {
-        "answer_id": a.id,
-        "protocol_id": a.protocol_id,
-        "doc": a.doc,
-        "rev": a.rev,
-        "number": a.number,
-        "version": a.version,
-        "kind": a.kind,
-        "justification": a.justification,
+        "disposition_id": d.id,
+        "protocol_id": d.protocol_id,
+        "doc": d.doc,
+        "rev": d.rev,
+        "number": d.number,
+        "version": d.version,
+        "kind": d.kind,
+        "justification": d.justification,
     }
 
 
-def answer(
+def dispose(
     session: Session,
     actor: audit.Actor,
     protocol_id: int,
@@ -192,28 +201,25 @@ def answer(
     key: Key,
     kind: MissedKind,
     justification: str,
-) -> Answer:
-    """Adds an answer on a number the Protocol's run missed; the Protocol must be in Draft
-    status. ``check``: the completeness check of the Protocol's run."""
+) -> Disposition:
+    """Records a disposition of a number the Protocol's run missed; the Protocol must be in
+    Draft status. ``check``: the completeness check of the Protocol's run."""
+    protocol = lifecycle.locked(
+        session,
+        protocol_id,
+        "draft",
+        "a missed number gets a disposition only while it is in Draft status",
+    )
     justification = justification.strip()
     if not justification:
-        raise Refused("an answer on a missed number needs a written justification")
-    lifecycle.lock_protocol(session, protocol_id)
-    protocol = lifecycle.get(session, protocol_id)
-    if protocol is None:
-        raise NotFound(f"no Protocol {protocol_id}")
-    if protocol.status != "draft":
-        raise Conflict(
-            f"Protocol {protocol_id} is {protocol.status}: missed numbers are answered only"
-            " while it is in Draft status"
-        )
+        raise Refused("a disposition of a missed number needs a written justification")
     doc, rev, number = key
     if key not in _missable(check):
         raise NotFound(f"run {protocol.run_id} did not miss {number} in {doc} revision {rev}")
-    earlier = answers_of(session, protocol_id).get(key, ())
-    added = _answer(
+    earlier = dispositions_of(session, protocol_id).get(key, ())
+    added = _disposition(
         session.execute(
-            insert(ANSWERS)
+            insert(DISPOSITIONS)
             .values(
                 protocol_id=protocol_id,
                 doc=doc,
@@ -226,7 +232,7 @@ def answer(
                 issuer=actor.issuer,
                 name=actor.name,
             )
-            .returning(*ANSWERS.c)
+            .returning(*DISPOSITIONS.c)
         )
         .mappings()
         .one()
@@ -234,7 +240,7 @@ def answer(
     audit.append(
         session,
         actor,
-        "missed number answered",
+        "missed number disposition recorded",
         "missed_number",
         f"{protocol_id}/{doc}/{rev}/{number}",
         old=None if not earlier else _audit_value(earlier[-1]),
