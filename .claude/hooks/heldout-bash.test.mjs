@@ -1,5 +1,7 @@
 // Tests for heldout-bash.mjs. Usage: node .claude/hooks/heldout-bash.test.mjs
 // Dummy command strings only: nothing here opens or names a real held-out file.
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { check } from "./heldout-bash.mjs";
 
 const W = "bash scripts/heldout_run.sh";
@@ -44,14 +46,46 @@ const cases = [
   [`sh scripts/heldout_run.sh PW-001 -- echo x`, true],
   [`bash scripts/other.sh PW-001 -- echo x`, true],
   [`bash -c "${W} PW-001 -- echo x"`, true],
-];
+].map(([cmd, deny]) => ["Bash", cmd, deny]);
+
+// PowerShell has no wrapper exception: the wrapper is a bash script, run through the Bash tool.
+const powershell = [
+  ["Get-ChildItem fixtures/tp201", false],
+  ["git status --short", false],
+  ["Get-Content data/TP-202/x.md", true],
+  ["Select-String -Path src -Pattern pw_001", true],
+  [`${W} PW-001 -- echo x`, true],
+  [`rtk proxy ${W} TP-202 -- echo x`, true],
+].map(([cmd, deny]) => ["PowerShell", cmd, deny]);
+
+// The hook entry point reads the tool name and command from the PreToolUse event on stdin.
+function viaStdin(tool, cmd) {
+  const event = JSON.stringify({ tool_name: tool, tool_input: { command: cmd } });
+  const out = spawnSync(process.execPath, [fileURLToPath(new URL("./heldout-bash.mjs", import.meta.url))],
+    { input: event, encoding: "utf8" }).stdout;
+  return out ? JSON.parse(out).hookSpecificOutput.permissionDecisionReason : null;
+}
 
 let fail = 0;
-for (const [cmd, expectDeny] of cases) {
-  const r = check(cmd);
+let total = 0;
+for (const [tool, cmd, expectDeny] of [...cases, ...powershell]) {
+  const r = check(cmd, tool);
   const ok = Boolean(r) === expectDeny;
+  total++;
   if (!ok) fail++;
-  console.log(`${ok ? "ok  " : "FAIL"} ${expectDeny ? "deny" : "pass"}  ${JSON.stringify(cmd)}`);
+  console.log(`${ok ? "ok  " : "FAIL"} ${expectDeny ? "deny" : "pass"}  ${tool}  ${JSON.stringify(cmd)}`);
 }
-console.log(`\n${cases.length - fail}/${cases.length} passed`);
+for (const [tool, cmd, expectDeny] of [
+  ["Bash", `${W} PW-001 -- echo x`, false],
+  ["Bash", "cat data/TP-202/x.md", true],
+  ["PowerShell", `${W} PW-001 -- echo x`, true],
+  ["PowerShell", "git status", false],
+]) {
+  const r = viaStdin(tool, cmd);
+  const ok = Boolean(r) === expectDeny && (!r || r.includes(tool === "PowerShell" ? "Use the Bash tool" : "heldout_run.sh"));
+  total++;
+  if (!ok) fail++;
+  console.log(`${ok ? "ok  " : "FAIL"} ${expectDeny ? "deny" : "pass"}  ${tool} (stdin)  ${JSON.stringify(cmd)}`);
+}
+console.log(`\n${total - fail}/${total} passed`);
 process.exit(fail ? 1 : 0);

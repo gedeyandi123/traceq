@@ -1,10 +1,11 @@
-// PreToolUse hook for Bash (registered in .claude/settings.json, so it covers the main session and
-// every subagent): denies any command that names a held-out item (TP-202, PW-001; case-insensitive
+// PreToolUse hook for Bash and PowerShell (registered in .claude/settings.json, so it covers the main
+// session and every subagent): denies any command that names a held-out item (TP-202, PW-001; case-insensitive
 // `tp[-_]?202` or `pw[-_]?0`), because its output would put held-out text in the agent's context.
 // The one exception is a single call of the output-capturing wrapper,
 //   bash scripts/heldout_run.sh <TAG> -- <command...>   (optionally after `rtk` or `rtk proxy`)
 // with no pipe, `;`, `&&`, `||`, `&`, redirection, subshell, newline or command substitution outside
-// single or double quotes, and no substitution inside double quotes.
+// single or double quotes, and no substitution inside double quotes. A PowerShell command that names a
+// held-out item is always denied: the wrapper is a bash script, so it runs through the Bash tool.
 // This is an alarm against accidents, not a security boundary: a determined command can name a file
 // without its name (globs, variables, other scripts). Read/Edit are covered by the file-name deny
 // rules in .claude/settings.local.json; this covers Bash.
@@ -13,8 +14,13 @@
 const HELDOUT = /tp[-_]?202|pw[-_]?0/i;
 const WRAPPER = /^(.*\/)?scripts\/heldout_run\.sh$/;
 
-export function check(cmd) {
+export function check(cmd, tool = "Bash") {
   if (!HELDOUT.test(cmd)) return null;
+  if (tool !== "Bash") {
+    return `the ${tool} command names a held-out item (TP-202 or PW-001). Use the Bash tool with a single `
+      + "call of `bash scripts/heldout_run.sh <TP-202|PW-001> -- <command...>`, which writes the output to "
+      + "heldout-out/<TAG>/ and prints only the exit code and the log path.";
+  }
   const tokens = wrapperTokens(cmd);
   if (tokens) {
     const words = tokens[0] === "rtk" ? tokens.slice(tokens[1] === "proxy" ? 2 : 1) : tokens;
@@ -61,8 +67,13 @@ if (/heldout-bash\.mjs$/.test(process.argv[1] ?? "")) {
   let input = "";
   for await (const chunk of process.stdin) input += chunk;
   let cmd = "";
-  try { cmd = JSON.parse(input).tool_input?.command ?? ""; } catch { process.exit(0); }
-  const reason = check(cmd);
+  let tool = "Bash";
+  try {
+    const event = JSON.parse(input);
+    cmd = event.tool_input?.command ?? "";
+    tool = event.tool_name ?? "Bash";
+  } catch { process.exit(0); }
+  const reason = check(cmd, tool);
   if (reason) {
     console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny",
       permissionDecisionReason: `held-out alarm: ${reason}` } }));
