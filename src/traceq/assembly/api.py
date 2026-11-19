@@ -1,12 +1,13 @@
 """The routes of the Protocol assembled in TraceQ (spec #247, "API"): start the Protocol of a
 run's Equipment, read the Protocol of a run, add a version of a written Test Step, edit a
 drafted Test Step, decide a printed requirement number the run missed, submit a Protocol in
-Draft status, withdraw one.
+Draft status, withdraw one, approve or return a Submitted one.
 
-Every route needs a valid bearer token; every write needs the deciding role, so the
-Audit Trail names who did it. Reading is open to any signed-in role. Accepting and rejecting a
-drafted Test Step go through ``recordDecision``. Errors: 401 without a token, 403 without the
-role, 404 unknown, 409 for a refused state change with the reason in words.
+Every route needs a valid bearer token; every write needs the deciding role, approving and
+returning the approving role, so the Audit Trail names who did it. Reading is open to any
+signed-in role. Accepting and rejecting a drafted Test Step go through ``recordDecision``.
+Errors: 401 without a token, 403 without the role, 404 unknown, 409 for a refused state change
+with the reason in words.
 
 No ``from __future__ import annotations``: FastAPI reads the annotations naming the
 per-application dependency (``principal``), a local name, at definition time.
@@ -22,7 +23,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from traceq.assembly import lifecycle, missed, submission, written
+from traceq.assembly import approval, lifecycle, missed, submission, written
 from traceq.assembly.lifecycle import EventKind, Status
 from traceq.assembly.missed import MissedKind, UrsMissed
 from traceq.assembly.rows import (
@@ -243,6 +244,10 @@ class SubmissionView(_Model):
     frozen_copy: ProtocolCopy
     """Every row, its decisions in force and who made them, its Test Step and every version
     of its written one; the missed numbers with their dispositions; the unquoted text."""
+    outcome: ProtocolEvent | None
+    """The approval or the return that followed this submission, with who, when and (for a
+    return) why; ``null`` while it awaits one. An approval is a recorded status, not an
+    Electronic Signature (ADR 0007 phase 2)."""
 
 
 class ProtocolView(_Model):
@@ -277,6 +282,20 @@ class ProtocolView(_Model):
 class Withdrawal(_Model):
     reason: str
     """Why the Protocol is given up."""
+
+
+class Approval(_Model):
+    """What the Approver read: approval is bound to that submission and its hash."""
+
+    submission_event_id: int
+    """The ``event_id`` of the current submission."""
+    hash: str
+    """The ``hash`` of the current submission's frozen copy."""
+
+
+class Return(_Model):
+    reason: str
+    """Why the Protocol goes back to Draft: never blank."""
 
 
 class NewWrittenVersion(_Model):
@@ -447,8 +466,16 @@ def _item(b: submission.Blocking) -> ChecklistItem:
     )
 
 
-def _submission(x: submission.Submission) -> SubmissionView:
-    return SubmissionView(event_id=x.event_id, hash=x.hash, at=x.at, frozen_copy=x.copy)
+def _submission(x: submission.Submission, p: lifecycle.AssembledProtocol) -> SubmissionView:
+    after = (e for e in p.events if e.id > x.event_id and e.event in ("approved", "returned"))
+    outcome = next(after, None)
+    return SubmissionView(
+        event_id=x.event_id,
+        hash=x.hash,
+        at=x.at,
+        frozen_copy=x.copy,
+        outcome=None if outcome is None else _event(outcome),
+    )
 
 
 def create_router(runs: Path, db: Engine | None, principal: Callable[..., Principal]) -> APIRouter:
@@ -468,7 +495,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         draft = p.status == "draft"
         rows = rows_of(session, p) if draft else None
         urs = missed.missed_of(session, p.id, check_of(p.run_id)) if draft else None
-        submissions = [_submission(x) for x in submission.submissions_of(session, p.id)]
+        submissions = [_submission(x, p) for x in submission.submissions_of(session, p.id)]
         frozen = p.status in ("submitted", "approved") and bool(submissions)
         return ProtocolView(
             id=p.id,
@@ -656,6 +683,55 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         try:
             with transaction(database()) as session:
                 done = lifecycle.withdraw(session, actor_of(who), protocol_id, body.reason)
+                return view(session, done)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Refused as e:
+            raise HTTPException(422, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.post(
+        "/protocols/{protocol_id}/approve",
+        operation_id="approveProtocol",
+        description=f"""Approves a Submitted Protocol: {approval.APPROVAL_NOTE}. Bound to the
+submission the Approver read: ``submission_event_id`` and ``hash`` must be the current
+submission's, else 409 (a resubmission after a return has the same hash but a new event id).
+Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
+decision in force (Coverage, and every current decision on a drafted Test Step, rejections
+included), of a disposition of a missed number in force, or of any version of a written Test
+Step; the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
+Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
+entry. Needs the approving role.""",
+    )
+    def approve_protocol(
+        protocol_id: int, body: Approval, who: Annotated[Principal, Depends(principal)]
+    ) -> ProtocolView:
+        if not who.may_approve:
+            raise HTTPException(403, "approving a Protocol needs the approving role")
+        try:
+            with transaction(database()) as session:
+                done = approval.approve(
+                    session, actor_of(who), protocol_id, body.submission_event_id, body.hash
+                )
+                return view(session, done)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.post("/protocols/{protocol_id}/return", operation_id="returnProtocol")
+    def return_protocol(
+        protocol_id: int, body: Return, who: Annotated[Principal, Depends(principal)]
+    ) -> ProtocolView:
+        """Returns a Submitted Protocol to Draft with a reason (422 without one) and its Audit
+        Trail entry. It reads the current decisions again; the returned copy stays readable in
+        ``submissions``. Refused (409) unless Submitted. Needs the approving role."""
+        if not who.may_approve:
+            raise HTTPException(403, "returning a Protocol needs the approving role")
+        try:
+            with transaction(database()) as session:
+                done = approval.return_to_draft(session, actor_of(who), protocol_id, body.reason)
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e

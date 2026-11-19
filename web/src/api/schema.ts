@@ -400,6 +400,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/protocols/{protocol_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Protocol
+         * @description Approves a Submitted Protocol: a recorded status, not an Electronic Signature (ADR 0007 phase 2). Bound to the
+         *     submission the Approver read: ``submission_event_id`` and ``hash`` must be the current
+         *     submission's, else 409 (a resubmission after a return has the same hash but a new event id).
+         *     Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
+         *     decision in force (Coverage, and every current decision on a drafted Test Step, rejections
+         *     included), of a disposition of a missed number in force, or of any version of a written Test
+         *     Step; the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
+         *     Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
+         *     entry. Needs the approving role.
+         */
+        post: operations["approveProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Protocol
+         * @description Returns a Submitted Protocol to Draft with a reason (422 without one) and its Audit
+         *     Trail entry. It reads the current decisions again; the returned copy stays readable in
+         *     ``submissions``. Refused (409) unless Submitted. Needs the approving role.
+         */
+        post: operations["returnProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -450,6 +500,16 @@ export interface components {
             type: "ambiguous";
             /** Readings */
             readings: number[];
+        };
+        /**
+         * Approval
+         * @description What the Approver read: approval is bound to that submission and its hash.
+         */
+        Approval: {
+            /** Submission Event Id */
+            submission_event_id: number;
+            /** Hash */
+            hash: string;
         };
         /**
          * Author
@@ -1463,6 +1523,11 @@ export interface components {
             in_corpus: boolean;
             citation: components["schemas"]["Cite"];
         };
+        /** Return */
+        Return: {
+            /** Reason */
+            reason: string;
+        };
         /**
          * RowDraft
          * @description A drafted Test Step of the row's requirement, as the run drafted it, and the Proposal it
@@ -1590,6 +1655,7 @@ export interface components {
              */
             at: string;
             frozen_copy: components["schemas"]["ProtocolCopy"];
+            outcome: components["schemas"]["ProtocolEvent"] | null;
         };
         /** Text */
         Text: {
@@ -2328,6 +2394,76 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Withdrawal"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approveProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Approval"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returnProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Return"];
             };
         };
         responses: {

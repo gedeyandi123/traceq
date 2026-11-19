@@ -167,18 +167,31 @@ export function FrozenCopy({
           </ul>
         </section>
       )}
-      {earlier.length > 0 && (
-        <section aria-label={t("copy.earlier")}>
-          <h3>{t("copy.earlier")}</h3>
-          <ul className={s.list}>
-            {earlier.map((e) => (
-              <li key={e.event_id}>
-                {t("copy.earlierItem", { when: formatWhen(when, e.at) })} <code>{e.hash}</code>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {earlier.length > 0 && <EarlierCopies t={t} earlier={earlier} />}
+    </section>
+  );
+}
+
+/** The earlier submissions of a Protocol, each with its hash and the return that followed it
+ * (who, when, why); still readable after the Protocol went back to Draft. */
+export function EarlierCopies({ t, earlier }: { t: T; earlier: readonly SubmissionView[] }) {
+  const when = useTranslations("decisions");
+  return (
+    <section aria-label={t("copy.earlier")}>
+      <h3>{t("copy.earlier")}</h3>
+      <ul className={s.list}>
+        {earlier.map((e) => (
+          <li key={e.event_id} data-testid={`earlier-${e.event_id}`}>
+            {t("copy.earlierItem", { when: formatWhen(when, e.at) })} <code>{e.hash}</code>
+            {e.outcome?.event === "returned" && (
+              <div>
+                {t("copy.returnedBy", { name: e.outcome.name, when: formatWhen(when, e.outcome.at) })}
+                {e.outcome.reason && <div className={s.reason}>{e.outcome.reason}</div>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

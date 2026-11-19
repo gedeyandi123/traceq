@@ -3,15 +3,17 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
-import { bearerHeaders } from "@/auth/session";
+import { bearerHeaders, currentSession } from "@/auth/session";
 import { AssembledProtocolView, type ProtocolError } from "@/components/AssembledProtocolView";
 import { RunHeader } from "@/components/RunHeader";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
 import {
   answerMissedNumber,
+  approveProtocol,
   editDraftedTestStep,
   removeTestStep,
+  returnProtocol,
   startProtocol,
   submitProtocol,
   withdrawProtocol,
@@ -29,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The Protocol assembled in TraceQ from this run (spec #247, ticket #249). The API serves it
  * with a token only; any signed-in role reads it, the deciding role starts, submits and withdraws it
- * and decides its drafted Test Steps. */
+ * and decides its drafted Test Steps, the approving role approves or returns it. */
 export default async function ProtocolPage({
   params,
   searchParams,
@@ -41,7 +43,11 @@ export default async function ProtocolPage({
   const query = await searchParams;
   const t = await getTranslations("protocol");
   const path = { params: { path: { run_id: runId } } };
-  const [run, decisions] = await Promise.all([api.GET("/runs/{run_id}", path), loadDecisions(runId)]);
+  const [run, decisions, session] = await Promise.all([
+    api.GET("/runs/{run_id}", path),
+    loadDecisions(runId),
+    currentSession(),
+  ]);
   decisions.error = decisionError(query.error);
   if (!run.data) notFound();
   const header = <RunHeader run={run.data} current="protocol" intro={t("intro")} />;
@@ -89,6 +95,7 @@ export default async function ProtocolPage({
               }
             : null
         }
+        approval={session?.mayApprove ? { approve: approveProtocol, return: returnProtocol } : null}
         error={PROTOCOL_ERRORS.find((e) => e === query.protocolError)}
       />
     </>

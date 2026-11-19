@@ -16,6 +16,9 @@ import jwt
 
 # The one role that may import a run and record Proposal Decisions in slice 1 (spec #105).
 DECIDING_ROLE = "qualification-decider"
+# The role that approves or returns a submitted Protocol (spec #247, ADR 0012); kept apart
+# from deciding, so no demo persona holds both.
+APPROVING_ROLE = "qualification-approver"
 
 
 class InvalidToken(Exception):
@@ -50,6 +53,10 @@ class Principal:
     @property
     def may_decide(self) -> bool:
         return DECIDING_ROLE in self.roles
+
+    @property
+    def may_approve(self) -> bool:
+        return APPROVING_ROLE in self.roles
 
 
 def _get_json(url: str) -> dict[str, Any]:

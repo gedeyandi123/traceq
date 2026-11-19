@@ -155,6 +155,48 @@ export async function withdrawProtocol(form: FormData): Promise<void> {
   back(runId, failed);
 }
 
+/** Approves a Submitted Protocol, bound to the submission the Approver read (its event id and
+ * hash, from hidden fields), then returns to the page. A recorded status, not an Electronic
+ * Signature. The API refuses (409) a stale submission, the Preparer and any author. */
+export async function approveProtocol(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const protocolId = Number(field(form, "protocol_id"));
+  const eventId = Number(field(form, "submission_event_id"));
+  const hash = field(form, "hash") ?? "";
+  if (!Number.isInteger(protocolId) || !Number.isInteger(eventId) || hash === "") back(runId, "failed");
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/approve", {
+      params: { path: { protocol_id: protocolId } },
+      headers: await bearerHeaders(),
+      body: { submission_event_id: eventId, hash },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  back(runId, failed);
+}
+
+/** Returns a Submitted Protocol to Draft with the reason given, then returns to the page. */
+export async function returnProtocol(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const protocolId = Number(field(form, "protocol_id"));
+  if (!Number.isInteger(protocolId)) back(runId, "failed");
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/return", {
+      params: { path: { protocol_id: protocolId } },
+      headers: await bearerHeaders(),
+      body: { reason: field(form, "reason") ?? "" },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  back(runId, failed);
+}
+
 /** Submits a Protocol in Draft status that nothing blocks, then returns to the page, which
  * shows the frozen copy and its hash. The API checks again what blocks and refuses (409). */
 export async function submitProtocol(form: FormData): Promise<void> {

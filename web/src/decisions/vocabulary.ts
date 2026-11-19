@@ -7,6 +7,10 @@ import type { CoverageClass } from "@/api/client";
  * names it. */
 export const DECIDING_ROLE = "qualification-decider";
 
+/** The role that approves or returns a submitted Protocol (spec #247), as the API names it.
+ * No demo persona holds both. */
+export const APPROVING_ROLE = "qualification-approver";
+
 /** Every Coverage class, in display order. A record over the generated type, so a class added
  * to or removed from the API's schema fails the typecheck until it is listed here. */
 const COVERAGE_CLASS_ORDER: Record<CoverageClass, number> = {
