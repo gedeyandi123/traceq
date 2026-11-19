@@ -19,16 +19,13 @@ from traceq.documents import Corpus, CorpusDocument, OcrLine, OcrUnavailable, no
 from traceq.documents.pages import Quad
 from traceq.documents.xlsx import read_xlsx
 from traceq.runs.submission import ocr_entries
-from traceq_dataset import render
 from traceq_dataset.answer_key import load_key
-from traceq_dataset.corpus import build_corpus
-from traceq_dataset.world import load
+from traceq_dataset.corpus import Corpus as DatasetCorpus
 from traceq_eval.citations import PageTexts
 from traceq_eval.ocr import score_ocr
 from traceq_eval.submission import OcrEntry, Submission, System
 
 ROOT = Path(__file__).parents[1]
-TP201 = ROOT / "world" / "tp201.yaml"
 KEY = ROOT / "answer_key" / "TP-201"
 
 Seed = Callable[[Path, Path], None]
@@ -52,10 +49,8 @@ def _counts(report: dict[str, Any]) -> tuple[int, int, int]:
 
 
 @pytest.fixture(scope="module")
-def corpus_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    out = tmp_path_factory.mktemp("dist")
-    assert render.main([str(TP201), "--out", str(out)]) == 0
-    return next(out.glob("t0-*"))
+def corpus_dir(tp201_dist: Path) -> Path:
+    return tp201_dist
 
 
 def _doc(corpus: Corpus, doc_id: str) -> CorpusDocument:
@@ -65,11 +60,13 @@ def _doc(corpus: Corpus, doc_id: str) -> CorpusDocument:
 # --- XLSX -----------------------------------------------------------------------------
 
 
-def test_a_sheet_reads_as_the_scorer_prints_it(corpus_dir: Path) -> None:
+def test_a_sheet_reads_as_the_scorer_prints_it(
+    corpus_dir: Path, tp201_corpus: DatasetCorpus
+) -> None:
     corpus = Corpus.load(corpus_dir)
     ra = _doc(corpus, "RA-TP201")
     pages = read_xlsx(ra.path)
-    printed = PageTexts(build_corpus(load(TP201))).pages((ra.doc_id, ra.rev))
+    printed = PageTexts(tp201_corpus).pages((ra.doc_id, ra.rev))
     assert [normalise(p.text) for p in pages] == printed
     (table,) = pages[0].tables
     row = next(r for r in table.rows if "URS-TP201-002" in r)
