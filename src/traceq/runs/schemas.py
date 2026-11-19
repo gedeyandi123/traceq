@@ -1,5 +1,5 @@
-"""The shape of ``matrix.json``, ``findings.json``, ``protocol_draft.json`` and of the read-only
-API over run folders.
+"""The shape of ``matrix.json``, ``findings.json``, ``protocol_draft.json``, ``drafts.json`` and
+of the read-only API over run folders.
 
 The pipeline writes both files from these models and the API serves them, so the OpenAPI
 schema, and the TypeScript client generated from it (ADR 0003), describe exactly what a
@@ -376,3 +376,39 @@ class ProtocolDraft(_Model):
     vendor_documents: tuple[VendorDocument, ...] = ()
     """The run's current datasheets, FAT and SAT protocols, in that order: beside each Test
     Step, each of them shows its facts for the step's requirement or "none"."""
+
+
+# --- drafts.json (ADR 0002; read on import, spec #247) ---------------------------------
+
+
+class DraftedTestStep(_Model):
+    """An IQ/OQ Test Step the run drafted for a requirement, an AI Finding a human decides
+    (written by ``traceq.runs.drafts``). Not a Test Step of a site Protocol Draft
+    (``DraftTestStep``). The AC is present only when copied from a verified citation;
+    otherwise ``acceptance_flag`` says why it is "to be set by a human"."""
+
+    id: str
+    requirement: str
+    requirement_text: str
+    coverage: CoverageClass | None
+    saved_by_reuse: bool
+    description: str
+    method: str
+    instrument: str | None
+    acceptance: Value | None
+    acceptance_citation: Cite | None
+    acceptance_flag: str | None
+    layer: Literal["ai"]
+    source: Source
+    """The URS document and revision the requirement is printed in."""
+    model: str
+    prompt: str
+    created: str
+    reviewer_action: Literal["pending"]
+
+
+class DraftedTestSteps(_Model):
+    """``drafts.json``: the drafted Test Steps of a run, in requirement order."""
+
+    vendor_reuse: bool
+    test_steps: tuple[DraftedTestStep, ...]

@@ -71,13 +71,16 @@ export function DecisionNotice({ view }: { view: DecisionView }) {
 
 /** How many Proposals of the kinds a screen shows are decided (accepted, edited or rejected
  * on their current content), and under it, folded, the decision counts of the run. Counts of
- * stored decisions, not a score. */
+ * stored decisions, not a score. `also`: kinds decided on another screen, shown in the folded
+ * counts only. */
 export function DecisionTally({
   counts,
   kinds,
+  also = [],
 }: {
   counts: DecisionCounts | undefined;
   kinds: readonly Proposal["kind"][];
+  also?: readonly Proposal["kind"][];
 }) {
   const t = useTranslations("decisions");
   if (!counts) return null;
@@ -107,7 +110,7 @@ export function DecisionTally({
               </tr>
             </thead>
             <tbody>
-              {kinds.map((k) => {
+              {[...kinds, ...also].map((k) => {
                 const c = counts[k];
                 return (
                   <tr key={k}>

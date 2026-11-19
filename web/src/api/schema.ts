@@ -382,6 +382,7 @@ export interface components {
             check: components["schemas"]["KindCounts"];
             ai: components["schemas"]["KindCounts"];
             draft: components["schemas"]["KindCounts"];
+            test_step: components["schemas"]["KindCounts"];
         };
         /**
          * DesignRow
@@ -625,7 +626,7 @@ export interface components {
             already_imported: boolean;
         };
         /** @enum {string} */
-        Kind: "coverage" | "check" | "ai" | "draft";
+        Kind: "coverage" | "check" | "ai" | "draft" | "test_step";
         /**
          * KindCounts
          * @description The Proposals of one kind in a run, by decision state. ``total`` is the sum of
@@ -750,10 +751,10 @@ export interface components {
          * NewDecision
          * @description A Proposal Decision on the content the run proposed.
          *
-         *     A Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is
-         *     ``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no
-         *     class). A Reason for Change is required for ``rejected`` and ``edited``, and for any
-         *     decision that replaces an earlier one on the same content.
+         *     A Check Finding, AI Finding or drafted Test Step is ``accepted`` or ``rejected``; a
+         *     Coverage row is ``accepted`` or ``edited`` to another class (only ``edited`` when the
+         *     system proposed no class). A Reason for Change is required for ``rejected`` and
+         *     ``edited``, and for any decision that replaces an earlier one on the same content.
          */
         NewDecision: {
             decision: components["schemas"]["Verdict"];

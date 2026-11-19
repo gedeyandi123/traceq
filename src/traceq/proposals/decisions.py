@@ -28,13 +28,16 @@ from traceq.traceability.coverage import CoverageClass
 type Verdict = Literal["accepted", "rejected", "edited"]
 type State = Literal["decided", "changed", "undecided"]
 
-KINDS: tuple[Kind, ...] = ("coverage", "check", "ai", "draft")
+KINDS: tuple[Kind, ...] = ("coverage", "check", "ai", "draft", "test_step")
 ALLOWED: dict[Kind, frozenset[Verdict]] = {
     "coverage": frozenset({"accepted", "edited"}),
     "check": frozenset({"accepted", "rejected"}),
     "ai": frozenset({"accepted", "rejected"}),
     # Accepted: "real, will be fixed". It creates no task or revision (spec #196).
     "draft": frozenset({"accepted", "rejected"}),
+    # Edited only together with the written Test Step it produces, by the Protocol's edit
+    # route, never by ``record`` (spec #247).
+    "test_step": frozenset({"accepted", "rejected"}),
 }
 
 DECISIONS = Table(
@@ -72,7 +75,7 @@ class Decision:
     content_hash: str
     decision: Verdict
     coverage: CoverageClass | None
-    """For ``edited``: the class the person chose."""
+    """For a Coverage row ``edited``: the class the person chose."""
     reason: str | None
     actor: audit.Actor
 

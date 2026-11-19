@@ -837,6 +837,9 @@
           },
           "draft": {
             "$ref": "#/components/schemas/KindCounts"
+          },
+          "test_step": {
+            "$ref": "#/components/schemas/KindCounts"
           }
         },
         "additionalProperties": false,
@@ -846,7 +849,8 @@
           "coverage",
           "check",
           "ai",
-          "draft"
+          "draft",
+          "test_step"
         ],
         "title": "DecisionCounts",
         "description": "Stored decisions counted per kind of Proposal for one run. Counts, not a measure of\nquality."
@@ -1687,7 +1691,8 @@
           "coverage",
           "check",
           "ai",
-          "draft"
+          "draft",
+          "test_step"
         ]
       },
       "KindCounts": {
@@ -2055,7 +2060,7 @@
           "decision"
         ],
         "title": "NewDecision",
-        "description": "A Proposal Decision on the content the run proposed.\n\nA Check Finding or AI Finding is ``accepted`` or ``rejected``; a Coverage row is\n``accepted`` or ``edited`` to another class (only ``edited`` when the system proposed no\nclass). A Reason for Change is required for ``rejected`` and ``edited``, and for any\ndecision that replaces an earlier one on the same content."
+        "description": "A Proposal Decision on the content the run proposed.\n\nA Check Finding, AI Finding or drafted Test Step is ``accepted`` or ``rejected``; a\nCoverage row is ``accepted`` or ``edited`` to another class (only ``edited`` when the\nsystem proposed no class). A Reason for Change is required for ``rejected`` and\n``edited``, and for any decision that replaces an earlier one on the same content."
       },
       "NotRead": {
         "properties": {
