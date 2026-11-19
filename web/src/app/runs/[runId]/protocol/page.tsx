@@ -13,6 +13,7 @@ import {
   editDraftedTestStep,
   removeTestStep,
   startProtocol,
+  submitProtocol,
   withdrawProtocol,
   writeTestStep,
 } from "@/protocol/actions";
@@ -27,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** The Protocol assembled in TraceQ from this run (spec #247, ticket #249). The API serves it
- * with a token only; any signed-in role reads it, the deciding role starts and withdraws it
+ * with a token only; any signed-in role reads it, the deciding role starts, submits and withdraws it
  * and decides its drafted Test Steps. */
 export default async function ProtocolPage({
   params,
@@ -84,6 +85,7 @@ export default async function ProtocolPage({
                 remove: removeTestStep,
                 edit: editDraftedTestStep,
                 answer: answerMissedNumber,
+                submit: submitProtocol,
               }
             : null
         }

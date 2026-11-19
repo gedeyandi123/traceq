@@ -27,6 +27,10 @@ export type ProtocolEvent = components["schemas"]["ProtocolEvent"];
 export type RowDraft = components["schemas"]["RowDraft"];
 export type ProtocolUrs = components["schemas"]["ProtocolUrs"];
 export type MissedNumberView = components["schemas"]["MissedNumberView"];
+export type ChecklistItem = components["schemas"]["ChecklistItem"];
+export type SubmissionView = components["schemas"]["SubmissionView"];
+export type FrozenRow = components["schemas"]["FrozenRow"];
+export type FrozenDecision = components["schemas"]["FrozenDecision"];
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */

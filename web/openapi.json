@@ -806,6 +806,51 @@
         }
       }
     },
+    "/protocols/{protocol_id}/submit": {
+      "post": {
+        "summary": "Submit Protocol",
+        "description": "Submits a Protocol in Draft status that no check blocks; the submitter becomes its\nPreparer. Stores the frozen copy and its hash in the ``submitted`` event, with its\nAudit Trail entry; from then on the Protocol shows that copy, and written Test Steps\nand missed-number dispositions are refused. Refused (409) unless in Draft status, and\nwhile any check of ``checklist`` blocks (the reason lists them with their counts).\nNeeds the deciding role.",
+        "operationId": "submitProtocol",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/protocols/{protocol_id}/withdraw": {
       "post": {
         "summary": "Withdraw Protocol",
@@ -982,11 +1027,48 @@
         "title": "AmbiguousValue",
         "description": "An observation that reads two ways: ask for confirmation, never guess."
       },
+      "Author": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject",
+          "issuer",
+          "name"
+        ],
+        "title": "Author",
+        "description": "Who: the token's subject and issuer, and the name shown at the time."
+      },
       "Blocker": {
         "type": "string",
         "enum": [
           "coverage_undecided",
-          "no_test_step"
+          "draft_undecided",
+          "no_test_step",
+          "acceptance_not_shaped"
+        ]
+      },
+      "Check": {
+        "type": "string",
+        "enum": [
+          "coverage_undecided",
+          "draft_undecided",
+          "no_test_step",
+          "acceptance_not_shaped",
+          "missed_undecided"
         ]
       },
       "CheckFinding": {
@@ -1048,6 +1130,41 @@
         ],
         "title": "CheckFinding",
         "description": "A Pre-review finding of a deterministic rule: no model involved."
+      },
+      "ChecklistItem": {
+        "properties": {
+          "check": {
+            "$ref": "#/components/schemas/Check"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requirements"
+          },
+          "numbers": {
+            "items": {
+              "$ref": "#/components/schemas/MissedKey"
+            },
+            "type": "array",
+            "title": "Numbers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "check",
+          "count",
+          "requirements",
+          "numbers"
+        ],
+        "title": "ChecklistItem",
+        "description": "One submission check: how many rows or missed numbers it holds back, and which."
       },
       "Cite": {
         "properties": {
@@ -2172,6 +2289,440 @@
         "title": "Findings",
         "description": "The Pre-review of a run: Check Findings and AI Findings kept apart, and the\ndocuments the VMP requires that the corpus lacks."
       },
+      "FrozenCoverage": {
+        "properties": {
+          "coverage_class": {
+            "type": "string",
+            "enum": [
+              "covered_by_vendor",
+              "partial",
+              "site_only",
+              "gap",
+              "conflict"
+            ],
+            "title": "Coverage Class"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/FrozenDecision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "coverage_class",
+          "decision"
+        ],
+        "title": "FrozenCoverage",
+        "description": "The Coverage class a human decided, and the decision in force that settled it."
+      },
+      "FrozenDecision": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "covered_by_vendor",
+                  "partial",
+                  "site_only",
+                  "gap",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "decision",
+          "coverage",
+          "reason",
+          "author",
+          "at"
+        ],
+        "title": "FrozenDecision",
+        "description": "A Proposal Decision in force when the Protocol was submitted, and who made it."
+      },
+      "FrozenDisposition": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MissedKind"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "kind",
+          "justification",
+          "author",
+          "at"
+        ],
+        "title": "FrozenDisposition",
+        "description": "The disposition in force on a missed number, and who recorded it."
+      },
+      "FrozenDraft": {
+        "properties": {
+          "proposal_id": {
+            "type": "integer",
+            "title": "Proposal Id"
+          },
+          "draft_id": {
+            "type": "string",
+            "title": "Draft Id"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrozenDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proposal_id",
+          "draft_id",
+          "decision"
+        ],
+        "title": "FrozenDraft",
+        "description": "A drafted Test Step of the row and the decision in force on it; ``null`` for an\nundecided draft of a Vendor Reference, which needs none."
+      },
+      "FrozenMissed": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "disposition": {
+            "$ref": "#/components/schemas/FrozenDisposition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "page",
+          "disposition"
+        ],
+        "title": "FrozenMissed"
+      },
+      "FrozenRow": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Cite"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/FrozenCoverage"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "vendor_reference",
+              "test_step"
+            ],
+            "title": "Kind"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceStep"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrozenTestStep"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDraft"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "written": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenVersion"
+            },
+            "type": "array",
+            "title": "Written"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement",
+          "text",
+          "source",
+          "coverage",
+          "kind",
+          "evidence",
+          "test_step",
+          "drafts",
+          "written"
+        ],
+        "title": "FrozenRow"
+      },
+      "FrozenTestStep": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "accepted_draft",
+              "written"
+            ],
+            "title": "Origin"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrozenDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/Acceptance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "origin",
+          "proposal_id",
+          "version",
+          "decision",
+          "description",
+          "method",
+          "instrument",
+          "acceptance"
+        ],
+        "title": "FrozenTestStep",
+        "description": "The row's one Test Step and where it came from."
+      },
+      "FrozenUrs": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "numbers": {
+            "type": "string",
+            "enum": [
+              "checked",
+              "not_applicable"
+            ],
+            "title": "Numbers"
+          },
+          "missed": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenMissed"
+            },
+            "type": "array",
+            "title": "Missed"
+          },
+          "unquoted": {
+            "items": {
+              "$ref": "#/components/schemas/UnquotedText"
+            },
+            "type": "array",
+            "title": "Unquoted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "numbers",
+          "missed",
+          "unquoted"
+        ],
+        "title": "FrozenUrs"
+      },
+      "FrozenVersion": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WrittenContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "from_proposal_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Proposal Id"
+          },
+          "decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "removed",
+          "test_step",
+          "from_proposal_id",
+          "decision_id",
+          "author",
+          "at"
+        ],
+        "title": "FrozenVersion",
+        "description": "A version of the row's written Test Step: a removal, or its full content."
+      },
       "GoverningDocument": {
         "properties": {
           "doc_id": {
@@ -2597,6 +3148,30 @@
         "title": "MissedDispositionView",
         "description": "What a human decided a missed number is: its kind and justification, who and when."
       },
+      "MissedKey": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "number"
+        ],
+        "title": "MissedKey"
+      },
       "MissedKind": {
         "type": "string",
         "enum": [
@@ -2965,6 +3540,58 @@
         "title": "Proposal",
         "description": "A Proposal of a run, where it stands in the run's files, and its decision state."
       },
+      "ProtocolCopy": {
+        "properties": {
+          "protocol_id": {
+            "type": "integer",
+            "title": "Protocol Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "preparer": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "urs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FrozenUrs"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol_id",
+          "equipment",
+          "run_id",
+          "preparer",
+          "rows",
+          "urs"
+        ],
+        "title": "ProtocolCopy",
+        "description": "The frozen copy of a submitted Protocol: what the Approver reads."
+      },
       "ProtocolDraftView": {
         "properties": {
           "run_id": {
@@ -3283,6 +3910,37 @@
               }
             ],
             "title": "Urs"
+          },
+          "checklist": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChecklistItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checklist"
+          },
+          "submission": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubmissionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submissions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionView"
+            },
+            "type": "array",
+            "title": "Submissions"
           }
         },
         "additionalProperties": false,
@@ -3294,7 +3952,10 @@
           "status",
           "events",
           "rows",
-          "urs"
+          "urs",
+          "checklist",
+          "submission",
+          "submissions"
         ],
         "title": "ProtocolView",
         "description": "A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not\na Protocol Draft: that is the site's document under Pre-review."
@@ -3717,6 +4378,36 @@
           "approved",
           "withdrawn"
         ]
+      },
+      "SubmissionView": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "frozen_copy": {
+            "$ref": "#/components/schemas/ProtocolCopy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "hash",
+          "at",
+          "frozen_copy"
+        ],
+        "title": "SubmissionView",
+        "description": "A submission of the Protocol: the frozen copy it stored and that copy's hash."
       },
       "Text": {
         "properties": {

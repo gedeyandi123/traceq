@@ -1,6 +1,7 @@
 // The Protocol page (spec #247, ticket #249): status and history, one row per requirement of
 // each kind with what blocks, drafted Test Steps with the decision controls of slice 1, the
-// start and withdraw controls by role and status, and the known limits.
+// start and withdraw controls by role and status, and the known limits; the submission
+// checklist, the submit control and the frozen copy with its hash (ticket #252).
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -8,7 +9,7 @@ import messages from "../../messages/id.json";
 import { AssembledProtocolView, type ProtocolControls, type ProtocolError } from "./AssembledProtocolView";
 import type { DecisionView } from "./Decisions";
 import { decision, RUN_ID } from "./decisions.fixture";
-import { protocolView, rows, withdrawn } from "./protocol.fixture";
+import { protocolView, ready, rows, submitted, withdrawn } from "./protocol.fixture";
 import type { ProtocolView } from "@/api/client";
 
 const action = async () => {};
@@ -19,6 +20,7 @@ const controls: ProtocolControls = {
   remove: action,
   edit: action,
   answer: action,
+  submit: action,
 };
 const decider: DecisionView = { access: { mode: "decide", action } };
 const reader: DecisionView = { access: { mode: "readOnly", why: "noRole" } };
@@ -210,11 +212,54 @@ test("a withdrawn Protocol shows its reason and lets the deciding role start a n
   expect(screen.queryByRole("button")).toBeNull();
 });
 
-test("a submitted Protocol shows no live rows and cannot be withdrawn", () => {
-  renderPage(protocolView({ status: "submitted", rows: null }), decider);
+test("a submitted Protocol shows its frozen copy and hash, no live rows, and cannot be withdrawn", () => {
+  renderPage(submitted, decider);
   expect(screen.getByText("Diajukan")).toBeDefined();
   expect(screen.getByText("Baris hanya dihitung selama protokol berstatus Draft.")).toBeDefined();
   expect(screen.queryByRole("button")).toBeNull();
+  expect(screen.queryByRole("region", { name: "Baris protokol" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Yang memblokir pengajuan" })).toBeNull();
+  const copy = within(screen.getByRole("region", { name: /Salinan beku yang diajukan/ }));
+  expect(copy.getByTestId("copy-hash").textContent).toBe("a".repeat(64));
+  expect(copy.getByText("Ayu Kartika Sari, diajukan 19/11/2026 10.00 UTC")).toBeDefined();
+  const r002 = within(copy.getByTestId("copy-URS-TP201-002"));
+  expect(r002.getByText("Langkah uji rancangan yang diterima")).toBeDefined();
+  expect(r002.getAllByText("Diterima oleh Ayu Kartika Sari, 19/11/2026 09.06 UTC")).toHaveLength(1);
+  expect(r002.getByText("Diterima oleh Ayu Kartika Sari, 19/11/2026 09.05 UTC")).toBeDefined();
+  const r026 = within(copy.getByTestId("copy-URS-TP201-026"));
+  expect(r026.getByText("Langkah uji tertulis, versi 1")).toBeDefined();
+  expect(r026.getByText("Versi 1 oleh Bima Arya Nugraha, 19/11/2026 09.08 UTC")).toBeDefined();
+  expect(copy.getByText(/URS-TP201-004 \(URS-TP201 rev 0\): persyaratan yang tidak diuji protokol ini/)).toBeDefined();
+});
+
+test("a reader sees the frozen copy too", () => {
+  renderPage(submitted, reader);
+  expect(screen.getByTestId("copy-hash").textContent).toBe("a".repeat(64));
+  expect(screen.queryByRole("button")).toBeNull();
+});
+
+test("the checklist lists every check with its count and links to the rows; submit is disabled while blocked", () => {
+  renderPage(protocolView(), decider);
+  const list = within(screen.getByRole("region", { name: /Yang memblokir pengajuan/ }));
+  expect(list.getByTestId("check-coverage_undecided").textContent).toBe(
+    "Cakupan belum diputuskan atas isi run ini: 1: URS-TP201-001",
+  );
+  expect(list.getByTestId("check-draft_undecided").textContent).toBe("Langkah uji rancangan belum diputuskan: 0");
+  expect(list.getByRole("link", { name: "URS-TP201-030" }).getAttribute("href")).toBe("#row-URS-TP201-030");
+  expect(list.getByRole("link", { name: "URS-TP201-004" }).getAttribute("href")).toBe("#protocol-missed");
+  expect(document.getElementById("row-URS-TP201-030")).not.toBeNull();
+  const submit = list.getByRole("button", { name: "Ajukan protokol" });
+  expect((submit as HTMLButtonElement).disabled).toBe(true);
+});
+
+test("when nothing blocks the deciding role may submit; a reader may not", () => {
+  const { unmount } = renderPage(protocolView({ checklist: ready }), decider);
+  const list = within(screen.getByRole("region", { name: /Yang memblokir pengajuan/ }));
+  expect(list.getByText("Tidak ada yang memblokir: protokol dapat diajukan.")).toBeDefined();
+  expect((list.getByRole("button", { name: "Ajukan protokol" }) as HTMLButtonElement).disabled).toBe(false);
+  unmount();
+  renderPage(protocolView({ checklist: ready }), reader);
+  expect(screen.queryByRole("button", { name: "Ajukan protokol" })).toBeNull();
 });
 
 test("the known limits are always shown", () => {
@@ -277,7 +322,8 @@ test("the deciding role answers a number with one of two kinds and a justificati
 
 test("a reader sees the missed numbers but no answer form", () => {
   renderPage(protocolView(), reader);
-  expect(screen.getByText("URS-TP201-004")).toBeDefined();
+  const missed = within(screen.getByRole("region", { name: /Nomor persyaratan tercetak yang terlewat/ }));
+  expect(missed.getByText("URS-TP201-004")).toBeDefined();
   expect(screen.queryByRole("form", { name: /Jawab/ })).toBeNull();
 });
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from sqlalchemy import (
     BigInteger,
@@ -26,7 +26,7 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.orm import Session
 
 from traceq import audit
@@ -68,7 +68,10 @@ EVENTS = Table(
     Column("subject", Text),
     Column("issuer", Text),
     Column("name", Text),
+    Column("frozen_copy", JSONB(none_as_null=True)),
+    Column("copy_hash", Text),
 )
+"""A ``submitted`` event also holds the frozen copy and its hash (``assembly.submission``)."""
 
 
 class NotFound(Exception):
@@ -190,9 +193,18 @@ def _of_equipment(session: Session, equipment: str) -> list[AssembledProtocol]:
     return _load(session, list(ids))
 
 
-def _append(
-    session: Session, actor: audit.Actor, protocol_id: int, event: EventKind, reason: str | None
+def append(
+    session: Session,
+    actor: audit.Actor,
+    protocol_id: int,
+    event: EventKind,
+    reason: str | None,
+    *,
+    frozen_copy: dict[str, Any] | None = None,
+    copy_hash: str | None = None,
 ) -> Event:
+    """Adds a status event; the caller holds the per-Protocol lock and writes the Audit Trail
+    entry. ``frozen_copy`` and ``copy_hash``: for ``submitted`` only."""
     return _event(
         session.execute(
             insert(EVENTS)
@@ -203,6 +215,8 @@ def _append(
                 subject=actor.subject,
                 issuer=actor.issuer,
                 name=actor.name,
+                frozen_copy=frozen_copy,
+                copy_hash=copy_hash,
             )
             .returning(*EVENTS.c)
         )
@@ -248,7 +262,7 @@ def start(session: Session, actor: audit.Actor, run_id: str, *, drafted: bool) -
     protocol_id: int = session.execute(
         insert(PROTOCOLS).values(equipment=equipment, run_id=run_id).returning(PROTOCOLS.c.id)
     ).scalar_one()
-    started = _append(session, actor, protocol_id, "started", None)
+    started = append(session, actor, protocol_id, "started", None)
     audit.append(
         session,
         actor,
@@ -282,7 +296,7 @@ def withdraw(
             f"Protocol {protocol_id} is {current.status}: only a Protocol in Draft status can"
             " be withdrawn"
         )
-    done = _append(session, actor, protocol_id, "withdrawn", reason)
+    done = append(session, actor, protocol_id, "withdrawn", reason)
     audit.append(
         session,
         actor,

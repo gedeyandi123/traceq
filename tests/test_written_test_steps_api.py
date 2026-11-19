@@ -480,12 +480,15 @@ def test_writes_are_refused_unless_the_protocol_is_in_draft_status(
     fresh_database: Databases,
     event: str,
 ) -> None:
-    """Submitting and approving are later tickets (#252, #253): the event is added directly."""
+    """The event is added directly (a placeholder copy for ``submitted``): submitting itself is
+    tested in ``tests/test_protocol_submission_api.py``, approving is ticket #253."""
     with engine(fresh_database.app).begin() as c:
         c.execute(
             text(
-                "INSERT INTO protocol_events (protocol_id, event, reason, subject, issuer, name)"
-                " VALUES (:p, :e, 'r', 's', 'i', 'n')"
+                "INSERT INTO protocol_events (protocol_id, event, reason, subject, issuer, name,"
+                " frozen_copy, copy_hash) VALUES (:p, :e, 'r', 's', 'i', 'n',"
+                " CASE WHEN :e = 'submitted' THEN '{}'::jsonb END,"
+                " CASE WHEN :e = 'submitted' THEN repeat('0', 64) END)"
             ),
             {"p": protocol["id"], "e": event},
         )

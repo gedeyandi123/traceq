@@ -1,8 +1,17 @@
 // A Protocol assembled in TraceQ as the API serves it, for the render tests of the Protocol
-// page (spec #247, tickets #249, #250 and #251). Hand-written over the fixture run: five rows, one
+// page (spec #247, tickets #249 to #252). Hand-written over the fixture run: five rows, one
 // of each kind (Coverage changed, Vendor Reference, Test Step with its accepted draft, Test
 // Step with a written Test Step in its second version, Test Step without one).
-import type { Cite, ProtocolEvent, ProtocolRowView, ProtocolUrs, ProtocolView, RowDraft } from "@/api/client";
+import type {
+  ChecklistItem,
+  Cite,
+  ProtocolEvent,
+  ProtocolRowView,
+  ProtocolUrs,
+  ProtocolView,
+  RowDraft,
+  SubmissionView,
+} from "@/api/client";
 import type { components } from "@/api/schema";
 
 type WrittenVersionView = components["schemas"]["WrittenVersionView"];
@@ -238,9 +247,136 @@ export function protocolView(over: Partial<ProtocolView> = {}): ProtocolView {
     events: [event({})],
     rows,
     urs,
+    checklist,
+    submission: null,
+    submissions: [],
     ...over,
   };
 }
+
+/** What blocks the Protocol above: one row's Coverage, one row without a Test Step, one
+ * missed number without its disposition. */
+export const checklist: ChecklistItem[] = [
+  { check: "coverage_undecided", count: 1, requirements: ["URS-TP201-001"], numbers: [] },
+  { check: "draft_undecided", count: 0, requirements: [], numbers: [] },
+  { check: "no_test_step", count: 1, requirements: ["URS-TP201-030"], numbers: [] },
+  { check: "acceptance_not_shaped", count: 0, requirements: [], numbers: [] },
+  { check: "missed_undecided", count: 1, requirements: [], numbers: [{ ...URS, number: "URS-TP201-004" }] },
+];
+
+export const ready: ChecklistItem[] = checklist.map((c) => ({ ...c, count: 0, requirements: [], numbers: [] }));
+
+/** A submission as the API serves it (ticket #252): two rows frozen with who decided them. */
+export const submissionView: SubmissionView = {
+  event_id: 12,
+  hash: "a".repeat(64),
+  at: "2026-11-19T10:00:00Z",
+  frozen_copy: {
+    protocol_id: 7,
+    equipment: "TP-201",
+    run_id: RUN_ID,
+    preparer: AYU,
+    rows: [
+      {
+        requirement: "URS-TP201-002",
+        text: "Teks URS-TP201-002.",
+        source: cite(1, "Teks URS-TP201-002."),
+        coverage: {
+          coverage_class: "partial",
+          decision: { id: 1, decision: "accepted", coverage: null, reason: null, author: AYU, at: "2026-11-19T09:05:00Z" },
+        },
+        kind: "test_step",
+        evidence: [],
+        test_step: {
+          origin: "accepted_draft",
+          proposal_id: 70,
+          version: null,
+          decision: { id: 170, decision: "accepted", coverage: null, reason: null, author: AYU, at: "2026-11-19T09:06:00Z" },
+          description: accepted.draft.description,
+          method: accepted.draft.method,
+          instrument: accepted.draft.instrument,
+          acceptance: { type: "range", min: 20, max: 70, unit: "rpm" },
+        },
+        drafts: [
+          {
+            proposal_id: 70,
+            draft_id: "TS-URS-TP201-002",
+            decision: { id: 170, decision: "accepted", coverage: null, reason: null, author: AYU, at: "2026-11-19T09:06:00Z" },
+          },
+        ],
+        written: [],
+      },
+      {
+        requirement: "URS-TP201-026",
+        text: "Teks URS-TP201-026.",
+        source: cite(1, "Teks URS-TP201-026."),
+        coverage: {
+          coverage_class: "site_only",
+          decision: { id: 2, decision: "accepted", coverage: null, reason: null, author: BIMA, at: "2026-11-19T09:07:00Z" },
+        },
+        kind: "test_step",
+        evidence: [],
+        test_step: {
+          origin: "written",
+          proposal_id: null,
+          version: 1,
+          decision: null,
+          description: "Verifikasi tombol darurat.",
+          method: "Tekan tombol darurat saat turret berputar.",
+          instrument: null,
+          acceptance: { type: "present", value: null },
+        },
+        drafts: [],
+        written: [
+          {
+            version: 1,
+            removed: false,
+            test_step: {
+              description: "Verifikasi tombol darurat.",
+              method: "Tekan tombol darurat saat turret berputar.",
+              instrument: null,
+              acceptance: { type: "present", value: null },
+            },
+            from_proposal_id: null,
+            decision_id: null,
+            author: BIMA,
+            at: "2026-11-19T09:08:00Z",
+          },
+        ],
+      },
+    ],
+    urs: [
+      {
+        ...URS,
+        numbers: "checked",
+        missed: [
+          {
+            number: "URS-TP201-004",
+            page: 2,
+            disposition: {
+              version: 1,
+              kind: "not_tested_here",
+              justification: "Diuji di IQ peralatan lain.",
+              author: AYU,
+              at: "2026-11-19T09:09:00Z",
+            },
+          },
+        ],
+        unquoted: [],
+      },
+    ],
+  },
+};
+
+export const submitted = protocolView({
+  status: "submitted",
+  rows: null,
+  urs: null,
+  checklist: null,
+  submission: submissionView,
+  submissions: [submissionView],
+  events: [event({}), event({ id: 12, event: "submitted", status: "submitted", at: "2026-11-19T10:00:00Z" })],
+});
 
 export const withdrawn = protocolView({
   status: "withdrawn",
