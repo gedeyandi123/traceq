@@ -5,5 +5,7 @@ avoid a bare ``Protocol``, which ``traceq.traceability.coverage`` uses for vendo
 protocols. In text: "a Protocol in Draft status", never "Protocol Draft" (the site's document).
 
 ``lifecycle`` starts and withdraws a Protocol and reads its status events; ``rows`` computes its
-rows live from the run's Proposals and their standings; ``api`` holds the routes.
+rows live from the run's Proposals and their standings; ``written`` keeps the Test Steps a
+human writes; ``missed`` lists the printed requirement numbers the run missed and keeps their
+answers; ``api`` holds the routes.
 """

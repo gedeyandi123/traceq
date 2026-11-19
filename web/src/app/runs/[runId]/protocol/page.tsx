@@ -9,6 +9,7 @@ import { RunHeader } from "@/components/RunHeader";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
 import {
+  answerMissedNumber,
   editDraftedTestStep,
   removeTestStep,
   startProtocol,
@@ -82,6 +83,7 @@ export default async function ProtocolPage({
                 write: writeTestStep,
                 remove: removeTestStep,
                 edit: editDraftedTestStep,
+                answer: answerMissedNumber,
               }
             : null
         }

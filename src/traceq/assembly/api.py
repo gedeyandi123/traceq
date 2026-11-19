@@ -1,6 +1,7 @@
 """The routes of the Protocol assembled in TraceQ (spec #247, "API"): start the Protocol of a
 run's Equipment, read the Protocol of a run, add a version of a written Test Step, edit a
-drafted Test Step, withdraw a Protocol in Draft status.
+drafted Test Step, decide a printed requirement number the run missed, withdraw a Protocol in
+Draft status.
 
 Every route needs a valid bearer token; every write needs the deciding role, so the
 Audit Trail names who did it. Reading is open to any signed-in role. Accepting and rejecting a
@@ -21,8 +22,9 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from traceq.assembly import lifecycle, written
+from traceq.assembly import lifecycle, missed, written
 from traceq.assembly.lifecycle import EventKind, Status
+from traceq.assembly.missed import MissedKind, UrsMissed
 from traceq.assembly.rows import (
     Blocker,
     DraftOfRow,
@@ -37,7 +39,7 @@ from traceq.identity import Principal
 from traceq.proposals import decisions
 from traceq.proposals.api import Proposal, actor_of, proposal_view
 from traceq.runs.api import DRAFTS_FILE, find_run
-from traceq.runs.schemas import Cite, DraftedTestStep, EvidenceStep
+from traceq.runs.schemas import Cite, Completeness, DraftedTestStep, EvidenceStep, UnquotedText
 from traceq.traceability.coverage import CoverageClass
 from traceq.traceability.values import Value
 
@@ -155,6 +157,55 @@ class ProtocolRowView(_Model):
     """What blocks this row: ``coverage_undecided``, ``no_test_step``."""
 
 
+# The spec calls a human's ruling on a missed number its "answer"; the API names it a
+# disposition, because the schema must never name an answer key (tests/test_api.py).
+
+
+class MissedDispositionView(_Model):
+    """What a human decided a missed number is: its kind and justification, who and when."""
+
+    id: int
+    version: int
+    """1, 2, ... per URS document, revision and number; the latest counts."""
+    kind: MissedKind
+    """``not_a_requirement``: the printed number names no requirement. ``not_tested_here``: a
+    requirement this Protocol does not test."""
+    justification: str
+    subject: str
+    issuer: str
+    name: str
+    """The name shown for the person at the time."""
+    at: datetime
+
+
+class MissedNumberView(_Model):
+    """A printed requirement number that did not become a requirement of the run."""
+
+    number: str
+    page: int
+    """The first page it is printed on."""
+    disposition: MissedDispositionView | None
+    """The disposition in force (the latest); ``null`` while there is none."""
+    dispositions: list[MissedDispositionView]
+    """Every disposition of it in this Protocol, oldest first."""
+    blocking: bool
+    """Without a disposition: it blocks submission."""
+
+
+class ProtocolUrs(_Model):
+    """One URS of the run's completeness check: its missed numbers and its unquoted text."""
+
+    doc: str
+    rev: int
+    numbers: Literal["checked", "not_applicable"]
+    """``not_applicable`` when the run read no printed requirement number in it: it then
+    lists no missed number."""
+    missed: list[MissedNumberView]
+    unquoted: list[UnquotedText]
+    """URS text no requirement quotes: shown to look for a lost requirement; it needs no
+    disposition and never blocks."""
+
+
 class ProtocolView(_Model):
     """A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not
     a Protocol Draft: that is the site's document under Pre-review."""
@@ -170,6 +221,10 @@ class ProtocolView(_Model):
     rows: list[ProtocolRowView] | None
     """In Draft status: one row per requirement of the run, in requirement order, computed
     from the current decisions. ``null`` in any other status."""
+    urs: list[ProtocolUrs] | None
+    """In Draft status: per URS of the run's completeness check, the printed numbers the run
+    missed with their dispositions, and the unquoted text. ``null`` in any other status, and for a
+    run written before the completeness check existed."""
 
 
 class Withdrawal(_Model):
@@ -182,6 +237,19 @@ class NewWrittenVersion(_Model):
 
     test_step: WrittenContent | None
     """The full content; ``null`` removes the written Test Step."""
+
+
+class MissedDisposition(_Model):
+    """A disposition of a printed requirement number the run missed. No Reason for Change: a
+    later one replaces it, and every one is kept."""
+
+    doc: str
+    rev: int
+    number: str
+    """URS document, revision and printed number: what the disposition is keyed by."""
+    kind: MissedKind
+    justification: str
+    """Why: never blank."""
 
 
 class DraftEdit(_Model):
@@ -273,6 +341,38 @@ def _test_step(d: DraftOfRow) -> RowTestStep:
     )
 
 
+def _disposition(a: missed.Answer) -> MissedDispositionView:
+    return MissedDispositionView(
+        id=a.id,
+        version=a.version,
+        kind=a.kind,
+        justification=a.justification,
+        subject=a.actor.subject,
+        issuer=a.actor.issuer,
+        name=a.actor.name,
+        at=a.at,
+    )
+
+
+def _urs(u: UrsMissed) -> ProtocolUrs:
+    return ProtocolUrs(
+        doc=u.doc,
+        rev=u.rev,
+        numbers=u.numbers,
+        missed=[
+            MissedNumberView(
+                number=m.number,
+                page=m.page,
+                disposition=None if m.answer is None else _disposition(m.answer),
+                dispositions=[_disposition(a) for a in m.answers],
+                blocking=m.blocking,
+            )
+            for m in u.missed
+        ],
+        unquoted=list(u.unquoted),
+    )
+
+
 def _row(r: ProtocolRow) -> ProtocolRowView:
     req = r.requirement
     return ProtocolRowView(
@@ -301,8 +401,13 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(401, "no database is configured")
         return db
 
+    def check_of(run_id: str) -> Completeness | None:
+        return missed.check_of(find_run(runs, run_id))
+
     def view(session: Session, p: lifecycle.AssembledProtocol) -> ProtocolView:
-        rows = rows_of(session, p) if p.status == "draft" else None
+        draft = p.status == "draft"
+        rows = rows_of(session, p) if draft else None
+        urs = missed.missed_of(session, p.id, check_of(p.run_id)) if draft else None
         return ProtocolView(
             id=p.id,
             equipment=p.equipment,
@@ -310,6 +415,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             status=p.status,
             events=[_event(e) for e in p.events],
             rows=None if rows is None else [_row(r) for r in rows],
+            urs=None if urs is None else [_urs(u) for u in urs],
         )
 
     @router.post("/runs/{run_id}/protocol", operation_id="startProtocol", status_code=201)
@@ -407,6 +513,42 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         except (lifecycle.NotFound, decisions.NotInRun) as e:
             raise HTTPException(404, str(e)) from e
         except decisions.Refused as e:
+            raise HTTPException(422, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.post(
+        "/protocols/{protocol_id}/missed-numbers",
+        operation_id="decideMissedNumber",
+        status_code=201,
+    )
+    def decide_missed_number(
+        protocol_id: int, body: MissedDisposition, who: Annotated[Principal, Depends(principal)]
+    ) -> ProtocolView:
+        """Records the disposition of a printed requirement number the Protocol's run missed,
+        in a Protocol in Draft status: ``not_a_requirement`` or ``not_tested_here``, with a
+        non-blank justification (422 without one), and its Audit Trail entry. A later one
+        replaces it; every one is kept. 404 for a number the run's completeness check did not
+        miss, or one in a URS checked ``not_applicable``; 409 unless the Protocol is in Draft
+        status. Needs the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "answering a missed number needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                found = lifecycle.get(session, protocol_id)
+                missed.answer(
+                    session,
+                    actor_of(who),
+                    protocol_id,
+                    None if found is None else check_of(found.run_id),
+                    (body.doc, body.rev, body.number),
+                    body.kind,
+                    body.justification,
+                )
+                return reread(session, protocol_id)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Refused as e:
             raise HTTPException(422, str(e)) from e
         except lifecycle.Conflict as e:
             raise HTTPException(409, str(e)) from e

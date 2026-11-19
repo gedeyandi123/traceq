@@ -751,6 +751,61 @@
         }
       }
     },
+    "/protocols/{protocol_id}/missed-numbers": {
+      "post": {
+        "summary": "Decide Missed Number",
+        "description": "Records the disposition of a printed requirement number the Protocol's run missed,\nin a Protocol in Draft status: ``not_a_requirement`` or ``not_tested_here``, with a\nnon-blank justification (422 without one), and its Audit Trail entry. A later one\nreplaces it; every one is kept. 404 for a number the run's completeness check did not\nmiss, or one in a URS checked ``not_applicable``; 409 unless the Protocol is in Draft\nstatus. Needs the deciding role.",
+        "operationId": "decideMissedNumber",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissedDisposition"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/protocols/{protocol_id}/withdraw": {
       "post": {
         "summary": "Withdraw Protocol",
@@ -2458,6 +2513,97 @@
         "title": "MatrixRow",
         "description": "One requirement: its text and value, Coverage class and reason, and Evidence."
       },
+      "MissedDisposition": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MissedKind"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "number",
+          "kind",
+          "justification"
+        ],
+        "title": "MissedDisposition",
+        "description": "A disposition of a printed requirement number the run missed. No Reason for Change: a\nlater one replaces it, and every one is kept."
+      },
+      "MissedDispositionView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MissedKind"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "kind",
+          "justification",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "MissedDispositionView",
+        "description": "What a human decided a missed number is: its kind and justification, who and when."
+      },
+      "MissedKind": {
+        "type": "string",
+        "enum": [
+          "not_a_requirement",
+          "not_tested_here"
+        ]
+      },
       "MissedNumber": {
         "properties": {
           "number": {
@@ -2477,6 +2623,50 @@
         ],
         "title": "MissedNumber",
         "description": "A printed requirement number that did not become a kept requirement."
+      },
+      "MissedNumberView": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "disposition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MissedDispositionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dispositions": {
+            "items": {
+              "$ref": "#/components/schemas/MissedDispositionView"
+            },
+            "type": "array",
+            "title": "Dispositions"
+          },
+          "blocking": {
+            "type": "boolean",
+            "title": "Blocking"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "page",
+          "disposition",
+          "dispositions",
+          "blocking"
+        ],
+        "title": "MissedNumberView",
+        "description": "A printed requirement number that did not become a requirement of the run."
       },
       "MissingDocument": {
         "properties": {
@@ -2997,6 +3187,51 @@
         "title": "ProtocolRowView",
         "description": "One requirement of the run and what the Protocol holds for it."
       },
+      "ProtocolUrs": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "numbers": {
+            "type": "string",
+            "enum": [
+              "checked",
+              "not_applicable"
+            ],
+            "title": "Numbers"
+          },
+          "missed": {
+            "items": {
+              "$ref": "#/components/schemas/MissedNumberView"
+            },
+            "type": "array",
+            "title": "Missed"
+          },
+          "unquoted": {
+            "items": {
+              "$ref": "#/components/schemas/UnquotedText"
+            },
+            "type": "array",
+            "title": "Unquoted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "numbers",
+          "missed",
+          "unquoted"
+        ],
+        "title": "ProtocolUrs",
+        "description": "One URS of the run's completeness check: its missed numbers and its unquoted text."
+      },
       "ProtocolView": {
         "properties": {
           "id": {
@@ -3034,6 +3269,20 @@
               }
             ],
             "title": "Rows"
+          },
+          "urs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProtocolUrs"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urs"
           }
         },
         "additionalProperties": false,
@@ -3044,7 +3293,8 @@
           "run_id",
           "status",
           "events",
-          "rows"
+          "rows",
+          "urs"
         ],
         "title": "ProtocolView",
         "description": "A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not\na Protocol Draft: that is the site's document under Pre-review."

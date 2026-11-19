@@ -6,6 +6,7 @@ import { DecisionCell, DecisionNotice } from "./Decisions";
 import type { DecisionAccess, DecisionView } from "./Decisions";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
+import { MissedNumbers } from "./MissedNumbers";
 import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
 import { Button, cell, CoveragePill, DataTable, EmptyState, SectionHeading } from "./ui/ui";
 
@@ -17,14 +18,15 @@ export type ProtocolError = "conflict" | "refused" | "invalid" | "forbidden" | "
 type Action = (formData: FormData) => void | Promise<void>;
 
 /** The forms' server actions (start, withdraw, write or remove a written Test Step, edit a
- * drafted one), for a viewer with the deciding role; `null` for any other viewer, who sees
- * no controls. */
+ * drafted one, answer a missed requirement number), for a viewer with the deciding role;
+ * `null` for any other viewer, who sees no controls. */
 export type ProtocolControls = {
   start: Action;
   withdraw: Action;
   write: Action;
   remove: Action;
   edit: Action;
+  answer: Action;
 } | null;
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
@@ -315,7 +317,9 @@ function Rows({
  * decisions (Coverage decided by a human, the kind of row, the Vendor Reference's Evidence or
  * its Test Step, accepted or written, and what blocks), each drafted Test Step with the
  * decision controls of slice 1 and its edit form, each row's write form with the four
- * Acceptance Criterion shapes and every version of its written Test Step. Without a Protocol, the start control; the known limits always. A
+ * Acceptance Criterion shapes and every version of its written Test Step, then the printed
+ * requirement numbers the run missed with their answer forms and the unquoted URS text.
+ * Without a Protocol, the start control; the known limits always. A
  * viewer without the deciding role sees no controls. Never the site's Protocol Draft. */
 export function AssembledProtocolView({
   protocol,
@@ -370,6 +374,13 @@ export function AssembledProtocolView({
               controls={controls}
             />
           </section>
+          <MissedNumbers
+            t={t}
+            urs={protocol?.urs ?? null}
+            runId={runId}
+            protocolId={protocol?.id ?? 0}
+            answer={controls?.answer ?? null}
+          />
         </>
       )}
       {protocol !== null && rows === null && protocol.status !== "withdrawn" && <p className={s.muted}>{t("notDraftRows")}</p>}

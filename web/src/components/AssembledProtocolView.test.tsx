@@ -12,7 +12,14 @@ import { protocolView, rows, withdrawn } from "./protocol.fixture";
 import type { ProtocolView } from "@/api/client";
 
 const action = async () => {};
-const controls: ProtocolControls = { start: action, withdraw: action, write: action, remove: action, edit: action };
+const controls: ProtocolControls = {
+  start: action,
+  withdraw: action,
+  write: action,
+  remove: action,
+  edit: action,
+  answer: action,
+};
 const decider: DecisionView = { access: { mode: "decide", action } };
 const reader: DecisionView = { access: { mode: "readOnly", why: "noRole" } };
 
@@ -220,6 +227,73 @@ test("the known limits are always shown", () => {
     "Persetujuan adalah status yang dicatat, bukan Tanda Tangan Elektronik.",
     "Belum ada versi baru setelah protokol disetujui (langkah 6).",
   ]);
+});
+
+// --- Missed requirement numbers (ticket #251) ------------------------------------------
+
+function missed(key: string) {
+  return within(screen.getByTestId(key));
+}
+
+test("missed numbers are listed per URS with their page; unanswered ones block", () => {
+  renderPage(protocolView());
+  const section = within(screen.getByRole("region", { name: "Nomor persyaratan tercetak yang terlewat" }));
+  expect(section.getByText("Memblokir: 1 nomor belum dijawab")).toBeDefined();
+  const open = missed("URS-TP201/0/URS-TP201-004");
+  expect(open.getByText("URS-TP201-004")).toBeDefined();
+  expect(open.getByRole("link", { name: "hlm. 2" }).getAttribute("href")).toBe(
+    `/api/runs/${RUN_ID}/documents/URS-TP201/0#page=2`,
+  );
+  expect(open.getByText("Memblokir: belum dijawab")).toBeDefined();
+  const annex = within(section.getByRole("region", { name: "URS-TP201-ANNEX rev 1" }));
+  expect(annex.getByText(/Tidak berlaku/)).toBeDefined();
+  expect(annex.queryByRole("listitem")).toBeNull();
+});
+
+test("an answered number shows the answer in force and every answer, who and when", () => {
+  renderPage(protocolView());
+  const r = missed("URS-TP201/0/URS-TP201-003");
+  expect(r.queryByText(/Memblokir/)).toBeNull();
+  expect(r.getByText("Bukan persyaratan")).toBeDefined();
+  expect(r.getByText("Riwayat jawaban (2)")).toBeDefined();
+  expect(r.getByText("Versi 1 oleh Ayu Kartika Sari, 19/11/2026 09.30 UTC")).toBeDefined();
+  expect(r.getByText("Versi 2 oleh Bima Arya Nugraha, 19/11/2026 09.40 UTC")).toBeDefined();
+  expect(r.getByText("Persyaratan yang tidak diuji protokol ini · Diuji di IQ.")).toBeDefined();
+});
+
+test("the deciding role answers a number with one of two kinds and a justification", () => {
+  renderPage(protocolView(), decider);
+  const form = within(missed("URS-TP201/0/URS-TP201-004").getByRole("form", { name: "Jawab URS-TP201-004" }));
+  const kind = form.getByRole("combobox", { name: "Jawaban" }) as HTMLSelectElement;
+  expect([...kind.options].map((o) => o.value)).toEqual(["", "not_a_requirement", "not_tested_here"]);
+  expect(form.getByRole("textbox", { name: "Justifikasi" })).toBeDefined();
+  expect(form.getByRole("button", { name: "Simpan jawaban" })).toBeDefined();
+  // A change starts from the answer in force.
+  const change = within(
+    missed("URS-TP201/0/URS-TP201-003").getByRole("form", { name: "Ubah jawaban URS-TP201-003" }),
+  );
+  expect((change.getByRole("combobox", { name: "Jawaban" }) as HTMLSelectElement).value).toBe("not_a_requirement");
+});
+
+test("a reader sees the missed numbers but no answer form", () => {
+  renderPage(protocolView(), reader);
+  expect(screen.getByText("URS-TP201-004")).toBeDefined();
+  expect(screen.queryByRole("form", { name: /Jawab/ })).toBeNull();
+});
+
+test("unquoted text is shown per URS and never blocks", () => {
+  renderPage(protocolView());
+  const section = within(screen.getByRole("region", { name: "Teks URS yang tidak dikutip" }));
+  expect(section.getByText("URS-TP201 rev 0: tampilkan teks (1)")).toBeDefined();
+  expect(section.getByText(/Nomor dokumen URS-TP201/)).toBeDefined();
+  expect(section.getByText(/tidak memblokir/)).toBeDefined();
+  expect(section.queryByText(/^Memblokir/)).toBeNull();
+});
+
+test("a run without a completeness check says so and has nothing to answer", () => {
+  renderPage(protocolView({ urs: null }), decider);
+  expect(screen.getByText(/Pemeriksaan kelengkapan tidak dijalankan/)).toBeDefined();
+  expect(screen.queryByRole("region", { name: "Teks URS yang tidak dikutip" })).toBeNull();
 });
 
 test("a refused start is reported", () => {

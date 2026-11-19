@@ -329,6 +329,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/protocols/{protocol_id}/missed-numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Missed Number
+         * @description Records the disposition of a printed requirement number the Protocol's run missed,
+         *     in a Protocol in Draft status: ``not_a_requirement`` or ``not_tested_here``, with a
+         *     non-blank justification (422 without one), and its Audit Trail entry. A later one
+         *     replaces it; every one is kept. 404 for a number the run's completeness check did not
+         *     miss, or one in a URS checked ``not_applicable``; 409 unless the Protocol is in Draft
+         *     status. Needs the deciding role.
+         */
+        post: operations["decideMissedNumber"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/protocols/{protocol_id}/withdraw": {
         parameters: {
             query?: never;
@@ -887,6 +912,48 @@ export interface components {
             design: components["schemas"]["DesignRow"][];
         };
         /**
+         * MissedDisposition
+         * @description A disposition of a printed requirement number the run missed. No Reason for Change: a
+         *     later one replaces it, and every one is kept.
+         */
+        MissedDisposition: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /** Number */
+            number: string;
+            kind: components["schemas"]["MissedKind"];
+            /** Justification */
+            justification: string;
+        };
+        /**
+         * MissedDispositionView
+         * @description What a human decided a missed number is: its kind and justification, who and when.
+         */
+        MissedDispositionView: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: number;
+            kind: components["schemas"]["MissedKind"];
+            /** Justification */
+            justification: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** @enum {string} */
+        MissedKind: "not_a_requirement" | "not_tested_here";
+        /**
          * MissedNumber
          * @description A printed requirement number that did not become a kept requirement.
          */
@@ -895,6 +962,21 @@ export interface components {
             number: string;
             /** Page */
             page: number;
+        };
+        /**
+         * MissedNumberView
+         * @description A printed requirement number that did not become a requirement of the run.
+         */
+        MissedNumberView: {
+            /** Number */
+            number: string;
+            /** Page */
+            page: number;
+            disposition: components["schemas"]["MissedDispositionView"] | null;
+            /** Dispositions */
+            dispositions: components["schemas"]["MissedDispositionView"][];
+            /** Blocking */
+            blocking: boolean;
         };
         /**
          * MissingDocument
@@ -1076,6 +1158,25 @@ export interface components {
             blockers: components["schemas"]["Blocker"][];
         };
         /**
+         * ProtocolUrs
+         * @description One URS of the run's completeness check: its missed numbers and its unquoted text.
+         */
+        ProtocolUrs: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Numbers
+             * @enum {string}
+             */
+            numbers: "checked" | "not_applicable";
+            /** Missed */
+            missed: components["schemas"]["MissedNumberView"][];
+            /** Unquoted */
+            unquoted: components["schemas"]["UnquotedText"][];
+        };
+        /**
          * ProtocolView
          * @description A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not
          *     a Protocol Draft: that is the site's document under Pre-review.
@@ -1092,6 +1193,8 @@ export interface components {
             events: components["schemas"]["ProtocolEvent"][];
             /** Rows */
             rows: components["schemas"]["ProtocolRowView"][] | null;
+            /** Urs */
+            urs: components["schemas"]["ProtocolUrs"][] | null;
         };
         /**
          * Range
@@ -1876,6 +1979,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DraftEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decideMissedNumber: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MissedDisposition"];
             };
         };
         responses: {
