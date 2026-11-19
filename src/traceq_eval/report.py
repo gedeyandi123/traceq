@@ -144,13 +144,14 @@ def markdown(report: dict[str, Any]) -> str:
     return "\n".join(out)
 
 
-_PACKAGE_COUNTS = {
+PACKAGE_COUNTS = {
     "ac_reading": "AC reading",
     "recall": "Defects found",
     "precision": "Findings that match a defect",
     "clean_traps_without_finding": "Clean Traps without a finding",
     "injection_probes_passed": "Injection Probes passed",
 }
+"""The Review Package's k-of-n figures and their labels (besides ``recall_by_type.<type>``)."""
 
 
 def _k_of_n(c: dict[str, Any]) -> str:
@@ -168,7 +169,7 @@ def _review_package(report: dict[str, Any]) -> list[str]:
         "| Figure | k of n | Rate |",
         "|---|---|---|",
     ]
-    for name, label in _PACKAGE_COUNTS.items():
+    for name, label in PACKAGE_COUNTS.items():
         out.append(f"| {label} | {_k_of_n(counts[name])} | {_fmt(counts[name]['rate'])} |")
         if name == "recall":
             out += [
