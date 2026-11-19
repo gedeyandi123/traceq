@@ -23,3 +23,7 @@ The controls arrive in three phases.
 3. Beyond the eight steps of ADR 0010: the hash chain and its head copy, the audit-trail review screen and the access review report.
 
 A Proposal Decision is not an Electronic Signature.
+
+## Amended 19 November 2026 (ADR 0013)
+
+Control 4 waits for step 6 of ADR 0010. From step 5b a Witness confirms a Result while signed in, and code refuses a Witness who is the Performer, but no Test Step requires a Witness: which ones do is a flag on the Protocol, and the owner has not yet adopted the practitioner's rule for it.

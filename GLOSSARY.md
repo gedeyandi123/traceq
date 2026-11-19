@@ -52,7 +52,7 @@ The recorded act that makes a submitted Protocol an approved one. Until Electron
 _Avoid_: sign-off, signature
 
 **Test Step**:
-One verification step in a Protocol that produces a measured or observed result.
+One verification step in a Protocol that produces a Result.
 
 **Vendor Reference**:
 A line of a Protocol stating that one requirement is proven by the vendor's Evidence and is not tested again on site.
@@ -85,6 +85,10 @@ _Avoid_: error, failure, nonconformance
 **Investigation**:
 The written root cause of one Deviation and its impact on the qualification.
 _Avoid_: RCA, root cause analysis (as a record name)
+
+**CAPA (Corrective and Preventive Action)**:
+The action that removes the cause of a Deviation and keeps it from recurring.
+_Avoid_: action item, fix
 
 **Deviation Closure**:
 The recorded act by which an authorised person, never an author of the Investigation, closes a Deviation. Until Electronic Signatures exist it is a recorded status, not an Electronic Signature.
