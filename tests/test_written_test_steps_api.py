@@ -481,7 +481,8 @@ def test_writes_are_refused_unless_the_protocol_is_in_draft_status(
     event: str,
 ) -> None:
     """The event is added directly (a placeholder copy for ``submitted``): submitting itself is
-    tested in ``tests/test_protocol_submission_api.py``, approving is ticket #253."""
+    tested in ``tests/test_protocol_submission_api.py``, approving in
+    ``tests/test_protocol_approval_api.py``."""
     with engine(fresh_database.app).begin() as c:
         c.execute(
             text(

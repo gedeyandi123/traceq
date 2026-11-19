@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from conftest import Databases, DemoIssuer
 from fastapi.testclient import TestClient
@@ -117,16 +118,16 @@ def frozen_rows(view: Any) -> dict[str, Any]:
     return {r["requirement"]: r for r in view["submission"]["frozen_copy"]["rows"]}
 
 
-def return_to_draft(dbs: Databases, protocol: Any) -> None:
-    """Returning is a later ticket (#253): the event is added as the application would."""
-    with engine(dbs.app).begin() as c:
-        c.execute(
-            text(
-                "INSERT INTO protocol_events (protocol_id, event, reason, subject, issuer, name)"
-                " VALUES (:p, 'returned', 'fix it', 's', 'i', 'n')"
-            ),
-            {"p": protocol["id"]},
-        )
+def return_to_draft(client: TestClient, issuer: DemoIssuer, protocol: Any) -> None:
+    """Returned by the approving persona (``tests/test_protocol_approval_api.py``)."""
+    approver = httpx.post(f"{issuer.url}/demo/token", json={"username": "dewi"})
+    approver.raise_for_status()
+    r = client.post(
+        f"/protocols/{protocol['id']}/return",
+        headers=bearer(approver.json()["access_token"]),
+        json={"reason": "fix it"},
+    )
+    assert r.status_code == 200, r.text
 
 
 # --- The checklist --------------------------------------------------------------------
@@ -411,11 +412,11 @@ def test_a_decision_recorded_after_submission_does_not_change_the_copy(
 
 
 def test_the_hash_is_stable_and_changes_with_a_row(
-    client: TestClient, decider: dict[str, str], protocol: Any, fresh_database: Databases
+    client: TestClient, decider: dict[str, str], protocol: Any, demo_issuer: DemoIssuer
 ) -> None:
     make_ready(client, decider, protocol)
     first = submit(client, decider, protocol)["submission"]
-    return_to_draft(fresh_database, protocol)
+    return_to_draft(client, demo_issuer, protocol)
     assert read(client, decider)["submission"] is None
 
     # Resubmitted unchanged: the same hash, a new event.
@@ -427,7 +428,7 @@ def test_the_hash_is_stable_and_changes_with_a_row(
         second["submission"]["event_id"],
     ]
 
-    return_to_draft(fresh_database, protocol)
+    return_to_draft(client, demo_issuer, protocol)
     write(client, decider, protocol, R026, {**STEP, "method": "Read the tachometer twice."})
     third = submit(client, decider, protocol)["submission"]
     assert third["hash"] != first["hash"]

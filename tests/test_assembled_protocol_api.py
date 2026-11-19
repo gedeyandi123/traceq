@@ -173,24 +173,7 @@ def test_two_starts_at_once_give_one_protocol(
     assert codes == [201, 409]
 
 
-def test_no_protocol_is_started_once_one_is_approved(
-    client: TestClient, decider: dict[str, str], imported: str, fresh_database: Databases
-) -> None:
-    """Approving is a later ticket (#253): the event is added as the application would."""
-    got = start(client, decider)
-    with engine(fresh_database.app).begin() as c:
-        c.execute(
-            text(
-                "INSERT INTO protocol_events (protocol_id, event, subject, issuer, name)"
-                " VALUES (:p, 'approved', 's', 'i', 'n')"
-            ),
-            {"p": got["id"]},
-        )
-    assert read(client, decider)["status"] == "approved"
-    r = client.post(f"/runs/{RUN_ID}/protocol", headers=decider)
-    assert r.status_code == 409
-    assert "approved" in r.json()["detail"]
-    assert "step 6" in r.json()["detail"]
+# Starting once a Protocol is approved: tests/test_protocol_approval_api.py.
 
 
 def test_a_run_imported_before_its_drafts_became_proposals_cannot_start_one(
@@ -428,7 +411,8 @@ def test_only_a_protocol_in_draft_status_can_be_withdrawn(
     event: str,
 ) -> None:
     """The event is added directly (a placeholder copy for ``submitted``): submitting itself is
-    tested in ``tests/test_protocol_submission_api.py``, approving is ticket #253."""
+    tested in ``tests/test_protocol_submission_api.py``, approving in
+    ``tests/test_protocol_approval_api.py``."""
     got = start(client, decider)
     with engine(fresh_database.app).begin() as c:
         c.execute(

@@ -8,5 +8,5 @@ protocols. In text: "a Protocol in Draft status", never "Protocol Draft" (the si
 rows live from the run's Proposals and their standings; ``written`` keeps the Test Steps a
 human writes; ``missed`` lists the printed requirement numbers the run missed and keeps their
 answers; ``submission`` lists what blocks submission and freezes the submitted copy and its
-hash; ``api`` holds the routes.
+hash; ``approval`` approves or returns a Submitted Protocol; ``api`` holds the routes.
 """

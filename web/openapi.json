@@ -905,6 +905,116 @@
           }
         }
       }
+    },
+    "/protocols/{protocol_id}/approve": {
+      "post": {
+        "summary": "Approve Protocol",
+        "description": "Approves a Submitted Protocol: a recorded status, not an Electronic Signature (ADR 0007 phase 2). Bound to the\nsubmission the Approver read: ``submission_event_id`` and ``hash`` must be the current\nsubmission's, else 409 (a resubmission after a return has the same hash but a new event id).\nRefused (409) for the Preparer and for anyone the frozen copy records as an author: of a\ndecision in force (Coverage, and every current decision on a drafted Test Step, rejections\nincluded), of a disposition of a missed number in force, or of any version of a written Test\nStep; the check reads the copy only. Refused (409) unless Submitted. Once approved, no new\nProtocol of the Equipment can be started (a new version is step 6). With its Audit Trail\nentry. Needs the approving role.",
+        "operationId": "approveProtocol",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Approval"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/return": {
+      "post": {
+        "summary": "Return Protocol",
+        "description": "Returns a Submitted Protocol to Draft with a reason (422 without one) and its Audit\nTrail entry. It reads the current decisions again; the returned copy stays readable in\n``submissions``. Refused (409) unless Submitted. Needs the approving role.",
+        "operationId": "returnProtocol",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Return"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1026,6 +1136,26 @@
         ],
         "title": "AmbiguousValue",
         "description": "An observation that reads two ways: ask for confirmation, never guess."
+      },
+      "Approval": {
+        "properties": {
+          "submission_event_id": {
+            "type": "integer",
+            "title": "Submission Event Id"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "submission_event_id",
+          "hash"
+        ],
+        "title": "Approval",
+        "description": "What the Approver read: approval is bound to that submission and its hash."
       },
       "Author": {
         "properties": {
@@ -4044,6 +4174,20 @@
         "title": "RequiredDocument",
         "description": "A document the VMP requires for the Equipment, with the annex row cited."
       },
+      "Return": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "Return"
+      },
       "RowDraft": {
         "properties": {
           "draft": {
@@ -4396,6 +4540,16 @@
           },
           "frozen_copy": {
             "$ref": "#/components/schemas/ProtocolCopy"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProtocolEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -4404,7 +4558,8 @@
           "event_id",
           "hash",
           "at",
-          "frozen_copy"
+          "frozen_copy",
+          "outcome"
         ],
         "title": "SubmissionView",
         "description": "A submission of the Protocol: the frozen copy it stored and that copy's hash."

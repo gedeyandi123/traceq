@@ -48,6 +48,8 @@ PROTOCOL_ROUTES = {
     ("post", "/protocols/{protocol_id}/drafts/{proposal_id}/edit"),
     ("post", "/protocols/{protocol_id}/missed-numbers"),
     ("post", "/protocols/{protocol_id}/submit"),
+    ("post", "/protocols/{protocol_id}/approve"),
+    ("post", "/protocols/{protocol_id}/return"),
 }
 DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES
 
