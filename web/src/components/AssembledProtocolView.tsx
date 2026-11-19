@@ -1,10 +1,11 @@
 import { useTranslations } from "next-intl";
 
-import type { ProtocolEvent, ProtocolRowView, ProtocolView, RowDraft } from "@/api/client";
+import type { ChecklistItem, ProtocolEvent, ProtocolRowView, ProtocolView, RowDraft } from "@/api/client";
 import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice } from "./Decisions";
 import type { DecisionAccess, DecisionView } from "./Decisions";
 import { formatWhen } from "./formatWhen";
+import { FrozenCopy } from "./FrozenCopy";
 import { formatValue } from "./MatrixTable";
 import { MissedNumbers } from "./MissedNumbers";
 import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
@@ -18,7 +19,7 @@ export type ProtocolError = "conflict" | "refused" | "invalid" | "forbidden" | "
 type Action = (formData: FormData) => void | Promise<void>;
 
 /** The forms' server actions (start, withdraw, write or remove a written Test Step, edit a
- * drafted one, answer a missed requirement number), for a viewer with the deciding role;
+ * drafted one, answer a missed requirement number, submit), for a viewer with the deciding role;
  * `null` for any other viewer, who sees no controls. */
 export type ProtocolControls = {
   start: Action;
@@ -27,6 +28,7 @@ export type ProtocolControls = {
   remove: Action;
   edit: Action;
   answer: Action;
+  submit: Action;
 } | null;
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
@@ -115,6 +117,63 @@ function Status({
           <p>{t("withdrawnNote")}</p>
           <StartForm t={t} runId={runId} action={controls} again />
         </>
+      )}
+    </section>
+  );
+}
+
+/** What blocks submission: each of the five checks with its count and links to the rows or
+ * numbers concerned, then the submit control for the deciding role, usable when none blocks. */
+function Checklist({
+  t,
+  items,
+  runId,
+  protocolId,
+  controls,
+}: {
+  t: T;
+  items: readonly ChecklistItem[];
+  runId: string;
+  protocolId: number;
+  controls: ProtocolControls;
+}) {
+  const blocked = items.some((i) => i.count > 0);
+  return (
+    <section className={s.section} aria-labelledby="protocol-checklist">
+      <SectionHeading id="protocol-checklist" title={t("checklist.title")} note={t("checklist.note")} />
+      <ul className={s.list}>
+        {items.map((i) => (
+          <li key={i.check} data-testid={`check-${i.check}`} className={i.count > 0 ? s.blocking : undefined}>
+            {t(`checklist.items.${i.check}`, { count: i.count })}
+            {i.count > 0 && (
+              <>
+                {": "}
+                {i.requirements.map((r, n) => (
+                  <span key={r}>
+                    {n > 0 && ", "}
+                    <a href={`#row-${r}`}>{r}</a>
+                  </span>
+                ))}
+                {i.numbers.map((x, n) => (
+                  <span key={`${x.doc}/${x.rev}/${x.number}`}>
+                    {n > 0 && ", "}
+                    <a href="#protocol-missed">{x.number}</a>
+                  </span>
+                ))}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      {!blocked && <p>{t("checklist.ready")}</p>}
+      {controls !== null && (
+        <form action={controls.submit} className={s.form}>
+          <input type="hidden" name="run_id" value={runId} />
+          <input type="hidden" name="protocol_id" value={protocolId} />
+          <Button type="submit" variant="primary" disabled={blocked}>
+            {t("submit")}
+          </Button>
+        </form>
       )}
     </section>
   );
@@ -271,7 +330,11 @@ function Rows({
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.requirement} data-testid={r.requirement} className={r.blockers.length > 0 ? s.blockingRow : undefined}>
+          <tr
+            key={r.requirement}
+            id={`row-${r.requirement}`}
+            data-testid={r.requirement}
+            className={r.blockers.length > 0 ? s.blockingRow : undefined}>
             <th scope="row">
               <div className={cell.id}>{r.requirement}</div>
               <div className={s.text}>{r.text}</div>
@@ -318,7 +381,9 @@ function Rows({
  * its Test Step, accepted or written, and what blocks), each drafted Test Step with the
  * decision controls of slice 1 and its edit form, each row's write form with the four
  * Acceptance Criterion shapes and every version of its written Test Step, then the printed
- * requirement numbers the run missed with their answer forms and the unquoted URS text.
+ * requirement numbers the run missed with their answer forms and the unquoted URS text; the
+ * checklist of what blocks submission and the submit control. A Submitted or Approved
+ * Protocol shows its frozen copy and hash instead of live rows.
  * Without a Protocol, the start control; the known limits always. A
  * viewer without the deciding role sees no controls. Never the site's Protocol Draft. */
 export function AssembledProtocolView({
@@ -355,6 +420,15 @@ export function AssembledProtocolView({
       )}
       {rows !== null && (
         <>
+          {protocol?.checklist && (
+            <Checklist
+              t={t}
+              items={protocol.checklist}
+              runId={runId}
+              protocolId={protocol.id}
+              controls={controls}
+            />
+          )}
           <p className={s.summary}>
             {t("summary", {
               rows: rows.length,
@@ -382,6 +456,14 @@ export function AssembledProtocolView({
             answer={controls?.answer ?? null}
           />
         </>
+      )}
+      {protocol?.submission && (
+        <FrozenCopy
+          t={t}
+          submission={protocol.submission}
+          earlier={protocol.submissions.filter((x) => x.event_id !== protocol.submission?.event_id)}
+          runId={runId}
+        />
       )}
       {protocol !== null && rows === null && protocol.status !== "withdrawn" && <p className={s.muted}>{t("notDraftRows")}</p>}
       <Limits t={t} />

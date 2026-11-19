@@ -354,6 +354,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/protocols/{protocol_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Protocol
+         * @description Submits a Protocol in Draft status that no check blocks; the submitter becomes its
+         *     Preparer. Stores the frozen copy and its hash in the ``submitted`` event, with its
+         *     Audit Trail entry; from then on the Protocol shows that copy, and written Test Steps
+         *     and missed-number dispositions are refused. Refused (409) unless in Draft status, and
+         *     while any check of ``checklist`` blocks (the reason lists them with their counts).
+         *     Needs the deciding role.
+         */
+        post: operations["submitProtocol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/protocols/{protocol_id}/withdraw": {
         parameters: {
             query?: never;
@@ -426,8 +451,22 @@ export interface components {
             /** Readings */
             readings: number[];
         };
+        /**
+         * Author
+         * @description Who: the token's subject and issuer, and the name shown at the time.
+         */
+        Author: {
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
         /** @enum {string} */
-        Blocker: "coverage_undecided" | "no_test_step";
+        Blocker: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped";
+        /** @enum {string} */
+        Check: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped" | "missed_undecided";
         /**
          * CheckFinding
          * @description A Pre-review finding of a deterministic rule: no model involved.
@@ -450,6 +489,19 @@ export interface components {
             /** Citations */
             citations: components["schemas"]["Cite"][];
             rule: components["schemas"]["Cite"] | null;
+        };
+        /**
+         * ChecklistItem
+         * @description One submission check: how many rows or missed numbers it holds back, and which.
+         */
+        ChecklistItem: {
+            check: components["schemas"]["Check"];
+            /** Count */
+            count: number;
+            /** Requirements */
+            requirements: string[];
+            /** Numbers */
+            numbers: components["schemas"]["MissedKey"][];
         };
         /**
          * Cite
@@ -787,6 +839,155 @@ export interface components {
             governing_documents: components["schemas"]["GoverningDocument"][];
         };
         /**
+         * FrozenCoverage
+         * @description The Coverage class a human decided, and the decision in force that settled it.
+         */
+        FrozenCoverage: {
+            /**
+             * Coverage Class
+             * @enum {string}
+             */
+            coverage_class: "covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict";
+            decision: components["schemas"]["FrozenDecision"];
+        };
+        /**
+         * FrozenDecision
+         * @description A Proposal Decision in force when the Protocol was submitted, and who made it.
+         */
+        FrozenDecision: {
+            /** Id */
+            id: number;
+            decision: components["schemas"]["Verdict"];
+            /** Coverage */
+            coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
+            /** Reason */
+            reason: string | null;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * FrozenDisposition
+         * @description The disposition in force on a missed number, and who recorded it.
+         */
+        FrozenDisposition: {
+            /** Version */
+            version: number;
+            kind: components["schemas"]["MissedKind"];
+            /** Justification */
+            justification: string;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * FrozenDraft
+         * @description A drafted Test Step of the row and the decision in force on it; ``null`` for an
+         *     undecided draft of a Vendor Reference, which needs none.
+         */
+        FrozenDraft: {
+            /** Proposal Id */
+            proposal_id: number;
+            /** Draft Id */
+            draft_id: string;
+            decision: components["schemas"]["FrozenDecision"] | null;
+        };
+        /** FrozenMissed */
+        FrozenMissed: {
+            /** Number */
+            number: string;
+            /** Page */
+            page: number;
+            disposition: components["schemas"]["FrozenDisposition"];
+        };
+        /** FrozenRow */
+        FrozenRow: {
+            /** Requirement */
+            requirement: string;
+            /** Text */
+            text: string;
+            source: components["schemas"]["Cite"];
+            coverage: components["schemas"]["FrozenCoverage"];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vendor_reference" | "test_step";
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceStep"][];
+            test_step: components["schemas"]["FrozenTestStep"] | null;
+            /** Drafts */
+            drafts: components["schemas"]["FrozenDraft"][];
+            /** Written */
+            written: components["schemas"]["FrozenVersion"][];
+        };
+        /**
+         * FrozenTestStep
+         * @description The row's one Test Step and where it came from.
+         */
+        FrozenTestStep: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "accepted_draft" | "written";
+            /** Proposal Id */
+            proposal_id: number | null;
+            /** Version */
+            version: number | null;
+            decision: components["schemas"]["FrozenDecision"] | null;
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            acceptance: components["schemas"]["Acceptance"];
+        };
+        /** FrozenUrs */
+        FrozenUrs: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /**
+             * Numbers
+             * @enum {string}
+             */
+            numbers: "checked" | "not_applicable";
+            /** Missed */
+            missed: components["schemas"]["FrozenMissed"][];
+            /** Unquoted */
+            unquoted: components["schemas"]["UnquotedText"][];
+        };
+        /**
+         * FrozenVersion
+         * @description A version of the row's written Test Step: a removal, or its full content.
+         */
+        FrozenVersion: {
+            /** Version */
+            version: number;
+            /** Removed */
+            removed: boolean;
+            test_step: components["schemas"]["WrittenContent"] | null;
+            /** From Proposal Id */
+            from_proposal_id: number | null;
+            /** Decision Id */
+            decision_id: number | null;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
          * GoverningDocument
          * @description A VMP or SOP the run read its required documents and site rules from.
          */
@@ -951,6 +1152,15 @@ export interface components {
              */
             at: string;
         };
+        /** MissedKey */
+        MissedKey: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /** Number */
+            number: string;
+        };
         /** @enum {string} */
         MissedKind: "not_a_requirement" | "not_tested_here";
         /**
@@ -1088,6 +1298,23 @@ export interface components {
             previous_class: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
         };
         /**
+         * ProtocolCopy
+         * @description The frozen copy of a submitted Protocol: what the Approver reads.
+         */
+        ProtocolCopy: {
+            /** Protocol Id */
+            protocol_id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            preparer: components["schemas"]["Author"];
+            /** Rows */
+            rows: components["schemas"]["FrozenRow"][];
+            /** Urs */
+            urs: components["schemas"]["FrozenUrs"][] | null;
+        };
+        /**
          * ProtocolDraftView
          * @description The Protocol Draft of a Review Package run: its Test Steps in draft order, its
          *     traceability rows and its findings, each with its decision state.
@@ -1195,6 +1422,11 @@ export interface components {
             rows: components["schemas"]["ProtocolRowView"][] | null;
             /** Urs */
             urs: components["schemas"]["ProtocolUrs"][] | null;
+            /** Checklist */
+            checklist: components["schemas"]["ChecklistItem"][] | null;
+            submission: components["schemas"]["SubmissionView"] | null;
+            /** Submissions */
+            submissions: components["schemas"]["SubmissionView"][];
         };
         /**
          * Range
@@ -1343,6 +1575,22 @@ export interface components {
         State: "decided" | "changed" | "undecided";
         /** @enum {string} */
         Status: "draft" | "submitted" | "approved" | "withdrawn";
+        /**
+         * SubmissionView
+         * @description A submission of the Protocol: the frozen copy it stored and that copy's hash.
+         */
+        SubmissionView: {
+            /** Event Id */
+            event_id: number;
+            /** Hash */
+            hash: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            frozen_copy: components["schemas"]["ProtocolCopy"];
+        };
         /** Text */
         Text: {
             /**
@@ -2019,6 +2267,37 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submitProtocol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

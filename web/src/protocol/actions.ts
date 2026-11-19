@@ -154,3 +154,22 @@ export async function withdrawProtocol(form: FormData): Promise<void> {
   }
   back(runId, failed);
 }
+
+/** Submits a Protocol in Draft status that nothing blocks, then returns to the page, which
+ * shows the frozen copy and its hash. The API checks again what blocks and refuses (409). */
+export async function submitProtocol(form: FormData): Promise<void> {
+  const runId = field(form, "run_id") ?? "";
+  const protocolId = Number(field(form, "protocol_id"));
+  if (!Number.isInteger(protocolId)) back(runId, "failed");
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/submit", {
+      params: { path: { protocol_id: protocolId } },
+      headers: await bearerHeaders(),
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  back(runId, failed);
+}

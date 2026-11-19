@@ -369,7 +369,42 @@
     },
     "blockers": {
       "coverage_undecided": "Memblokir: cakupan belum diputuskan atas isi run ini",
-      "no_test_step": "Memblokir: belum ada langkah uji; terima atau sunting langkah uji rancangan, atau tulis satu"
+      "draft_undecided": "Memblokir: langkah uji rancangan belum diputuskan (terima, sunting, atau tolak)",
+      "no_test_step": "Memblokir: belum ada langkah uji; terima atau sunting langkah uji rancangan, atau tulis satu",
+      "acceptance_not_shaped": "Memblokir: kriteria penerimaan belum ada atau berupa teks bebas; sunting rancangan untuk menetapkannya"
+    },
+    "checklist": {
+      "title": "Yang memblokir pengajuan",
+      "note": "Protokol dapat diajukan jika semua jumlah nol. Yang mengajukan menjadi Penyusun (Preparer).",
+      "items": {
+        "coverage_undecided": "Cakupan belum diputuskan atas isi run ini: {count}",
+        "draft_undecided": "Langkah uji rancangan belum diputuskan: {count}",
+        "no_test_step": "Baris langkah uji tanpa langkah uji: {count}",
+        "acceptance_not_shaped": "Kriteria penerimaan belum ada atau berupa teks bebas: {count}",
+        "missed_undecided": "Nomor persyaratan terlewat tanpa jawaban: {count}"
+      },
+      "ready": "Tidak ada yang memblokir: protokol dapat diajukan."
+    },
+    "submit": "Ajukan protokol",
+    "copy": {
+      "title": "Salinan beku yang diajukan",
+      "note": "Isi protokol saat diajukan. Keputusan yang dicatat sesudahnya tidak mengubah salinan ini.",
+      "hash": "Hash (SHA-256)",
+      "preparer": "Penyusun",
+      "submittedBy": "{name}, diajukan {when}",
+      "decisions": {
+        "accepted": "Diterima oleh {name}, {when}",
+        "rejected": "Ditolak oleh {name}, {when}",
+        "edited": "Disunting oleh {name}, {when}"
+      },
+      "undecidedDraft": "Tidak diputuskan (referensi vendor tidak memerlukannya)",
+      "missed": "{number} ({doc} rev {rev}): {kind}, oleh {name}",
+      "missedKinds": {
+        "not_a_requirement": "bukan persyaratan",
+        "not_tested_here": "persyaratan yang tidak diuji protokol ini"
+      },
+      "earlier": "Salinan yang diajukan sebelumnya",
+      "earlierItem": "Diajukan {when}, hash"
     },
     "coverageUndecided": "Belum diputuskan",
     "coverageChanged": "Berubah sejak diputuskan",
@@ -392,7 +427,7 @@
     "unavailable": "Protokol tidak dapat dimuat",
     "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data.",
     "errors": {
-      "conflict": "Ditolak API: protokol lain untuk peralatan ini masih terbuka atau sudah disetujui, protokol ini bukan lagi Draft, baris ini sudah memiliki langkah uji lain, atau run ini diimpor sebelum langkah uji rancangan menjadi usulan.",
+      "conflict": "Ditolak API: protokol lain untuk peralatan ini masih terbuka atau sudah disetujui, protokol ini bukan lagi Draft, baris ini sudah memiliki langkah uji lain, run ini diimpor sebelum langkah uji rancangan menjadi usulan, atau masih ada yang memblokir pengajuan.",
       "refused": "Ditolak API: alasan atau justifikasi wajib diisi, atau isi langkah uji tidak lengkap.",
       "forbidden": "Ditolak API: identitas ini tidak memiliki peran pengambil keputusan.",
       "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",

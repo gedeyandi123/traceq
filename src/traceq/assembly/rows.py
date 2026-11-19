@@ -10,7 +10,9 @@ and its drafted Test Steps (``test_step`` Proposals) and where each stands. A ro
 - Decided ``covered_by_vendor`` (accepted as proposed or edited to it) with no accepted draft
   and no written Test Step: a **Vendor Reference**, naming the row's Evidence steps.
 - Otherwise a **Test Step** row: its Test Step is the written one if any, else the accepted
-  draft; without one it blocks.
+  draft; without one it blocks. It also blocks while one of its drafted Test Steps is not
+  decided on the run's content, and while its Test Step is an accepted draft whose Acceptance
+  Criterion is missing or free text (spec #247, "Submission checks").
 
 Each row also says what its write form starts from (``prefill``): the written Test Step in
 force, else the latest version of it in the most recent withdrawn Protocol of the Equipment,
@@ -20,7 +22,7 @@ else the first drafted Test Step (its Acceptance Criterion only when in one of t
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, TypeGuard
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -32,14 +34,19 @@ from traceq.proposals.decisions import Standing, standings
 from traceq.proposals.store import RUN_PROPOSALS
 from traceq.runs.schemas import DraftedTestStep, MatrixRow
 from traceq.traceability.coverage import CoverageClass
-from traceq.traceability.values import Text
+from traceq.traceability.values import Text, Value
 
 type PrefillOrigin = Literal["written", "withdrawn", "draft"]
 
 type RowKind = Literal["undecided", "vendor_reference", "test_step"]
-type Blocker = Literal["coverage_undecided", "no_test_step"]
+type Blocker = Literal[
+    "coverage_undecided", "draft_undecided", "no_test_step", "acceptance_not_shaped"
+]
 """``coverage_undecided``: Coverage not decided by a human on the run's content.
-``no_test_step``: a Test Step row with no Test Step."""
+``draft_undecided``: a drafted Test Step of a Test Step row not decided on the run's content.
+``no_test_step``: a Test Step row with no Test Step. ``acceptance_not_shaped``: its Test Step
+is an accepted draft whose Acceptance Criterion is missing or free text, so Execution could not
+judge it by code (ADR 0002)."""
 
 
 @dataclass(frozen=True)
@@ -99,9 +106,7 @@ def _from_content(origin: PrefillOrigin, c: WrittenContent) -> Prefill:
 
 def _from_draft(d: DraftedTestStep) -> Prefill:
     a = d.acceptance
-    return Prefill(
-        "draft", d.description, d.method, d.instrument, None if isinstance(a, Text) else a
-    )
+    return Prefill("draft", d.description, d.method, d.instrument, a if shaped(a) else None)
 
 
 def _prefill(
@@ -114,6 +119,24 @@ def _prefill(
     if carried is not None:
         return _from_content("withdrawn", carried)
     return _from_draft(drafts[0].draft) if drafts else None
+
+
+def _test_step_blockers(
+    drafts: tuple[DraftOfRow, ...], accepted: DraftOfRow | None, step: WrittenVersion | None
+) -> tuple[Blocker, ...]:
+    out: list[Blocker] = []
+    if any(d.standing.state != "decided" for d in drafts):
+        out.append("draft_undecided")
+    if accepted is None and step is None:
+        out.append("no_test_step")
+    if step is None and accepted is not None and not shaped(accepted.draft.acceptance):
+        out.append("acceptance_not_shaped")
+    return tuple(out)
+
+
+def shaped(acceptance: Value | None) -> TypeGuard[Acceptance]:
+    """An Acceptance Criterion in one of the four shapes: range, number, one of, present."""
+    return acceptance is not None and not isinstance(acceptance, Text)
 
 
 def rows_of(session: Session, protocol: AssembledProtocol) -> list[ProtocolRow]:
@@ -156,7 +179,7 @@ def rows_of(session: Session, protocol: AssembledProtocol) -> list[ProtocolRow]:
             kind, blockers, step = "vendor_reference", (), None
         else:
             kind, step = "test_step", in_force
-            blockers = () if accepted is not None or step is not None else ("no_test_step",)
+            blockers = _test_step_blockers(mine, accepted, step)
         out.append(
             ProtocolRow(
                 requirement=row,

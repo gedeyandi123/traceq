@@ -1,7 +1,7 @@
 """The routes of the Protocol assembled in TraceQ (spec #247, "API"): start the Protocol of a
 run's Equipment, read the Protocol of a run, add a version of a written Test Step, edit a
-drafted Test Step, decide a printed requirement number the run missed, withdraw a Protocol in
-Draft status.
+drafted Test Step, decide a printed requirement number the run missed, submit a Protocol in
+Draft status, withdraw one.
 
 Every route needs a valid bearer token; every write needs the deciding role, so the
 Audit Trail names who did it. Reading is open to any signed-in role. Accepting and rejecting a
@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from traceq.assembly import lifecycle, missed, written
+from traceq.assembly import lifecycle, missed, submission, written
 from traceq.assembly.lifecycle import EventKind, Status
 from traceq.assembly.missed import MissedKind, UrsMissed
 from traceq.assembly.rows import (
@@ -33,6 +33,7 @@ from traceq.assembly.rows import (
     RowKind,
     rows_of,
 )
+from traceq.assembly.submission import Check, ProtocolCopy
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.db import transaction
 from traceq.identity import Principal
@@ -154,7 +155,9 @@ class ProtocolRowView(_Model):
     prefill: RowPrefill | None
     """What the write form starts from; ``null`` with no source at all."""
     blockers: list[Blocker]
-    """What blocks this row: ``coverage_undecided``, ``no_test_step``."""
+    """What blocks this row: ``coverage_undecided``; for a Test Step row ``draft_undecided``
+    (a drafted Test Step not decided), ``no_test_step``, ``acceptance_not_shaped`` (its Test
+    Step is an accepted draft whose Acceptance Criterion is missing or free text)."""
 
 
 # The spec calls a human's ruling on a missed number its "answer"; the API names it a
@@ -206,6 +209,42 @@ class ProtocolUrs(_Model):
     disposition and never blocks."""
 
 
+class MissedKey(_Model):
+    doc: str
+    rev: int
+    number: str
+
+
+class ChecklistItem(_Model):
+    """One submission check: how many rows or missed numbers it holds back, and which."""
+
+    check: Check
+    """``coverage_undecided``: Coverage not decided by a human on the run's content.
+    ``draft_undecided``: a drafted Test Step of a Test Step row not decided.
+    ``no_test_step``: a Test Step row without its one Test Step. ``acceptance_not_shaped``: an
+    Acceptance Criterion missing or free text. ``missed_undecided``: a printed requirement
+    number the run missed, without its disposition."""
+    count: int
+    """0 when it blocks nothing."""
+    requirements: list[str]
+    """The rows concerned."""
+    numbers: list[MissedKey]
+    """For ``missed_undecided``: the numbers concerned."""
+
+
+class SubmissionView(_Model):
+    """A submission of the Protocol: the frozen copy it stored and that copy's hash."""
+
+    event_id: int
+    """The ``submitted`` event; approving names it, with the hash."""
+    hash: str
+    """The SHA-256 of the copy's canonical JSON (keys sorted, no spaces, UTF-8)."""
+    at: datetime
+    frozen_copy: ProtocolCopy
+    """Every row, its decisions in force and who made them, its Test Step and every version
+    of its written one; the missed numbers with their dispositions; the unquoted text."""
+
+
 class ProtocolView(_Model):
     """A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not
     a Protocol Draft: that is the site's document under Pre-review."""
@@ -225,6 +264,14 @@ class ProtocolView(_Model):
     """In Draft status: per URS of the run's completeness check, the printed numbers the run
     missed with their dispositions, and the unquoted text. ``null`` in any other status, and for a
     run written before the completeness check existed."""
+    checklist: list[ChecklistItem] | None
+    """In Draft status: the five submission checks, in order, each with its count; it may be
+    submitted when every count is 0. ``null`` in any other status."""
+    submission: SubmissionView | None
+    """While Submitted or Approved: the current submission, which the page shows instead of
+    live rows. ``null`` in any other status."""
+    submissions: list[SubmissionView]
+    """Every submission, oldest first: those before the current one were returned to Draft."""
 
 
 class Withdrawal(_Model):
@@ -391,6 +438,19 @@ def _row(r: ProtocolRow) -> ProtocolRowView:
     )
 
 
+def _item(b: submission.Blocking) -> ChecklistItem:
+    return ChecklistItem(
+        check=b.check,
+        count=b.count,
+        requirements=list(b.requirements),
+        numbers=[MissedKey(doc=d, rev=r, number=n) for d, r, n in b.numbers],
+    )
+
+
+def _submission(x: submission.Submission) -> SubmissionView:
+    return SubmissionView(event_id=x.event_id, hash=x.hash, at=x.at, frozen_copy=x.copy)
+
+
 def create_router(runs: Path, db: Engine | None, principal: Callable[..., Principal]) -> APIRouter:
     """``db``: the database as the application role; none with default settings, when
     ``principal`` refuses every request."""
@@ -408,6 +468,8 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         draft = p.status == "draft"
         rows = rows_of(session, p) if draft else None
         urs = missed.missed_of(session, p.id, check_of(p.run_id)) if draft else None
+        submissions = [_submission(x) for x in submission.submissions_of(session, p.id)]
+        frozen = p.status in ("submitted", "approved") and bool(submissions)
         return ProtocolView(
             id=p.id,
             equipment=p.equipment,
@@ -416,6 +478,9 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             events=[_event(e) for e in p.events],
             rows=None if rows is None else [_row(r) for r in rows],
             urs=None if urs is None else [_urs(u) for u in urs],
+            checklist=None if rows is None else [_item(b) for b in submission.checklist(rows, urs)],
+            submission=submissions[-1] if frozen else None,
+            submissions=submissions,
         )
 
     @router.post("/runs/{run_id}/protocol", operation_id="startProtocol", status_code=201)
@@ -550,6 +615,33 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(404, str(e)) from e
         except lifecycle.Refused as e:
             raise HTTPException(422, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.post("/protocols/{protocol_id}/submit", operation_id="submitProtocol")
+    def submit_protocol(
+        protocol_id: int, who: Annotated[Principal, Depends(principal)]
+    ) -> ProtocolView:
+        """Submits a Protocol in Draft status that no check blocks; the submitter becomes its
+        Preparer. Stores the frozen copy and its hash in the ``submitted`` event, with its
+        Audit Trail entry; from then on the Protocol shows that copy, and written Test Steps
+        and missed-number dispositions are refused. Refused (409) unless in Draft status, and
+        while any check of ``checklist`` blocks (the reason lists them with their counts).
+        Needs the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "submitting a Protocol needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                found = lifecycle.get(session, protocol_id)
+                done = submission.submit(
+                    session,
+                    actor_of(who),
+                    protocol_id,
+                    None if found is None else check_of(found.run_id),
+                )
+                return view(session, done)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
         except lifecycle.Conflict as e:
             raise HTTPException(409, str(e)) from e
 

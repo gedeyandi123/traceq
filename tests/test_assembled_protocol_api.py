@@ -274,7 +274,8 @@ def test_decided_coverage_gives_a_test_step_row_blocking_until_its_draft_is_acce
         "test_step",
         "partial",
     )
-    assert got["URS-TP201-002"]["blockers"] == ["no_test_step"]
+    # Its draft is not decided yet, and the row has no Test Step.
+    assert got["URS-TP201-002"]["blockers"] == ["draft_undecided", "no_test_step"]
     # No draft at all: the row still needs a Test Step.
     assert (got["URS-TP201-026"]["kind"], got["URS-TP201-026"]["blockers"]) == (
         "test_step",
@@ -426,13 +427,16 @@ def test_only_a_protocol_in_draft_status_can_be_withdrawn(
     fresh_database: Databases,
     event: str,
 ) -> None:
-    """Submitting and approving are later tickets (#252, #253): the event is added directly."""
+    """The event is added directly (a placeholder copy for ``submitted``): submitting itself is
+    tested in ``tests/test_protocol_submission_api.py``, approving is ticket #253."""
     got = start(client, decider)
     with engine(fresh_database.app).begin() as c:
         c.execute(
             text(
-                "INSERT INTO protocol_events (protocol_id, event, subject, issuer, name)"
-                " VALUES (:p, :e, 's', 'i', 'n')"
+                "INSERT INTO protocol_events (protocol_id, event, subject, issuer, name,"
+                " frozen_copy, copy_hash) VALUES (:p, :e, 's', 'i', 'n',"
+                " CASE WHEN :e = 'submitted' THEN '{}'::jsonb END,"
+                " CASE WHEN :e = 'submitted' THEN repeat('0', 64) END)"
             ),
             {"p": got["id"], "e": event},
         )
