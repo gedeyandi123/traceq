@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from traceq_dataset.answer_key import derive
+from traceq_dataset.answer_key import FILES, derive, dump, load_key
 from traceq_dataset.corpus import Corpus, build_corpus
 from traceq_dataset.render import awaiting_confirmation
 from traceq_dataset.schema import (
@@ -27,8 +27,13 @@ from traceq_dataset.schema import (
 )
 from traceq_dataset.validate import answer_key_problems, missing_text
 from traceq_dataset.world import disagreements, load
+from traceq_eval.citations import PageTexts
+from traceq_eval.oracle import perfect
+from traceq_eval.score import score
 
-PW001 = Path(__file__).parents[1] / "world" / "pw001.yaml"
+ROOT = Path(__file__).parents[1]
+PW001 = ROOT / "world" / "pw001.yaml"
+KEY = ROOT / "answer_key" / "PW-001"
 
 
 @pytest.fixture(scope="module")
@@ -140,3 +145,28 @@ def test_units_use_one_canonical_symbol(eq: Equipment) -> None:
     """The scorer compares units after NFKC and casefold only (decisions, Variation)."""
     units = [r.spec.unit for r in eq.requirements if isinstance(r.spec, RangeSpec)]
     assert not [u for u in units if "uS" in u or "ppb" in u or "\N{GREEK SMALL LETTER MU}" in u]
+
+
+def test_committed_key_is_current(key: dict[str, list[dict[str, Any]]], corpus: Corpus) -> None:
+    """Regenerate with: uv run python -m traceq_dataset.answer_key world/pw001.yaml
+
+    File names and row counts only: a diff would print held-out values."""
+    committed = {p.name for p in KEY.glob("*.yaml")}
+    assert committed == set(FILES), f"{len(committed)} files, expected {len(FILES)}"
+    stale = [
+        name
+        for name, data in key.items()
+        if (KEY / name).read_text(encoding="utf-8") != dump(name, data, corpus)
+    ]
+    assert stale == [], "stale: " + ", ".join(
+        f"{name} ({len(key[name])} rows derived)" for name in stale
+    )
+
+
+def test_perfect_submission_passes_every_gate(corpus: Corpus) -> None:
+    """The oracle answers the committed key; gate names only on failure."""
+    committed = load_key(KEY)
+    report = score(perfect(committed, "PW-001"), committed, PageTexts(corpus))
+    gates = {name: g for name, g in report["gates"].items() if name != "passed"}
+    assert [name for name, g in gates.items() if not g["passed"]] == []
+    assert report["gates"]["passed"]

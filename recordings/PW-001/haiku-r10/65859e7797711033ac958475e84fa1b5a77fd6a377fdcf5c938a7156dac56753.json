@@ -1,0 +1,54 @@
+{
+  "doc_sha256": "e03b3e04014eebab759407d654294007f3a55fdc179399ca5b39e854af639ab9",
+  "key": "65859e7797711033ac958475e84fa1b5a77fd6a377fdcf5c938a7156dac56753",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "segment",
+  "prompt_hash": "0752fef1f3358d02220034af60b388a3871945f3bff09a779c85523b7f47e6a0",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "requirements": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "quote": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "requirements"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a User Requirements Specification (URS) for pharmaceutical equipment. List every requirement on the page, numbered or not. A URS may number its requirements, or state them in prose or in tables without numbers: then each sentence that states one requirement, or each table row that states one, is one requirement; a sentence that states two is two.\n- id: the requirement number exactly as printed; null when the page prints none for it. Never invent a number.\n- text: the requirement sentence or table row exactly as printed.\n- quote: a verbatim excerpt of the page, at most 200 characters, that contains the requirement sentence or table row and nothing of the next requirement. Copy characters exactly; never paraphrase or translate.\nSkip headings, introductions, revision history and approval blocks. If the page has no requirement, return an empty list.\nExample (invented). Page text:\n4 Cleaning\nThe mixer bowl drains completely. Seals are replaceable without tools.\nNoise | at most 75 dB(A)\nAnswer: the requirements 'The mixer bowl drains completely.', 'Seals are replaceable without tools.' and 'Noise | at most 75 dB(A)', each with id null and the same text as quote.",
+    "user": "Document URS-PW001, revision 0, page 1.\n\n<page>\nSpesifikasi Kebutuhan Pengguna (SKP)\nNomor dokumen URS-PW001\nRevisi 0\nTanggal berlaku 24/09/2025\nPeralatan PW-001 – Purified water generation and distribution system\nTujuan\nDokumen ini menetapkan kebutuhan pengguna untuk PW-001. Kebutuhan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\n2. Air baku\nNo. Persyaratan Kritis\n2.1 Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\n3. Kinerja dan mutu air\nNo. Persyaratan Kritis\n3.1.1 Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam. Tidak\n3.1.2 Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L. Tidak\n3.1.3 Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃. Tidak\n3.1.4 Konduktivitas permeat RO tidak lebih dari 20 µS/cm. Tidak\n3.2.1 Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\n3.2.2 Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\n3.2.3 Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L. Ya\n3.2.4 Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL. Ya\n4. Material dan konstruksi\nNo. Persyaratan Kritis\n4.1.1 Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS 316L. Ya\n4.2.2 Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase. Tidak\n4.2.3 Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan. Tidak\n4.2.4 Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm. Tidak\n4.3.1 Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm. Ya\n4.3.2 Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³. Tidak\n4.3.3 Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\n4.4.1 Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan. Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak). Tidak\n4.5.1 Semua komponen diberi label identitas dan arah aliran ditandai pada pipa. Tidak\n</page>"
+  },
+  "response": {
+    "input_tokens": 1993,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 3070,
+    "text": "{\"requirements\":[{\"id\":\"2.1\",\"text\":\"Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\",\"quote\":\"2.1 Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\"},{\"id\":\"3.1.1\",\"text\":\"Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam. Tidak\",\"quote\":\"3.1.1 Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam. Tidak\"},{\"id\":\"3.1.2\",\"text\":\"Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L. Tidak\",\"quote\":\"3.1.2 Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L. Tidak\"},{\"id\":\"3.1.3\",\"text\":\"Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃. Tidak\",\"quote\":\"3.1.3 Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃. Tidak\"},{\"id\":\"3.1.4\",\"text\":\"Konduktivitas permeat RO tidak lebih dari 20 µS/cm. Tidak\",\"quote\":\"3.1.4 Konduktivitas permeat RO tidak lebih dari 20 µS/cm. Tidak\"},{\"id\":\"3.2.1\",\"text\":\"Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\",\"quote\":\"3.2.1 Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\"},{\"id\":\"3.2.2\",\"text\":\"Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\",\"quote\":\"3.2.2 Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\"},{\"id\":\"3.2.3\",\"text\":\"Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L. Ya\",\"quote\":\"3.2.3 Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L. Ya\"},{\"id\":\"3.2.4\",\"text\":\"Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL. Ya\",\"quote\":\"3.2.4 Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL. Ya\"},{\"id\":\"4.1.1\",\"text\":\"Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS 316L. Ya\",\"quote\":\"4.1.1 Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS 316L. Ya\"},{\"id\":\"4.2.2\",\"text\":\"Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase. Tidak\",\"quote\":\"4.2.2 Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase. Tidak\"},{\"id\":\"4.2.3\",\"text\":\"Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan. Tidak\",\"quote\":\"4.2.3 Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan. Tidak\"},{\"id\":\"4.2.4\",\"text\":\"Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm. Tidak\",\"quote\":\"4.2.4 Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm. Tidak\"},{\"id\":\"4.3.1\",\"text\":\"Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm. Ya\",\"quote\":\"4.3.1 Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm. Ya\"},{\"id\":\"4.3.2\",\"text\":\"Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³. Tidak\",\"quote\":\"4.3.2 Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³. Tidak\"},{\"id\":\"4.3.3\",\"text\":\"Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\",\"quote\":\"4.3.3 Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\"},{\"id\":\"4.4.1\",\"text\":\"Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan.\",\"quote\":\"4.4.1 Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan.\"},{\"id\":\"4.4.1\",\"text\":\"Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak).\",\"quote\":\"Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak). Tidak\"},{\"id\":\"4.5.1\",\"text\":\"Semua komponen diberi label identitas dan arah aliran ditandai pada pipa. Tidak\",\"quote\":\"4.5.1 Semua komponen diberi label identitas dan arah aliran ditandai pada pipa. Tidak\"}]}"
+  }
+}

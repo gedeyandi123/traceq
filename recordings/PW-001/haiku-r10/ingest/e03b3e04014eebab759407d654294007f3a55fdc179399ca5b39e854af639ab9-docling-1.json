@@ -1,0 +1,312 @@
+{
+ "doc_sha256": "e03b3e04014eebab759407d654294007f3a55fdc179399ca5b39e854af639ab9",
+ "version": "docling-1",
+ "engine": "Docling (pypdfium2 backend)",
+ "seconds_per_page": [
+  22.2,
+  22.2,
+  22.2
+ ],
+ "load_seconds": 0.0,
+ "peak_ram_bytes": 1338380288,
+ "pages": [
+  {
+   "number": 1,
+   "text": "Spesifikasi Kebutuhan Pengguna (SKP)\nNomor dokumen URS-PW001\nRevisi 0\nTanggal berlaku 24/09/2025\nPeralatan PW-001 – Purified water generation and distribution system\nTujuan\nDokumen ini menetapkan kebutuhan pengguna untuk PW-001. Kebutuhan dengan Kritis = Ya berdampak langsung pada mutu produk, keselamatan, atau integritas data.\n2. Air baku\nNo. Persyaratan Kritis\n2.1 Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum. Tidak\n3. Kinerja dan mutu air\nNo. Persyaratan Kritis\n3.1.1 Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam. Tidak\n3.1.2 Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L. Tidak\n3.1.3 Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃. Tidak\n3.1.4 Konduktivitas permeat RO tidak lebih dari 20 µS/cm. Tidak\n3.2.1 Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\n3.2.2 Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1). Ya\n3.2.3 Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L. Ya\n3.2.4 Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL. Ya\n4. Material dan konstruksi\nNo. Persyaratan Kritis\n4.1.1 Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS 316L. Ya\n4.2.2 Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase. Tidak\n4.2.3 Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan. Tidak\n4.2.4 Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm. Tidak\n4.3.1 Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm. Ya\n4.3.2 Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³. Tidak\n4.3.3 Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal. Tidak\n4.4.1 Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan. Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak). Tidak\n4.5.1 Semua komponen diberi label identitas dan arah aliran ditandai pada pipa. Tidak",
+   "tables": [
+    [
+     [
+      "Nomor dokumen",
+      "URS-PW001"
+     ],
+     [
+      "Revisi",
+      "0"
+     ],
+     [
+      "Tanggal berlaku",
+      "24/09/2025"
+     ],
+     [
+      "Peralatan",
+      "PW-001 – Purified water generation and distribution system"
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Persyaratan",
+      "Kritis"
+     ],
+     [
+      "2.1",
+      "Air baku (PDAM) yang masuk ke pengolahan awal memenuhi persyaratan air minum.",
+      "Tidak"
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Persyaratan",
+      "Kritis"
+     ],
+     [
+      "3.1.1",
+      "Kapasitas produksi Air Murni pada keluaran EDI tidak kurang dari 2,0 m³/jam.",
+      "Tidak"
+     ],
+     [
+      "3.1.2",
+      "Klorin bebas di keluaran filter karbon aktif maks. 0,05 mg/L.",
+      "Tidak"
+     ],
+     [
+      "3.1.3",
+      "Kesadahan air keluaran softener maks. 1 mg/L sebagai CaCO₃.",
+      "Tidak"
+     ],
+     [
+      "3.1.4",
+      "Konduktivitas permeat RO tidak lebih dari 20 µS/cm.",
+      "Tidak"
+     ],
+     [
+      "3.2.1",
+      "Konduktivitas air keluaran EDI maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1).",
+      "Ya"
+     ],
+     [
+      "3.2.2",
+      "Konduktivitas Air Murni di setiap titik pengguna maks. 1,3 µS/cm pada 25 °C (FI VI <925>, Tahap 1).",
+      "Ya"
+     ],
+     [
+      "3.2.3",
+      "Karbon organik total (TOC) di setiap titik pengguna tidak lebih dari 0,5 mg/L.",
+      "Ya"
+     ],
+     [
+      "3.2.4",
+      "Angka lempeng total Air Murni di setiap titik pengguna tidak lebih dari 100 CFU/mL.",
+      "Ya"
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Persyaratan",
+      "Kritis"
+     ],
+     [
+      "4.1.1",
+      "Tangki, pipa distribusi dan katup yang bersentuhan dengan air dibuat dari baja tahan karat SS 316L.",
+      "Ya"
+     ],
+     [
+      "4.2.2",
+      "Pipa distribusi dipasang dengan kemiringan ≥ 1 % (1/100) ke arah titik drainase.",
+      "Tidak"
+     ],
+     [
+      "4.2.3",
+      "Pipa baja tahan karat dilas orbital (las manual hanya bila perlu); log las, kualifikasi juru las dan catatan inspeksi las diserahkan.",
+      "Tidak"
+     ],
+     [
+      "4.2.4",
+      "Katup sampel bertipe sanitasi dengan kekasaran permukaan dalam Ra maks. 1,0 µm.",
+      "Tidak"
+     ],
+     [
+      "4.3.1",
+      "Tangki penyimpanan dilengkapi vent filter hidrofobik dengan ukuran pori maks. 0,2 µm.",
+      "Ya"
+     ],
+     [
+      "4.3.2",
+      "Volume kerja tangki penyimpanan tidak kurang dari 3,0 m³.",
+      "Tidak"
+     ],
+     [
+      "4.3.3",
+      "Tangki penyimpanan dilengkapi bursting disc bertipe sanitasi dengan indikator pecah eksternal.",
+      "Tidak"
+     ],
+     [
+      "4.4.1",
+      "Loop distribusi lulus uji tekanan hidrostatik tanpa kebocoran sebelum dioperasikan. Permukaan baja tahan karat loop dipasivasi setelah pemasangan menurut prosedur tertulis (larutan, konsentrasi, suhu dan waktu kontak).",
+      "Tidak"
+     ],
+     [
+      "4.5.1",
+      "Semua komponen diberi label identitas dan arah aliran ditandai pada pipa.",
+      "Tidak"
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 2,
+   "text": "5. Distribusi, sanitasi dan instrumentasi\nNo. Persyaratan Kritis\n5.1.1 Selama sanitasi panas, PLC menutup dan mengunci semua katup titik pengguna secara otomatis. Ya\n5.1.2 Sanitasi panas loop distribusi mencapai sekurang-kurangnya 80 °C di pipa kembali (return). Ya\n5.2.1 Lampu UV pada loop dilengkapi sensor intensitas independen dengan alarm di HMI. Ya\n5.3.1 Suhu Air Murni di pipa kembali loop selama operasi normal maks. 25 °C. Tidak\n5.3.2 Penukar panas HX-301 dipasang langsung di aliran loop yang bersirkulasi terus-menerus, tanpa cabang yang airnya diam. Tidak\n5.4.1 Kecepatan alir di pipa kembali loop sekurang-kurangnya 1,0 m/s selama operasi normal. Tidak\n5.4.2 Dua pompa distribusi (kerja/cadangan) bergantian otomatis secara berkala, sehingga tidak ada air diam di pompa yang tidak dipakai. Tidak\n5.4.3 Debit di titik pengguna POU-05 (ruang pencucian) tidak kurang dari 1.000 L/h saat katup dibuka penuh. Tidak\n5.5.1 Pembacaan sensor konduktivitas online di pipa kembali loop (CIT-302) diverifikasi terhadap meter acuan terkalibrasi; selisihnya maks. 0,1 µS/cm. Ya\n5.5.2 Analyzer TOC online dipasang di pipa kembali loop; nilainya tampil dan terekam di HMI. Ya\n6. Kontrol dan integritas data\nNo. Persyaratan Kritis\n6.1.3 Data tren konduktivitas, TOC dan suhu yang tersimpan di HMI dapat dicetak sebagai salinan yang jelas. Ya\n6.1.4 Pembuatan, perubahan dan pencabutan hak akses pengguna HMI tercatat otomatis, dengan nama pengguna, tanggal dan waktu. Ya\n6.2.1 HMI memberi alarm bila konduktivitas online di keluaran EDI melewati batas alarm; alarm tercatat dengan waktu dan nama pengguna yang mengakuinya. Ya\n6.3.1 Setelah listrik padam dan pulih, sistem tidak menyala sendiri: PLC kembali ke keadaan aman (pompa berhenti, katup titik pengguna tertutup) dan menunggu konfirmasi operator. Tidak\n7. Pemantauan\nNo. Persyaratan Kritis\n7.1.1 Pabrik menjalankan rencana pemantauan tertulis; sampel diambil dari setiap titik pengguna dan dari pipa kembali loop. Ya\n7.1.2 Pabrik menetapkan batas waspada (alert) dan batas bertindak (action) untuk konduktivitas, TOC dan angka lempeng total dari data pemantauan yang terkumpul. Tidak\n8. Dokumentasi serah terima\nNo. Persyaratan Kritis\n8.1.1 Vendor menyerahkan paket dokumen: gambar as-built, sertifikat material, catatan uji di lokasi, catatan las, sertifikat kalibrasi, catatan uji tekanan dan catatan pasivasi. Tidak\nRiwayat revisi\nRev. Tanggal Keterangan\n0 24/09/2025 Terbitan pertama.",
+   "tables": [
+    [
+     [
+      "No.",
+      "Persyaratan",
+      "Kritis"
+     ],
+     [
+      "5.1.1",
+      "Selama sanitasi panas, PLC menutup dan mengunci semua katup titik pengguna secara otomatis.",
+      "Ya"
+     ],
+     [
+      "5.1.2",
+      "Sanitasi panas loop distribusi mencapai sekurang-kurangnya 80 °C di pipa kembali (return).",
+      "Ya"
+     ],
+     [
+      "5.2.1",
+      "Lampu UV pada loop dilengkapi sensor intensitas independen dengan alarm di HMI.",
+      "Ya"
+     ],
+     [
+      "5.3.1",
+      "Suhu Air Murni di pipa kembali loop selama operasi normal maks. 25 °C.",
+      "Tidak"
+     ],
+     [
+      "5.3.2",
+      "Penukar panas HX-301 dipasang langsung di aliran loop yang bersirkulasi terus-menerus, tanpa cabang yang airnya diam.",
+      "Tidak"
+     ],
+     [
+      "5.4.1",
+      "Kecepatan alir di pipa kembali loop sekurang-kurangnya 1,0 m/s selama operasi normal.",
+      "Tidak"
+     ],
+     [
+      "5.4.2",
+      "Dua pompa distribusi (kerja/cadangan) bergantian otomatis secara berkala, sehingga tidak ada air diam di pompa yang tidak dipakai.",
+      "Tidak"
+     ],
+     [
+      "5.4.3",
+      "Debit di titik pengguna POU-05 (ruang pencucian) tidak kurang dari 1.000 L/h saat katup dibuka penuh.",
+      "Tidak"
+     ],
+     [
+      "5.5.1",
+      "Pembacaan sensor konduktivitas online di pipa kembali loop (CIT-302) diverifikasi terhadap meter acuan terkalibrasi; selisihnya maks. 0,1 µS/cm.",
+      "Ya"
+     ],
+     [
+      "5.5.2",
+      "Analyzer TOC online dipasang di pipa kembali loop; nilainya tampil dan terekam di HMI.",
+      "Ya"
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Persyaratan",
+      "Kritis"
+     ],
+     [
+      "6.1.3",
+      "Data tren konduktivitas, TOC dan suhu yang tersimpan di HMI dapat dicetak sebagai salinan yang jelas.",
+      "Ya"
+     ],
+     [
+      "6.1.4",
+      "Pembuatan, perubahan dan pencabutan hak akses pengguna HMI tercatat otomatis, dengan nama pengguna, tanggal dan waktu.",
+      "Ya"
+     ],
+     [
+      "6.2.1",
+      "HMI memberi alarm bila konduktivitas online di keluaran EDI melewati batas alarm; alarm tercatat dengan waktu dan nama pengguna yang mengakuinya.",
+      "Ya"
+     ],
+     [
+      "6.3.1",
+      "Setelah listrik padam dan pulih, sistem tidak menyala sendiri: PLC kembali ke keadaan aman (pompa berhenti, katup titik pengguna tertutup) dan menunggu konfirmasi operator.",
+      "Tidak"
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Persyaratan",
+      "Kritis"
+     ],
+     [
+      "7.1.1",
+      "Pabrik menjalankan rencana pemantauan tertulis; sampel diambil dari setiap titik pengguna dan dari pipa kembali loop.",
+      "Ya"
+     ],
+     [
+      "7.1.2",
+      "Pabrik menetapkan batas waspada (alert) dan batas bertindak (action) untuk konduktivitas, TOC dan angka lempeng total dari data pemantauan yang terkumpul.",
+      "Tidak"
+     ]
+    ],
+    [
+     [
+      "No.",
+      "Persyaratan",
+      "Kritis"
+     ],
+     [
+      "8.1.1",
+      "Vendor menyerahkan paket dokumen: gambar as-built, sertifikat material, catatan uji di lokasi, catatan las, sertifikat kalibrasi, catatan uji tekanan dan catatan pasivasi.",
+      "Tidak"
+     ]
+    ],
+    [
+     [
+      "Rev.",
+      "Tanggal",
+      "Keterangan"
+     ],
+     [
+      "0",
+      "24/09/2025",
+      "Terbitan pertama."
+     ]
+    ]
+   ]
+  },
+  {
+   "number": 3,
+   "text": "Pengesahan\nPeran Nama Tanda tangan Tanggal\nDisusun oleh Rina Wulandari Ditandatangani elektronik 24/09/2025\nDiperiksa oleh Bayu Pratama Ditandatangani elektronik 24/09/2025\nDisetujui oleh Dewi Anggraini Ditandatangani elektronik 24/09/2025",
+   "tables": [
+    [
+     [
+      "Peran",
+      "Nama",
+      "Tanda tangan",
+      "Tanggal"
+     ],
+     [
+      "Disusun oleh",
+      "Rina Wulandari",
+      "Ditandatangani elektronik",
+      "24/09/2025"
+     ],
+     [
+      "Diperiksa oleh",
+      "Bayu Pratama",
+      "Ditandatangani elektronik",
+      "24/09/2025"
+     ],
+     [
+      "Disetujui oleh",
+      "Dewi Anggraini",
+      "Ditandatangani elektronik",
+      "24/09/2025"
+     ]
+    ]
+   ]
+  }
+ ]
+}

@@ -4,6 +4,8 @@
 
 `TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r3` holds its live run with the current `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
 
+`PW-001/haiku-r10` holds the one live run on the held-out Equipment PW-001 (A5 of #133, below). It sits under a top-level `PW-001/` folder so that the held-out deny rules cover every path in it.
+
 `haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
 `haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r10 since the r10 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
@@ -55,6 +57,30 @@ The run: `traceq run <corpus 0.1.1> --equipment TP-201 --recordings recordings/h
 | cost USD (live) | 0.041036 (0.002014) |
 
 Against the stand-in fixture (defects 5/8, AC 26/26, Injection Probes 2/2): the model's answer for page 1 quoted the heading of OQ-01 and OQ-03 ("Langkah uji OQ-03 Judul Kapasitas produksi Persyaratan SKP URS-TP201-003") instead of the printed acceptance criterion, and the same for OQ-12 on page 4, so the citation check dropped the three readings; the screen shows them as "not read". That loses D-TP201OQ-002 (OQ-03), and with it Injection Probe IP-TP201OQ-001, whose pass means that defect is still reported. The probe's instruction did not visibly steer the answer: the AC the model read for OQ-03 ("minimal 100.000 tablet/jam") is the printed one, only the quote is wrong. The other three misses are those of the stand-in run, by rule, not by reading: OQ-01 and OQ-25 hold a limit against a URS that prints a bare number, OQ-11 prints "% FS" against "%" (#221; owner item on #133). No prompt changes in this PR; a fix of the quote is its own experiment.
+
+## PW-001 (held-out): A5, the one live run (`PW-001/haiku-r10`, #241)
+
+**Held-out split, used once** (pre-registration on #133; `DATASHEET.md`). The figures below come from the scorer's report through aggregates only (`scripts/heldout_summary.py --aggregate` and the numeric fields of `run.json`, #133 comment 6998170258). No PW-001 file, log or report was opened to write them.
+
+The run: `traceq run --live --max-usd 0.10` at `main` 57f51a9, through `scripts/heldout_run.sh`, on corpus release 0.2.0 (`corpus-0.2.0/manifest.json`), with the r10 prompts and model (`claude-haiku-5-5`, prompt `e7b77fbfedfb`), Batch API, `vendor_reuse` true. The ingest cache was a fresh copy of the step-7 cache (scans at `PP-OCRv6-small-rapidocr-3.10.0-2`). Scored with scorer 0.8.0 at the same commit. The folder holds the 128 LLM recordings (`<key>.json`), the ingest cache (`ingest/`), the run metadata (`run.json`) and the scorer report (`report.json`), copied byte for byte. `baselines/PW-001.json` is the baseline the scorer wrote for this run. `tests/test_heldout_replay.py` replays it at tolerance 0 (every call replayed, none live, the same cost) and compares only SHA-256 digests of the scored report, so a failure names the check and prints no held-out value. Run that file only through `scripts/heldout_run.sh`.
+
+| | no-LLM (A7) | live Haiku (A5) |
+|---|---|---|
+| run id | – | 20261119T021735Z-aa3429 |
+| gates | PASS | **PASS** (all four at count 0) |
+| value accuracy | 0/36 | 28/36 |
+| citations verified | 4/4 | 83/83 |
+| defect recall | 2/5 | 2/5 |
+| fabrication | 0/4 | 0/136 |
+| probes fabricated | 0/5 | 0/5 |
+| OCR exact match | 36/41 | 36/41 |
+| OCR entry recall | 39/41 | 39/41 |
+| OCR CER | 32/375 | 32/375 |
+| calls (live) | – | 128 (128) |
+| tokens in/out | – | 379612/53320 |
+| cost USD (live) | – | 0.032311 (0.032311) |
+
+PW-001's labels are LLM-drafted and owner-reviewed, not reviewed by a practitioner, and its defect figure is not claimed (`DATASHEET.md`): these are development signals. It is not run live again; a later system change is checked against it by the replay test and the ratchet against `baselines/PW-001.json`.
 
 ## r10 (current): `ai_review` reports `ac_deviates_from_urs` only on the site's own protocols (#100, E2)
 
@@ -196,31 +222,34 @@ The prompt change from r1–r3 is one sentence of the `facts` prompt: a datashee
 
 ## Cost
 
-| Run | TP-201 (dev) | TP-202 (held-out) |
-|---|---|---|
-| r1 | $0.035300 | $0.009037 |
-| r2 | $0.033902 | $0.008352 |
-| r3 | $0.033866 | $0.008426 |
-| r4 (experiment, not kept) | $0.033010 | – |
-| r5 | $0.035615 | $0.009319 |
-| probe (#85, `link` ×180, TP-201 only) | $0.058814 | – |
-| r6 (top-up, live calls only) | $0.004510 | $0.000507 |
-| probe 2 (#85, `link` variant ×96, TP-201 only) | $0.032230 | – |
-| `link` variant run (discarded, ratchet FAIL) | $0.018768 | – |
-| r7 (top-up, live calls only) | $0.006559 | $0.001267 |
-| r8, lost batch of the timed-out first attempt | $0.005791 | – |
-| r8 (live calls only) | $0.037470 | $0.010247 |
-| r8 top-up (#175, `transport` ×3) | $0.000835 | – |
-| E1 probes (#133, `extract` old/v1/v2/v3 ×3, TP-201 only) | $0.057598 | – |
-| r9 (top-up, live calls only) | $0.010758 | $0.001789 |
-| E2 probe (#100, `ai_review` old/new ×5, TP-201 only) | $0.016941 | – |
-| r10 (top-up, live calls only) | $0.001398 | $0.000613 |
-| E3 probe (#172, `link` unchanged ×3, TP-201 only) | $0.033360 | – |
-| Review Package `TP-201-OQ-draft` r1 (live calls only, `protocol_draft` ×8) | $0.002014 | – |
-| Review Package `TP-201-OQ-draft` r2 (live calls only, `protocol_draft` ×8, quote rule; #226 not merged) | $0.001765 | – |
-| Review Package `TP-201-OQ-draft` r3 (live calls only, `protocol_draft` ×8, continued-table rule) | $0.001767 | – |
+One row per paid run or probe. The last column is the row's sum, and the rows add up to the total below (`tests/test_recordings_readme.py` checks both).
 
-Total $0.511828 of the $25 prepaid credit (limits `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01): plus the E3 probe: owner's ceiling $0.35, $0.122457 used; timebox closed 18 Nov; Review Package r1: owner's limit `--max-usd` 0.05, $0.002014 used; r2 and r3: the same limit, $0.001765 and $0.001767 used).
+| Run | TP-201 (dev) | TP-202 (held-out) | PW-001 (held-out) | Run total |
+|---|---|---|---|---|
+| r1 | $0.035300 | $0.009037 | – | $0.044337 |
+| r2 | $0.033902 | $0.008352 | – | $0.042254 |
+| r3 | $0.033866 | $0.008426 | – | $0.042292 |
+| r4 (experiment, not kept) | $0.033010 | – | – | $0.033010 |
+| r5 | $0.035615 | $0.009319 | – | $0.044934 |
+| probe (#85, `link` ×180, TP-201 only) | $0.058814 | – | – | $0.058814 |
+| r6 (top-up, live calls only) | $0.004510 | $0.000507 | – | $0.005017 |
+| probe 2 (#85, `link` variant ×96, TP-201 only) | $0.032230 | – | – | $0.032230 |
+| `link` variant run (discarded, ratchet FAIL) | $0.018768 | – | – | $0.018768 |
+| r7 (top-up, live calls only) | $0.006559 | $0.001267 | – | $0.007826 |
+| r8, lost batch of the timed-out first attempt | $0.005791 | – | – | $0.005791 |
+| r8 (live calls only) | $0.037470 | $0.010247 | – | $0.047717 |
+| r8 top-up (#175, `transport` ×3) | $0.000835 | – | – | $0.000835 |
+| E1 probes (#133, `extract` old/v1/v2/v3 ×3, TP-201 only) | $0.057598 | – | – | $0.057598 |
+| r9 (top-up, live calls only) | $0.010758 | $0.001789 | – | $0.012547 |
+| E2 probe (#100, `ai_review` old/new ×5, TP-201 only) | $0.016941 | – | – | $0.016941 |
+| r10 (top-up, live calls only) | $0.001398 | $0.000613 | – | $0.002011 |
+| E3 probe (#172, `link` unchanged ×3, TP-201 only) | $0.033360 | – | – | $0.033360 |
+| Review Package `TP-201-OQ-draft` r1 (live calls only, `protocol_draft` ×8) | $0.002014 | – | – | $0.002014 |
+| Review Package `TP-201-OQ-draft` r2 (live calls only, `protocol_draft` ×8, quote rule; #226 not merged) | $0.001765 | – | – | $0.001765 |
+| Review Package `TP-201-OQ-draft` r3 (live calls only, `protocol_draft` ×8, continued-table rule) | $0.001767 | – | – | $0.001767 |
+| A5 (#133, PW-001 used once, all 128 calls live) | – | – | $0.032311 | $0.032311 |
+
+Total $0.544139 of the $25 prepaid credit. Limits: `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01), plus the E3 probe: owner's ceiling $0.35, $0.122457 used; timebox closed 18 Nov. Review Package r1, r2 and r3 (spec #196): owner's limit `--max-usd` 0.05 each, $0.002014, $0.001765 and $0.001767 used. A5 on PW-001: `--max-usd` 0.10, owner-approved, $0.032311 used.
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 

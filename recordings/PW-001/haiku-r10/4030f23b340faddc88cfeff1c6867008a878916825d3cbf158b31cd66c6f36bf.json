@@ -1,0 +1,196 @@
+{
+  "doc_sha256": "33946fd8e55b18e78499a22c1fa92f05024daefe74d09906933ccc7bc19ec25a",
+  "key": "4030f23b340faddc88cfeff1c6867008a878916825d3cbf158b31cd66c6f36bf",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "record",
+  "prompt_hash": "6ce13f73300d68c716dde38522b5c26b1f13eae5bf7b88e6ace8584e7386878f",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "calculations": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "inputs": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "operation": {
+                "enum": [
+                  "mean",
+                  "sum",
+                  "difference",
+                  "min",
+                  "max",
+                  "range"
+                ],
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "operation",
+              "inputs",
+              "result",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "deviations": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "steps": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "id",
+              "steps",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "instruments": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "valid_until": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "valid_until",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "signatures": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "role": {
+                "enum": [
+                  "prepared",
+                  "checked",
+                  "approved",
+                  "executed",
+                  "witnessed",
+                  "other"
+                ],
+                "type": "string"
+              },
+              "role_printed": {
+                "type": "string"
+              },
+              "signed": {
+                "type": "boolean"
+              },
+              "site": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "role_printed",
+              "role",
+              "site",
+              "name",
+              "signed",
+              "date",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "step_instruments": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "instruments": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "instruments",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "signatures",
+        "instruments",
+        "step_instruments",
+        "deviations",
+        "calculations"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a qualification record for pharmaceutical equipment: a vendor FAT or SAT protocol and report, or a calibration certificate. Report only what the page prints; leave a field empty (\"\") when the page leaves it blank.\nsignatures: every row of a signature block (preparation, check, approval, execution, witness), also a row whose name, signature or date is blank. role_printed: the role label exactly as printed; role: prepared, checked, approved, executed, witnessed or other; site: true when the person signs for the customer site rather than the vendor; name, date: as printed; signed: true when a signature (also an electronic one) is recorded.\ninstruments: every measuring instrument whose calibration validity the page prints: id as printed, valid_until: the calibration due or expiry date exactly as printed.\nstep_instruments: for each test step that names the instruments it used: step number and instrument ids as printed.\ndeviations: every deviation recorded on the page: its id as printed and the step numbers it concerns. A section that says no deviation was recorded has none.\ncalculations: every result the page computes from other printed numbers (mean, sum, difference, min, max, range): step number, operation, the inputs and the stated result exactly as printed.\nquote: a verbatim excerpt of the page, at most 200 characters, holding what the item states. Copy characters exactly; never paraphrase or translate.\nReturn empty lists when the page has none.",
+    "user": "Document PKN-26-0105, revision 0, page 1.\n\n<page>\nPT Presisi Kalibrasi Nusantara PKN-26-0105· Rev. 0· Page 1 of 1\nCalibration Certificate\nCertificate no. PKN-26-0105\nCustomer PT Arunika Farma Lestari\nInstrument Online TOC analyser\nAsset ID TIT-302\nSerial no. TOC-8D-20915\nDate of calibration 22-Apr-2026\nValid until 22-Apr-2027\nDate of issue 24-Apr-2026\nMethod\nComparison with the laboratory's reference standard at the points below.\nResults\nNominal (mg/L) Reading (mg/L) Error (mg/L) U, k = 2 (mg/L)\n0.25 0.248 -0.002 ± 0.01\n0.5 0.505 +0.005 ± 0.02\nThe expanded uncertainty U is the standard uncertainty multiplied by a coverage factor k = 2. The results relate only to the\ninstrument calibrated.\nRole Name Signature PT PRESISI KALIBRASINUSANTARA\nCalibrated by Andika Saputra Saputra CALIBRATED\nApproved by Nur Aini Rahmawati Rahmawati 24-APR-2026\n</page>"
+  },
+  "response": {
+    "input_tokens": 2093,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 299,
+    "text": "{\"signatures\":[{\"role_printed\":\"Calibrated by\",\"role\":\"prepared\",\"site\":false,\"name\":\"Andika Saputra\",\"signed\":true,\"date\":\"\",\"quote\":\"Calibrated by Andika Saputra Saputra CALIBRATED\"},{\"role_printed\":\"Approved by\",\"role\":\"approved\",\"site\":false,\"name\":\"Nur Aini Rahmawati\",\"signed\":true,\"date\":\"24-APR-2026\",\"quote\":\"Approved by Nur Aini Rahmawati Rahmawati 24-APR-2026\"}],\"instruments\":[{\"id\":\"TIT-302\",\"valid_until\":\"22-Apr-2027\",\"quote\":\"Asset ID TIT-302 Serial no. TOC-8D-20915 Date of calibration 22-Apr-2026 Valid until 22-Apr-2027\"}],\"step_instruments\":[],\"deviations\":[],\"calculations\":[]}"
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "doc_sha256": "e003dc5beab29b082ae1e63dd363a993dac69397e3687a69941bea13fd9e0d7c",
+  "key": "5c7cd17ce367ae880cab8881c331fb9ed10dfd172745aafba99876a4a4a5de6d",
+  "model": "claude-haiku-5-5",
+  "pipeline_version": "0.3.0",
+  "prompt": "record",
+  "prompt_hash": "6ce13f73300d68c716dde38522b5c26b1f13eae5bf7b88e6ace8584e7386878f",
+  "request": {
+    "max_tokens": 16000,
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "calculations": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "inputs": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "operation": {
+                "enum": [
+                  "mean",
+                  "sum",
+                  "difference",
+                  "min",
+                  "max",
+                  "range"
+                ],
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "operation",
+              "inputs",
+              "result",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "deviations": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "steps": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "id",
+              "steps",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "instruments": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "valid_until": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "valid_until",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "signatures": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "role": {
+                "enum": [
+                  "prepared",
+                  "checked",
+                  "approved",
+                  "executed",
+                  "witnessed",
+                  "other"
+                ],
+                "type": "string"
+              },
+              "role_printed": {
+                "type": "string"
+              },
+              "signed": {
+                "type": "boolean"
+              },
+              "site": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "role_printed",
+              "role",
+              "site",
+              "name",
+              "signed",
+              "date",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "step_instruments": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "instruments": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "step": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "instruments",
+              "quote"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "signatures",
+        "instruments",
+        "step_instruments",
+        "deviations",
+        "calculations"
+      ],
+      "type": "object"
+    },
+    "system": "You read one page of a qualification record for pharmaceutical equipment: a vendor FAT or SAT protocol and report, or a calibration certificate. Report only what the page prints; leave a field empty (\"\") when the page leaves it blank.\nsignatures: every row of a signature block (preparation, check, approval, execution, witness), also a row whose name, signature or date is blank. role_printed: the role label exactly as printed; role: prepared, checked, approved, executed, witnessed or other; site: true when the person signs for the customer site rather than the vendor; name, date: as printed; signed: true when a signature (also an electronic one) is recorded.\ninstruments: every measuring instrument whose calibration validity the page prints: id as printed, valid_until: the calibration due or expiry date exactly as printed.\nstep_instruments: for each test step that names the instruments it used: step number and instrument ids as printed.\ndeviations: every deviation recorded on the page: its id as printed and the step numbers it concerns. A section that says no deviation was recorded has none.\ncalculations: every result the page computes from other printed numbers (mean, sum, difference, min, max, range): step number, operation, the inputs and the stated result exactly as printed.\nquote: a verbatim excerpt of the page, at most 200 characters, holding what the item states. Copy characters exactly; never paraphrase or translate.\nReturn empty lists when the page has none.",
+    "user": "Document SAT-PW001, revision 0, page 1.\n\n<page>\nPT Tirta Sarana Rekayasa SAT-PW001 · Rev. 0 · Page 1 of 2\nSite Acceptance Test – Protocol and Report\nUji Penerimaan di Lokasi (SAT)\nDocument no. / No. dokumen SAT-PW001\nRevision / Revisi 0\nIssue date 02-May-2026\nEquipment / Peralatan Serial no. / No. seri PW-001 – Purified water generation and distribution system TSR-PW-25-0093\nManufacturer PT Tirta Sarana Rekayasa\nThis document defines and records the site acceptance tests of the purified water generation and distribution system after 1. Purpose / Tujuan\ndelivery and installation at the customer's site.\n2. Approval before execution / Persetujuan sebelum pelaksanaan\nRole / Peran Name / Nama Company Signature / Paraf Date / Tanggal\nPrepared by Teguh Prasetyo PT Tirta Sarana Rekayasa Prasetyo 02/05/2026\nChecked by Bayu Pratama Customer (site) Pratama 07/05/2026\nApproved by Dewi Anggraini Customer (site) Anggraini 07/05/2026\n3. Test instruments / Alat ukur\nID Instrument Serial no. Calibration cert. Cal. due / Berlaku s.d.\nCO-AN-Os Reference conductivity meter RCM-41877 PKN-25-0388 12/05/2026\n4. Test results / Hasil uji\nResults are entered by hand at site. Pass/Fail is recorded against the acceptance criterion.\nStep Test Acceptance criterion Instr. Result / Hasil P/F\nSAT-01 Product flow at EDI outlet with site feed water; read the product flow meter. NLT 2 m³/h 2,05 m³/h Lulus\nSAT-02 Distribution loop slope check. ≥ 1% 1,2% Lulus\nSAT-03 Loop return temperature, normal operation. Not more than 25℃ Lulus\nSAT-04 Softener outlet hardness. ≤ 1 mg/L 3,5 mg/l Gagal\nSAT-05 Run distribution pump P-301A at duty; record velocity at loop return (FIT-301). At least 1 m/s 1,4 m/s Lulus\nSAT-06 Hydrostatic pressure test of distribution loop. Present and functional Ada dan berfungsi Lulus\n</page>"
+  },
+  "response": {
+    "input_tokens": 2520,
+    "model": "claude-haiku-5-5",
+    "output_tokens": 1157,
+    "text": "{\"signatures\":[{\"role_printed\":\"Prepared by\",\"role\":\"prepared\",\"site\":false,\"name\":\"Teguh Prasetyo\",\"signed\":true,\"date\":\"02/05/2026\",\"quote\":\"Prepared by Teguh Prasetyo PT Tirta Sarana Rekayasa Prasetyo 02/05/2026\"},{\"role_printed\":\"Checked by\",\"role\":\"checked\",\"site\":true,\"name\":\"Bayu Pratama\",\"signed\":true,\"date\":\"07/05/2026\",\"quote\":\"Checked by Bayu Pratama Customer (site) Pratama 07/05/2026\"},{\"role_printed\":\"Approved by\",\"role\":\"approved\",\"site\":true,\"name\":\"Dewi Anggraini\",\"signed\":true,\"date\":\"07/05/2026\",\"quote\":\"Approved by Dewi Anggraini Customer (site) Anggraini 07/05/2026\"}],\"instruments\":[{\"id\":\"CO-AN-Os\",\"valid_until\":\"12/05/2026\",\"quote\":\"CO-AN-Os Reference conductivity meter RCM-41877 PKN-25-0388 12/05/2026\"}],\"step_instruments\":[{\"step\":\"SAT-05\",\"instruments\":[\"FIT-301\"],\"quote\":\"record velocity at loop return (FIT-301)\"}],\"deviations\":[],\"calculations\":[]}"
+  }
+}

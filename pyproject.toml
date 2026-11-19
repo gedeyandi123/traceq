@@ -1,6 +1,6 @@
 [project]
 name = "traceq-dataset"
-version = "0.1.1"
+version = "0.2.0"
 description = "Synthetic qualification dataset for TraceQ: world data schema, answer key, renderer."
 readme = "README.md"
 license = "Apache-2.0"
@@ -79,7 +79,7 @@ filterwarnings = [
 include = ["src", "scripts", "tests"]
 pythonVersion = "3.13"
 typeCheckingMode = "standard"
-strict = ["src/traceq"]
+strict = ["src/traceq", "scripts/heldout_summary.py"]
 
 [tool.ruff]
 target-version = "py313"
