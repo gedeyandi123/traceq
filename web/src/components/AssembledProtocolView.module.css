@@ -1,0 +1,111 @@
+/* The Protocol assembled in TraceQ (spec #247, ticket #249). Tokens only (ADR 0011). */
+.section {
+  margin-top: var(--space-6);
+}
+.status {
+  margin-bottom: var(--space-4);
+}
+.statusRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+.statusTitle {
+  margin: 0;
+}
+.badge {
+  font-weight: 600;
+}
+.status_draft {
+  color: var(--color-warn);
+}
+.status_submitted,
+.status_approved {
+  color: var(--color-pass);
+}
+.status_withdrawn {
+  color: var(--color-text-3);
+}
+.history {
+  margin-top: var(--space-2);
+}
+.historyTitle {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.history ol {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+.reason {
+  color: var(--color-text-2);
+  white-space: pre-wrap;
+}
+.form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-3);
+}
+.muted {
+  color: var(--color-text-3);
+}
+.summary {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+.failure {
+  color: var(--color-fail);
+  font-weight: 600;
+}
+.blocking {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+.blockingRow > th {
+  box-shadow: inset 3px 0 0 var(--color-warn);
+}
+.text {
+  margin: var(--space-1) 0;
+  font-weight: 400;
+}
+.kind {
+  display: block;
+}
+.list {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.step {
+  margin: var(--space-1) 0 0;
+}
+.step dt {
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+.step dd {
+  margin: 0 0 var(--space-1);
+}
+.stepOrigin {
+  font-weight: 600;
+}
+.drafts {
+  min-width: 18rem;
+}
+.draft + .draft {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.limits {
+  margin-top: var(--space-6);
+  color: var(--color-text-2);
+}
+.limitsTitle {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.limits ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}

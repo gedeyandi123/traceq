@@ -534,6 +534,149 @@
           }
         }
       }
+    },
+    "/runs/{run_id}/protocol": {
+      "post": {
+        "summary": "Start Protocol",
+        "description": "Starts the Protocol of the run's Equipment from this imported run, in Draft status,\nwith its Audit Trail entry. Refused (409) while a Protocol of the Equipment is open\n(Draft or Submitted), once one is approved, and for a run whose folder has\n``drafts.json`` but which holds no drafted Test Step Proposals. Needs the deciding\nrole.",
+        "operationId": "startProtocol",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Protocol",
+        "description": "The Protocol most recently started from this run: its status and every status\nchange, and in Draft status its rows computed from the current decisions. Any\nsigned-in role may read it.",
+        "operationId": "getProtocol",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/withdraw": {
+      "post": {
+        "summary": "Withdraw Protocol",
+        "description": "Withdraws a Protocol in Draft status, with a reason and its Audit Trail entry, so\na new Protocol of the Equipment can be started. Needs the deciding role.",
+        "operationId": "withdrawProtocol",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Withdrawal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -630,6 +773,13 @@
         ],
         "title": "AmbiguousValue",
         "description": "An observation that reads two ways: ask for confirmation, never guess."
+      },
+      "Blocker": {
+        "type": "string",
+        "enum": [
+          "coverage_undecided",
+          "no_test_step"
+        ]
       },
       "CheckFinding": {
         "properties": {
@@ -1416,6 +1566,169 @@
         "title": "DraftTraced",
         "description": "A Test Step's AC compared with one requirement the traceability table traces it to."
       },
+      "DraftedTestStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "requirement_text": {
+            "type": "string",
+            "title": "Requirement Text"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "covered_by_vendor",
+                  "partial",
+                  "site_only",
+                  "gap",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage"
+          },
+          "saved_by_reuse": {
+            "type": "boolean",
+            "title": "Saved By Reuse"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Range"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OneOf"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Present"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "number": "#/components/schemas/Number",
+                    "one_of": "#/components/schemas/OneOf",
+                    "present": "#/components/schemas/Present",
+                    "range": "#/components/schemas/Range",
+                    "text": "#/components/schemas/Text"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance"
+          },
+          "acceptance_citation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptance_flag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance Flag"
+          },
+          "layer": {
+            "type": "string",
+            "const": "ai",
+            "title": "Layer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "created": {
+            "type": "string",
+            "title": "Created"
+          },
+          "reviewer_action": {
+            "type": "string",
+            "const": "pending",
+            "title": "Reviewer Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "requirement",
+          "requirement_text",
+          "coverage",
+          "saved_by_reuse",
+          "description",
+          "method",
+          "instrument",
+          "acceptance",
+          "acceptance_citation",
+          "acceptance_flag",
+          "layer",
+          "source",
+          "model",
+          "prompt",
+          "created",
+          "reviewer_action"
+        ],
+        "title": "DraftedTestStep",
+        "description": "An IQ/OQ Test Step the run drafted for a requirement, an AI Finding a human decides\n(written by ``traceq.runs.drafts``). Not a Test Step of a site Protocol Draft\n(``DraftTestStep``). The AC is present only when copied from a verified citation;\notherwise ``acceptance_flag`` says why it is \"to be set by a human\"."
+      },
       "DroppedClaim": {
         "properties": {
           "claim": {
@@ -1440,6 +1753,16 @@
         ],
         "title": "DroppedClaim",
         "description": "A claim the citation check dropped, with its reason in plain text."
+      },
+      "EventKind": {
+        "type": "string",
+        "enum": [
+          "started",
+          "submitted",
+          "approved",
+          "returned",
+          "withdrawn"
+        ]
       },
       "EvidenceStep": {
         "properties": {
@@ -2312,6 +2635,200 @@
         "title": "ProtocolDraftView",
         "description": "The Protocol Draft of a Review Package run: its Test Steps in draft order, its\ntraceability rows and its findings, each with its decision state."
       },
+      "ProtocolEvent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "event",
+          "status",
+          "reason",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "ProtocolEvent",
+        "description": "A status change of a Protocol: what, who, when and why."
+      },
+      "ProtocolRowView": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Cite"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Proposal"
+          },
+          "decided_class": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "covered_by_vendor",
+                  "partial",
+                  "site_only",
+                  "gap",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided Class"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RowKind"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceStep"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RowTestStep"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/RowDraft"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/Blocker"
+            },
+            "type": "array",
+            "title": "Blockers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement",
+          "text",
+          "source",
+          "coverage",
+          "decided_class",
+          "kind",
+          "evidence",
+          "test_step",
+          "drafts",
+          "blockers"
+        ],
+        "title": "ProtocolRowView",
+        "description": "One requirement of the run and what the Protocol holds for it."
+      },
+      "ProtocolView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ProtocolEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProtocolRowView"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "equipment",
+          "run_id",
+          "status",
+          "events",
+          "rows"
+        ],
+        "title": "ProtocolView",
+        "description": "A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not\na Protocol Draft: that is the site's document under Pre-review."
+      },
       "Range": {
         "properties": {
           "type": {
@@ -2395,6 +2912,132 @@
         ],
         "title": "RequiredDocument",
         "description": "A document the VMP requires for the Equipment, with the annex row cited."
+      },
+      "RowDraft": {
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/DraftedTestStep"
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/Proposal"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "draft",
+          "proposal"
+        ],
+        "title": "RowDraft",
+        "description": "A drafted Test Step of the row's requirement, as the run drafted it, and the Proposal it\nwas imported as, decided with ``recordDecision`` (accepted or rejected)."
+      },
+      "RowKind": {
+        "type": "string",
+        "enum": [
+          "undecided",
+          "vendor_reference",
+          "test_step"
+        ]
+      },
+      "RowTestStep": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "const": "accepted_draft",
+            "title": "Origin",
+            "default": "accepted_draft"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Range"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OneOf"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Present"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "number": "#/components/schemas/Number",
+                    "one_of": "#/components/schemas/OneOf",
+                    "present": "#/components/schemas/Present",
+                    "range": "#/components/schemas/Range",
+                    "text": "#/components/schemas/Text"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance"
+          },
+          "acceptance_flag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance Flag"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proposal_id",
+          "description",
+          "method",
+          "instrument",
+          "acceptance",
+          "acceptance_flag"
+        ],
+        "title": "RowTestStep",
+        "description": "The one Test Step of a Test Step row."
       },
       "RunPackage": {
         "properties": {
@@ -2532,6 +3175,15 @@
           "decided",
           "changed",
           "undecided"
+        ]
+      },
+      "Status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "submitted",
+          "approved",
+          "withdrawn"
         ]
       },
       "Text": {
@@ -2761,6 +3413,20 @@
           "rejected",
           "edited"
         ]
+      },
+      "Withdrawal": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "Withdrawal"
       }
     },
     "securitySchemes": {

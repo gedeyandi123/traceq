@@ -1,4 +1,4 @@
-// The run header of the four run screens (spec #135, ticket #138).
+// The run header of the run screens (spec #135, ticket #138; the Protocol tab, spec #247).
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -31,12 +31,14 @@ test.each<[RunTab, string]>([
   ["findings", "Temuan pra-tinjauan"],
   ["leftOut", "Yang tidak dimasukkan"],
   ["eval", "Hasil evaluasi"],
-])("on the %s screen, four tabs link to the run's screens and only %s is current", (current, name) => {
+  ["protocol", "Protokol (disusun di TraceQ)"],
+])("on the %s screen, five tabs link to the run's screens and only %s is current", (current, name) => {
   renderHeader(current);
   const tabs = within(screen.getByRole("navigation", { name: "Layar run" })).getAllByRole("link");
   expect(tabs.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
     ["Matriks", base],
     ["Temuan pra-tinjauan", `${base}/findings`],
+    ["Protokol (disusun di TraceQ)", `${base}/protocol`],
     ["Yang tidak dimasukkan", `${base}/left-out`],
     ["Hasil evaluasi", `${base}/eval`],
   ]);
@@ -81,6 +83,7 @@ test("a Review Package run gets a tab to its Protocol Draft after the findings, 
     ["Matriks", base],
     ["Temuan pra-tinjauan", `${base}/findings`],
     ["Draf protokol", `${base}/draft`],
+    ["Protokol (disusun di TraceQ)", `${base}/protocol`],
     ["Yang tidak dimasukkan", `${base}/left-out`],
     ["Hasil evaluasi", `${base}/eval`],
   ]);

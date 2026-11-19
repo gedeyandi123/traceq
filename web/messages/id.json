@@ -13,6 +13,7 @@
     "run": "Run",
     "matrix": "Matriks",
     "findings": "Temuan pra-tinjauan",
+    "protocol": "Protokol (disusun di TraceQ)",
     "leftOut": "Yang tidak dimasukkan",
     "eval": "Hasil evaluasi",
     "draft": "Draf protokol"
@@ -316,5 +317,84 @@
     "signedOutBody": "Draf, temuan dan keputusannya dibaca dengan token: masuk dengan identitas demo mana pun.",
     "unavailable": "Draf protokol tidak dapat dimuat",
     "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
+  },
+  "protocol": {
+    "title": "Protokol (disusun di TraceQ)",
+    "intro": "Protokol IQ/OQ peralatan ini yang disusun di TraceQ dari keputusan manusia atas run ini: satu baris per persyaratan. Bukan draf protokol lokasi yang ditinjau di layar Draf protokol.",
+    "limitsTitle": "Batas yang diketahui",
+    "limits": {
+      "oneStep": "Satu langkah uji per persyaratan.",
+      "combined": "IQ dan OQ digabung dalam satu protokol.",
+      "noPrint": "Tidak ada protokol cetak atau ekspor.",
+      "notSignature": "Persetujuan adalah status yang dicatat, bukan Tanda Tangan Elektronik.",
+      "noNewVersion": "Belum ada versi baru setelah protokol disetujui (langkah 6)."
+    },
+    "none": "Belum ada protokol yang dimulai dari run ini",
+    "noneBody": "Orang dengan peran pengambil keputusan memulai protokol peralatan dari run yang sudah diimpor. Satu protokol per peralatan boleh terbuka sekaligus.",
+    "start": "Mulai protokol dari run ini",
+    "startAgain": "Mulai protokol baru dari run ini",
+    "status": "Status protokol {id}",
+    "statuses": {
+      "draft": "Draft (sedang disusun)",
+      "submitted": "Diajukan",
+      "approved": "Disetujui",
+      "withdrawn": "Ditarik"
+    },
+    "history": "Riwayat status",
+    "events": {
+      "started": "Dimulai oleh {name}, {when}",
+      "submitted": "Diajukan oleh {name}, {when}",
+      "approved": "Disetujui oleh {name}, {when}",
+      "returned": "Dikembalikan ke Draft oleh {name}, {when}",
+      "withdrawn": "Ditarik oleh {name}, {when}"
+    },
+    "startedFrom": "Dimulai dari run {run}",
+    "withdraw": "Tarik protokol",
+    "withdrawReason": "Alasan penarikan",
+    "withdrawnNote": "Protokol ini ditarik. Protokol baru untuk peralatan ini dapat dimulai.",
+    "rows": "Baris protokol",
+    "rowsNote": "Dihitung dari keputusan saat ini selama protokol berstatus Draft. Baris referensi vendor tidak diuji ulang di lokasi.",
+    "notDraftRows": "Baris hanya dihitung selama protokol berstatus Draft.",
+    "summary": "{rows} baris: {blocking} masih memblokir, {vendor} referensi vendor, {testStep} baris langkah uji",
+    "requirement": "Persyaratan",
+    "coverage": "Cakupan (keputusan manusia)",
+    "content": "Isi protokol",
+    "drafts": "Langkah uji rancangan TraceQ",
+    "kinds": {
+      "undecided": "Belum dapat ditentukan",
+      "vendor_reference": "Referensi vendor",
+      "test_step": "Langkah uji"
+    },
+    "blockers": {
+      "coverage_undecided": "Memblokir: cakupan belum diputuskan atas isi run ini",
+      "no_test_step": "Memblokir: belum ada langkah uji; terima langkah uji rancangan"
+    },
+    "coverageUndecided": "Belum diputuskan",
+    "coverageChanged": "Berubah sejak diputuskan",
+    "toMatrix": "Putuskan di matriks",
+    "vendorEvidence": "Dibuktikan oleh bukti vendor, tidak diuji ulang di lokasi:",
+    "evidenceStep": "{doc} rev {rev}, langkah {step}",
+    "fromDraft": "Langkah uji rancangan yang diterima",
+    "description": "Deskripsi",
+    "method": "Metode",
+    "instrument": "Instrumen",
+    "noInstrument": "tidak disebut",
+    "ac": "Kriteria penerimaan",
+    "acToSet": "Ditetapkan oleh manusia: {flag}",
+    "noDrafts": "Tidak ada langkah uji rancangan",
+    "vendorDraftNote": "Tidak perlu diputuskan; menerimanya menguji ulang persyaratan ini di lokasi.",
+    "signedOut": "Masuk untuk melihat protokol",
+    "signedOutBody": "Protokol dan keputusannya dibaca dengan token: masuk dengan identitas demo mana pun.",
+    "notImported": "Run ini belum diimpor ke basis data",
+    "notImportedBody": "Protokol disusun dari usulan run yang sudah diimpor. Impor run (perintah demo) terlebih dahulu.",
+    "unavailable": "Protokol tidak dapat dimuat",
+    "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data.",
+    "errors": {
+      "conflict": "Ditolak API: protokol lain untuk peralatan ini masih terbuka atau sudah disetujui, protokol ini bukan lagi Draft, atau run ini diimpor sebelum langkah uji rancangan menjadi usulan.",
+      "refused": "Ditolak API: alasan wajib diisi.",
+      "forbidden": "Ditolak API: identitas ini tidak memiliki peran pengambil keputusan.",
+      "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",
+      "failed": "Tidak tersimpan. Coba lagi."
+    }
   }
 }
