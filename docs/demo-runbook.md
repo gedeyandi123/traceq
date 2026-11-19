@@ -42,7 +42,7 @@ Jalankan dari root repo, masing-masing di terminal sendiri:
    Penilaian sengaja tidak masuk `demo.py`: sistem tidak boleh membaca answer key (`tests/test_isolation.py`), dan penilaian adalah tugas harness.
 3. **UI:** `cd web && npm start`, lalu buka http://localhost:3000.
 
-**Cek siap (2 menit):** http://127.0.0.1:9000/demo/personas menampilkan 3 persona. Di `/`, daftar "Run analisis" berisi satu run TP-201 dengan mode "Putar ulang". Matriks menampilkan 38 baris dan baris "0/38 usulan sudah diputuskan"; buka "Jumlah keputusan" untuk melihat "Belum diputuskan 38".
+**Cek siap (2 menit):** http://127.0.0.1:9000/demo/personas menampilkan 4 persona (Ayu, Bima, Citra, Dewi). Di `/`, daftar "Run analisis" berisi satu run TP-201 dengan mode "Putar ulang". Matriks menampilkan 38 baris dan baris "0/38 usulan sudah diputuskan"; buka "Jumlah keputusan" untuk melihat "Belum diputuskan 38".
 
 ## 4. Alur demo end to end (urutan cerita)
 
@@ -166,3 +166,34 @@ Run-nya menjadi run Review Package: Pre-review peralatan diputar ulang dari r10 
 | K25 | Pembaca | Keluar → masuk sebagai Citra → tab "Draf protokol" | Keputusan Ayu terlihat; tidak ada tombol Terima/Tolak atau lipatan "Tolak…"/"Putuskan ulang"; "Hanya membaca: …" | ✅ (18 Nov) |
 | K26 | Lebar layar | Ulangi K21 pada 1920 px dan pada jendela sempit (di bawah 1199 px dan sekitar 768 px) | Ringkasan dan "Jumlah keputusan" bertumpuk di bawah 1199 px; tabel bergulir ke samping di dalam bingkainya, halaman tidak | ✅ (18 dan 19 Nov: 1920 berdampingan; 1100 dan 768 bertumpuk; pada 768 tabel 918 px bergulir di bingkainya, lebar halaman tetap; diukur dengan iframe same-origin) |
 | K27 | Pembanding per dokumen vendor | Pada K21, lihat kolom "Pembanding" baris OQ-05 | OQ-05: datasheet DS-TP201 dengan "Maximum pre-compression force", FAT-TP201-C dan FAT-TP201-M "tidak ada", SAT-TP201 dengan SAT-02 dan link ke PDF SAT; setiap baris yang terbaca menyebut keempat dokumen itu, masing-masing dengan faktanya atau "tidak ada" | ✅ (19 Nov, baris OQ-03 rekaman tiruan); ✅ diulang 19 Nov dengan rekaman live r1: OQ-05 seperti yang diharapkan, link SAT menyajikan application/pdf; 23 baris terbaca semuanya menyebut keempat dokumen; ⏳ belum diulang di browser dengan r3 |
+
+## 11. Protokol yang disusun di TraceQ (langkah 5a, spec #247)
+
+Layar "Protokol (disusun di TraceQ)" (`/runs/<id>/protocol`, tab di header run, terpisah dari tab "Draf protokol" milik site) menyusun protokol IQ/OQ peralatan dari keputusan manusia atas run: satu baris per persyaratan, memakai langkah uji rancangan TraceQ yang diterima atau disunting, atau langkah uji yang ditulis orang (ADR 0012). Persona keempat, **Dewi Anggraini Lestari** (`dewi`), hanya memegang peran menyetujui; Ayu dan Bima memutuskan, Citra membaca. Tidak ada persona yang memegang kedua peran.
+
+**Menyalakan.** Sama dengan bagian 3 (run TP-201 r10 biasa; tab Protokol tidak butuh paket). Cek siap: `/demo/personas` menampilkan 4 persona dan halaman masuk menawarkan "Masuk sebagai Dewi Anggraini Lestari".
+
+**Gladi mulai dari database yang direset.** Protokol yang sudah Disetujui menghalangi protokol baru untuk peralatan yang sama (ADR 0012), jadi setiap gladi dimulai dari `demo.py` yang baru dijalankan (bagian 7: reset, lalu Keluar dan Masuk lagi). Pengajuan penuh pada run TP-201 berarti memutuskan **38 kelas Cakupan**, **31 rancangan langkah uji** (7 persyaratan `covered_by_vendor` menjadi baris "Referensi vendor" dan tidak perlu rancangan diputuskan) dan menetapkan **21 kriteria penerimaan** (19 rancangan tanpa kriteria penerimaan dan 2 dengan teks bebas). Itu lama untuk demo hidup: lakukan sebagian di depan peserta (K29 sampai K31) dan selesaikan sisanya sebelum sesi.
+
+**Batas yang harus diketahui presenter:**
+
+- Penolakan persetujuan oleh Penyusun di demo adalah **penolakan berdasarkan peran**: Ayu dan Bima tidak memegang peran menyetujui, dan tidak ada persona yang memegang keduanya. Aturan "Penyusun tidak boleh menyetujui" dan "penulis isi salinan tidak boleh menyetujui" hanya ditunjukkan oleh tes, bukan di layar.
+- Run demo TP-201 punya **0 dari 38 nomor yang terlewat**, jadi bagian "Nomor persyaratan tercetak yang terlewat" kosong dan formulir jawabannya tidak bisa ditunjukkan. Jawaban atas nomor terlewat hanya ditunjukkan oleh tes.
+- Persetujuan adalah status yang dicatat atas salinan beku dan hash, bukan Tanda Tangan Elektronik (ADR 0007 fase 2). Satu langkah uji per persyaratan, IQ dan OQ digabung, tidak ada cetak atau ekspor, tidak ada versi baru setelah disetujui (langkah 6). Panel "Batas yang diketahui" di layar menulis ini.
+- Protokol dibaca dengan token: tanpa masuk, layar meminta masuk.
+
+| ID | Kasus | Langkah | Hasil yang diharapkan | Hasil |
+|---|---|---|---|---|
+| K28 | Memulai protokol | Masuk sebagai Ayu → tab "Protokol (disusun di TraceQ)" → "Mulai protokol dari run ini" | Status "Draft (sedang disusun)"; riwayat "Dimulai oleh Ayu Kartika Sari, …"; daftar "Yang memblokir pengajuan" berisi jumlah di atas nol; "Baris protokol" menulis "38 baris: …" | Belum |
+| K29 | Memutuskan rancangan | Pada satu baris: "Putuskan di matriks" dan terima cakupannya; kembali ke layar protokol; terima rancangannya | Pemblokir "Cakupan belum diputuskan" dan "Langkah uji rancangan belum diputuskan" berkurang satu; baris menampilkan "Langkah uji rancangan yang diterima" | Belum |
+| K30 | Menetapkan kriteria penerimaan yang hilang dengan menyunting | Pada baris rancangan tanpa kriteria penerimaan: "Sunting rancangan dan tetapkan kriteria penerimaan" → "Bentuk": "Rentang (satu atau dua batas, dengan satuan)" → isi batas dan satuan, "Alasan perubahan" → "Simpan suntingan" | Baris menjadi "Langkah uji rancangan yang disunting, versi 1"; "Riwayat versi (1)"; pemblokir "Kriteria penerimaan belum ada atau berupa teks bebas" berkurang satu | Belum |
+| K31 | Menulis satu langkah uji | Pada baris tanpa rancangan yang diterima (tolak rancangannya dulu bila perlu): "Tulis langkah uji" → deskripsi, metode, instrumen, bentuk kriteria penerimaan dengan nilainya → "Simpan versi" | "Langkah uji tertulis, versi 1"; pemblokir "Baris langkah uji tanpa langkah uji" berkurang satu. Bila rancangan baris itu sudah diterima: "Langkah uji rancangan persyaratan ini diterima. Tolak atau putuskan ulang dulu sebelum menulis langkah uji." | Belum |
+| K32 | Pengajuan | Setelah semua jumlah nol ("Tidak ada yang memblokir: protokol dapat diajukan."): "Ajukan protokol" | Status "Diajukan"; "Salinan beku yang diajukan" dengan Penyusun Ayu dan hash SHA-256; baris tidak lagi dihitung dari keputusan | Belum |
+| K33 | Persetujuan ditolak untuk Penyusun | Masih sebagai Ayu, buka protokol yang Diajukan | Tidak ada tombol "Setujui protokol" (peran menyetujui tidak dipegang); lewat API jawabannya 403 "identitas ini tidak memiliki peran yang diperlukan". Ditolak karena peran, bukan karena Ayu Penyusun (lihat batas di atas) | Belum |
+| K34 | Pengembalian | Keluar, masuk sebagai Dewi → isi "Alasan pengembalian" → "Kembalikan ke Draft" (tanpa alasan: ditahan browser) | Status "Draft (sedang disusun)"; riwayat "Dikembalikan ke Draft oleh Dewi Anggraini Lestari, …"; salinan lama tampil di "Salinan yang diajukan sebelumnya" | Belum |
+| K35 | Pengajuan ulang | Keluar, masuk sebagai Bima (atau Ayu); ubah satu baris (misalnya sunting kriteria penerimaan satu baris) → "Ajukan protokol" | Status "Diajukan"; hash berbeda dari salinan sebelumnya; Penyusun adalah yang mengajukan ulang | Belum |
+| K36 | Persetujuan oleh persona keempat | Keluar, masuk sebagai Dewi → "Setujui protokol" | Status "Disetujui"; riwayat "Disetujui oleh Dewi Anggraini Lestari, …"; catatan "Disetujui: status yang dicatat atas salinan beku dan hash di bawah, bukan Tanda Tangan Elektronik (ADR 0007 fase 2)"; mulai protokol baru ditolak API sampai database direset | Belum |
+| K37 | Pembaca | Keluar, masuk sebagai Citra → tab Protokol | Semua terlihat; tidak ada tombol mulai, keputusan, sunting, tulis, ajukan, setujui atau kembalikan | Belum |
+| K38 | Tanpa masuk | Keluar, buka `/runs/<id>/protocol` | "Masuk untuk melihat protokol"; tidak ada baris | Belum |
+
+Kolom "Hasil" diisi oleh sesi utama setelah kasus dijalankan di browser pada stack yang dibangun dari cabang integrasi (bukan demo r10 yang berjalan).
