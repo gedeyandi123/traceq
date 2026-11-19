@@ -53,14 +53,16 @@ function Made({ t, classes, d }: { t: T; classes: ClassT; d: Decision }) {
   );
 }
 
-/** The read-only line (what is needed to decide) and the outcome of a refused decision. */
-export function DecisionNotice({ view }: { view: DecisionView }) {
+/** The read-only line (what is needed to decide) and the outcome of a refused decision. With
+ * `approver`, an identity without the deciding role is told what it can do instead (the
+ * Protocol screen, where the approving role approves or returns a Submitted Protocol). */
+export function DecisionNotice({ view, approver = false }: { view: DecisionView; approver?: boolean }) {
   const t = useTranslations("decisions");
   if (view.access.mode !== "readOnly" && !view.error) return null;
   return (
     <div className={s.notices}>
       {view.access.mode === "readOnly" && (
-        <p className={s.readOnly}>{t(`readOnly.${view.access.why}`)}</p>
+        <p className={s.readOnly}>{t(`readOnly.${approver && view.access.why === "noRole" ? "approver" : view.access.why}`)}</p>
       )}
       {view.error && (
         <p role="alert" className={s.failure}>
