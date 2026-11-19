@@ -108,6 +108,20 @@ def test_prompt_examples_are_invented(equipment: str, prompt: Prompt) -> None:
     assert not found, f"{equipment} {prompt.name}: {len(found)} copied"
 
 
+NO_LLM = SRC / "traceq" / "runs" / "no_llm.py"
+
+
+@pytest.mark.parametrize("equipment", ["TP-201", "TP-202"])
+def test_no_llm_rules_are_invented(equipment: str) -> None:
+    """The No-LLM Baseline's rules hold no Equipment tag, requirement id or requirement text
+    of the development or the held-out Equipment (#193)."""
+    source = NO_LLM.read_text(encoding="utf-8")
+    ids = [r["id"] for r in load_key(SRC.parent / "answer_key" / equipment)["requirements.yaml"]]
+    assert copied(source, equipment) == []
+    assert [i for i in ids if i in source] == []
+    assert equipment.replace("-", "") not in source
+
+
 def test_copy_guard_catches_a_requirement() -> None:
     first = load_key(SRC.parent / "answer_key" / "TP-202")["requirements.yaml"][0]["text"]
     assert copied(f"Example: {first}", "TP-202") == [norm(first)]

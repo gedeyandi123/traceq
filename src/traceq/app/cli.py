@@ -3,7 +3,8 @@
 Usage::
 
     traceq run CORPUS_DIR [--equipment TAG] [--out runs] [--recordings recordings]
-        [--model claude-haiku-5-5] [--live] [--max-usd 1] [--no-vendor-reuse]
+        [--model claude-haiku-5-5] [--llm cloud|no-llm] [--live] [--max-usd 1]
+        [--no-vendor-reuse]
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
         [--issuer URL --database URL [--audience traceq] [--role-claim roles]]
     traceq demo-issuer [--port 9000] [--audience traceq] [--role-claim roles]
@@ -13,6 +14,11 @@ With ``--live``, calls not yet recorded go to Mode Cloud through the Batch API a
 recorded; the run refuses before sending when their estimated cost would pass
 ``--max-usd``. Exit code 0 on success, 2 when a recording is missing, the budget refuses,
 a scan is neither cached nor readable (OCR model not installed) or the corpus is unusable.
+
+``--llm no-llm`` runs the No-LLM Baseline (#193) instead of the model: every prompt is
+answered by rules over the request text, from the ingest cache in ``--recordings``, with no
+LLM call and no recording. Its model is ``no-llm-v1``; it cannot be combined with ``--live``
+(exit code 2). The demo and ``traceq serve`` never use it.
 
 ``--no-vendor-reuse`` drafts a Test Step for every requirement, also those the vendor
 covered, for the "could be saved by reuse" framing. Eval runs keep the default
@@ -49,6 +55,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=Path("runs"))
     p.add_argument("--recordings", type=Path, default=Path("recordings"))
     p.add_argument("--model", default=DEFAULT_MODEL)
+    p.add_argument(
+        "--llm",
+        choices=("cloud", "no-llm"),
+        default="cloud",
+        help="cloud: the model, replayed or live; no-llm: the No-LLM Baseline, rules only",
+    )
     p.add_argument("--live", action="store_true", help="send unrecorded calls to the API")
     p.add_argument("--max-usd", type=float, default=1.0)
     p.add_argument(
@@ -107,6 +119,16 @@ def main(argv: list[str] | None = None) -> int:
 
     from traceq.runs.run import run
 
+    model = args.model
+    answers = None
+    if args.llm == "no-llm":
+        if args.live:
+            print("traceq run: --llm no-llm makes no LLM calls; drop --live", file=sys.stderr)
+            return 2
+        from traceq.runs.no_llm import NoLLM
+
+        answers = NoLLM()
+        model = answers.model
     live = None
     if args.live:
         from traceq.ai.cloud import CloudLLM
@@ -117,11 +139,12 @@ def main(argv: list[str] | None = None) -> int:
             args.corpus,
             args.out,
             args.recordings,
-            args.model,
+            model,
             equipment=args.equipment,
             live=live,
             max_usd=args.max_usd,
             vendor_reuse=args.vendor_reuse,
+            answers=answers,
         )
     except (
         MissingRecording,

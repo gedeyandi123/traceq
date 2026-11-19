@@ -17,6 +17,10 @@ call, so a run that cannot read one fails before it spends. A live run sends
 only calls that are not yet recorded, and refuses before sending when their estimate would
 pass ``max_usd``.
 
+``answers``: an adapter that answers without a model (the No-LLM Baseline, #193). Its
+answers are neither recorded nor replayed, and the run counts no LLM calls; it cannot be
+combined with ``live``.
+
 ``vendor_reuse`` (default true) decides whether a ``covered_by_vendor`` requirement also
 gets a drafted Test Step. Eval runs keep it true: scorer criterion 1 counts a step for a
 ``covered_by_vendor`` requirement as a failure (spec #29, "Vendor reuse framing").
@@ -81,6 +85,22 @@ class _Timed:
             self.seconds += self._clock() - start
 
 
+class _Asked:
+    """An adapter that answers without a model, keeping the requests it was asked."""
+
+    def __init__(self, inner: LLM) -> None:
+        self._inner = inner
+        self.requests: list[Request] = []
+
+    @property
+    def model(self) -> str:
+        return self._inner.model
+
+    def complete(self, requests: Sequence[Request]) -> list[Response]:
+        self.requests += requests
+        return self._inner.complete(requests)
+
+
 def _write_json(path: Path, data: Any) -> None:
     text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
     path.write_text(text, encoding="utf-8", newline="\n")
@@ -99,9 +119,12 @@ def run(
     now: dt.datetime | None = None,
     vendor_reuse: bool = True,
     clock: Clock = time.perf_counter,
+    answers: LLM | None = None,
 ) -> RunOutput:
     """``now``: the start time the run id and ``created`` carry. ``clock``: what the run's
     duration is measured with."""
+    if answers is not None and (live is not None or answers.model != model):
+        raise ValueError("an adapter that answers without a model runs alone, under its own name")
     start = clock()
     prices = prices or PriceTable.load()
     now = now or dt.datetime.now(dt.UTC)
@@ -110,7 +133,9 @@ def run(
     scans = [(d, corpus.read(d)) for d in corpus.documents if d.format == "scan"]
     budget = Budget(max_usd, prices) if live is not None else None
     timed = _Timed(live, clock) if live is not None else None
-    llm = Recorder(recordings, model, PIPELINE_VERSION, live=timed, budget=budget)
+    recorder = Recorder(recordings, model, PIPELINE_VERSION, live=timed, budget=budget)
+    asked = _Asked(answers) if answers is not None else None
+    llm: LLM = asked or recorder
 
     traced = trace(corpus, llm)
     reviewed = review(corpus, llm, traced)
@@ -125,12 +150,14 @@ def run(
     )
     submission = build(corpus.equipment, system, traced, reviewed, drafted, scans)
 
-    responses = [c.response for c in llm.calls]
+    calls = recorder.calls
+    responses = [c.response for c in calls]
     try:
         cost: float | None = round(prices.response_cost_usd(responses), 6)
     except KeyError:
         cost = None
-    read = {c.request.doc_sha256 for c in llm.calls} | {d.sha256 for d, _ in corpus.ingested()}
+    requests = asked.requests if asked is not None else [c.request for c in calls]
+    read = {r.doc_sha256 for r in requests} | {d.sha256 for d, _ in corpus.ingested()}
     metadata: dict[str, Any] = {
         "run_id": run_id,
         "created": now.isoformat(),
@@ -149,9 +176,9 @@ def run(
             ],
         },
         "calls": {
-            "total": len(llm.calls),
-            "replayed": sum(c.replayed for c in llm.calls),
-            "live": sum(not c.replayed for c in llm.calls),
+            "total": len(calls),
+            "replayed": sum(c.replayed for c in calls),
+            "live": sum(not c.replayed for c in calls),
         },
         "tokens": {
             "input": sum(r.input_tokens for r in responses),
