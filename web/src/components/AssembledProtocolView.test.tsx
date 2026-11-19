@@ -6,10 +6,10 @@ import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import messages from "../../messages/id.json";
-import { AssembledProtocolView, type ProtocolControls, type ProtocolError } from "./AssembledProtocolView";
+import { type ApprovalControls, AssembledProtocolView, type ProtocolControls, type ProtocolError } from "./AssembledProtocolView";
 import type { DecisionView } from "./Decisions";
 import { decision, RUN_ID } from "./decisions.fixture";
-import { protocolView, ready, rows, submitted, withdrawn } from "./protocol.fixture";
+import { approved, protocolView, ready, returned, rows, submitted, withdrawn } from "./protocol.fixture";
 import type { ProtocolView } from "@/api/client";
 
 const action = async () => {};
@@ -345,4 +345,62 @@ test("a run without a completeness check says so and has nothing to answer", () 
 test("a refused start is reported", () => {
   renderPage(null, decider, "conflict");
   expect(screen.getByRole("alert").textContent).toMatch(/protokol lain untuk peralatan ini masih terbuka/);
+});
+
+// --- Approving and returning (ticket #253) ------------------------------------------------
+
+const approvalControls: ApprovalControls = { approve: action, return: action };
+
+function renderForApprover(protocol: ProtocolView) {
+  return render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <AssembledProtocolView
+        protocol={protocol}
+        runId={RUN_ID}
+        decisions={reader}
+        controls={null}
+        approval={approvalControls}
+      />
+    </NextIntlClientProvider>,
+  );
+}
+
+test("the approving role approves the submission shown, bound to its event id and hash, or returns it", () => {
+  const { container } = renderForApprover(submitted);
+  expect(screen.getByText(/bukan Tanda Tangan Elektronik \(ADR 0007 fase 2\)/)).toBeDefined();
+  const approve = screen.getByRole("button", { name: "Setujui protokol" });
+  const form = approve.closest("form") as HTMLFormElement;
+  expect((form.elements.namedItem("submission_event_id") as HTMLInputElement).value).toBe("12");
+  expect((form.elements.namedItem("hash") as HTMLInputElement).value).toBe("a".repeat(64));
+  expect(screen.getByRole("textbox", { name: "Alasan pengembalian" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Kembalikan ke Draft" })).toBeDefined();
+  expect(container.querySelector("textarea[name=reason][required]")).not.toBeNull();
+});
+
+test("the deciding role and a reader get no approve or return control", () => {
+  const { unmount } = renderPage(submitted, decider);
+  expect(screen.queryByRole("button", { name: "Setujui protokol" })).toBeNull();
+  unmount();
+  renderPage(submitted, reader);
+  expect(screen.queryByRole("button", { name: "Kembalikan ke Draft" })).toBeNull();
+});
+
+test("an approved Protocol shows the approval as a recorded status and no controls", () => {
+  renderForApprover(approved);
+  expect(screen.getByText("Disetujui")).toBeDefined();
+  expect(screen.getByText("Disetujui oleh Dewi Anggraini Lestari, 19/11/2026 11.00 UTC")).toBeDefined();
+  expect(screen.getByText(/Disetujui: status yang dicatat .* bukan Tanda Tangan Elektronik/)).toBeDefined();
+  expect(screen.getByTestId("copy-hash").textContent).toBe("a".repeat(64));
+  expect(screen.queryByRole("button")).toBeNull();
+});
+
+test("a returned Protocol reads live again and lists its earlier copy with the reason", () => {
+  renderForApprover(returned);
+  expect(screen.getByText("Draft (sedang disusun)")).toBeDefined();
+  expect(screen.getByRole("region", { name: "Baris protokol" })).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Setujui protokol" })).toBeNull();
+  const earlier = within(screen.getByTestId("earlier-12"));
+  expect(earlier.getByText("a".repeat(64))).toBeDefined();
+  expect(earlier.getByText("Dikembalikan ke Draft oleh Dewi Anggraini Lestari, 19/11/2026 11.00 UTC")).toBeDefined();
+  expect(earlier.getByText("Takometer belum dikalibrasi.")).toBeDefined();
 });

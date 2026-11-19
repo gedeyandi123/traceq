@@ -270,6 +270,7 @@ export const ready: ChecklistItem[] = checklist.map((c) => ({ ...c, count: 0, re
 export const submissionView: SubmissionView = {
   event_id: 12,
   hash: "a".repeat(64),
+  outcome: null,
   at: "2026-11-19T10:00:00Z",
   frozen_copy: {
     protocol_id: 7,
@@ -383,4 +384,32 @@ export const withdrawn = protocolView({
   rows: null,
   urs: null,
   events: [event({}), event({ id: 2, event: "withdrawn", status: "withdrawn", reason: "run yang lebih baru", ...BIMA })],
+});
+
+export const DEWI = { subject: "demo-0004", issuer: AYU.issuer, name: "Dewi Anggraini Lestari" };
+
+/** Approved by the approving persona (ticket #253): the copy approved, and the approval. */
+export const approvedEvent = event({ id: 13, event: "approved", status: "approved", at: "2026-11-19T11:00:00Z", ...DEWI });
+export const approved = protocolView({
+  status: "approved",
+  rows: null,
+  urs: null,
+  checklist: null,
+  submission: { ...submissionView, outcome: approvedEvent },
+  submissions: [{ ...submissionView, outcome: approvedEvent }],
+  events: [...submitted.events, approvedEvent],
+});
+
+/** Returned to Draft (ticket #253): live rows again, the returned copy listed with its reason. */
+export const returnedEvent = event({
+  id: 13,
+  event: "returned",
+  status: "draft",
+  reason: "Takometer belum dikalibrasi.",
+  at: "2026-11-19T11:00:00Z",
+  ...DEWI,
+});
+export const returned = protocolView({
+  submissions: [{ ...submissionView, outcome: returnedEvent }],
+  events: [...submitted.events, returnedEvent],
 });

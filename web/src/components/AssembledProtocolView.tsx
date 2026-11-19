@@ -5,7 +5,7 @@ import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice } from "./Decisions";
 import type { DecisionAccess, DecisionView } from "./Decisions";
 import { formatWhen } from "./formatWhen";
-import { FrozenCopy } from "./FrozenCopy";
+import { EarlierCopies, FrozenCopy } from "./FrozenCopy";
 import { formatValue } from "./MatrixTable";
 import { MissedNumbers } from "./MissedNumbers";
 import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
@@ -30,6 +30,9 @@ export type ProtocolControls = {
   answer: Action;
   submit: Action;
 } | null;
+
+/** The approve and return actions, for a viewer with the approving role; `null` otherwise. */
+export type ApprovalControls = { approve: Action; return: Action } | null;
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
 type MatrixT = ReturnType<typeof useTranslations<"matrix">>;
@@ -83,16 +86,55 @@ function History({ t, events }: { t: T; events: readonly ProtocolEvent[] }) {
   );
 }
 
+/** Approve (bound to the submission shown: its event id and hash) and return with a reason,
+ * for the approving role while Submitted. */
+function ApprovalForms({
+  t,
+  protocol,
+  runId,
+  approval,
+}: {
+  t: T;
+  protocol: ProtocolView;
+  runId: string;
+  approval: ApprovalControls;
+}) {
+  const shown = protocol.submission;
+  if (protocol.status !== "submitted" || approval === null || shown === null) return null;
+  return (
+    <div className={s.form}>
+      <p>{t("approval.note")}</p>
+      <form action={approval.approve} className={s.form}>
+        <input type="hidden" name="run_id" value={runId} />
+        <input type="hidden" name="protocol_id" value={protocol.id} />
+        <input type="hidden" name="submission_event_id" value={shown.event_id} />
+        <input type="hidden" name="hash" value={shown.hash} />
+        <Button type="submit" variant="primary">
+          {t("approval.approve")}
+        </Button>
+      </form>
+      <form action={approval.return} className={s.form}>
+        <input type="hidden" name="run_id" value={runId} />
+        <input type="hidden" name="protocol_id" value={protocol.id} />
+        <textarea name="reason" required aria-label={t("approval.returnReason")} placeholder={t("approval.returnReason")} />
+        <button type="submit">{t("approval.return")}</button>
+      </form>
+    </div>
+  );
+}
+
 function Status({
   t,
   protocol,
   runId,
   controls,
+  approval,
 }: {
   t: T;
   protocol: ProtocolView;
   runId: string;
   controls: ProtocolControls;
+  approval: ApprovalControls;
 }) {
   return (
     <section className={s.status} aria-labelledby="protocol-status">
@@ -104,6 +146,8 @@ function Status({
       </div>
       <p className={s.muted}>{t("startedFrom", { run: protocol.run_id })}</p>
       <History t={t} events={protocol.events} />
+      {protocol.status === "approved" && <p>{t("approval.approvedNote")}</p>}
+      <ApprovalForms t={t} protocol={protocol} runId={runId} approval={approval} />
       {protocol.status === "draft" && controls !== null && (
         <form action={controls.withdraw} className={s.form}>
           <input type="hidden" name="run_id" value={runId} />
@@ -383,7 +427,9 @@ function Rows({
  * Acceptance Criterion shapes and every version of its written Test Step, then the printed
  * requirement numbers the run missed with their answer forms and the unquoted URS text; the
  * checklist of what blocks submission and the submit control. A Submitted or Approved
- * Protocol shows its frozen copy and hash instead of live rows.
+ * Protocol shows its frozen copy and hash instead of live rows; while Submitted the approving
+ * role approves it (a recorded status, not an Electronic Signature) or returns it with a
+ * reason, and a returned Protocol lists its earlier copies with the reasons.
  * Without a Protocol, the start control; the known limits always. A
  * viewer without the deciding role sees no controls. Never the site's Protocol Draft. */
 export function AssembledProtocolView({
@@ -391,12 +437,14 @@ export function AssembledProtocolView({
   runId,
   decisions,
   controls,
+  approval = null,
   error,
 }: {
   protocol: ProtocolView | null;
   runId: string;
   decisions: DecisionView;
   controls: ProtocolControls;
+  approval?: ApprovalControls;
   error?: ProtocolError;
 }) {
   const t = useTranslations("protocol");
@@ -416,7 +464,7 @@ export function AssembledProtocolView({
           <StartForm t={t} runId={runId} action={controls} again={false} />
         </EmptyState>
       ) : (
-        <Status t={t} protocol={protocol} runId={runId} controls={controls} />
+        <Status t={t} protocol={protocol} runId={runId} controls={controls} approval={approval} />
       )}
       {rows !== null && (
         <>
@@ -455,6 +503,7 @@ export function AssembledProtocolView({
             protocolId={protocol?.id ?? 0}
             answer={controls?.answer ?? null}
           />
+          {protocol && protocol.submissions.length > 0 && <EarlierCopies t={t} earlier={protocol.submissions} />}
         </>
       )}
       {protocol?.submission && (

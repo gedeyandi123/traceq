@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import type { Persona } from "@/auth/session";
-import { DECIDING_ROLE } from "@/decisions/vocabulary";
+import { APPROVING_ROLE, DECIDING_ROLE } from "@/decisions/vocabulary";
 
 import s from "./SignInView.module.css";
 import { Button, EmptyState } from "./ui/ui";
@@ -36,6 +36,8 @@ export function SignInView({
       <ul className={s.cards}>
         {personas?.map((p) => {
           const decides = p.roles.includes(DECIDING_ROLE);
+          const approves = p.roles.includes(APPROVING_ROLE);
+          const label = decides ? "canDecide" : approves ? "canApprove" : "readOnly";
           return (
             <li key={p.username} className={s.card}>
               <form action={action} className={s.persona}>
@@ -47,10 +49,10 @@ export function SignInView({
                   <span className={s.name}>{p.name}</span>
                   <span className={s.role}>
                     <span className="visually-hidden">{t("role")}: </span>
-                    <span className={decides ? s.decides : s.reads}>{decides ? t("canDecide") : t("readOnly")}</span>
+                    <span className={decides || approves ? s.decides : s.reads}>{t(label)}</span>
                   </span>
                 </span>
-                <Button type="submit" variant={decides ? "primary" : "soft"} className={s.button}>
+                <Button type="submit" variant={decides || approves ? "primary" : "soft"} className={s.button}>
                   {t("as", { name: p.name })}
                 </Button>
               </form>
