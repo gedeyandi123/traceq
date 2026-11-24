@@ -6,8 +6,6 @@ import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 import { formatWhen } from "./formatWhen";
 import { SubmitButton } from "./ui/SubmitButton";
 
-import s from "./Decisions.module.css";
-
 /** Why a run shows read-only: not signed in, signed in without the deciding role, the run is
  * not imported, or the API refused the token or has no database. */
 export type ReadOnlyReason = "signedOut" | "noRole" | "notImported" | "unavailable";
@@ -35,7 +33,6 @@ export type DecisionView = {
 /** The screen a decision form returns to. */
 export type DecisionScreen = "matrix" | "findings" | "draft" | "protocol";
 
-
 type T = ReturnType<typeof useTranslations<"decisions">>;
 type ClassT = ReturnType<typeof useTranslations<"matrix">>;
 
@@ -53,7 +50,9 @@ function Made({ t, classes, d }: { t: T; classes: ClassT; d: Decision }) {
   return (
     <>
       <span>{summary(t, classes, d)}</span>
-      {d.reason && <div className={s.reason}>{d.reason}</div>}
+      {d.reason && (
+        <div className="mt-1 border-l-2 border-border-strong pl-2 text-ink-muted">{d.reason}</div>
+      )}
     </>
   );
 }
@@ -65,12 +64,17 @@ export function DecisionNotice({ view, approver = false }: { view: DecisionView;
   const t = useTranslations("decisions");
   if (view.access.mode !== "readOnly" && !view.error) return null;
   return (
-    <div className={s.notices}>
+    <div className="mb-3 flex flex-col gap-2">
       {view.access.mode === "readOnly" && (
-        <p className={s.readOnly}>{t(`readOnly.${approver && view.access.why === "noRole" ? "approver" : view.access.why}`)}</p>
+        <p className="m-0 rounded border border-border bg-sunken px-3 py-2 text-xs text-ink-muted">
+          {t(`readOnly.${approver && view.access.why === "noRole" ? "approver" : view.access.why}`)}
+        </p>
       )}
       {view.error && (
-        <p role="alert" className={s.failure}>
+        <p
+          role="alert"
+          className="m-0 rounded border border-fail-edge bg-fail-soft px-3 py-2 text-xs font-semibold text-fail"
+        >
           {t(`errors.${view.error}`)}
         </p>
       )}
@@ -99,38 +103,56 @@ export function DecisionTally({
     0,
   );
   return (
-    <div className={s.progress}>
-      <p className={s.progressLine}>{t("progress", { decided, total })}</p>
-      <details className={s.tallyFold}>
-        <summary>{t("counts.title")}</summary>
-        <div className={s.tallyFrame}>
-          <table className={s.tally}>
-            <caption className="visually-hidden">{t("counts.title")}</caption>
+    <div className="mb-4">
+      <p className="m-0 text-base font-semibold text-ink tabular-nums">{t("progress", { decided, total })}</p>
+      <details className="mt-1">
+        <summary className="text-xs font-semibold text-accent">{t("counts.title")}</summary>
+        <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-surface">
+          <table className="w-full border-collapse text-xs">
+            <caption className="sr-only">{t("counts.title")}</caption>
             <thead>
-              <tr>
-                <th scope="col">{t("counts.kind")}</th>
-                <th scope="col">{t("counts.total")}</th>
-                <th scope="col">{t("counts.undecided")}</th>
-                <th scope="col">{t("counts.accepted")}</th>
-                <th scope="col">{t("counts.edited")}</th>
-                <th scope="col">{t("counts.rejected")}</th>
-                <th scope="col">{t("counts.changed")}</th>
-                <th scope="col">{t("counts.decidedNotProposed")}</th>
+              <tr className="border-b border-border bg-sunken/70 text-ink-muted">
+                <th scope="col" className="px-3 py-2 text-left font-semibold">
+                  {t("counts.kind")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {t("counts.total")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {t("counts.undecided")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {t("counts.accepted")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {t("counts.edited")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {t("counts.rejected")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {t("counts.changed")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {t("counts.decidedNotProposed")}
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {[...kinds, ...also].map((k) => {
                 const c = counts[k];
                 return (
                   <tr key={k}>
-                    <th scope="row">{t(`kinds.${k}`)}</th>
-                    <td>{c.total}</td>
-                    <td>{c.undecided}</td>
-                    <td>{c.accepted}</td>
-                    <td>{c.edited}</td>
-                    <td>{c.rejected}</td>
-                    <td>{c.changed}</td>
-                    <td>{c.decided_not_proposed}</td>
+                    <th scope="row" className="px-3 py-2 text-left font-medium text-ink">
+                      {t(`kinds.${k}`)}
+                    </th>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.total}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.undecided}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.accepted}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.edited}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.rejected}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.changed}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.decided_not_proposed}</td>
                   </tr>
                 );
               })}
@@ -170,14 +192,24 @@ function Hidden({
 }
 
 function Reason({ t }: { t: T }) {
-  return <textarea name="reason" required aria-label={t("reason")} placeholder={t("reason")} />;
+  return (
+    <textarea
+      name="reason"
+      required
+      aria-label={t("reason")}
+      placeholder={t("reason")}
+      className="min-h-14 w-full rounded border border-border-strong bg-surface p-2 text-xs text-ink placeholder:text-ink-muted"
+    />
+  );
 }
 
-/** One decision per form: accept, reject (findings) or change the class (Coverage rows). A
- * Reason for Change is required to reject, to change a class, and to replace a decision
- * already made on this content. On an undecided or changed Proposal "Terima" stays in view
- * and the other form is one click away; on a decided one every form sits behind "Putuskan
- * ulang". A folded form stays in the DOM. */
+const STATE_TONES: Record<Proposal["state"], string> = {
+  undecided: "text-ink-muted",
+  decided: "text-pass",
+  changed: "text-warn",
+};
+
+/** One decision per form: accept, reject (findings) or change the class (Coverage rows). */
 function Forms({
   t,
   classes,
@@ -202,7 +234,7 @@ function Forms({
   const replacing = proposal.state === "decided";
   const coverage = proposal.kind === "coverage";
   const accept = !(coverage && proposed == null) && (
-    <form action={action} className={s.form}>
+    <form action={action} className="flex flex-col items-start gap-2">
       <Hidden
         runId={runId}
         proposal={proposal}
@@ -216,7 +248,7 @@ function Forms({
     </form>
   );
   const other = coverage ? (
-    <form action={action} className={s.form}>
+    <form action={action} className="flex flex-col items-start gap-2">
       <Hidden
         runId={runId}
         proposal={proposal}
@@ -225,7 +257,13 @@ function Forms({
         returnQuery={returnQuery}
         anchor={anchor}
       />
-      <select name="coverage" required aria-label={t("toClass")} defaultValue="">
+      <select
+        name="coverage"
+        required
+        aria-label={t("toClass")}
+        defaultValue=""
+        className="min-h-7 max-w-full rounded border border-border-strong bg-surface px-2 text-xs text-ink"
+      >
         <option value="" disabled>
           {t("toClass")}
         </option>
@@ -239,7 +277,7 @@ function Forms({
       <SubmitButton>{t("edit")}</SubmitButton>
     </form>
   ) : (
-    <form action={action} className={s.form}>
+    <form action={action} className="flex flex-col items-start gap-2">
       <Hidden
         runId={runId}
         proposal={proposal}
@@ -254,10 +292,10 @@ function Forms({
   );
   if (replacing) {
     return (
-      <div className={s.decide}>
-        <details className={s.fold}>
-          <summary>{t("redecide")}</summary>
-          <div className={s.foldBody}>
+      <div className="mt-2 flex flex-col gap-2">
+        <details>
+          <summary className="py-1 text-xs font-semibold text-accent">{t("redecide")}</summary>
+          <div className="mt-2 flex flex-col gap-3">
             {accept}
             {other}
           </div>
@@ -266,11 +304,11 @@ function Forms({
     );
   }
   return (
-    <div className={s.decide}>
+    <div className="mt-2 flex flex-wrap items-start gap-x-3 gap-y-2">
       {accept}
-      <details className={s.fold}>
-        <summary>{coverage ? t("edit") : t("reject")}…</summary>
-        <div className={s.foldBody}>{other}</div>
+      <details>
+        <summary className="py-1 text-xs font-semibold text-accent">{coverage ? t("edit") : t("reject")}…</summary>
+        <div className="mt-2 flex flex-col gap-3">{other}</div>
       </details>
     </div>
   );
@@ -278,9 +316,7 @@ function Forms({
 
 /** Where one Proposal stands: its decision state, the decisions on this content (current
  * first) or, when its content changed, the latest earlier decision with, for a Coverage row,
- * the class it settled on; and the decision forms
- * when the viewer may decide. ``proposed``: the class the system proposed, for a Coverage
- * row. Nothing when the run holds no such Proposal. */
+ * the class it settled on; and the decision forms when the viewer may decide. */
 export function DecisionCell({
   proposal,
   runId,
@@ -303,19 +339,17 @@ export function DecisionCell({
   if (proposal === undefined) return null;
   const [current, ...earlier] = proposal.decisions;
   return (
-    <div className={access.mode === "decide" ? `${s.cell} ${s.cellDecide}` : s.cell}>
-      <strong className={`${s.state} ${s[`state_${proposal.state}`]}`}>
-        {t(`states.${proposal.state}`)}
-      </strong>
+    <div className={`flex flex-col gap-1 text-xs ${access.mode === "decide" ? "min-w-44" : ""}`.trim()}>
+      <strong className={`font-semibold ${STATE_TONES[proposal.state]}`}>{t(`states.${proposal.state}`)}</strong>
       {current && (
-        <div className={s.made}>
+        <div className="text-ink">
           <Made t={t} classes={classes} d={current} />
         </div>
       )}
       {earlier.length > 0 && (
-        <div className={s.history}>
+        <div className="text-xs text-ink-muted">
           {t("earlier")}
-          <ul>
+          <ul className="mt-1 mb-0 pl-4">
             {earlier.map((d) => (
               <li key={d.id}>
                 <Made t={t} classes={classes} d={d} />
@@ -325,12 +359,16 @@ export function DecisionCell({
         </div>
       )}
       {proposal.previous && (
-        <div className={s.history}>
+        <div className="text-xs text-ink-muted">
           <span>{t("previous", { summary: summary(t, classes, proposal.previous) })}</span>
           {proposal.previous_class && (
             <div>{t("previousClass", { class: classes(`classes.${proposal.previous_class}`) })}</div>
           )}
-          {proposal.previous.reason && <div className={s.reason}>{proposal.previous.reason}</div>}
+          {proposal.previous.reason && (
+            <div className="mt-1 border-l-2 border-border-strong pl-2 text-ink-muted">
+              {proposal.previous.reason}
+            </div>
+          )}
         </div>
       )}
       {access.mode === "decide" && (
