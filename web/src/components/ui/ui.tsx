@@ -2,11 +2,12 @@ import type { ButtonHTMLAttributes, ReactNode, TableHTMLAttributes } from "react
 
 import type { CoverageClass } from "@/api/client";
 
+import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, InfoIcon } from "./icons";
 import t from "./table.module.css";
 import s from "./ui.module.css";
 
-// The shared primitives of every screen (spec #135, ADR 0011). Server Components only:
-// none holds state, so none needs client JavaScript.
+// The shared primitives of every screen (spec #135, ADR 0011, ui-contract.md). Server Components
+// only: none holds state, so none needs client JavaScript.
 
 /** A Coverage class, or `none` when the system proposed no class. */
 export type CoverageKey = CoverageClass | "none";
@@ -33,14 +34,111 @@ export function CoveragePill({ cls, label, help }: { cls: CoverageKey; label: st
   );
 }
 
-/** The three button variants: `primary` for the one main action of a screen, `soft` for an
- * action that repeats on every row, `quiet` for a secondary action. */
+/** The four button variants: `primary` for the one main action of a screen, `soft` for an
+ * action that repeats on every row, `quiet` for a secondary action, `danger` for destructive
+ * or withdrawal actions. */
 export function Button({
   variant,
   className,
   ...props
-}: { variant: "primary" | "soft" | "quiet" } & ButtonHTMLAttributes<HTMLButtonElement>) {
+}: { variant: "primary" | "soft" | "quiet" | "danger" } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button {...props} className={`${s.button} ${s[variant]} ${className ?? ""}`.trim()} />;
+}
+
+/** Semantic tone for StatusBadge and Alert. */
+export type SemanticTone = "neutral" | "info" | "pass" | "warn" | "fail";
+
+/** A compact semantic status pill for protocol, decision, or execution states. */
+export function StatusBadge({
+  tone,
+  children,
+  className,
+}: {
+  tone: SemanticTone;
+  children: ReactNode;
+  className?: string;
+}) {
+  return <span className={`${s.statusBadge} ${s[`tone_${tone}`]} ${className ?? ""}`.trim()}>{children}</span>;
+}
+
+const ALERT_ICONS = {
+  info: InfoIcon,
+  warn: AlertTriangleIcon,
+  fail: AlertCircleIcon,
+  pass: CheckCircleIcon,
+} as const;
+
+/** A structured callout banner with a leading icon and semantic accent border. */
+export function Alert({
+  tone,
+  role,
+  title,
+  children,
+  className,
+}: {
+  tone: Exclude<SemanticTone, "neutral">;
+  role?: "alert" | "status";
+  title?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  const Icon = ALERT_ICONS[tone];
+  return (
+    <div role={role} className={`${s.alert} ${s[`alert_${tone}`]} ${className ?? ""}`.trim()}>
+      <Icon className={s.alertIcon} />
+      <div className={s.alertBody}>
+        {title !== undefined && <div className={s.alertTitle}>{title}</div>}
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Accessible progress bar for decision or execution completion. */
+export function ProgressBar({
+  value,
+  max,
+  label,
+  className,
+}: {
+  value: number;
+  max: number;
+  label: string;
+  className?: string;
+}) {
+  const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+  return (
+    <div
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-label={label}
+      className={`${s.progressTrack} ${className ?? ""}`.trim()}
+    >
+      <div className={s.progressFill} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+/** Native `<details>`/`<summary>` wrapper styled with tokens; text stays in the DOM. */
+export function Disclosure({
+  summary,
+  defaultOpen,
+  children,
+  className,
+}: {
+  summary: ReactNode;
+  defaultOpen?: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <details open={defaultOpen} className={`${s.disclosure} ${className ?? ""}`.trim()}>
+      <summary className={s.disclosureSummary}>{summary}</summary>
+      <div className={s.disclosureBody}>{children}</div>
+    </details>
+  );
 }
 
 /** The one card of every screen's overview: a small title, then content. */

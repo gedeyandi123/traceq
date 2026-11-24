@@ -28,13 +28,16 @@
 .printed {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  margin-bottom: var(--space-1);
 }
 .muted {
   color: var(--color-text-3);
 }
 .draftCite {
+  display: inline-block;
+  margin-top: var(--space-1);
   color: var(--color-text-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   cursor: help;
 }
 .traced,
@@ -45,24 +48,47 @@
   padding: 0;
   list-style: none;
 }
-.traced li + li,
-.comparators li + li,
+.traced > li + li {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+.comparators > li + li {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--color-border);
+}
 .facts li + li,
 .citations li + li {
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
 }
 .deviates {
+  display: inline-block;
+  margin-top: var(--space-1);
   color: var(--color-fail);
   font-weight: 600;
+  font-size: var(--text-xs);
 }
 .within {
+  display: inline-block;
+  margin-top: var(--space-1);
   color: var(--color-pass);
+  font-weight: 600;
+  font-size: var(--text-xs);
 }
 .notCompared {
+  display: inline-block;
+  margin-top: var(--space-1);
   color: var(--color-warn);
+  font-size: var(--text-xs);
 }
 .findings {
   min-width: 16rem;
+}
+.finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 .finding + .finding {
   margin-top: var(--space-3);
@@ -71,7 +97,10 @@
 }
 .findingType {
   display: block;
+  font-size: var(--text-sm);
 }
 .vendorDoc {
   color: var(--color-text-2);
+  font-weight: 600;
+  font-size: var(--text-xs);
 }
