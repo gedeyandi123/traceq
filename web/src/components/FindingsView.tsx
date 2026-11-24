@@ -5,7 +5,7 @@ import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import { formatWhen } from "./formatWhen";
 import type { DecisionView } from "./Decisions";
-import { cell, DataTable, EmptyState, SectionHeading, SummaryLinks } from "./ui/ui";
+import { cell, DataTable, EmptyState, HandoffBar, SectionHeading, SummaryLinks } from "./ui/ui";
 
 import s from "./FindingsView.module.css";
 
@@ -43,6 +43,7 @@ export function FindingsView({
 }) {
   const t = useTranslations("findings");
   const td = useTranslations("decisions");
+  const th = useTranslations("runHeader");
   const decided = decisions.proposals !== undefined;
   const checks = byPosition(decisions, "check");
   const ais = byPosition(decisions, "ai");
@@ -202,6 +203,10 @@ export function FindingsView({
           </DataTable>
         )}
       </section>
+      <HandoffBar
+        label={th("handoffTitle")}
+        links={[{ href: `/runs/${encodeURIComponent(runId)}/protocol`, text: th("toProtocol") }]}
+      />
     </>
   );
 }

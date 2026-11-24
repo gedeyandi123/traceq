@@ -3,9 +3,10 @@ import { useTranslations } from "next-intl";
 import type { ProtocolRowView, RowDraft, Value } from "@/api/client";
 import type { components } from "@/api/schema";
 import { SHAPES, type Acceptance } from "@/protocol/form";
+import { AcShapeFields } from "./AcShapeFields";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
-import { Button } from "./ui/ui";
+import { SubmitButton } from "./ui/SubmitButton";
 
 import s from "./AssembledProtocolView.module.css";
 
@@ -49,48 +50,27 @@ function Fields({ t, id, start }: { t: T; id: string; start: Start | null }) {
         {t("instrument")}
         <input name="instrument" defaultValue={start?.instrument ?? ""} />
       </label>
-      <fieldset className={s.acFields}>
-        <legend>{t("ac")}</legend>
-        <label className={s.field}>
-          {t("form.shape")}
-          <select name="ac_type" required defaultValue={a?.type ?? ""}>
-            <option value="" disabled>
-              {t("form.chooseShape")}
-            </option>
-            {SHAPES.map((shape) => (
-              <option key={shape} value={shape}>
-                {t(`form.shapes.${shape}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={s.field}>
-          {t("form.min")}
-          <input name="ac_min" inputMode="decimal" defaultValue={a?.type === "range" ? (a.min ?? "") : ""} />
-        </label>
-        <label className={s.field}>
-          {t("form.max")}
-          <input name="ac_max" inputMode="decimal" defaultValue={a?.type === "range" ? (a.max ?? "") : ""} />
-        </label>
-        <label className={s.field}>
-          {t("form.value")}
-          <input name="ac_value" inputMode="decimal" defaultValue={a?.type === "number" ? a.value : ""} />
-        </label>
-        <label className={s.field}>
-          {t("form.unit")}
-          <input
-            name="ac_unit"
-            defaultValue={a?.type === "range" || a?.type === "number" ? a.unit : ""}
-          />
-        </label>
-        <label className={s.field}>
-          {t("form.allowed")}
-          <input name="ac_allowed" defaultValue={a?.type === "one_of" ? a.allowed.join("; ") : ""} />
-        </label>
-        <p className={s.muted} id={`${id}-hint`}>
-          {t("form.hint")}
-        </p>
-      </fieldset>
+      <AcShapeFields
+        id={id}
+        initialShape={a?.type ?? ""}
+        initialMin={a?.type === "range" ? (a.min ?? "") : ""}
+        initialMax={a?.type === "range" ? (a.max ?? "") : ""}
+        initialValue={a?.type === "number" ? a.value : ""}
+        initialUnit={a?.type === "range" || a?.type === "number" ? a.unit : ""}
+        initialAllowed={a?.type === "one_of" ? a.allowed.join("; ") : ""}
+        shapes={SHAPES.map((shape) => ({ value: shape, label: t(`form.shapes.${shape}`) }))}
+        labels={{
+          legend: t("ac"),
+          shape: t("form.shape"),
+          chooseShape: t("form.chooseShape"),
+          min: t("form.min"),
+          max: t("form.max"),
+          value: t("form.value"),
+          unit: t("form.unit"),
+          allowed: t("form.allowed"),
+          hint: t("form.hint"),
+        }}
+      />
     </>
   );
 }
@@ -137,15 +117,13 @@ export function WriteForm({
         <Hidden runId={runId} protocolId={protocolId} />
         <input type="hidden" name="requirement" value={row.requirement} />
         <Fields t={t} id={id} start={p ? { ...p, acceptance: p.acceptance ?? null } : null} />
-        <Button type="submit" variant="soft">
-          {t("form.save")}
-        </Button>
+        <SubmitButton variant="soft">{t("form.save")}</SubmitButton>
       </form>
       {inForce && (
         <form action={remove} className={s.form}>
           <Hidden runId={runId} protocolId={protocolId} />
           <input type="hidden" name="requirement" value={row.requirement} />
-          <button type="submit">{t("form.remove")}</button>
+          <SubmitButton>{t("form.remove")}</SubmitButton>
         </form>
       )}
     </details>
@@ -184,9 +162,7 @@ export function EditDraftForm({
           {t("form.reason")}
           <textarea name="reason" required />
         </label>
-        <Button type="submit" variant="soft">
-          {t("form.saveEdit")}
-        </Button>
+        <SubmitButton variant="soft">{t("form.saveEdit")}</SubmitButton>
       </form>
     </details>
   );

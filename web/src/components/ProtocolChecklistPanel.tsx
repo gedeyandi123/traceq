@@ -2,7 +2,8 @@ import { useTranslations } from "next-intl";
 
 import type { ChecklistItem } from "@/api/client";
 import type { ProtocolControls } from "./AssembledProtocolView";
-import { Button, SectionHeading } from "./ui/ui";
+import { SubmitButton } from "./ui/SubmitButton";
+import { SectionHeading } from "./ui/ui";
 
 import s from "./AssembledProtocolView.module.css";
 
@@ -56,9 +57,9 @@ export function ProtocolChecklistPanel({
         <form action={controls.submit} className={s.form}>
           <input type="hidden" name="run_id" value={runId} />
           <input type="hidden" name="protocol_id" value={protocolId} />
-          <Button type="submit" variant="primary" disabled={blocked}>
+          <SubmitButton variant="primary" disabled={blocked}>
             {t("submit")}
-          </Button>
+          </SubmitButton>
         </form>
       )}
     </section>

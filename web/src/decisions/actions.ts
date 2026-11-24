@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 import { api } from "@/api/client";
 import { bearerHeaders } from "@/auth/session";
 import type { DecisionError } from "@/components/Decisions";
+import { buildDecisionRedirect } from "@/decisions/redirect";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 
 const DECISIONS = ["accepted", "rejected", "edited"] as const;
+
 /** The path of each screen a decision form can be on, after the run's own; the matrix is "". */
 const SCREENS: Partial<Record<string, string>> = {
   findings: "/findings",
@@ -27,10 +29,12 @@ export async function decide(form: FormData): Promise<void> {
   const runId = field(form, "run_id") ?? "";
   const screen = SCREENS[field(form, "screen") ?? ""] ?? "";
   const back = `/runs/${encodeURIComponent(runId)}${screen}`;
+  const returnQuery = field(form, "return_query");
+  const anchor = field(form, "anchor");
   const decision = DECISIONS.find((d) => d === field(form, "decision"));
   const proposalId = Number(field(form, "proposal_id"));
   if (decision === undefined || !Number.isInteger(proposalId)) {
-    redirect(`${back}?error=failed`);
+    redirect(buildDecisionRedirect(back, { error: "failed", returnQuery, anchor }));
   }
   let error: DecisionError | undefined;
   try {
@@ -51,5 +55,5 @@ export async function decide(form: FormData): Promise<void> {
   } catch {
     error = "failed";
   }
-  redirect(error ? `${back}?error=${error}` : back);
+  redirect(buildDecisionRedirect(back, { error, returnQuery, anchor }));
 }

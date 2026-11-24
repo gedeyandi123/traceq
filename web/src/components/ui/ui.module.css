@@ -220,6 +220,49 @@
   padding: 0 var(--space-3) var(--space-3);
 }
 
+/* Loading state */
+.loadingBox {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+/* Guided handoff bar between workflow screens */
+.handoff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.handoffLabel {
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+}
+.handoffLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.handoffLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 /* Panel: the one card of every overview. */
 .panel {
   display: flex;

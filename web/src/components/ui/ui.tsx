@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode, TableHTMLAttributes } from "react
 
 import type { CoverageClass } from "@/api/client";
 
-import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, InfoIcon } from "./icons";
+import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, ChevronRightIcon, InfoIcon } from "./icons";
 import t from "./table.module.css";
 import s from "./ui.module.css";
 
@@ -218,3 +218,26 @@ export function DataTable({ className, ...props }: TableHTMLAttributes<HTMLTable
 /** Cell classes of the data table: `num` for figures (right-aligned, tabular), `id` for an
  * identifier that must not wrap. */
 export const cell = { num: t.num, id: t.id } as const;
+
+/** Guided handoff bar linking to the next workflow screens. */
+export function HandoffBar({
+  label,
+  links,
+}: {
+  label: string;
+  links: readonly { href: string; text: string }[];
+}) {
+  return (
+    <nav aria-label={label} className={s.handoff}>
+      <span className={s.handoffLabel}>{label}</span>
+      <div className={s.handoffLinks}>
+        {links.map((item) => (
+          <a key={item.href} href={item.href} className={s.handoffLink}>
+            <span>{item.text}</span>
+            <ChevronRightIcon />
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+}

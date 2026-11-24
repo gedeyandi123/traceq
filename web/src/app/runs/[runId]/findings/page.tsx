@@ -6,6 +6,7 @@ import { api } from "@/api/client";
 import { FindingsView } from "@/components/FindingsView";
 import { RunHeader } from "@/components/RunHeader";
 import { decisionError, loadDecisions } from "@/decisions/load";
+import { loadTabBadges } from "@/decisions/tabBadges";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +30,12 @@ export default async function FindingsPage({
     api.GET("/runs/{run_id}/findings", path),
     loadDecisions(runId),
   ]);
+  const badges = await loadTabBadges(runId, decisions.counts);
   decisions.error = decisionError((await searchParams).error);
   if (!run.data || !findings.data) notFound();
   return (
     <>
-      <RunHeader run={run.data} current="findings" intro={t("intro")} />
+      <RunHeader run={run.data} current="findings" intro={t("intro")} badges={badges} />
       <FindingsView findings={findings.data} runId={runId} decisions={decisions} />
     </>
   );

@@ -8,6 +8,7 @@ import { ProtocolDraftView } from "@/components/ProtocolDraftView";
 import { RunHeader } from "@/components/RunHeader";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
+import { loadTabBadges } from "@/decisions/tabBadges";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,10 @@ export default async function DraftPage({
   const t = await getTranslations("draft");
   const path = { params: { path: { run_id: runId } } };
   const [run, decisions] = await Promise.all([api.GET("/runs/{run_id}", path), loadDecisions(runId)]);
+  const badges = await loadTabBadges(runId, decisions.counts);
   decisions.error = decisionError((await searchParams).error);
   if (!run.data?.review_package) notFound();
-  const header = <RunHeader run={run.data} current="draft" intro={t("intro")} />;
+  const header = <RunHeader run={run.data} current="draft" intro={t("intro")} badges={badges} />;
   if (decisions.access.mode === "readOnly" && decisions.access.why === "signedOut") {
     return (
       <>

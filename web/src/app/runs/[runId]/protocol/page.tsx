@@ -8,6 +8,7 @@ import { AssembledProtocolView, type ProtocolError } from "@/components/Assemble
 import { RunHeader } from "@/components/RunHeader";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
+import { loadTabBadges } from "@/decisions/tabBadges";
 import {
   answerMissedNumber,
   approveProtocol,
@@ -48,9 +49,10 @@ export default async function ProtocolPage({
     loadDecisions(runId),
     currentSession(),
   ]);
+  const badges = await loadTabBadges(runId, decisions.counts);
   decisions.error = decisionError(query.error);
   if (!run.data) notFound();
-  const header = <RunHeader run={run.data} current="protocol" intro={t("intro")} />;
+  const header = <RunHeader run={run.data} current="protocol" intro={t("intro")} badges={badges} />;
   const access = decisions.access;
   if (access.mode === "readOnly" && access.why !== "noRole") {
     const why = access.why === "signedOut" ? "signedOut" : access.why === "notImported" ? "notImported" : "unavailable";

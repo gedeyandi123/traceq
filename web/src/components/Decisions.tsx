@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import type { CoverageClass, Decision, DecisionCounts, Proposal } from "@/api/client";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 import { formatWhen } from "./formatWhen";
-import { Button } from "./ui/ui";
+import { SubmitButton } from "./ui/SubmitButton";
 
 import s from "./Decisions.module.css";
 
@@ -142,11 +142,15 @@ function Hidden({
   proposal,
   screen,
   decision,
+  returnQuery,
+  anchor,
 }: {
   runId: string;
   proposal: Proposal;
   screen: DecisionScreen;
   decision: Decision["decision"];
+  returnQuery?: string;
+  anchor?: string;
 }) {
   return (
     <>
@@ -154,6 +158,8 @@ function Hidden({
       <input type="hidden" name="proposal_id" value={proposal.id} />
       <input type="hidden" name="screen" value={screen} />
       <input type="hidden" name="decision" value={decision} />
+      {returnQuery && <input type="hidden" name="return_query" value={returnQuery} />}
+      {anchor && <input type="hidden" name="anchor" value={anchor} />}
     </>
   );
 }
@@ -175,6 +181,8 @@ function Forms({
   screen,
   proposed,
   action,
+  returnQuery,
+  anchor,
 }: {
   t: T;
   classes: ClassT;
@@ -183,21 +191,35 @@ function Forms({
   screen: DecisionScreen;
   proposed: CoverageClass | null | undefined;
   action: (formData: FormData) => void | Promise<void>;
+  returnQuery?: string;
+  anchor?: string;
 }) {
   const replacing = proposal.state === "decided";
   const coverage = proposal.kind === "coverage";
   const accept = !(coverage && proposed == null) && (
     <form action={action} className={s.form}>
-      <Hidden runId={runId} proposal={proposal} screen={screen} decision="accepted" />
+      <Hidden
+        runId={runId}
+        proposal={proposal}
+        screen={screen}
+        decision="accepted"
+        returnQuery={returnQuery}
+        anchor={anchor}
+      />
       {replacing && <Reason t={t} />}
-      <Button type="submit" variant="soft">
-        {t("accept")}
-      </Button>
+      <SubmitButton variant="soft">{t("accept")}</SubmitButton>
     </form>
   );
   const other = coverage ? (
     <form action={action} className={s.form}>
-      <Hidden runId={runId} proposal={proposal} screen={screen} decision="edited" />
+      <Hidden
+        runId={runId}
+        proposal={proposal}
+        screen={screen}
+        decision="edited"
+        returnQuery={returnQuery}
+        anchor={anchor}
+      />
       <select name="coverage" required aria-label={t("toClass")} defaultValue="">
         <option value="" disabled>
           {t("toClass")}
@@ -209,13 +231,20 @@ function Forms({
         ))}
       </select>
       <Reason t={t} />
-      <button type="submit">{t("edit")}</button>
+      <SubmitButton>{t("edit")}</SubmitButton>
     </form>
   ) : (
     <form action={action} className={s.form}>
-      <Hidden runId={runId} proposal={proposal} screen={screen} decision="rejected" />
+      <Hidden
+        runId={runId}
+        proposal={proposal}
+        screen={screen}
+        decision="rejected"
+        returnQuery={returnQuery}
+        anchor={anchor}
+      />
       <Reason t={t} />
-      <button type="submit">{t("reject")}</button>
+      <SubmitButton>{t("reject")}</SubmitButton>
     </form>
   );
   if (replacing) {
@@ -253,12 +282,16 @@ export function DecisionCell({
   screen,
   access,
   proposed,
+  returnQuery,
+  anchor,
 }: {
   proposal: Proposal | undefined;
   runId: string;
   screen: DecisionScreen;
   access: DecisionAccess;
   proposed?: CoverageClass | null;
+  returnQuery?: string;
+  anchor?: string;
 }) {
   const t = useTranslations("decisions");
   const classes = useTranslations("matrix");
@@ -304,6 +337,8 @@ export function DecisionCell({
           screen={screen}
           proposed={proposed}
           action={access.action}
+          returnQuery={returnQuery}
+          anchor={anchor}
         />
       )}
     </div>

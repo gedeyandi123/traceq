@@ -16,7 +16,15 @@
     "protocol": "Protokol (disusun di TraceQ)",
     "leftOut": "Yang tidak dimasukkan",
     "eval": "Hasil evaluasi",
-    "draft": "Draf protokol"
+    "draft": "Draf protokol",
+    "handoffTitle": "Langkah berikutnya",
+    "toFindings": "Lanjut ke Temuan pra-tinjauan",
+    "toDraft": "Lanjut ke Draf protokol",
+    "toProtocol": "Lanjut ke Protokol (disusun di TraceQ)",
+    "loading": "Memuat layar run...",
+    "errorTitle": "Gagal memuat layar run",
+    "errorBody": "Terjadi kesalahan saat mengambil data dari API. Coba muat ulang halaman ini.",
+    "retry": "Coba lagi"
   },
   "common": {
     "cite": "{doc} rev {rev}, hlm. {page}"
@@ -98,7 +106,14 @@
     },
     "decidedClass": "Kelas setelah keputusan",
     "designShort": "Desain",
-    "allEvidence": "Semua bukti dan kutipan"
+    "allEvidence": "Semua bukti dan kutipan",
+    "filterCoverage": "Cakupan",
+    "filterStatus": "Status keputusan",
+    "filterAll": "Semua",
+    "filterApply": "Terapkan",
+    "filterReset": "Atur ulang",
+    "filterCount": "Menampilkan {shown} dari {total} persyaratan",
+    "filterEmpty": "Tidak ada persyaratan yang cocok dengan filter."
   },
   "decisions": {
     "column": "Keputusan",
