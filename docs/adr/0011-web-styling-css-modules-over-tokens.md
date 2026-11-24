@@ -1,5 +1,7 @@
 # Web styling: CSS Modules over design tokens, no UI library, bundled Inter, light theme only
 
+> **Superseded by [ADR 0014](0014-web-ui-architecture-tailwind-v4-radix-and-design-system.md)** (24 November 2026).
+
 Decided 17 November 2026, after the UI redesign prototype (throwaway branch `feat/ui-redesign-prototype`, e54cf7e; never merged). Before the prototype, `web/` had one `globals.css` with element selectors and hand-picked hex values, no tokens and no focus styles; three of the four data pages used browser table defaults. The audit found the problem was the missing visual system, not the page structure, so this ADR fixes how the web app is styled. The redesign spec builds on it.
 
 **Tokens.** Every colour, font size, space, radius, shadow, control height and duration is a CSS custom property on `:root` in `web/src/app/globals.css`. That file also holds the base element rules (body, headings, links, focus ring) and nothing component-specific. The palette is the Teal one the owner picked in prototype round 2. The six Coverage classes each have their own foreground, background and edge tokens. A class always carries its text label and a leading shape, so colour is never the only sign of its meaning.
