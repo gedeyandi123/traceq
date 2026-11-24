@@ -90,3 +90,20 @@ test("a Review Package run gets a tab to its Protocol Draft after the findings, 
   expect(tabs.find((a) => a.getAttribute("aria-current"))?.textContent).toBe("Draf protokol");
   expect(screen.getByText("OQ-TP201 rev 0 (TP-201-OQ-draft 0.1.0)")).toBeDefined();
 });
+
+test("renders tab badges only for tabs with positive counts", () => {
+  render(
+    <NextIntlClientProvider locale="id" messages={messages}>
+      <RunHeader
+        run={run}
+        current="matrix"
+        intro="Satu baris per persyaratan URS."
+        badges={{ matrix: 5, findings: 0, protocol: 2 }}
+      />
+    </NextIntlClientProvider>,
+  );
+  const nav = within(screen.getByRole("navigation", { name: "Layar run" }));
+  expect(nav.getByRole("link", { name: /Matriks/ }).textContent).toContain("5");
+  expect(nav.getByRole("link", { name: "Temuan pra-tinjauan" }).textContent).toBe("Temuan pra-tinjauan");
+  expect(nav.getByRole("link", { name: /Protokol/ }).textContent).toContain("2");
+});

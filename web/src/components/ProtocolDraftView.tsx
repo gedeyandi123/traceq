@@ -4,7 +4,7 @@ import type { Cite, DraftFindingView, DraftTestStep, PrintedRead, ProtocolDraftV
 import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
-import { cell, DataTable, EmptyState, SectionHeading, SummaryLinks } from "./ui/ui";
+import { cell, DataTable, EmptyState, HandoffBar, SectionHeading, SummaryLinks } from "./ui/ui";
 
 import s from "./ProtocolDraftView.module.css";
 
@@ -265,6 +265,7 @@ export function ProtocolDraftView({
   decisions: DecisionView;
 }) {
   const t = useTranslations("draft");
+  const th = useTranslations("runHeader");
   const draftDoc = draft.document.doc_id;
   const stepIds = new Set(draft.test_steps.map((st) => st.id));
   const onStep = (id: string) => draft.findings.filter((f) => f.finding.test_step === id);
@@ -359,6 +360,10 @@ export function ProtocolDraftView({
           </DataTable>
         )}
       </section>
+      <HandoffBar
+        label={th("handoffTitle")}
+        links={[{ href: `/runs/${encodeURIComponent(runId)}/protocol`, text: th("toProtocol") }]}
+      />
     </>
   );
 }

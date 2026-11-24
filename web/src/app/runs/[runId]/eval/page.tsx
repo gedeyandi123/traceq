@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { api, evalApi } from "@/api/client";
 import { EvalView } from "@/components/EvalView";
 import { RunHeader } from "@/components/RunHeader";
+import { loadTabBadges } from "@/decisions/tabBadges";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +19,15 @@ export default async function EvalPage({ params }: { params: Promise<{ runId: st
   const { runId } = await params;
   const t = await getTranslations("eval");
   const path = { params: { path: { run_id: runId } } };
-  const [run, summary] = await Promise.all([
+  const [run, summary, badges] = await Promise.all([
     api.GET("/runs/{run_id}", path),
     evalApi.GET("/evals/{run_id}", path).catch(() => ({ data: undefined })),
+    loadTabBadges(runId),
   ]);
   if (!run.data) notFound();
   return (
     <>
-      <RunHeader run={run.data} current="eval" intro={t("intro")} />
+      <RunHeader run={run.data} current="eval" intro={t("intro")} badges={badges} />
       <EvalView summary={summary.data ?? null} />
     </>
   );

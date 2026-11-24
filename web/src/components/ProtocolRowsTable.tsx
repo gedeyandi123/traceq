@@ -105,6 +105,7 @@ function Draft({
   runId,
   access,
   vendor,
+  anchor,
   edit,
 }: {
   t: T;
@@ -113,6 +114,7 @@ function Draft({
   runId: string;
   access: DecisionAccess;
   vendor: boolean;
+  anchor: string;
   /** The edit form, when the viewer may edit this draft now. */
   edit: { protocolId: number; action: Action } | null;
 }) {
@@ -132,7 +134,7 @@ function Draft({
         {x.acceptance_citation && <CiteLink runId={runId} cite={x.acceptance_citation} />}
       </div>
       {vendor && <div className={s.muted}>{t("vendorDraftNote")}</div>}
-      <DecisionCell proposal={d.proposal} runId={runId} screen="protocol" access={access} />
+      <DecisionCell proposal={d.proposal} runId={runId} screen="protocol" access={access} anchor={anchor} />
       {edit && <EditDraftForm t={t} d={d} runId={runId} protocolId={edit.protocolId} edit={edit.action} />}
     </div>
   );
@@ -189,7 +191,7 @@ export function ProtocolRowsTable({
                 <span className={s.muted}>{t("noDrafts")}</span>
               ) : (
                 r.drafts.map((d) => (
-                  <Draft
+                    <Draft
                     key={d.proposal.id}
                     t={t}
                     m={m}
@@ -197,6 +199,7 @@ export function ProtocolRowsTable({
                     runId={runId}
                     access={access}
                     vendor={r.kind === "vendor_reference"}
+                    anchor={`row-${r.requirement}`}
                     edit={
                       controls !== null && r.test_step?.origin !== "written"
                         ? { protocolId, action: controls.edit }

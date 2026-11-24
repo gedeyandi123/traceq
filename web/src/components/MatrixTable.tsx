@@ -4,7 +4,7 @@ import type { Cite, Matrix, MatrixRow, ObservedValue, Proposal, Value } from "@/
 import { CiteLink } from "./CiteLink";
 import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
 import type { DecisionView } from "./Decisions";
-import { cell, CoveragePill, DataTable, Panel } from "./ui/ui";
+import { Button, cell, CoveragePill, DataTable, EmptyState, HandoffBar, Panel } from "./ui/ui";
 import type { CoverageKey } from "./ui/ui";
 
 import s from "./MatrixTable.module.css";
@@ -177,6 +177,13 @@ function CoverageSummary({ rows, t }: { rows: readonly MatrixRow[]; t: T }) {
   );
 }
 
+export type MatrixFilter = {
+  coverage?: CoverageKey;
+  status?: Proposal["state"];
+};
+
+const STATES: readonly Proposal["state"][] = ["undecided", "changed", "decided"];
+
 /** The traceability matrix: one row per requirement, with its Coverage class and reason,
  * and every piece of Evidence linked to the page it cites. For an imported run each row also
  * shows its decision state and decisions, and the decision forms when the viewer may decide. */
@@ -184,19 +191,38 @@ export function MatrixTable({
   matrix,
   runId,
   decisions,
+  filter,
 }: {
   matrix: Matrix;
   runId: string;
   decisions: DecisionView;
+  filter?: MatrixFilter;
 }) {
   const t = useTranslations("matrix");
   const td = useTranslations("decisions");
+  const th = useTranslations("runHeader");
   const byRequirement = new Map(
     (decisions.proposals ?? [])
       .filter((p) => p.kind === "coverage")
       .map((p) => [p.requirement, p] as const),
   );
   const decided = decisions.proposals !== undefined;
+  const activeCoverage = filter?.coverage;
+  const activeStatus = decided ? filter?.status : undefined;
+  const isFiltered = activeCoverage !== undefined || activeStatus !== undefined;
+  const filteredRows = matrix.requirements.filter((row) => {
+    if (activeCoverage !== undefined && (row.coverage ?? "none") !== activeCoverage) return false;
+    if (activeStatus !== undefined) {
+      const state = byRequirement.get(row.id)?.state ?? "undecided";
+      if (state !== activeStatus) return false;
+    }
+    return true;
+  });
+  const qs = new URLSearchParams();
+  if (activeCoverage) qs.set("coverage", activeCoverage);
+  if (activeStatus) qs.set("status", activeStatus);
+  const returnQuery = qs.toString() || undefined;
+  const base = `/runs/${encodeURIComponent(runId)}`;
   return (
     <>
       <DecisionNotice view={decisions} />
@@ -204,63 +230,108 @@ export function MatrixTable({
         <CoverageSummary rows={matrix.requirements} t={t} />
         <DecisionTally counts={decisions.counts} kinds={["coverage"]} also={["test_step"]} />
       </div>
-      <DataTable
-        className={decisions.access.mode === "readOnly" ? `${s.matrix} ${s.readOnly}` : s.matrix}
-      >
-        <thead>
-          <tr>
-            <th className={s.colRequirement}>{t("requirement")}</th>
-            <th className={s.colValue}>{t("value")}</th>
-            <th className={s.colCoverage}>{t("coverage")}</th>
-            <th className={s.colReason}>{t("reason")}</th>
-            <th className={s.colEvidence}>{t("evidence")}</th>
-            {decided && <th className={s.colDecision}>{td("column")}</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.requirements.map((row) => (
-            <tr key={row.id} id={row.id} data-testid={row.id} className={s[`edge_${row.coverage ?? "none"}`]}>
-              <td>
-                <strong className={cell.id}>{row.id}</strong>
-                <p className={s.text}>{row.text}</p>
-                <span className={s.cite}>
-                  <CiteLink runId={runId} cite={row.source} />
-                </span>
-              </td>
-              <td>
-                {row.value ? (
-                  <span className={s.value}>{formatValue(t, row.value)}</span>
-                ) : (
-                  <span className="muted">{t("noValue")}</span>
-                )}
-                {row.value_citation && !sameCite(row.value_citation, row.source) && (
-                  <div className={s.cite}>
-                    <CiteLink runId={runId} cite={row.value_citation} />
-                  </div>
-                )}
-              </td>
-              <td>
-                <CoverageCell row={row} proposal={byRequirement.get(row.id)} t={t} />
-              </td>
-              <td className={s.reason}>{row.reason}</td>
-              <td>
-                <EvidenceCell row={row} runId={runId} t={t} />
-              </td>
-              {decided && (
-                <td>
-                  <DecisionCell
-                    proposal={byRequirement.get(row.id)}
-                    runId={runId}
-                    screen="matrix"
-                    access={decisions.access}
-                    proposed={row.coverage}
-                  />
-                </td>
-              )}
+      <form method="get" action={base} className={s.filterBar}>
+        <label className={s.filterField}>
+          <span>{t("filterCoverage")}</span>
+          <select name="coverage" defaultValue={activeCoverage ?? ""}>
+            <option value="">{t("filterAll")}</option>
+            {RISK.map((k) => (
+              <option key={k} value={k}>
+                {t(`classes.${k}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {decided && (
+          <label className={s.filterField}>
+            <span>{t("filterStatus")}</span>
+            <select name="status" defaultValue={activeStatus ?? ""}>
+              <option value="">{t("filterAll")}</option>
+              {STATES.map((st) => (
+                <option key={st} value={st}>
+                  {td(`states.${st}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <Button type="submit" variant="soft">
+          {t("filterApply")}
+        </Button>
+        {isFiltered && (
+          <>
+            <a href={base} className={s.filterReset}>
+              {t("filterReset")}
+            </a>
+            <span className={s.filterCount}>
+              {t("filterCount", { shown: filteredRows.length, total: matrix.requirements.length })}
+            </span>
+          </>
+        )}
+      </form>
+      {filteredRows.length === 0 && isFiltered ? (
+        <EmptyState title={t("filterEmpty")} />
+      ) : (
+        <DataTable
+          className={decisions.access.mode === "readOnly" ? `${s.matrix} ${s.readOnly}` : s.matrix}
+        >
+          <thead>
+            <tr>
+              <th className={s.colRequirement}>{t("requirement")}</th>
+              <th className={s.colValue}>{t("value")}</th>
+              <th className={s.colCoverage}>{t("coverage")}</th>
+              <th className={s.colReason}>{t("reason")}</th>
+              <th className={s.colEvidence}>{t("evidence")}</th>
+              {decided && <th className={s.colDecision}>{td("column")}</th>}
             </tr>
-          ))}
-        </tbody>
-      </DataTable>
+          </thead>
+          <tbody>
+            {filteredRows.map((row) => (
+              <tr key={row.id} id={row.id} data-testid={row.id} className={s[`edge_${row.coverage ?? "none"}`]}>
+                <td>
+                  <strong className={cell.id}>{row.id}</strong>
+                  <p className={s.text}>{row.text}</p>
+                  <span className={s.cite}>
+                    <CiteLink runId={runId} cite={row.source} />
+                  </span>
+                </td>
+                <td>
+                  {row.value ? (
+                    <span className={s.value}>{formatValue(t, row.value)}</span>
+                  ) : (
+                    <span className="muted">{t("noValue")}</span>
+                  )}
+                  {row.value_citation && !sameCite(row.value_citation, row.source) && (
+                    <div className={s.cite}>
+                      <CiteLink runId={runId} cite={row.value_citation} />
+                    </div>
+                  )}
+                </td>
+                <td>
+                  <CoverageCell row={row} proposal={byRequirement.get(row.id)} t={t} />
+                </td>
+                <td className={s.reason}>{row.reason}</td>
+                <td>
+                  <EvidenceCell row={row} runId={runId} t={t} />
+                </td>
+                {decided && (
+                  <td>
+                    <DecisionCell
+                      proposal={byRequirement.get(row.id)}
+                      runId={runId}
+                      screen="matrix"
+                      access={decisions.access}
+                      proposed={row.coverage}
+                      returnQuery={returnQuery}
+                      anchor={row.id}
+                    />
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </DataTable>
+      )}
       {matrix.not_read.length > 0 && (
         <section className={s.notRead}>
           <h2>{t("notRead")}</h2>
@@ -273,6 +344,13 @@ export function MatrixTable({
           </ul>
         </section>
       )}
+      <HandoffBar
+        label={th("handoffTitle")}
+        links={[
+          { href: `${base}/findings`, text: th("toFindings") },
+          { href: `${base}/protocol`, text: th("toProtocol") },
+        ]}
+      />
     </>
   );
 }

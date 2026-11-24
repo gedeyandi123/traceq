@@ -3,7 +3,8 @@ import { useTranslations } from "next-intl";
 import type { ProtocolEvent, ProtocolView } from "@/api/client";
 import type { ApprovalControls, ProtocolControls } from "./AssembledProtocolView";
 import { formatWhen } from "./formatWhen";
-import { Button, StatusBadge, type SemanticTone } from "./ui/ui";
+import { SubmitButton } from "./ui/SubmitButton";
+import { StatusBadge, type SemanticTone } from "./ui/ui";
 
 import s from "./AssembledProtocolView.module.css";
 
@@ -31,9 +32,7 @@ export function StartForm({
   return (
     <form action={action.start} className={s.form}>
       <input type="hidden" name="run_id" value={runId} />
-      <Button type="submit" variant="primary">
-        {t(again ? "startAgain" : "start")}
-      </Button>
+      <SubmitButton variant="primary">{t(again ? "startAgain" : "start")}</SubmitButton>
     </form>
   );
 }
@@ -81,9 +80,7 @@ function ApprovalForms({
           <input type="hidden" name="protocol_id" value={protocol.id} />
           <input type="hidden" name="submission_event_id" value={shown.event_id} />
           <input type="hidden" name="hash" value={shown.hash} />
-          <Button type="submit" variant="primary">
-            {t("approval.approve")}
-          </Button>
+          <SubmitButton variant="primary">{t("approval.approve")}</SubmitButton>
         </form>
         <form action={approval.return} className={s.form}>
           <input type="hidden" name="run_id" value={runId} />
@@ -94,9 +91,7 @@ function ApprovalForms({
             aria-label={t("approval.returnReason")}
             placeholder={t("approval.returnReason")}
           />
-          <Button type="submit" variant="danger">
-            {t("approval.return")}
-          </Button>
+          <SubmitButton variant="danger">{t("approval.return")}</SubmitButton>
         </form>
       </div>
     </div>
@@ -135,9 +130,7 @@ export function ProtocolStatusPanel({
           <input type="hidden" name="run_id" value={runId} />
           <input type="hidden" name="protocol_id" value={protocol.id} />
           <textarea name="reason" required aria-label={t("withdrawReason")} placeholder={t("withdrawReason")} />
-          <Button type="submit" variant="danger">
-            {t("withdraw")}
-          </Button>
+          <SubmitButton variant="danger">{t("withdraw")}</SubmitButton>
         </form>
       )}
       {protocol.status === "withdrawn" && (

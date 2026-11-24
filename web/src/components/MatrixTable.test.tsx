@@ -171,6 +171,6 @@ test("a viewer who is not signed in sees the run read-only with what deciding ne
     screen.getByText(/Hanya membaca: masuk sebagai orang dengan peran pengambil keputusan/),
   ).toBeDefined();
   expect(screen.queryByText("Belum diputuskan")).toBeNull();
-  expect(screen.queryByRole("button")).toBeNull();
+  expect(within(screen.getByRole("table")).queryByRole("button")).toBeNull();
   expect(screen.queryByRole("table", { name: "Jumlah keputusan" })).toBeNull();
 });
