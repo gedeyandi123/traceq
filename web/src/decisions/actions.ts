@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { api } from "@/api/client";
@@ -55,5 +56,6 @@ export async function decide(form: FormData): Promise<void> {
   } catch {
     error = "failed";
   }
+  revalidatePath("/runs/[runId]", "layout");
   redirect(buildDecisionRedirect(back, { error, returnQuery, anchor }));
 }

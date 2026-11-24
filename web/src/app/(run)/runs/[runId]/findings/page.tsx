@@ -4,9 +4,8 @@ import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
 import { FindingsView } from "@/components/FindingsView";
-import { RunHeader } from "@/components/RunHeader";
 import { decisionError, loadDecisions } from "@/decisions/load";
-import { loadTabBadges } from "@/decisions/tabBadges";
+import { fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
 
@@ -26,17 +25,19 @@ export default async function FindingsPage({
   const t = await getTranslations("findings");
   const path = { params: { path: { run_id: runId } } };
   const [run, findings, decisions] = await Promise.all([
-    api.GET("/runs/{run_id}", path),
+    fetchRun(runId),
     api.GET("/runs/{run_id}/findings", path),
     loadDecisions(runId),
   ]);
-  const badges = await loadTabBadges(runId, decisions.counts);
   decisions.error = decisionError((await searchParams).error);
-  if (!run.data || !findings.data) notFound();
+  if (!run || !findings.data) notFound();
   return (
-    <>
-      <RunHeader run={run.data} current="findings" intro={t("intro")} badges={badges} />
+    <div className="space-y-4">
+      <div>
+        <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
+        <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
+      </div>
       <FindingsView findings={findings.data} runId={runId} decisions={decisions} />
-    </>
+    </div>
   );
 }

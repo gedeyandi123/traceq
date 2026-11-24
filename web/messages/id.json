@@ -63,7 +63,17 @@
     "loading": "Memuat layar run...",
     "errorTitle": "Gagal memuat layar run",
     "errorBody": "Terjadi kesalahan saat mengambil data dari API. Coba muat ulang halaman ini.",
-    "retry": "Coba lagi"
+    "retry": "Coba lagi",
+    "alurKualifikasi": "Alur kualifikasi",
+    "auditDiagnostik": "Audit & diagnostik",
+    "matrixTriage": "Matriks & Triage",
+    "protocolShort": "Protokol IQ/OQ",
+    "executionDeviation": "Eksekusi & Deviasi",
+    "comingSoon": "Tahap 5b",
+    "collapseSidebar": "Ciutkan bilah sisi",
+    "expandSidebar": "Bentangkan bilah sisi",
+    "openNav": "Buka navigasi",
+    "reviewPackage": "Paket tinjauan"
   },
   "common": {
     "cite": "{doc} rev {rev}, hlm. {page}"
@@ -95,7 +105,8 @@
     "lead": "Setiap run membaca dokumen vendor satu peralatan dan mengusulkan matriks, temuan dan klaim yang dibuang. Semua usulan menunggu keputusan manusia.",
     "run": "Run",
     "emptyTitle": "Belum ada run",
-    "unavailableTitle": "API tidak dapat dihubungi"
+    "unavailableTitle": "API tidak dapat dihubungi",
+    "reviewPackageBadge": "Paket Tinjauan"
   },
   "matrix": {
     "title": "Matriks ketertelusuran",

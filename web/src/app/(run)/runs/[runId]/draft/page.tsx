@@ -5,10 +5,9 @@ import { notFound } from "next/navigation";
 import { api } from "@/api/client";
 import { bearerHeaders } from "@/auth/session";
 import { ProtocolDraftView } from "@/components/ProtocolDraftView";
-import { RunHeader } from "@/components/RunHeader";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
-import { loadTabBadges } from "@/decisions/tabBadges";
+import { fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
 
@@ -29,17 +28,21 @@ export default async function DraftPage({
   const { runId } = await params;
   const t = await getTranslations("draft");
   const path = { params: { path: { run_id: runId } } };
-  const [run, decisions] = await Promise.all([api.GET("/runs/{run_id}", path), loadDecisions(runId)]);
-  const badges = await loadTabBadges(runId, decisions.counts);
+  const [run, decisions] = await Promise.all([fetchRun(runId), loadDecisions(runId)]);
   decisions.error = decisionError((await searchParams).error);
-  if (!run.data?.review_package) notFound();
-  const header = <RunHeader run={run.data} current="draft" intro={t("intro")} badges={badges} />;
+  if (!run?.review_package) notFound();
+  const heading = (
+    <div>
+      <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
+      <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
+    </div>
+  );
   if (decisions.access.mode === "readOnly" && decisions.access.why === "signedOut") {
     return (
-      <>
-        {header}
+      <div className="space-y-4">
+        {heading}
         <EmptyState title={t("signedOut")}>{t("signedOutBody")}</EmptyState>
-      </>
+      </div>
     );
   }
   let draft;
@@ -51,16 +54,16 @@ export default async function DraftPage({
   if (draft?.response.status === 404) notFound();
   if (!draft?.data) {
     return (
-      <>
-        {header}
+      <div className="space-y-4">
+        {heading}
         <EmptyState title={t("unavailable")}>{t("unavailableBody")}</EmptyState>
-      </>
+      </div>
     );
   }
   return (
-    <>
-      {header}
+    <div className="space-y-4">
+      {heading}
       <ProtocolDraftView draft={draft.data} runId={runId} decisions={decisions} />
-    </>
+    </div>
   );
 }

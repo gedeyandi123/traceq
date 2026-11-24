@@ -4,11 +4,10 @@ import { notFound } from "next/navigation";
 
 import { api, type Proposal } from "@/api/client";
 import { MatrixTable, type MatrixFilter } from "@/components/MatrixTable";
-import { RunHeader } from "@/components/RunHeader";
 import type { CoverageKey } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
-import { loadTabBadges } from "@/decisions/tabBadges";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
+import { fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +31,12 @@ export default async function MatrixPage({
   const t = await getTranslations("matrix");
   const path = { params: { path: { run_id: runId } } };
   const [run, matrix, decisions] = await Promise.all([
-    api.GET("/runs/{run_id}", path),
+    fetchRun(runId),
     api.GET("/runs/{run_id}/matrix", path),
     loadDecisions(runId),
   ]);
-  const badges = await loadTabBadges(runId, decisions.counts);
   decisions.error = decisionError(query.error);
-  if (!run.data || !matrix.data) notFound();
+  if (!run || !matrix.data) notFound();
   const cov = typeof query.coverage === "string" && VALID_COVERAGE.has(query.coverage as CoverageKey)
     ? (query.coverage as CoverageKey)
     : undefined;
@@ -47,9 +45,12 @@ export default async function MatrixPage({
     : undefined;
   const filter: MatrixFilter = { coverage: cov, status: st };
   return (
-    <>
-      <RunHeader run={run.data} current="matrix" intro={t("intro")} badges={badges} />
+    <div className="space-y-4">
+      <div>
+        <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
+        <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
+      </div>
       <MatrixTable matrix={matrix.data} runId={runId} decisions={decisions} filter={filter} />
-    </>
+    </div>
   );
 }

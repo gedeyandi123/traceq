@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { api } from "@/api/client";
@@ -21,6 +22,7 @@ function error(status: number): ProtocolError | undefined {
 }
 
 function back(runId: string, failed: ProtocolError | undefined): never {
+  revalidatePath("/runs/[runId]", "layout");
   const page = `/runs/${encodeURIComponent(runId)}/protocol`;
   redirect(failed ? `${page}?protocolError=${failed}` : page);
 }
