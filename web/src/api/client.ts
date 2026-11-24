@@ -31,6 +31,10 @@ export type ChecklistItem = components["schemas"]["ChecklistItem"];
 export type SubmissionView = components["schemas"]["SubmissionView"];
 export type FrozenRow = components["schemas"]["FrozenRow"];
 export type FrozenDecision = components["schemas"]["FrozenDecision"];
+export type ExecutionView = components["schemas"]["ExecutionView"];
+export type ExecutionRowView = components["schemas"]["ExecutionRowView"];
+export type ExecutionEvent = components["schemas"]["ExecutionEvent"];
+export type ExecutionTestStep = components["schemas"]["ExecutionTestStep"];
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */

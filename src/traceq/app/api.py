@@ -21,6 +21,7 @@ from sqlalchemy import URL, make_url
 from traceq.assembly import written
 from traceq.assembly.api import create_router as assembly_router
 from traceq.db import engine
+from traceq.execution.api import create_router as execution_router
 from traceq.identity import IdentitySettings, Verifier
 from traceq.identity.http import authenticate
 from traceq.proposals.api import create_router as proposals_router
@@ -53,6 +54,7 @@ def create_app(
         proposals_router(runs, db, principal, before_accepting=written.guard_accepting)
     )
     app.include_router(assembly_router(runs, db, principal))
+    app.include_router(execution_router(db, principal))
     return app
 
 

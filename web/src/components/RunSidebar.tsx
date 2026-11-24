@@ -23,7 +23,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { ProtocolStatusBadge } from "@/components/ui/StatusBadge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 
-export type RunNavKey = "matrix" | "findings" | "draft" | "protocol" | "leftOut" | "eval";
+export type RunNavKey = "matrix" | "findings" | "draft" | "protocol" | "execution" | "leftOut" | "eval";
 
 export type RunSidebarBadges = {
   matrix?: number;
@@ -35,6 +35,7 @@ const SEGMENT_TO_KEY: Record<string, RunNavKey> = {
   findings: "findings",
   draft: "draft",
   protocol: "protocol",
+  execution: "execution",
   "left-out": "leftOut",
   eval: "eval",
 };
@@ -93,6 +94,12 @@ function SidebarNavList({
       label: t("protocolShort"),
       icon: ClipboardCheck,
       protocolStatus,
+    },
+    {
+      key: "execution",
+      href: `${base}/execution`,
+      label: t("executionDeviation"),
+      icon: PlayCircle,
     },
   ];
 
@@ -157,25 +164,6 @@ function SidebarNavList({
     return linkEl;
   };
 
-  const step5bSlot = (
-    <div
-      aria-disabled="true"
-      className={`flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium text-ink-muted/60 ${
-        collapsed ? "justify-center px-0" : ""
-      }`}
-    >
-      <PlayCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-      {!collapsed && (
-        <>
-          <span className="min-w-0 flex-1 truncate">{t("executionDeviation")}</span>
-          <span className="rounded border border-border bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">
-            {t("comingSoon")}
-          </span>
-        </>
-      )}
-    </div>
-  );
-
   return (
     <TooltipProvider delayDuration={200}>
       <nav aria-label={t("tabs")} className="flex flex-1 flex-col gap-5 overflow-y-auto px-2.5 py-3">
@@ -186,10 +174,6 @@ function SidebarNavList({
             </div>
           )}
           {workflowItems.map(renderLink)}
-          <Tooltip>
-            <TooltipTrigger asChild>{step5bSlot}</TooltipTrigger>
-            <TooltipContent side="right">{ui("comingSoonTooltip")}</TooltipContent>
-          </Tooltip>
         </div>
 
         <div className="flex flex-col gap-1 border-t border-border pt-3">

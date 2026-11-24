@@ -152,8 +152,8 @@ def test_draft_prompt_takes_nothing_from_the_tp201_draft() -> None:
     assert [t for t in texts if norm(t) in prompt] == []
 
 
-# --- The other way: eval runs never read Protocols or decisions (spec #247, "Isolation") ---
-SCORER_NEVER_LOADS = ("traceq.assembly", "traceq.proposals", "traceq.db")
+# --- The other way: eval runs never read Protocols, Executions or decisions (#247, #271) ---
+SCORER_NEVER_LOADS = ("traceq.execution", "traceq.assembly", "traceq.proposals", "traceq.db")
 _IMPORT_THE_SCORER = """
 import importlib, json, pkgutil, sys
 import traceq_eval

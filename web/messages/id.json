@@ -49,6 +49,10 @@
       "submitted": "Diajukan",
       "approved": "Disetujui",
       "withdrawn": "Ditarik"
+    },
+    "executionStatuses": {
+      "in_progress": "Sedang berjalan",
+      "completed": "Selesai"
     }
   },
   "runHeader": {
@@ -66,6 +70,7 @@
     "toFindings": "Lanjut ke Temuan pra-tinjauan",
     "toDraft": "Lanjut ke Draf protokol",
     "toProtocol": "Lanjut ke Protokol (disusun di TraceQ)",
+    "toExecution": "Buka Eksekusi & Deviasi",
     "loading": "Memuat layar run...",
     "errorTitle": "Gagal memuat layar run",
     "errorBody": "Terjadi kesalahan saat mengambil data dari API. Coba muat ulang halaman ini.",
@@ -99,7 +104,7 @@
     "canApprove": "Dapat menyetujui",
     "empty": "Belum ada persona demo yang tersedia.",
     "roleDesc": {
-      "canDecide": "Dapat memutuskan matriks, temuan, draf, menyusun dan mengajukan protokol.",
+      "canDecide": "Dapat memutuskan matriks, temuan, draf, menyusun dan mengajukan protokol, serta memulai eksekusi.",
       "canApprove": "Dapat meninjau salinan beku, menyetujui, atau mengembalikan protokol.",
       "readOnly": "Hanya dapat membaca seluruh layar tanpa mengubah keputusan atau protokol."
     }
@@ -706,6 +711,64 @@
       "note": "Teks URS yang tidak dikutip persyaratan mana pun, untuk mencari persyaratan yang hilang. Tidak perlu dijawab dan tidak memblokir.",
       "none": "Tidak ada.",
       "show": "{doc} rev {rev}: tampilkan teks ({count})"
+    },
+    "toExecution": "Buka Eksekusi & Deviasi"
+  },
+  "execution": {
+    "title": "Eksekusi & Deviasi",
+    "intro": "Eksekusi protokol yang sudah disetujui, membaca salinan beku yang disetujui: satu baris per baris salinan beku, sesuai urutannya.",
+    "signedOut": "Masuk untuk membaca atau memulai eksekusi",
+    "signedOutBody": "Eksekusi protokol memerlukan token. Masuk sebagai salah satu identitas demo untuk membacanya.",
+    "unavailable": "Eksekusi tidak dapat dimuat",
+    "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data.",
+    "noApprovedProtocol": "Belum ada protokol yang disetujui",
+    "noApprovedProtocolBody": "Eksekusi hanya dapat dimulai dari protokol berstatus Disetujui. Buka halaman Protokol IQ/OQ untuk menyusun dan menyetujui protokol terlebih dahulu.",
+    "toProtocol": "Buka Protokol IQ/OQ",
+    "notStarted": "Belum ada eksekusi untuk protokol yang disetujui ini",
+    "notStartedBody": "Mulai eksekusi dari salinan beku protokol {protocolId} yang telah disetujui.",
+    "notStartedReadOnly": "Anda tidak memiliki peran pelaksana untuk memulai eksekusi.",
+    "start": "Mulai eksekusi",
+    "status": "Status eksekusi {id}",
+    "protocolRef": "Dari protokol {protocolId} (run {runId}) · pengajuan #{eventId}",
+    "history": "Riwayat eksekusi",
+    "events": {
+      "started": "Dimulai oleh {name}, {when}",
+      "completed": "Diselesaikan oleh {name}, {when}"
+    },
+    "rows": "Baris eksekusi ({count})",
+    "rowsNote": "Dari salinan beku protokol yang disetujui, sesuai urutannya. Baris referensi vendor tidak memerlukan tindakan.",
+    "colRequirement": "Persyaratan",
+    "colKind": "Jenis",
+    "colDetail": "Langkah uji / Bukti vendor",
+    "colAcceptance": "Kriteria penerimaan",
+    "kinds": {
+      "test_step": "Langkah uji",
+      "vendor_reference": "Referensi vendor"
+    },
+    "description": "Deskripsi",
+    "method": "Metode",
+    "instrument": "Instrumen",
+    "noInstrument": "Tidak ada instrumen",
+    "evidenceStep": "{doc} rev {rev}, langkah {step}",
+    "vendorNoControls": "Referensi vendor — tidak memerlukan tindakan saat eksekusi.",
+    "errors": {
+      "conflict": "Ditolak API: eksekusi hanya dapat dimulai untuk protokol berstatus Disetujui, dan hanya satu eksekusi per protokol.",
+      "forbidden": "Ditolak API: identitas ini tidak memiliki peran pelaksana (qualification-executor).",
+      "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",
+      "notFound": "Ditolak API: protokol tidak ditemukan.",
+      "failed": "Gagal memulai eksekusi. Coba lagi."
+    },
+    "limitsTitle": "Batas yang diketahui",
+    "limits": {
+      "evidenceText": "Bukti adalah referensi teks (unggah berkas hadir pada tahap 6).",
+      "noWitness": "Belum ada langkah uji yang mewajibkan Saksi.",
+      "retestNoPermission": "Uji ulang (Retest) tidak memerlukan izin sebelumnya.",
+      "noRounding": "Angka dibandingkan tanpa pembulatan (toleransi ditulis sebagai rentang).",
+      "typedCalibration": "Tanggal kedaluwarsa kalibrasi diketik oleh pelaksana, tanpa daftar instrumen.",
+      "liveOnly": "Hasil dicatat secara langsung; transkripsi dari kertas tidak didukung.",
+      "oneExecution": "Satu eksekusi per protokol yang disetujui dan tidak dapat dibatalkan.",
+      "combined": "IQ dan OQ digabung dalam satu eksekusi.",
+      "notSignature": "Konfirmasi dan penutupan adalah status tercatat, bukan tanda tangan elektronik."
     }
   }
 }

@@ -8,6 +8,7 @@ it and knows only its URL.
 from traceq.identity.tokens import (
     APPROVING_ROLE,
     DECIDING_ROLE,
+    EXECUTING_ROLE,
     IdentitySettings,
     InvalidToken,
     IssuerUnavailable,
@@ -18,6 +19,7 @@ from traceq.identity.tokens import (
 __all__ = [
     "APPROVING_ROLE",
     "DECIDING_ROLE",
+    "EXECUTING_ROLE",
     "IdentitySettings",
     "InvalidToken",
     "IssuerUnavailable",

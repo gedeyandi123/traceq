@@ -29,6 +29,7 @@ const session: Session = {
   name: "Ayu Kartika Sari",
   mayDecide: true,
   mayApprove: false,
+  mayExecute: true,
 };
 
 function renderShell(
@@ -66,13 +67,15 @@ test("renders unnumbered workflow & audit links, omitting Draf protokol when rev
     "/runs/r7%20TP%2F201",
     "/runs/r7%20TP%2F201/findings",
     "/runs/r7%20TP%2F201/protocol",
+    "/runs/r7%20TP%2F201/execution",
     "/runs/r7%20TP%2F201/left-out",
     "/runs/r7%20TP%2F201/eval",
   ]);
   expect(links[0]?.getAttribute("aria-current")).toBe("page");
   expect(within(nav).getByRole("link", { name: /Matriks & Triage/ }).textContent).toContain("5");
-  expect(within(nav).getByText("Eksekusi & Deviasi")).toBeDefined();
-  expect(within(nav).getByText("Tahap 5b")).toBeDefined();
+  expect(within(nav).getByRole("link", { name: /Eksekusi & Deviasi/ }).getAttribute("href")).toBe(
+    "/runs/r7%20TP%2F201/execution",
+  );
 });
 
 test("includes Draf protokol and review_package metadata when review_package is present", () => {

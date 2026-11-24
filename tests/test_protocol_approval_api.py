@@ -37,7 +37,7 @@ from test_protocol_submission_api import R002, R026, canonical_sha256, make_read
 from test_test_step_proposals import add_drafted_run
 from test_written_test_steps_api import STEP, trail, write
 
-from traceq.identity import APPROVING_ROLE, DECIDING_ROLE
+from traceq.identity import APPROVING_ROLE, DECIDING_ROLE, EXECUTING_ROLE
 
 
 @pytest.fixture
@@ -144,8 +144,8 @@ def submitted(client: TestClient, decider: dict[str, str], protocol: Any) -> Any
 def test_the_fourth_persona_holds_only_the_approving_role(demo_issuer: DemoIssuer) -> None:
     personas = {p["username"]: p for p in httpx.get(f"{demo_issuer.url}/demo/personas").json()}
     assert personas["dewi"]["roles"] == [APPROVING_ROLE]
-    assert personas["ayu"]["roles"] == [DECIDING_ROLE]
-    assert personas["bima"]["roles"] == [DECIDING_ROLE]
+    assert personas["ayu"]["roles"] == [DECIDING_ROLE, EXECUTING_ROLE]
+    assert personas["bima"]["roles"] == [DECIDING_ROLE, EXECUTING_ROLE]
     assert personas["citra"]["roles"] == []
     assert not any(
         DECIDING_ROLE in p["roles"] and APPROVING_ROLE in p["roles"] for p in personas.values()

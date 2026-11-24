@@ -51,7 +51,11 @@ PROTOCOL_ROUTES = {
     ("post", "/protocols/{protocol_id}/approve"),
     ("post", "/protocols/{protocol_id}/return"),
 }
-DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES
+EXECUTION_ROUTES = {
+    ("post", "/protocols/{protocol_id}/execution"),
+    ("get", "/runs/{run_id}/execution"),
+}
+DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 
