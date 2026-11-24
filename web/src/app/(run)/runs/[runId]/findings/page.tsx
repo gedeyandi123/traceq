@@ -37,7 +37,12 @@ export default async function FindingsPage({
         <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
         <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
       </div>
-      <FindingsView findings={findings.data} runId={runId} decisions={decisions} />
+      <FindingsView
+        findings={findings.data}
+        runId={runId}
+        decisions={decisions}
+        hasReviewPackage={run.review_package != null}
+      />
     </div>
   );
 }

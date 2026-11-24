@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { currentSession } from "@/auth/session";
@@ -47,11 +48,16 @@ export default async function ProtocolPage({
   searchParams,
 }: {
   params: Promise<{ runId: string }>;
-  searchParams: Promise<{ error?: string | string[]; protocolError?: string | string[] }>;
+  searchParams: Promise<{
+    error?: string | string[];
+    protocolError?: string | string[];
+    selected?: string | string[];
+  }>;
 }) {
   const { runId } = await params;
   const query = await searchParams;
   const t = await getTranslations("protocol");
+  const signin = await getTranslations("signin");
   const [run, decisions, session, protocolRes] = await Promise.all([
     fetchRun(runId),
     loadDecisions(runId),
@@ -60,6 +66,8 @@ export default async function ProtocolPage({
   ]);
   decisions.error = decisionError(query.error);
   if (!run) notFound();
+  const selected = typeof query.selected === "string" && query.selected.trim() !== "" ? query.selected : null;
+  const signInHref = `/signin?next=${encodeURIComponent(`/runs/${encodeURIComponent(runId)}/protocol`)}`;
   const heading = (
     <div>
       <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
@@ -77,7 +85,19 @@ export default async function ProtocolPage({
     return (
       <div className="space-y-4">
         {heading}
-        <EmptyState title={t(why)}>{t(`${why}Body`)}</EmptyState>
+        <EmptyState title={t(why)}>
+          <p className="m-0">{t(`${why}Body`)}</p>
+          {access.why === "signedOut" && (
+            <div className="mt-3">
+              <Link
+                href={signInHref}
+                className="inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
+              >
+                {signin("link")}
+              </Link>
+            </div>
+          )}
+        </EmptyState>
       </div>
     );
   }
@@ -115,6 +135,7 @@ export default async function ProtocolPage({
         }
         approval={session?.mayApprove ? { approve: approveProtocol, return: returnProtocol } : null}
         error={PROTOCOL_ERRORS.find((e) => e === query.protocolError)}
+        initialSelected={selected}
       />
     </div>
   );

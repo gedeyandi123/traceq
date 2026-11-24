@@ -1,7 +1,8 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Check, Copy, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import type { FrozenDecision, FrozenRow, SubmissionView } from "@/api/client";
 import { formatWhen } from "./formatWhen";
@@ -63,23 +64,27 @@ function Row({
           </ul>
         )}
         {step && (
-          <dl className="m-0 mt-1.5 space-y-1 rounded border border-border bg-canvas p-2 text-[11px]">
-            <dt className="font-semibold text-ink">
+          <div className="mt-1.5 space-y-1 rounded border border-border bg-sunken p-2 text-[11px]">
+            <div className="font-semibold text-ink">
               {step.origin === "written"
                 ? t(step.proposal_id === null ? "writtenStep" : "editedStep", {
                     version: step.version ?? 1,
                   })
                 : t("fromDraft")}
-            </dt>
-            <dt className="font-semibold text-ink-muted">{t("description")}</dt>
-            <dd className="m-0 text-ink">{step.description}</dd>
-            <dt className="font-semibold text-ink-muted">{t("method")}</dt>
-            <dd className="m-0 text-ink">{step.method}</dd>
-            <dt className="font-semibold text-ink-muted">{t("instrument")}</dt>
-            <dd className="m-0 text-ink">{step.instrument ?? t("noInstrument")}</dd>
-            <dt className="font-semibold text-ink-muted">{t("ac")}</dt>
-            <dd className="m-0 font-medium text-ink tabular-nums">{formatValue(m, step.acceptance)}</dd>
-          </dl>
+            </div>
+            <dl className="m-0 space-y-1">
+              <dt className="font-semibold text-ink-muted">{t("description")}</dt>
+              <dd className="m-0 text-ink">{step.description}</dd>
+              <dt className="font-semibold text-ink-muted">{t("method")}</dt>
+              <dd className="m-0 text-ink">{step.method}</dd>
+              <dt className="font-semibold text-ink-muted">{t("instrument")}</dt>
+              <dd className="m-0 text-ink">{step.instrument ?? t("noInstrument")}</dd>
+              <dt className="font-semibold text-ink-muted">{t("ac")}</dt>
+              <dd className="m-0 font-medium text-ink tabular-nums">
+                {formatValue(m, step.acceptance)}
+              </dd>
+            </dl>
+          </div>
         )}
         {row.written.length > 0 && (
           <ul
@@ -105,7 +110,7 @@ function Row({
         ) : (
           <div className="space-y-2">
             {row.drafts.map((d) => (
-              <div key={d.proposal_id} className="rounded border border-border bg-canvas p-2 text-[11px]">
+              <div key={d.proposal_id} className="rounded border border-border bg-sunken p-2 text-[11px]">
                 <div className="font-mono font-semibold text-ink">{d.draft_id}</div>
                 {d.decision ? (
                   <By t={t} when={when} d={d.decision} />
@@ -135,6 +140,8 @@ export function FrozenCopy({
 }) {
   const m = useTranslations("matrix");
   const when = useTranslations("decisions");
+  const ui = useTranslations("ui");
+  const [copied, setCopied] = useState(false);
   const copy = submission.frozen_copy;
   const missed = (copy.urs ?? []).flatMap((u) =>
     u.missed.map((n) => ({ ...n, doc: u.doc, rev: u.rev })),
@@ -142,6 +149,16 @@ export function FrozenCopy({
   const unquoted = (copy.urs ?? []).flatMap((u) =>
     u.unquoted.map((x) => ({ ...x, doc: u.doc, rev: u.rev })),
   );
+
+  const handleCopyHash = async () => {
+    try {
+      await navigator.clipboard.writeText(submission.hash);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API unavailable
+    }
+  };
 
   return (
     <section aria-labelledby="protocol-copy" className="space-y-4">
@@ -156,15 +173,27 @@ export function FrozenCopy({
           </span>
         </div>
         <p className="mt-1 mb-3 text-xs text-ink-muted">{t("copy.note")}</p>
-        <dl className="m-0 grid grid-cols-1 gap-2 rounded-md border border-border bg-canvas p-3 text-xs sm:grid-cols-[120px_1fr]">
+        <dl className="m-0 grid grid-cols-1 gap-2 rounded-md border border-border bg-sunken p-3 text-xs sm:grid-cols-[120px_1fr]">
           <dt className="font-semibold text-ink-muted">{t("copy.hash")}</dt>
-          <dd className="m-0 overflow-x-auto">
-            <code data-testid="copy-hash" className="font-mono text-xs text-ink">
+          <dd className="m-0 flex min-w-0 flex-wrap items-center gap-2">
+            <code data-testid="copy-hash" className="font-mono text-xs break-all text-ink tabular-nums">
               {submission.hash}
             </code>
+            <button
+              type="button"
+              onClick={() => void handleCopyHash()}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-muted hover:bg-canvas hover:text-ink"
+            >
+              {copied ? (
+                <Check className="h-3 w-3 text-pass" aria-hidden="true" />
+              ) : (
+                <Copy className="h-3 w-3" aria-hidden="true" />
+              )}
+              <span>{ui(copied ? "copied" : "copyHash")}</span>
+            </button>
           </dd>
           <dt className="font-semibold text-ink-muted">{t("copy.preparer")}</dt>
-          <dd className="m-0 text-ink">
+          <dd className="m-0 text-ink tabular-nums">
             {t("copy.submittedBy", {
               name: copy.preparer.name,
               when: formatWhen(when, submission.at),
@@ -176,17 +205,17 @@ export function FrozenCopy({
       <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
         <table className="w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-border bg-canvas text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              <th scope="col" className="px-3 py-2.5">
+            <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                 {t("requirement")}
               </th>
-              <th scope="col" className="px-3 py-2.5">
+              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                 {t("coverage")}
               </th>
-              <th scope="col" className="px-3 py-2.5">
+              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                 {t("content")}
               </th>
-              <th scope="col" className="px-3 py-2.5">
+              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                 {t("drafts")}
               </th>
             </tr>
@@ -256,8 +285,8 @@ export function FrozenCopy({
           <h3 className="m-0 text-sm font-bold text-ink">{t("unquoted.title")}</h3>
           <ul className="m-0 list-none space-y-1.5 p-0 text-xs">
             {unquoted.map((x, i) => (
-              <li key={i} className="rounded border border-border bg-canvas p-2.5 text-ink-muted">
-                {x.doc} rev {x.rev}, p. {x.page}: {x.text}
+              <li key={i} className="rounded border border-border bg-sunken p-2.5 text-ink-muted tabular-nums">
+                {x.doc} rev {x.rev}, {t("missed.page", { page: x.page })}: {x.text}
               </li>
             ))}
           </ul>
@@ -270,24 +299,33 @@ export function FrozenCopy({
 }
 
 /** The earlier submissions of a Protocol, each with its hash and the return that followed it. */
-export function EarlierCopies({ t, earlier }: { t: T; earlier: readonly SubmissionView[] }) {
+export function EarlierCopies({
+  t,
+  earlier,
+  headingLevel = "h3",
+}: {
+  t: T;
+  earlier: readonly SubmissionView[];
+  headingLevel?: "h2" | "h3";
+}) {
   const when = useTranslations("decisions");
+  const Heading = headingLevel;
   return (
     <section
       aria-label={t("copy.earlier")}
       className="space-y-2.5 rounded-lg border border-border bg-surface p-4"
     >
-      <h3 className="m-0 text-sm font-bold text-ink">{t("copy.earlier")}</h3>
+      <Heading className="m-0 text-sm font-bold text-ink">{t("copy.earlier")}</Heading>
       <ul className="m-0 list-none space-y-2 p-0 text-xs">
         {earlier.map((e) => (
           <li
             key={e.event_id}
             data-testid={`earlier-${e.event_id}`}
-            className="space-y-1 rounded border border-border bg-canvas p-3"
+            className="space-y-1 rounded border border-border bg-sunken p-3"
           >
-            <div className="text-ink">
+            <div className="text-ink tabular-nums">
               {t("copy.earlierItem", { when: formatWhen(when, e.at) })}{" "}
-              <code className="font-mono text-xs">{e.hash}</code>
+              <code className="font-mono text-xs break-all">{e.hash}</code>
             </div>
             {e.outcome?.event === "returned" && (
               <div className="space-y-0.5 text-ink-muted">

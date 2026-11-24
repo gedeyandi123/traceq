@@ -23,9 +23,19 @@ import {
   FindingDecisionPanel,
 } from "@/components/FindingDecisionPanel";
 import { useRunShell } from "@/components/RunShellContext";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
 
 export { formatPrinted };
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.closest(
+      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
+    ) !== null
+  );
+}
 
 type DraftFilter = "all" | "withFindings" | "notCompared" | "notRead";
 type VendorDoc = Draft["vendor_documents"][number];
@@ -63,7 +73,9 @@ function CompactComparators({
                 {facts.map((f) => `${f.name}: ${f.printed}`).join(", ")}
               </span>
             ) : (
-              <span>{t("noComparators")}</span>
+              <span className="inline-block rounded bg-sunken px-1.5 py-0.5 text-[10px] text-ink-muted">
+                {t("noComparators")}
+              </span>
             )}
           </li>
         );
@@ -80,10 +92,12 @@ export function ProtocolDraftView({
   draft,
   runId,
   decisions,
+  initialSelected = null,
 }: {
   draft: Draft;
   runId: string;
   decisions: DecisionView;
+  initialSelected?: string | null;
 }) {
   const t = useTranslations("draft");
   const th = useTranslations("runHeader");
@@ -127,7 +141,7 @@ export function ProtocolDraftView({
   );
 
   const [activeFilter, setActiveFilter] = useState<DraftFilter>("all");
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(initialSelected);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [pendingStepId, setPendingStepId] = useState<string | null | undefined>(undefined);
 
@@ -135,6 +149,14 @@ export function ProtocolDraftView({
     setDrawerOpen(selectedStepId !== null);
     return () => setDrawerOpen(false);
   }, [selectedStepId, setDrawerOpen]);
+
+  useEffect(() => {
+    if (!selectedStepId || typeof document === "undefined") return;
+    const el = document.getElementById(`draft-step-${selectedStepId}`);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedStepId]);
 
   const filteredSteps = useMemo(() => {
     return draft.test_steps.filter((st) => {
@@ -151,11 +173,28 @@ export function ProtocolDraftView({
   );
   const selectedStep = selectedIndex >= 0 ? (filteredSteps[selectedIndex] ?? null) : null;
 
-  const applySelection = useCallback((nextId: string | null) => {
-    setSelectedStepId(nextId);
-    setIsFormDirty(false);
-    setPendingStepId(undefined);
-  }, []);
+  const syncSelectedUrl = useCallback(
+    (nextId: string | null) => {
+      if (typeof window === "undefined") return;
+      const base = `/runs/${encodeURIComponent(runId)}/draft`;
+      const qs = new URLSearchParams(window.location.search);
+      if (nextId) qs.set("selected", nextId);
+      else qs.delete("selected");
+      const q = qs.toString();
+      window.history.replaceState(null, "", q ? `${base}?${q}` : base);
+    },
+    [runId],
+  );
+
+  const applySelection = useCallback(
+    (nextId: string | null) => {
+      setSelectedStepId(nextId);
+      setIsFormDirty(false);
+      setPendingStepId(undefined);
+      syncSelectedUrl(nextId);
+    },
+    [syncSelectedUrl],
+  );
 
   const requestSelection = useCallback(
     (nextId: string | null) => {
@@ -168,6 +207,30 @@ export function ProtocolDraftView({
     },
     [selectedStepId, isFormDirty, applySelection],
   );
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key !== "j" && e.key !== "J" && e.key !== "k" && e.key !== "K") return;
+      if (isTypingTarget(e.target)) return;
+      if (filteredSteps.length === 0) return;
+
+      e.preventDefault();
+      const goingDown = e.key === "j" || e.key === "J";
+      if (selectedIndex === -1) {
+        const first = filteredSteps[0];
+        if (first) requestSelection(first.id);
+        return;
+      }
+      const nextIdx = goingDown
+        ? Math.min(selectedIndex + 1, filteredSteps.length - 1)
+        : Math.max(selectedIndex - 1, 0);
+      const target = filteredSteps[nextIdx];
+      if (target) requestSelection(target.id);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [filteredSteps, selectedIndex, requestSelection]);
 
   const filterOptions: readonly { id: DraftFilter; label: string; count: number }[] = [
     { id: "all", label: t("filters.all"), count: draft.test_steps.length },
@@ -196,39 +259,29 @@ export function ProtocolDraftView({
 
       <DecisionNoticeBanner view={decisions} />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <DecisionCountsSummary counts={decisions.counts} kinds={["draft"]} />
-      </div>
+      {decisions.counts && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <DecisionCountsSummary counts={decisions.counts} kinds={["draft"]} />
+        </div>
+      )}
 
       {/* 1-click triage filters */}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface p-2">
-        {filterOptions.map((opt) => {
-          const active = activeFilter === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              data-tw=""
-              aria-pressed={active}
-              onClick={() => setActiveFilter(opt.id)}
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
-                active
-                  ? "border-accent bg-accent text-on-accent"
-                  : "border-border bg-canvas text-ink hover:bg-sunken"
-              }`}
+      <FilterBar
+        ariaLabel={t("steps")}
+        options={filterOptions}
+        activeId={activeFilter}
+        onSelect={setActiveFilter}
+        trailing={
+          whole.length > 0 ? (
+            <a
+              href="#draft-document"
+              className="inline-flex items-center gap-1 rounded-full border border-warn-edge bg-warn-soft px-2.5 py-1 text-xs font-semibold text-warn no-underline hover:opacity-85 tabular-nums"
             >
-              <span>{opt.label}</span>
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[11px] tabular-nums ${
-                  active ? "bg-surface/20 text-on-accent" : "bg-surface text-ink-muted"
-                }`}
-              >
-                {opt.count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+              {t("wholeFindingsJump", { count: whole.length })}
+            </a>
+          ) : undefined
+        }
+      />
 
       {/* Section 1: Sequential Ordered Steps Table */}
       <section aria-labelledby="draft-steps" className="space-y-2">
@@ -256,20 +309,20 @@ export function ProtocolDraftView({
           <div className="overflow-x-auto rounded-lg border border-border bg-surface">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="border-b border-border bg-canvas text-ink-muted">
-                  <th scope="col" className="px-3 py-2 font-semibold">
+                <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                     {t("step")}
                   </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
+                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                     {t("ac")}
                   </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
+                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                     {t("urs")}
                   </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
+                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                     {t("comparators")}
                   </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
+                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                     {t("findings")}
                   </th>
                 </tr>
@@ -282,12 +335,16 @@ export function ProtocolDraftView({
                   return (
                     <tr
                       key={st.id}
-                      className={isSelected ? "bg-accent-soft" : "hover:bg-canvas/60"}
+                      id={`draft-step-${st.id}`}
+                      className={
+                        isSelected
+                          ? "bg-accent-soft shadow-[inset_3px_0_0_var(--color-accent)]"
+                          : "hover:bg-sunken/40"
+                      }
                     >
                       <th scope="row" className="px-3 py-2.5 align-top whitespace-nowrap">
                         <button
                           type="button"
-                          data-tw=""
                           onClick={() => requestSelection(st.id)}
                           aria-expanded={isSelected}
                           className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 font-mono text-xs font-bold text-accent tabular-nums hover:border-accent hover:bg-accent-soft"
@@ -303,7 +360,7 @@ export function ProtocolDraftView({
                       ) : (
                         <>
                           <td className="px-3 py-2.5 align-top">
-                            <div className="font-medium text-ink">{ac.printed}</div>
+                            <div className="font-medium text-ink tabular-nums">{ac.printed}</div>
                             {ac.value === null && (
                               <div className="text-[11px] text-ink-muted">{t("notParsed")}</div>
                             )}
@@ -405,11 +462,11 @@ export function ProtocolDraftView({
           <div className="overflow-x-auto rounded-lg border border-border bg-surface">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="border-b border-border bg-canvas text-ink-muted">
-                  <th scope="col" className="px-3 py-2 font-semibold">
+                <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                     {t("requirement")}
                   </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
+                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                     {t("findings")}
                   </th>
                 </tr>
@@ -456,7 +513,10 @@ export function ProtocolDraftView({
       </section>
 
       {/* Handoff Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3">
+      <nav
+        aria-label={th("handoffTitle")}
+        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+      >
         <span className="text-xs font-medium text-ink-muted">{th("handoffTitle")}</span>
         <Link
           href={`/runs/${encodeURIComponent(runId)}/protocol`}
@@ -465,7 +525,7 @@ export function ProtocolDraftView({
           <span>{th("toProtocol")}</span>
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
-      </div>
+      </nav>
 
       {/* Slide-Over Step Inspection & Decision Drawer */}
       <DraftStepDrawer

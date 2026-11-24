@@ -13,6 +13,7 @@ let mockSegment: string | null = null;
 
 vi.mock("next/navigation", () => ({
   useSelectedLayoutSegment: () => mockSegment,
+  usePathname: () => "/runs/r7%20TP%2F201",
 }));
 
 const run: RunSummary = {

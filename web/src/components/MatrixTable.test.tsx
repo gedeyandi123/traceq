@@ -145,8 +145,9 @@ test("an imported run shows each row's decision state, prior decisions (K15), an
     within(dialog).getByText("Diterima oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC"),
   ).toBeDefined();
 
-  // Replacing a decision on the same content needs a Reason for Change (K8)
+  // Replacing a decision on the same content uses a single form + single Reason for Change (K8, K15)
   fireEvent.click(within(dialog).getByRole("button", { name: "Putuskan ulang" }));
+  expect(within(dialog).getAllByRole("textbox", { name: "Alasan perubahan" })).toHaveLength(1);
   const acceptForm = within(dialog).getByRole("button", { name: "Terima" }).closest("form")!;
   expect(within(acceptForm).getByRole("textbox").hasAttribute("required")).toBe(true);
   expect(within(dialog).queryByRole("button", { name: /setuju/i })).toBeNull();
@@ -219,7 +220,7 @@ test("a viewer without the deciding role reads the decisions and cannot decide",
     screen.getByText(/Hanya membaca: identitas ini tidak memiliki peran pengambil keputusan/),
   ).toBeDefined();
   const row = screen.getByRole("row", { name: /URS-TP201-002/ });
-  expect(within(row).getByText("Sudah diputuskan")).toBeDefined();
+  expect(within(row).getByText("Diubah")).toBeDefined();
 
   fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
   const dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
@@ -301,6 +302,7 @@ test("J/K keyboard shortcuts navigate rows and are disabled inside inputs/combos
 
   // J inside select/textarea is ignored
   fireEvent.click(within(firstDialog).getByRole("button", { name: "Putuskan ulang" }));
+  fireEvent.click(within(firstDialog).getByRole("radio", { name: "Ubah kelas" }));
   const coverageSelect = within(firstDialog).getByRole("combobox", {
     name: "Pilih kelas cakupan",
   });

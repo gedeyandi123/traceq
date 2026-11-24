@@ -6,8 +6,10 @@ import { useTranslations } from "next-intl";
 import type { Cite, DraftFindingView, DraftTestStep, ProtocolDraftView as Draft } from "@/api/client";
 import type { DecisionView } from "@/components/Decisions";
 import { FindingDecisionPanel } from "@/components/FindingDecisionPanel";
+import { DirtyGuardBanner } from "@/components/ui/DirtyGuardBanner";
 import { Drawer } from "@/components/ui/Drawer";
 import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 
 type T = ReturnType<typeof useTranslations<"draft">>;
 type VendorDoc = Draft["vendor_documents"][number];
@@ -52,16 +54,28 @@ export function formatPrinted(t: T, v: DraftTestStep["traced"][number]["urs_limi
 }
 
 /** A citation into the draft. The draft is not a corpus document the API serves, so it names
- * the page, with the verbatim quote on hover, and links nowhere (K22). */
+ * the page, with the verbatim quote in a Radix Tooltip, and links nowhere (K22). */
 export function DraftCite({ cite }: { cite: Cite }) {
   const c = useTranslations("common");
+  const t = useTranslations("draft");
   return (
-    <span
-      title={cite.quote}
-      className="inline-block cursor-help text-[11px] text-ink-muted underline decoration-dotted underline-offset-2 tabular-nums"
-    >
-      {c("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
-    </span>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            title={cite.quote}
+            className="inline-block cursor-help rounded text-left text-[11px] text-ink-muted underline decoration-dotted underline-offset-2 tabular-nums hover:text-ink"
+          >
+            {c("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs space-y-1">
+          {cite.quote && <p className="m-0 font-normal">&ldquo;{cite.quote}&rdquo;</p>}
+          <p className="m-0 text-[10px] opacity-80">{t("citeTooltipNote")}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -148,7 +162,7 @@ function DrawerComparators({
           tr.comparators.some((c) => same(d)(c) && c.facts.length > 0),
         );
         return (
-          <li key={`${d.doc}/${d.rev}`} className="rounded-md border border-border bg-canvas p-2.5 text-xs">
+          <li key={`${d.doc}/${d.rev}`} className="rounded-md border border-border bg-sunken p-2.5 text-xs">
             <div className="font-semibold text-ink">
               {t(`vendorKinds.${d.kind}`)} {d.doc}:
             </div>
@@ -161,7 +175,7 @@ function DrawerComparators({
         );
       })}
       {others.map((c) => (
-        <li key={`${c.doc}/${c.rev}`} className="rounded-md border border-border bg-canvas p-2.5 text-xs">
+        <li key={`${c.doc}/${c.rev}`} className="rounded-md border border-border bg-sunken p-2.5 text-xs">
           <div className="font-semibold text-ink">
             {t(`comparatorKinds.${c.kind}`)} {c.doc}:
           </div>
@@ -230,62 +244,42 @@ export function DraftStepDrawer({
           : undefined
       }
       headerExtra={
-        <div className="flex flex-wrap items-center justify-end gap-1">
+        <div className="flex items-center gap-1">
           <button
             type="button"
-            data-tw=""
             onClick={onPrev}
             disabled={stepIndex <= 0}
             aria-label={t("drawer.prev")}
             className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
           >
             <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{t("drawer.prev")}</span>
+            <span className="hidden sm:inline">{t("drawer.prev")}</span>
           </button>
           <span className="px-1.5 text-xs font-medium text-ink-muted tabular-nums">
             {t("drawer.position", { current: stepIndex + 1, total: totalSteps })}
           </span>
           <button
             type="button"
-            data-tw=""
             onClick={onNext}
             disabled={stepIndex < 0 || stepIndex >= totalSteps - 1}
             aria-label={t("drawer.next")}
             className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
           >
-            <span>{t("drawer.next")}</span>
+            <span className="hidden sm:inline">{t("drawer.next")}</span>
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
         {dirtyPrompt && (
-          <div
-            role="alertdialog"
-            aria-label={t("drawer.dirtyWarning")}
-            className="rounded-lg border border-warn-edge bg-warn-soft p-3 text-xs text-warn"
-          >
-            <p className="m-0 font-semibold">{t("drawer.dirtyWarning")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                data-tw=""
-                onClick={onDiscardAndProceed}
-                className="cursor-pointer rounded border border-warn-edge bg-surface px-2.5 py-1 text-xs font-semibold text-warn hover:bg-sunken"
-              >
-                {t("drawer.discardChanges")}
-              </button>
-              <button
-                type="button"
-                data-tw=""
-                onClick={onCancelProceed}
-                className="cursor-pointer rounded bg-accent px-2.5 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
-              >
-                {t("drawer.keepEditing")}
-              </button>
-            </div>
-          </div>
+          <DirtyGuardBanner
+            message={t("drawer.dirtyWarning")}
+            discardLabel={t("drawer.discardChanges")}
+            keepLabel={t("drawer.keepEditing")}
+            onDiscard={onDiscardAndProceed}
+            onKeep={onCancelProceed}
+          />
         )}
 
         {/* Acceptance criteria */}
@@ -323,7 +317,7 @@ export function DraftStepDrawer({
               {step.traced.map((tr) => (
                 <li
                   key={tr.requirement}
-                  className="space-y-1.5 rounded-md border border-border bg-canvas p-2.5 text-xs"
+                  className="space-y-1.5 rounded-md border border-border bg-sunken p-2.5 text-xs"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-mono font-bold text-ink tabular-nums">

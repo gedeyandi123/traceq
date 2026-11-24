@@ -84,17 +84,20 @@ export function DecisionNoticeBanner({
 export function DecisionCountsSummary({
   counts,
   kinds,
+  progressKinds,
 }: {
   counts: DecisionCounts | undefined;
   kinds: readonly Proposal["kind"][];
+  progressKinds?: readonly Proposal["kind"][];
 }) {
   const td = useTranslations("decisions");
   const [open, setOpen] = useState(false);
 
   if (!counts) return null;
 
-  const total = kinds.reduce((n, k) => n + counts[k].total, 0);
-  const decided = kinds.reduce(
+  const summaryKinds = progressKinds ?? kinds;
+  const total = summaryKinds.reduce((n, k) => n + counts[k].total, 0);
+  const decided = summaryKinds.reduce(
     (n, k) => n + counts[k].accepted + counts[k].edited + counts[k].rejected,
     0,
   );
@@ -107,7 +110,6 @@ export function DecisionCountsSummary({
         </span>
         <button
           type="button"
-          data-tw=""
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
           className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 text-xs font-medium text-ink-muted hover:bg-sunken hover:text-ink"
@@ -196,6 +198,7 @@ function FindingDecisionForm({
   const actionFn = access.inlineAction ?? wrapLegacyAction(access.action);
   const [reason, setReason] = useState("");
   const [redecideOpen, setRedecideOpen] = useState(false);
+  const [redecideChoice, setRedecideChoice] = useState<"accepted" | "rejected">("accepted");
   const [rejectOpen, setRejectOpen] = useState(false);
 
   const [state, formAction, isPending] = useActionState(
@@ -247,11 +250,9 @@ function FindingDecisionForm({
   const acceptForm = (
     <form action={formAction} className="space-y-2">
       {hiddenInputs("accepted")}
-      {replacing && reasonTextarea}
       <button
         type="submit"
         disabled={isPending}
-        data-tw=""
         className="inline-flex cursor-pointer items-center justify-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         {td("accept")}
@@ -266,7 +267,6 @@ function FindingDecisionForm({
       <button
         type="submit"
         disabled={isPending}
-        data-tw=""
         className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-60"
       >
         {td("reject")}
@@ -290,7 +290,6 @@ function FindingDecisionForm({
         <div className="space-y-2">
           <button
             type="button"
-            data-tw=""
             aria-expanded={redecideOpen}
             onClick={() => setRedecideOpen((o) => !o)}
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
@@ -302,11 +301,43 @@ function FindingDecisionForm({
             />
           </button>
           {redecideOpen && (
-            <div className="space-y-3 rounded-lg border border-border bg-sunken p-3">
-              {acceptForm}
-              <div className="border-t border-border" />
-              {rejectForm}
-            </div>
+            <form action={formAction} className="space-y-2.5 rounded-lg border border-border bg-sunken p-3">
+              {hiddenInputs(redecideChoice)}
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={td("redecide")}>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink">
+                  <input
+                    type="radio"
+                    name="redecide_choice"
+                    value="accepted"
+                    checked={redecideChoice === "accepted"}
+                    onChange={() => setRedecideChoice("accepted")}
+                  />
+                  <span>{td("accept")}</span>
+                </label>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink">
+                  <input
+                    type="radio"
+                    name="redecide_choice"
+                    value="rejected"
+                    checked={redecideChoice === "rejected"}
+                    onChange={() => setRedecideChoice("rejected")}
+                  />
+                  <span>{td("reject")}</span>
+                </label>
+              </div>
+              {reasonTextarea}
+              <button
+                type="submit"
+                disabled={isPending}
+                className={`inline-flex cursor-pointer items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+                  redecideChoice === "accepted"
+                    ? "bg-accent text-on-accent hover:bg-accent-hover"
+                    : "border border-border-strong bg-surface text-ink hover:bg-canvas"
+                }`}
+              >
+                {redecideChoice === "accepted" ? td("accept") : td("reject")}
+              </button>
+            </form>
           )}
         </div>
       ) : (
@@ -315,7 +346,6 @@ function FindingDecisionForm({
             {acceptForm}
             <button
               type="button"
-              data-tw=""
               aria-expanded={rejectOpen}
               onClick={() => setRejectOpen((o) => !o)}
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
@@ -343,6 +373,7 @@ export function FindingDecisionPanel({
   screen,
   access,
   anchor,
+  headingLevel = "h4",
   onDirtyChange,
 }: {
   proposal: Proposal | undefined;
@@ -350,6 +381,7 @@ export function FindingDecisionPanel({
   screen: DecisionScreen;
   access: DecisionAccess;
   anchor?: string;
+  headingLevel?: "h3" | "h4";
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const td = useTranslations("decisions");
@@ -358,13 +390,14 @@ export function FindingDecisionPanel({
   if (proposal === undefined) return null;
 
   const [latestDecision, ...earlierDecisions] = proposal.decisions;
+  const Heading = headingLevel;
 
   return (
     <section className="space-y-3 rounded-lg border border-border bg-surface p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
+        <Heading className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
           {td("column")}
-        </h4>
+        </Heading>
         <DecisionStateBadge state={proposal.state} />
       </div>
 
@@ -379,7 +412,7 @@ export function FindingDecisionPanel({
           <div className="text-xs font-semibold text-ink-muted">{td("earlier")}</div>
           <ul className="m-0 list-none space-y-2 p-0">
             {earlierDecisions.map((d) => (
-              <li key={d.id} className="rounded-md border border-border bg-canvas px-2.5 py-2">
+              <li key={d.id} className="rounded-md border border-border bg-sunken px-2.5 py-2">
                 <DecisionEntry td={td} tm={tm} d={d} />
               </li>
             ))}

@@ -99,6 +99,16 @@ export function PdfCitationModal({
   const showIframe = currentProbe.status === "pdf" && isDesktop;
   const showFallback =
     currentProbe.status === "nonPdf" || (currentProbe.status === "pdf" && !isDesktop);
+  const isSpreadsheet =
+    currentProbe.status === "nonPdf" &&
+    (currentProbe.contentType.includes("spreadsheetml") ||
+      currentProbe.contentType.includes("ms-excel") ||
+      cite.doc.toLowerCase().endsWith(".xlsx"));
+  const fileTypeLabel = isSpreadsheet
+    ? tUi("excelFileType")
+    : currentProbe.status === "nonPdf"
+      ? currentProbe.contentType
+      : "";
 
   return (
     <Modal
@@ -108,15 +118,17 @@ export function PdfCitationModal({
       title={tUi("citationTitle", { label: displayLabel })}
       description={cite.quote ? `${tUi("verbatimQuote")}: "${cite.quote}"` : undefined}
       headerActions={
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-accent no-underline hover:bg-accent-soft"
-        >
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{tUi("openInNewTab")}</span>
-        </a>
+        showIframe ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-accent no-underline hover:bg-accent-soft"
+          >
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{tUi("openInNewTab")}</span>
+          </a>
+        ) : undefined
       }
     >
       {currentProbe.status === "loading" && (
@@ -140,38 +152,29 @@ export function PdfCitationModal({
       )}
 
       {showIframe && (
-        <div className="flex h-full flex-col gap-2">
-          {cite.quote && (
-            <div className="rounded-md border border-border bg-sunken px-3 py-2 text-xs text-ink">
-              <span className="font-semibold text-ink-muted">{tUi("verbatimQuote")}: </span>
-              <span>&ldquo;{cite.quote}&rdquo;</span>
-            </div>
-          )}
-          <iframe
-            key={`${cite.doc}-${cite.rev}-${cite.page}`}
-            src={href}
-            title={displayLabel}
-            className="min-h-[60vh] w-full flex-1 rounded-md border border-border bg-sunken"
-          />
-        </div>
+        <iframe
+          key={`${cite.doc}-${cite.rev}-${cite.page}`}
+          src={href}
+          title={displayLabel}
+          className="h-full min-h-[65vh] w-full rounded-md border border-border bg-sunken"
+        />
       )}
 
       {showFallback && (
         <div className="flex flex-col items-start gap-3 rounded-md border border-border bg-sunken p-5 text-sm text-ink">
           <div className="flex items-center gap-2 font-semibold">
-            <FileSpreadsheet className="h-5 w-5 text-accent" aria-hidden="true" />
+            {isSpreadsheet ? (
+              <FileSpreadsheet className="h-5 w-5 text-accent" aria-hidden="true" />
+            ) : (
+              <FileText className="h-5 w-5 text-accent" aria-hidden="true" />
+            )}
             <span>{displayLabel}</span>
           </div>
           <p className="m-0 text-xs text-ink-muted">
             {currentProbe.status === "nonPdf" ? tUi("nonPdfNotice") : tUi("mobilePdfNotice")}
           </p>
-          {cite.quote && (
-            <blockquote className="m-0 border-l-2 border-accent pl-3 text-xs text-ink-muted">
-              &ldquo;{cite.quote}&rdquo;
-            </blockquote>
-          )}
           <div className="text-xs text-ink-muted">
-            {tUi("fileType")}: <code className="font-mono">{currentProbe.contentType}</code>
+            {tUi("fileType")}: <span className="font-medium text-ink">{fileTypeLabel}</span>
           </div>
           <a
             href={href}
@@ -180,7 +183,7 @@ export function PdfCitationModal({
             className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
           >
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
-            <span>{tUi("openOrDownload")}</span>
+            <span>{isSpreadsheet ? tUi("downloadSpreadsheet") : tUi("openOrDownload")}</span>
           </a>
         </div>
       )}
@@ -207,7 +210,6 @@ export function PdfCitationButton({
     <>
       <button
         type="button"
-        data-tw=""
         onClick={() => setOpen(true)}
         title={cite.quote}
         className={`inline-flex cursor-pointer items-center gap-1.5 rounded border border-border bg-surface font-medium text-accent transition-colors hover:border-accent hover:bg-accent-soft ${

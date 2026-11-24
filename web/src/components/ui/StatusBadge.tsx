@@ -8,6 +8,8 @@ import {
   Clock,
   HelpCircle,
   MapPin,
+  Pencil,
+  Send,
   ShieldAlert,
   XCircle,
 } from "lucide-react";
@@ -98,7 +100,7 @@ const DECISION_STYLE: Record<
   },
   edited: {
     badgeClass: "bg-info-soft text-info border-info-edge",
-    icon: AlertTriangle,
+    icon: Pencil,
   },
   rejected: {
     badgeClass: "bg-fail-soft text-fail border-fail-edge",
@@ -132,7 +134,7 @@ const PROTOCOL_STYLE: Record<
   },
   submitted: {
     badgeClass: "bg-info-soft text-info border-info-edge",
-    icon: AlertTriangle,
+    icon: Send,
   },
   approved: {
     badgeClass: "bg-pass-soft text-pass border-pass-edge",

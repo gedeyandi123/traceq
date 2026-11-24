@@ -53,18 +53,13 @@ export default async function MatrixPage({
   const selected = typeof query.selected === "string" && query.selected.trim() !== "" ? query.selected : null;
   const filter: MatrixFilter = { coverage: cov, status: st };
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
-        <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
-      </div>
-      <MatrixTable
-        matrix={matrix.data}
-        runId={runId}
-        decisions={decisions}
-        filter={filter}
-        initialSelected={selected}
-      />
-    </div>
+    <MatrixTable
+      matrix={matrix.data}
+      runId={runId}
+      decisions={decisions}
+      filter={filter}
+      initialSelected={selected}
+      title={t("title")}
+    />
   );
 }

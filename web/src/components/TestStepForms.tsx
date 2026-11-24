@@ -193,6 +193,7 @@ export function WriteForm({
   removeInline?: InlineAction;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const [open, setOpen] = useState(true);
   const writeActionFn = writeInline ?? wrapLegacyAction(write);
   const removeActionFn = removeInline ?? wrapLegacyAction(remove);
 
@@ -229,50 +230,65 @@ export function WriteForm({
 
   return (
     <section className="space-y-3 rounded-lg border border-border bg-surface p-3.5">
-      <h4 className="m-0 text-xs font-bold tracking-wide text-ink uppercase">{title}</h4>
-      {p && p.origin !== "written" && (
-        <p className="m-0 text-xs text-ink-muted">{t(`form.prefill.${p.origin}`)}</p>
-      )}
-      <ActionFeedback t={t} state={writeState} />
-      <form
-        key={`${id}-${writeState.submittedAt ?? 0}`}
-        action={writeFormAction}
-        className="space-y-3"
-        aria-label={title}
-      >
-        <Hidden runId={runId} protocolId={protocolId} />
-        <input type="hidden" name="requirement" value={row.requirement} />
-        <Fields
-          t={t}
-          id={id}
-          start={p ? { ...p, acceptance: p.acceptance ?? null } : null}
-          onDirty={() => onDirtyChange?.(true)}
-        />
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="m-0 text-xs font-bold tracking-wide text-ink uppercase">{title}</h3>
         <button
-          type="submit"
-          data-tw=""
-          disabled={isWritePending}
-          className="inline-flex cursor-pointer items-center justify-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-border bg-sunken text-ink-muted hover:text-ink"
         >
-          {t("form.save")}
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
         </button>
-      </form>
-      {inForce && (
-        <div className="border-t border-border pt-3">
-          <ActionFeedback t={t} state={removeState} />
-          <form action={removeFormAction}>
+      </div>
+      {open && (
+        <>
+          {p && p.origin !== "written" && (
+            <p className="m-0 text-xs text-ink-muted">{t(`form.prefill.${p.origin}`)}</p>
+          )}
+          <ActionFeedback t={t} state={writeState} />
+          <form
+            key={`${id}-${writeState.submittedAt ?? 0}`}
+            action={writeFormAction}
+            className="space-y-3"
+            aria-label={title}
+          >
             <Hidden runId={runId} protocolId={protocolId} />
             <input type="hidden" name="requirement" value={row.requirement} />
+            <Fields
+              t={t}
+              id={id}
+              start={p ? { ...p, acceptance: p.acceptance ?? null } : null}
+              onDirty={() => onDirtyChange?.(true)}
+            />
             <button
               type="submit"
-              data-tw=""
-              disabled={isRemovePending}
-              className="inline-flex cursor-pointer items-center justify-center rounded-md border border-fail-edge bg-surface px-3 py-1.5 text-xs font-semibold text-fail hover:bg-fail-soft disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isWritePending}
+              className="inline-flex cursor-pointer items-center justify-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {t("form.remove")}
+              {t("form.save")}
             </button>
           </form>
-        </div>
+          {inForce && (
+            <div className="border-t border-border pt-3">
+              <ActionFeedback t={t} state={removeState} />
+              <form action={removeFormAction}>
+                <Hidden runId={runId} protocolId={protocolId} />
+                <input type="hidden" name="requirement" value={row.requirement} />
+                <button
+                  type="submit"
+                  disabled={isRemovePending}
+                  className="inline-flex cursor-pointer items-center justify-center rounded-md border border-fail-edge bg-surface px-3 py-1.5 text-xs font-semibold text-fail hover:bg-fail-soft disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {t("form.remove")}
+                </button>
+              </form>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
@@ -312,49 +328,66 @@ export function EditDraftForm({
     { ok: true },
   );
 
+  const [open, setOpen] = useState(true);
   const label = t(x.acceptance && x.acceptance.type !== "text" ? "form.edit" : "form.editSetAc");
 
   return (
     <section className="space-y-3 rounded-lg border border-border bg-surface p-3.5">
-      <h4 className="m-0 text-xs font-bold tracking-wide text-ink uppercase">{label}</h4>
-      <ActionFeedback t={t} state={state} />
-      <form
-        key={`edit-${d.proposal.id}-${state.submittedAt ?? 0}`}
-        action={formAction}
-        className="space-y-3"
-        aria-label={t("form.edit")}
-      >
-        <Hidden runId={runId} protocolId={protocolId} />
-        <input type="hidden" name="proposal_id" value={d.proposal.id} />
-        <Fields
-          t={t}
-          id={`edit-${d.proposal.id}`}
-          start={{ ...x, acceptance: shaped(x.acceptance) }}
-          onDirty={() => onDirtyChange?.(true)}
-        />
-        <label className="block space-y-1 text-xs font-medium text-ink">
-          <span>{t("form.reason")}</span>
-          <textarea
-            name="reason"
-            required
-            rows={2}
-            value={reason}
-            onChange={(e) => {
-              setReason(e.target.value);
-              onDirtyChange?.(true);
-            }}
-            className={TEXTAREA_CLASS}
-          />
-        </label>
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="m-0 text-xs font-bold tracking-wide text-ink uppercase">{label}</h4>
         <button
-          type="submit"
-          data-tw=""
-          disabled={isPending}
-          className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-60"
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-border bg-sunken text-ink-muted hover:text-ink"
         >
-          {t("form.saveEdit")}
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
         </button>
-      </form>
+      </div>
+      {open && (
+        <>
+          <ActionFeedback t={t} state={state} />
+          <form
+            key={`edit-${d.proposal.id}-${state.submittedAt ?? 0}`}
+            action={formAction}
+            className="space-y-3"
+            aria-label={t("form.edit")}
+          >
+            <Hidden runId={runId} protocolId={protocolId} />
+            <input type="hidden" name="proposal_id" value={d.proposal.id} />
+            <Fields
+              t={t}
+              id={`edit-${d.proposal.id}`}
+              start={{ ...x, acceptance: shaped(x.acceptance) }}
+              onDirty={() => onDirtyChange?.(true)}
+            />
+            <label className="block space-y-1 text-xs font-medium text-ink">
+              <span>{t("form.reason")}</span>
+              <textarea
+                name="reason"
+                required
+                rows={2}
+                value={reason}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                  onDirtyChange?.(true);
+                }}
+                className={TEXTAREA_CLASS}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t("form.saveEdit")}
+            </button>
+          </form>
+        </>
+      )}
     </section>
   );
 }
@@ -367,10 +400,9 @@ export function Versions({ t, m, versions }: { t: T; m: MatrixT; versions: reado
   if (versions.length === 0) return null;
 
   return (
-    <section className="space-y-2 rounded-lg border border-border bg-canvas p-3">
+    <section className="space-y-2 rounded-lg border border-border bg-sunken p-3">
       <button
         type="button"
-        data-tw=""
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="flex w-full cursor-pointer items-center justify-between gap-2 text-left text-xs font-bold text-ink"

@@ -103,7 +103,7 @@ test("Coverage changed since it was decided blocks, with a link to the matrix", 
   expect(r.getByText("Belum dapat ditentukan")).toBeDefined();
   expect(r.getByText(/Memblokir: cakupan belum diputuskan/)).toBeDefined();
   expect(r.getByRole("link", { name: "Putuskan di matriks" }).getAttribute("href")).toBe(
-    `/runs/${RUN_ID}#URS-TP201-001`,
+    `/runs/${RUN_ID}?selected=URS-TP201-001`,
   );
 });
 

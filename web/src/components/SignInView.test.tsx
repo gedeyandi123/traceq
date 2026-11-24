@@ -30,3 +30,25 @@ test("lists each demo persona as a demo identity, with no password field", () =>
   expect(screen.getAllByText("Hanya membaca")).toHaveLength(2);
   expect(document.querySelector("input[type=password]")).toBeNull();
 });
+
+test("preserves validated nextPath in hidden input and guards empty personas", () => {
+  const { unmount } = render(
+    <NextIntlClientProvider locale="id" messages={messages}>
+      <SignInView
+        personas={[{ username: "ayu", name: "Ayu Kartika Sari", roles: ["qualification-decider"] }]}
+        action={() => {}}
+        nextPath="/runs/r1/protocol"
+      />
+    </NextIntlClientProvider>,
+  );
+  const nextInput = document.querySelector('input[name="next"]') as HTMLInputElement | null;
+  expect(nextInput?.value).toBe("/runs/r1/protocol");
+  unmount();
+
+  render(
+    <NextIntlClientProvider locale="id" messages={messages}>
+      <SignInView personas={[]} action={() => {}} />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("Belum ada persona demo yang tersedia.")).toBeDefined();
+});

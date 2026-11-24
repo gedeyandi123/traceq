@@ -110,10 +110,12 @@ export function RequiredObservedUnit({
 
   if (variant === "compact") {
     const [design] = row.design;
+    const extraDesigns = row.design.length > 1 ? row.design.length - 1 : 0;
+    const visibleEvidence = row.evidence.slice(0, 2);
+    const extraEvidence = row.evidence.length > 2 ? row.evidence.length - 2 : 0;
     return (
-      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:items-start sm:gap-2">
+      <div className="grid grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:items-center sm:gap-2">
         <div className="min-w-0">
-          <span className="block text-[11px] font-medium text-ink-muted">{t("disyaratkan")}</span>
           <span
             className={`block truncate text-xs font-medium tabular-nums ${
               row.value ? "text-ink" : "text-ink-muted"
@@ -124,12 +126,11 @@ export function RequiredObservedUnit({
           </span>
         </div>
         <div className="min-w-0">
-          <span className="block text-[11px] font-medium text-ink-muted">{t("teramati")}</span>
           {row.evidence.length === 0 && row.design.length === 0 ? (
             <span className="text-xs text-ink-muted">{t("noEvidence")}</span>
           ) : (
             <div className="flex flex-wrap items-center gap-1">
-              {row.evidence.map((e) => {
+              {visibleEvidence.map((e) => {
                 const { tone, isAmbiguousWarn } = resolveEvidenceTone(e);
                 const stepLabel = formatStepLabel(e.stage, e.step);
                 const resultLabel = t(`results.${e.result ?? "none"}`);
@@ -145,17 +146,32 @@ export function RequiredObservedUnit({
                     <ToneIcon tone={tone} />
                     <span className="truncate">{`${stepLabel} · ${shortObserved(t, e)}`}</span>
                     {isAmbiguousWarn && (
-                      <span className="sr-only">{t("ambiguousConfirm")}</span>
+                      <>
+                        <span aria-hidden="true" className="shrink-0 text-[10px] font-semibold">
+                          · {t("ambiguousShort")}
+                        </span>
+                        <span className="sr-only">{t("ambiguousConfirm")}</span>
+                      </>
                     )}
                   </span>
                 );
               })}
+              {extraEvidence > 0 && (
+                <span className="inline-flex items-center rounded border border-border bg-sunken px-1.5 py-0.5 text-[11px] font-medium text-ink-muted tabular-nums">
+                  {t("moreEvidence", { count: extraEvidence })}
+                </span>
+              )}
               {design && (
                 <span
                   title={design.name}
                   className="inline-flex max-w-full items-center gap-1 rounded border border-border bg-sunken px-1.5 py-0.5 text-[11px] font-medium text-ink-muted tabular-nums"
                 >
                   <span className="truncate">{`${t("designShort")} · ${design.printed}`}</span>
+                </span>
+              )}
+              {extraDesigns > 0 && (
+                <span className="inline-flex items-center rounded border border-border bg-sunken px-1.5 py-0.5 text-[11px] font-medium text-ink-muted tabular-nums">
+                  {t("moreDesigns", { count: extraDesigns })}
                 </span>
               )}
             </div>
@@ -165,9 +181,21 @@ export function RequiredObservedUnit({
     );
   }
 
+  const primaryEvidence = row.evidence[0];
+  const primaryDesign = row.design[0];
+  const primaryObservedSummary = primaryEvidence
+    ? `${formatStepLabel(primaryEvidence.stage, primaryEvidence.step)} · ${
+        primaryEvidence.observed_value
+          ? formatValue(t, primaryEvidence.observed_value, true)
+          : primaryEvidence.observed
+      }`
+    : primaryDesign
+      ? `${t("designShort")} · ${primaryDesign.printed}`
+      : null;
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-surface p-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-sunken p-3 sm:grid-cols-2">
         <div>
           <div className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
             {t("disyaratkan")}
@@ -189,12 +217,17 @@ export function RequiredObservedUnit({
           <div className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
             {t("teramati")}
           </div>
-          {row.evidence.length === 0 && row.design.length === 0 ? (
+          {primaryObservedSummary === null ? (
             <div className="mt-1 text-sm text-ink-muted">{t("noEvidence")}</div>
           ) : (
-            <div className="mt-1 text-xs text-ink-muted tabular-nums">
-              {row.evidence.length} {t("evidence").toLowerCase()}
-              {row.design.length > 0 ? ` · ${row.design.length} ${t("designShort").toLowerCase()}` : ""}
+            <div className="mt-1 space-y-0.5">
+              <div className="text-sm font-semibold text-ink tabular-nums">
+                {primaryObservedSummary}
+              </div>
+              <div className="text-xs text-ink-muted tabular-nums">
+                {row.evidence.length} {t("evidence").toLowerCase()}
+                {row.design.length > 0 ? ` · ${row.design.length} ${t("designShort").toLowerCase()}` : ""}
+              </div>
             </div>
           )}
         </div>
@@ -230,8 +263,6 @@ export function RequiredObservedUnit({
                 </div>
                 <div className="mt-1.5 text-xs text-ink tabular-nums">
                   {t("observed", { observed: observedText })}
-                  {" · "}
-                  {t("result", { result: resultLabel })}
                 </div>
                 {e.failure && (
                   <div className="mt-2 rounded border border-fail-edge bg-fail-soft px-2.5 py-1.5 text-xs font-medium text-fail">

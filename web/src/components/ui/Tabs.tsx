@@ -11,7 +11,7 @@ export function TabsList({
 }: ComponentPropsWithoutRef<typeof RadixTabs.List>) {
   return (
     <RadixTabs.List
-      className={`inline-flex items-center gap-1 border-b border-border bg-transparent ${className ?? ""}`.trim()}
+      className={`inline-flex max-w-full items-center gap-1 overflow-x-auto border-b border-border bg-transparent ${className ?? ""}`.trim()}
       {...props}
     />
   );
@@ -23,8 +23,7 @@ export function TabsTrigger({
 }: ComponentPropsWithoutRef<typeof RadixTabs.Trigger>) {
   return (
     <RadixTabs.Trigger
-      data-tw=""
-      className={`inline-flex cursor-pointer items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-xs font-semibold text-ink-muted transition-colors hover:text-ink data-[state=active]:border-accent data-[state=active]:text-accent ${className ?? ""}`.trim()}
+      className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-xs font-semibold whitespace-nowrap text-ink-muted transition-colors hover:text-ink data-[state=active]:border-accent data-[state=active]:text-accent ${className ?? ""}`.trim()}
       {...props}
     />
   );

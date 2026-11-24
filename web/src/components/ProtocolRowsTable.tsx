@@ -28,17 +28,17 @@ export function ProtocolRowsTable({
     <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
       <table className="w-full border-collapse text-left text-xs">
         <thead>
-          <tr className="border-b border-border bg-canvas text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            <th scope="col" className="px-3 py-2.5">
+          <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
               {t("requirement")}
             </th>
-            <th scope="col" className="px-3 py-2.5">
+            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
               {t("coverage")}
             </th>
-            <th scope="col" className="px-3 py-2.5">
+            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
               {t("content")}
             </th>
-            <th scope="col" className="px-3 py-2.5">
+            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
               {t("drafts")}
             </th>
           </tr>
@@ -55,19 +55,18 @@ export function ProtocolRowsTable({
                 key={r.requirement}
                 id={`row-${r.requirement}`}
                 data-testid={r.requirement}
-                className={`transition-colors ${
+                className={`group transition-colors ${
                   isSelected
-                    ? "bg-accent-soft/60"
+                    ? "bg-accent-soft shadow-[inset_3px_0_0_var(--color-accent)]"
                     : isBlocking
                       ? "bg-fail-soft/20 hover:bg-fail-soft/35"
-                      : "hover:bg-sunken/50"
+                      : "hover:bg-sunken/40"
                 }`}
               >
                 <th scope="row" className="max-w-[260px] px-3 py-2.5 align-top font-normal">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
-                      data-tw=""
                       onClick={() => onSelect(r.requirement)}
                       className="cursor-pointer font-mono text-xs font-semibold text-accent hover:underline tabular-nums"
                     >
@@ -89,7 +88,7 @@ export function ProtocolRowsTable({
                       </span>
                       <div>
                         <Link
-                          href={`/runs/${encodeURIComponent(runId)}#${encodeURIComponent(r.requirement)}`}
+                          href={`/runs/${encodeURIComponent(runId)}?selected=${encodeURIComponent(r.requirement)}`}
                           className="text-[11px] font-semibold text-accent hover:underline"
                         >
                           {t("toMatrix")}
@@ -147,16 +146,13 @@ export function ProtocolRowsTable({
                         ))
                       )}
                     </div>
-                    <button
-                      type="button"
-                      data-tw=""
-                      aria-label={t("drawer.openRow", { requirement: r.requirement })}
-                      onClick={() => onSelect(r.requirement)}
-                      className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 text-[11px] font-semibold text-ink hover:bg-sunken"
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex items-center gap-0.5 text-[11px] font-medium text-accent opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <span>{t("drawer.inspect")}</span>
                       <ChevronRight className="h-3 w-3" aria-hidden="true" />
-                    </button>
+                    </span>
                   </div>
                 </td>
               </tr>

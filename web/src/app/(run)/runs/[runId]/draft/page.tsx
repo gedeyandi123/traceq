@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
@@ -23,14 +24,18 @@ export default async function DraftPage({
   searchParams,
 }: {
   params: Promise<{ runId: string }>;
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ error?: string | string[]; selected?: string | string[] }>;
 }) {
   const { runId } = await params;
+  const query = await searchParams;
   const t = await getTranslations("draft");
+  const signin = await getTranslations("signin");
   const path = { params: { path: { run_id: runId } } };
   const [run, decisions] = await Promise.all([fetchRun(runId), loadDecisions(runId)]);
-  decisions.error = decisionError((await searchParams).error);
+  decisions.error = decisionError(query.error);
   if (!run?.review_package) notFound();
+  const selected = typeof query.selected === "string" && query.selected.trim() !== "" ? query.selected : null;
+  const signInHref = `/signin?next=${encodeURIComponent(`/runs/${encodeURIComponent(runId)}/draft`)}`;
   const heading = (
     <div>
       <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
@@ -41,7 +46,15 @@ export default async function DraftPage({
     return (
       <div className="space-y-4">
         {heading}
-        <EmptyState title={t("signedOut")}>{t("signedOutBody")}</EmptyState>
+        <EmptyState title={t("signedOut")}>
+          <p className="m-0 mb-3">{t("signedOutBody")}</p>
+          <Link
+            href={signInHref}
+            className="inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
+          >
+            {signin("link")}
+          </Link>
+        </EmptyState>
       </div>
     );
   }
@@ -63,7 +76,12 @@ export default async function DraftPage({
   return (
     <div className="space-y-4">
       {heading}
-      <ProtocolDraftView draft={draft.data} runId={runId} decisions={decisions} />
+      <ProtocolDraftView
+        draft={draft.data}
+        runId={runId}
+        decisions={decisions}
+        initialSelected={selected}
+      />
     </div>
   );
 }

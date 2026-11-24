@@ -51,11 +51,9 @@ test("lists every Test Step in draft order with non-link draft citations and ope
   expect(screen.getByText("OQ-TP201 rev 0, paket tinjauan TP-201-OQ-draft")).toBeDefined();
   expect(screen.getByText(/dirancang TraceQ sendiri tidak ditampilkan/)).toBeDefined();
   const rows = stepRows();
-  expect(rows.map((r) => within(r).getByRole("button").textContent)).toEqual([
-    "OQ-01",
-    "OQ-02",
-    "OQ-03",
-  ]);
+  expect(
+    rows.map((r) => within(within(r).getByRole("rowheader")).getByRole("button").textContent),
+  ).toEqual(["OQ-01", "OQ-02", "OQ-03"]);
 
   const first = within(rows[0]!);
   expect(first.getByText("minimal 100 kN")).toBeDefined();
@@ -102,12 +100,9 @@ test("a Test Step whose reading was dropped is listed in draft order and filtera
   renderDraft({ ...view, test_steps: [one!, notReadStep, ...rest] });
 
   const rows = stepRows();
-  expect(rows.map((r) => within(r).getByRole("button").textContent)).toEqual([
-    "OQ-01",
-    "OQ-02A",
-    "OQ-02",
-    "OQ-03",
-  ]);
+  expect(
+    rows.map((r) => within(within(r).getByRole("rowheader")).getByRole("button").textContent),
+  ).toEqual(["OQ-01", "OQ-02A", "OQ-02", "OQ-03"]);
   const unread = within(rows[1]!);
   expect(
     unread.getByText("Tidak terbaca: bacaannya dibuang oleh pemeriksaan kutipan (quote check)"),

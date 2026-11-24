@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type { Cite, Findings, Proposal } from "@/api/client";
 import type { DecisionView } from "@/components/Decisions";
@@ -19,6 +19,8 @@ import {
   FindingDecisionPanel,
 } from "@/components/FindingDecisionPanel";
 import { formatWhen } from "@/components/formatWhen";
+import { DirtyGuardBanner } from "@/components/ui/DirtyGuardBanner";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -66,14 +68,17 @@ export function FindingsView({
   findings,
   runId,
   decisions,
+  hasReviewPackage = false,
 }: {
   findings: Findings;
   runId: string;
   decisions: DecisionView;
+  hasReviewPackage?: boolean;
 }) {
   const t = useTranslations("findings");
   const td = useTranslations("decisions");
   const th = useTranslations("runHeader");
+  const detailRef = useRef<HTMLElement>(null);
 
   const decided = decisions.proposals !== undefined;
   const checks = useMemo(() => byPosition(decisions, "check"), [decisions]);
@@ -139,6 +144,13 @@ export function FindingsView({
     }
     setSelectedKey(key);
     setPendingAction(null);
+    if (
+      typeof window !== "undefined" &&
+      window.innerWidth < 1024 &&
+      typeof detailRef.current?.scrollIntoView === "function"
+    ) {
+      detailRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   };
 
   const requestFilter = (filter: TriageFilter) => {
@@ -183,9 +195,11 @@ export function FindingsView({
     <div className="space-y-4">
       <DecisionNoticeBanner view={decisions} />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <DecisionCountsSummary counts={decisions.counts} kinds={["check", "ai"]} />
-      </div>
+      {decisions.counts && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <DecisionCountsSummary counts={decisions.counts} kinds={["check", "ai"]} />
+        </div>
+      )}
 
       <Tabs defaultValue="findings">
         <TabsList>
@@ -204,35 +218,12 @@ export function FindingsView({
         </TabsList>
 
         <TabsContent value="findings" className="space-y-3">
-          {/* 1-click triage filters */}
-          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface p-2">
-            {filterOptions.map((opt) => {
-              const active = activeFilter === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  data-tw=""
-                  aria-pressed={active}
-                  onClick={() => requestFilter(opt.id)}
-                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
-                    active
-                      ? "border-accent bg-accent text-on-accent"
-                      : "border-border bg-canvas text-ink hover:bg-sunken"
-                  }`}
-                >
-                  <span>{opt.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[11px] tabular-nums ${
-                      active ? "bg-surface/20 text-on-accent" : "bg-surface text-ink-muted"
-                    }`}
-                  >
-                    {opt.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <FilterBar
+            ariaLabel={t("tabs.findings")}
+            options={filterOptions}
+            activeId={activeFilter}
+            onSelect={requestFilter}
+          />
 
           {filteredItems.length === 0 ? (
             <div className="rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
@@ -274,13 +265,12 @@ export function FindingsView({
                             <li key={item.key}>
                               <button
                                 type="button"
-                                data-tw=""
                                 aria-pressed={isSelected}
                                 onClick={() => requestSelect(item.key)}
-                                className={`flex w-full cursor-pointer flex-col gap-1.5 px-3 py-2.5 text-left transition-colors ${
+                                className={`flex w-full cursor-pointer flex-col gap-1.5 border-l-4 px-3 py-2.5 text-left transition-colors ${
                                   isSelected
-                                    ? "border-l-4 border-l-accent bg-accent-soft"
-                                    : "hover:bg-canvas"
+                                    ? "border-l-accent bg-accent-soft"
+                                    : "border-l-transparent hover:bg-canvas"
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
@@ -333,17 +323,19 @@ export function FindingsView({
                       <ul className="m-0 list-none divide-y divide-border p-0">
                         {filteredAi.map((item) => {
                           const isSelected = effectiveSelected?.key === item.key;
+                          const citedDocs = [
+                            ...new Set(item.finding.citations.map((c) => c.doc)),
+                          ].join(", ");
                           return (
                             <li key={item.key}>
                               <button
                                 type="button"
-                                data-tw=""
                                 aria-pressed={isSelected}
                                 onClick={() => requestSelect(item.key)}
-                                className={`flex w-full cursor-pointer flex-col gap-1.5 px-3 py-2.5 text-left transition-colors ${
+                                className={`flex w-full cursor-pointer flex-col gap-1 border-l-4 px-3 py-2.5 text-left transition-colors ${
                                   isSelected
-                                    ? "border-l-4 border-l-accent bg-accent-soft"
-                                    : "hover:bg-canvas"
+                                    ? "border-l-accent bg-accent-soft"
+                                    : "border-l-transparent hover:bg-canvas"
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
@@ -353,14 +345,19 @@ export function FindingsView({
                                   {decided && item.proposal ? (
                                     <DecisionStateBadge state={item.proposal.state} />
                                   ) : (
-                                    <span className="rounded-full border border-border-strong bg-sunken px-2 py-0.5 text-[11px] font-medium text-ink-muted">
+                                    <span className="shrink-0 rounded-full border border-border-strong bg-sunken px-2 py-0.5 text-[11px] font-medium text-ink-muted">
                                       {t(`actions.${item.finding.reviewer_action}`)}
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-[11px] text-ink-muted tabular-nums">
-                                  {item.finding.model}
-                                </div>
+                                {citedDocs && (
+                                  <div className="font-mono text-[11px] font-medium text-ink-muted tabular-nums">
+                                    {citedDocs}
+                                  </div>
+                                )}
+                                <p className="m-0 line-clamp-1 text-[11px] text-ink-muted">
+                                  {item.finding.detail}
+                                </p>
                               </button>
                             </li>
                           );
@@ -373,35 +370,19 @@ export function FindingsView({
 
               {/* Right Inspection & Decision Workspace */}
               <section
+                ref={detailRef}
                 aria-label={t("detail")}
                 className="rounded-lg border border-border bg-surface p-4"
               >
                 {pendingAction && (
-                  <div
-                    role="alertdialog"
-                    aria-label={t("workspace.dirtyWarning")}
-                    className="mb-4 rounded-lg border border-warn-edge bg-warn-soft p-3 text-xs text-warn"
-                  >
-                    <p className="m-0 font-semibold">{t("workspace.dirtyWarning")}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        data-tw=""
-                        onClick={handleDiscardAndProceed}
-                        className="cursor-pointer rounded border border-warn-edge bg-surface px-2.5 py-1 text-xs font-semibold text-warn hover:bg-sunken"
-                      >
-                        {t("workspace.discardChanges")}
-                      </button>
-                      <button
-                        type="button"
-                        data-tw=""
-                        onClick={() => setPendingAction(null)}
-                        className="cursor-pointer rounded bg-accent px-2.5 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
-                      >
-                        {t("workspace.keepEditing")}
-                      </button>
-                    </div>
-                  </div>
+                  <DirtyGuardBanner
+                    className="mb-4"
+                    message={t("workspace.dirtyWarning")}
+                    discardLabel={t("workspace.discardChanges")}
+                    keepLabel={t("workspace.keepEditing")}
+                    onDiscard={handleDiscardAndProceed}
+                    onKeep={() => setPendingAction(null)}
+                  />
                 )}
 
                 {!effectiveSelected ? (
@@ -479,7 +460,7 @@ export function FindingsView({
                       {effectiveSelected.finding.detail}
                     </p>
 
-                    <div className="rounded-md border border-border bg-canvas px-3 py-2 text-xs text-ink-muted tabular-nums">
+                    <div className="rounded-md border border-border bg-sunken px-3 py-2 text-xs text-ink-muted tabular-nums">
                       {t("trace", {
                         model: effectiveSelected.finding.model,
                         prompt: effectiveSelected.finding.prompt.slice(0, 12),
@@ -538,17 +519,17 @@ export function FindingsView({
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
-                    <tr className="border-b border-border bg-canvas text-ink-muted">
-                      <th scope="col" className="px-3 py-2 font-semibold">
+                    <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                         {t("document")}
                       </th>
-                      <th scope="col" className="px-3 py-2 font-semibold">
+                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                         {t("type")}
                       </th>
-                      <th scope="col" className="px-3 py-2 font-semibold">
+                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                         {t("stage")}
                       </th>
-                      <th scope="col" className="px-3 py-2 font-semibold">
+                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
                         {t("required")}
                       </th>
                     </tr>
@@ -575,16 +556,23 @@ export function FindingsView({
       </Tabs>
 
       {/* Handoff Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3">
+      <nav
+        aria-label={th("handoffTitle")}
+        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+      >
         <span className="text-xs font-medium text-ink-muted">{th("handoffTitle")}</span>
         <Link
-          href={`/runs/${encodeURIComponent(runId)}/protocol`}
+          href={
+            hasReviewPackage
+              ? `/runs/${encodeURIComponent(runId)}/draft`
+              : `/runs/${encodeURIComponent(runId)}/protocol`
+          }
           className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
         >
-          <span>{th("toProtocol")}</span>
+          <span>{hasReviewPackage ? th("toDraft") : th("toProtocol")}</span>
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
-      </div>
+      </nav>
     </div>
   );
 }

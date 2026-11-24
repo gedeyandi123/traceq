@@ -30,12 +30,14 @@ export function Modal({
       ? "h-[85vh] w-[94vw] max-w-[1400px] md:w-[85vw]"
       : "max-h-[85vh] w-[92vw] max-w-md";
 
+  const bodyPadding = size === "wide" ? "p-3" : "p-5";
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[1px]" />
+        <Dialog.Overlay className="tq-fade-in fixed inset-0 z-[60] bg-ink/40 backdrop-blur-[1px]" />
         <Dialog.Content
-          className={`fixed top-1/2 left-1/2 z-50 flex -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface text-ink shadow-2xl outline-none ${sizeClass}`}
+          className={`tq-modal-in fixed top-1/2 left-1/2 z-[60] flex -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface text-ink shadow-2xl outline-none ${sizeClass}`}
         >
           <div className="flex shrink-0 items-start justify-between gap-3 rounded-t-lg border-b border-border bg-surface px-5 py-3.5">
             <div className="min-w-0 flex-1">
@@ -53,7 +55,6 @@ export function Modal({
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  data-tw=""
                   aria-label={t("closeDialog")}
                   className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-ink-muted hover:bg-sunken hover:text-ink"
                 >
@@ -62,7 +63,7 @@ export function Modal({
               </Dialog.Close>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-5">{children}</div>
+          <div className={`min-h-0 flex-1 overflow-auto ${bodyPadding}`}>{children}</div>
           {footer && (
             <div className="flex shrink-0 items-center justify-end gap-2 rounded-b-lg border-t border-border bg-canvas px-5 py-3">
               {footer}

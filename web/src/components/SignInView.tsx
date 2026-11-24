@@ -22,9 +22,11 @@ function initials(name: string): string {
 export function SignInView({
   personas,
   action,
+  nextPath,
 }: {
   personas: readonly Persona[] | null;
   action: (formData: FormData) => void | Promise<void>;
+  nextPath?: string;
 }) {
   const t = useTranslations("signin");
   return (
@@ -40,6 +42,7 @@ export function SignInView({
       </div>
 
       {personas === null && <EmptyState title={t("unavailable")} />}
+      {personas?.length === 0 && <EmptyState title={t("empty")} />}
 
       <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
         {personas?.map((p) => {
@@ -47,6 +50,16 @@ export function SignInView({
           const approves = p.roles.includes(APPROVING_ROLE);
           const label = decides ? "canDecide" : approves ? "canApprove" : "readOnly";
           const hasAuthority = decides || approves;
+          const avatarStyle = decides
+            ? "border-accent/30 bg-accent-soft text-accent"
+            : approves
+              ? "border-info-edge bg-info-soft text-info"
+              : "border-border bg-sunken text-ink-muted";
+          const badgeStyle = decides
+            ? "border-accent/25 bg-accent-soft text-accent"
+            : approves
+              ? "border-info-edge bg-info-soft text-info"
+              : "border-border bg-sunken text-ink-muted";
           return (
             <li
               key={p.username}
@@ -54,32 +67,30 @@ export function SignInView({
             >
               <form action={action} className="flex h-full flex-col justify-between gap-4">
                 <input type="hidden" name="username" value={p.username} />
-                <div className="flex items-center gap-3">
-                  <span
-                    aria-hidden="true"
-                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${
-                      hasAuthority
-                        ? "border-accent/30 bg-accent-soft text-accent"
-                        : "border-border bg-sunken text-ink-muted"
-                    }`}
-                  >
-                    {initials(p.name)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-bold text-ink">{p.name}</div>
-                    <div className="mt-1">
-                      <span className="sr-only">{t("role")}: </span>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-                          hasAuthority
-                            ? "border-accent/25 bg-accent-soft text-accent"
-                            : "border-border bg-sunken text-ink-muted"
-                        }`}
-                      >
-                        {t(label)}
-                      </span>
+                {nextPath && <input type="hidden" name="next" value={nextPath} />}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-3">
+                    <span
+                      aria-hidden="true"
+                      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${avatarStyle}`}
+                    >
+                      {initials(p.name)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-bold text-ink">{p.name}</div>
+                      <div className="mt-1">
+                        <span className="sr-only">{t("role")}: </span>
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badgeStyle}`}
+                        >
+                          {t(label)}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <p className="m-0 text-xs leading-relaxed text-ink-muted">
+                    {t(`roleDesc.${label}`)}
+                  </p>
                 </div>
 
                 <Button

@@ -76,7 +76,7 @@ test("renders Check Findings and AI Findings in grouped split-pane, and Missing 
   const ai = within(screen.getByRole("region", { name: "Temuan AI (saran)" }));
   expect(ai.getByRole("button", { name: /Data tidak konsisten/ })).toBeDefined();
   expect(ai.getByText("Menunggu tinjauan")).toBeDefined();
-  expect(ai.getByText(/claude-haiku-5-5/)).toBeDefined();
+  expect(ai.getByText(/DS-TP201/)).toBeDefined();
 
   // First item is selected in the right inspection workspace by default
   const detail = within(screen.getByRole("region", { name: "Rincian" }));
@@ -233,8 +233,21 @@ test("PdfCitationModal opens .xlsx fallback card for RA-TP201", async () => {
   fireEvent.click(detail.getByRole("button", { name: "RA-TP201 rev 0, hlm. 1" }));
   const dialog = await screen.findByRole("dialog", { name: /RA-TP201 rev 0, hlm\. 1/ });
   await waitFor(() => {
-    expect(within(dialog).getByRole("link", { name: "Buka / Unduh dokumen" })).toBeDefined();
+    expect(within(dialog).getByRole("link", { name: "Unduh lembar kerja" })).toBeDefined();
   });
+  expect(within(dialog).getByText("Microsoft Excel (.xlsx)")).toBeDefined();
+  expect(within(dialog).queryByRole("link", { name: "Buka di tab baru" })).toBeNull();
+});
+
+test("redecide renders a single Reason for Change textbox without mirroring across forms", () => {
+  renderFindings({ proposals, counts, access: { mode: "decide", action } });
+
+  const check = within(screen.getByRole("region", { name: "Temuan pemeriksaan (aturan)" }));
+  fireEvent.click(check.getByRole("button", { name: /Di luar batas namun ditandai Lulus/ }));
+
+  const detail = within(screen.getByRole("region", { name: "Rincian" }));
+  fireEvent.click(detail.getByRole("button", { name: "Putuskan ulang" }));
+  expect(detail.getAllByRole("textbox", { name: "Alasan perubahan" })).toHaveLength(1);
 });
 
 test("a run that is not imported shows read-only with pending and what deciding needs", () => {
