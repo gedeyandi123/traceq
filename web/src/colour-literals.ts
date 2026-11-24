@@ -61,13 +61,10 @@ function stripCssBlock(css: string, headerRe: RegExp): string {
   return result;
 }
 
-/** Remove `@theme` (and legacy `:root` in `globals.css` until PR 6) before scanning CSS. */
+/** Remove `@theme` from `app/globals.css` before scanning CSS (zero legacy `:root` exemptions). */
 export function stripAllowedCssBlocks(css: string, isGlobalsCss: boolean): string {
-  let stripped = stripCssBlock(css, /@theme\s*\{/g);
-  if (isGlobalsCss) {
-    stripped = stripCssBlock(stripped, /:root\s*\{/g);
-  }
-  return stripped;
+  if (!isGlobalsCss) return css;
+  return stripCssBlock(css, /@theme\s*\{/g);
 }
 
 function scanValueForColours(raw: string): string[] {
