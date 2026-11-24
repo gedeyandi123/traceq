@@ -215,6 +215,7 @@ export function ProtocolRowDrawer({
 
         {controls !== null && row.kind !== "undecided" && (
           <WriteForm
+            key={row.requirement}
             t={t}
             row={row}
             runId={runId}

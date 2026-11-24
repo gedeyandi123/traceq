@@ -47,6 +47,8 @@ function AnswerForm({
   answerInline?: InlineAction;
 }) {
   const [open, setOpen] = useState(m.blocking);
+  const [kind, setKind] = useState(m.disposition?.kind ?? "");
+  const [justification, setJustification] = useState(m.disposition?.justification ?? "");
   const actionFn = answerInline ?? wrapLegacyAction(answer);
   const [state, formAction, isPending] = useActionState(actionFn, { ok: true });
   const label = t(m.disposition ? "missed.change" : "missed.answer", { number: m.number });
@@ -103,7 +105,8 @@ function AnswerForm({
               <select
                 name="kind"
                 required
-                defaultValue={m.disposition?.kind ?? ""}
+                value={kind}
+                onChange={(e) => setKind(e.target.value)}
                 className={INPUT_CLASS}
               >
                 <option value="">{t("missed.chooseKind")}</option>
@@ -120,7 +123,8 @@ function AnswerForm({
                 name="justification"
                 required
                 rows={2}
-                defaultValue={m.disposition?.justification ?? ""}
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
                 className={INPUT_CLASS}
               />
             </label>

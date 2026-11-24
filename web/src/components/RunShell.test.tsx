@@ -7,6 +7,7 @@ import type { Session } from "@/auth/session";
 
 import messages from "../../messages/id.json";
 import { RunShell } from "./RunShell";
+import { useRunShell } from "./RunShellContext";
 
 let mockSegment: string | null = null;
 
@@ -121,4 +122,45 @@ test("mobile navigation dialog opens on button click and closes on Escape", asyn
 
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+test("auto-collapses desktop sidebar to icon-rail (hiding section labels & brand text) when drawer opens below 1440px", () => {
+  mockSegment = null;
+  const origMatchMedia = window.matchMedia;
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+
+  function DrawerTrigger() {
+    const { setDrawerOpen } = useRunShell();
+    return (
+      <button type="button" onClick={() => setDrawerOpen(true)}>
+        Buka drawer
+      </button>
+    );
+  }
+
+  try {
+    const signOutAction = vi.fn(async () => {});
+    render(
+      <NextIntlClientProvider locale="id" messages={messages}>
+        <RunShell run={run} session={session} signOutAction={signOutAction}>
+          <DrawerTrigger />
+        </RunShell>
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByText("Alur kualifikasi")).toBeDefined();
+    expect(screen.getByText("TraceQ")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Buka drawer" }));
+
+    expect(screen.queryByText("Alur kualifikasi")).toBeNull();
+    expect(screen.queryByText("TraceQ")).toBeNull();
+  } finally {
+    window.matchMedia = origMatchMedia;
+  }
 });

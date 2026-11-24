@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { Dialog } from "radix-ui";
+import { useEffect, useState } from "react";
 
 import type { ProtocolView, RunSummary } from "@/api/client";
 import { BrandMark } from "@/components/BrandMark";
@@ -183,6 +184,19 @@ function SidebarNavList({
   );
 }
 
+function useIsWideDesktop(): boolean {
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 1440px)");
+    const update = () => setWide(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
 export function RunSidebar({
   run,
   badges,
@@ -205,24 +219,22 @@ export function RunSidebar({
   const t = useTranslations("runHeader");
   const app = useTranslations("app");
   const ui = useTranslations("ui");
+  const isWideDesktop = useIsWideDesktop();
+  const effectiveCollapsed = collapsed || (autoCollapsedForDrawer && !isWideDesktop);
 
-  const widthClass = collapsed
-    ? "w-14"
-    : autoCollapsedForDrawer
-      ? "w-14 min-[1440px]:w-60"
-      : "w-60";
+  const widthClass = effectiveCollapsed ? "w-14" : "w-60";
 
   return (
     <>
       <aside
-        className={`hidden shrink-0 flex-col border-r border-border bg-canvas transition-[width] duration-150 lg:sticky lg:top-0 lg:flex lg:h-screen ${widthClass}`}
+        className={`hidden shrink-0 flex-col overflow-x-hidden border-r border-border bg-canvas transition-[width] duration-150 lg:sticky lg:top-0 lg:flex lg:h-screen ${widthClass}`}
       >
         <div
           className={`flex h-12 shrink-0 items-center border-b border-border px-3 ${
-            collapsed ? "justify-center" : "justify-between"
+            effectiveCollapsed ? "justify-center" : "justify-between"
           }`}
         >
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <Link
               href="/"
               className="inline-flex min-w-0 items-center gap-2 text-sm font-bold text-ink no-underline hover:text-accent"
@@ -235,10 +247,10 @@ export function RunSidebar({
             type="button"
             data-tw=""
             onClick={onToggleCollapse}
-            aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
+            aria-label={effectiveCollapsed ? t("expandSidebar") : t("collapseSidebar")}
             className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-ink-muted hover:bg-sunken hover:text-ink"
           >
-            {collapsed ? (
+            {effectiveCollapsed ? (
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             ) : (
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -250,7 +262,7 @@ export function RunSidebar({
           run={run}
           badges={badges}
           protocolStatus={protocolStatus}
-          collapsed={collapsed}
+          collapsed={effectiveCollapsed}
         />
       </aside>
 

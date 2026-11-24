@@ -52,7 +52,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 - **Persistent Collapsible Left Sidebar:**
   - `240px` expanded on desktop; auto-collapses to a `56px` icon-rail when a right drawer opens at `1366px`; becomes a slide-over drawer at `<1024px` (`390px`).
   - **Alur Kualifikasi** (unnumbered so runs with `review_package == null` omit `Draf Protokol` cleanly without numeric gaps):
-    - `Matriks & Triage` (`/runs/[runId]`) — blocker badge (`Konflik` + `Celah` undecided)
+    - `Matriks & Triage` (`/runs/[runId]`) — undecided/changed coverage badge (`fetchDecisionCounts`)
     - `Temuan Pra-Tinjauan` (`/runs/[runId]/findings`) — undecided badge
     - `Draf Protokol` (`/runs/[runId]/draft`) — shown only when `run.review_package != null`
     - `Protokol IQ/OQ` (`/runs/[runId]/protocol`) — status badge (`Draft` / `Disetujui`)

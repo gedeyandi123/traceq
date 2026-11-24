@@ -64,6 +64,9 @@ function Fields({
   onDirty?: () => void;
 }) {
   const a = start?.acceptance ?? null;
+  const [description, setDescription] = useState(start?.description ?? "");
+  const [method, setMethod] = useState(start?.method ?? "");
+  const [instrument, setInstrument] = useState(start?.instrument ?? "");
   return (
     <div className="space-y-2.5">
       <label className="block space-y-1 text-xs font-medium text-ink">
@@ -72,8 +75,11 @@ function Fields({
           name="description"
           required
           rows={2}
-          defaultValue={start?.description ?? ""}
-          onChange={() => onDirty?.()}
+          value={description}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            onDirty?.();
+          }}
           className={TEXTAREA_CLASS}
         />
       </label>
@@ -83,8 +89,11 @@ function Fields({
           name="method"
           required
           rows={2}
-          defaultValue={start?.method ?? ""}
-          onChange={() => onDirty?.()}
+          value={method}
+          onChange={(e) => {
+            setMethod(e.target.value);
+            onDirty?.();
+          }}
           className={TEXTAREA_CLASS}
         />
       </label>
@@ -92,8 +101,11 @@ function Fields({
         <span>{t("instrument")}</span>
         <input
           name="instrument"
-          defaultValue={start?.instrument ?? ""}
-          onChange={() => onDirty?.()}
+          value={instrument}
+          onChange={(e) => {
+            setInstrument(e.target.value);
+            onDirty?.();
+          }}
           className={INPUT_CLASS}
         />
       </label>
@@ -287,10 +299,14 @@ export function EditDraftForm({
 }) {
   const x = d.draft;
   const editActionFn = editInline ?? wrapLegacyAction(edit);
+  const [reason, setReason] = useState("");
   const [state, formAction, isPending] = useActionState(
     async (prev: ProtocolFormActionState, formData: FormData) => {
       const next = await editActionFn(prev, formData);
-      if (next.ok) onDirtyChange?.(false);
+      if (next.ok) {
+        setReason("");
+        onDirtyChange?.(false);
+      }
       return next;
     },
     { ok: true },
@@ -322,7 +338,11 @@ export function EditDraftForm({
             name="reason"
             required
             rows={2}
-            onChange={() => onDirtyChange?.(true)}
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value);
+              onDirtyChange?.(true);
+            }}
             className={TEXTAREA_CLASS}
           />
         </label>

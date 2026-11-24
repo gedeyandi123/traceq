@@ -42,6 +42,11 @@ export function AcShapeFields({
   onDirty,
 }: AcShapeFieldsProps) {
   const [shape, setShape] = useState(initialShape);
+  const [minVal, setMinVal] = useState(String(initialMin));
+  const [maxVal, setMaxVal] = useState(String(initialMax));
+  const [numVal, setNumVal] = useState(String(initialValue));
+  const [unitVal, setUnitVal] = useState(initialUnit);
+  const [allowedVal, setAllowedVal] = useState(initialAllowed);
 
   return (
     <fieldset className="space-y-2.5 rounded-md border border-border bg-canvas p-3">
@@ -75,8 +80,11 @@ export function AcShapeFields({
             <input
               name="ac_min"
               inputMode="decimal"
-              defaultValue={initialMin}
-              onChange={() => onDirty?.()}
+              value={minVal}
+              onChange={(e) => {
+                setMinVal(e.target.value);
+                onDirty?.();
+              }}
               className={`${INPUT_CLASS} tabular-nums`}
             />
           </label>
@@ -85,8 +93,11 @@ export function AcShapeFields({
             <input
               name="ac_max"
               inputMode="decimal"
-              defaultValue={initialMax}
-              onChange={() => onDirty?.()}
+              value={maxVal}
+              onChange={(e) => {
+                setMaxVal(e.target.value);
+                onDirty?.();
+              }}
               className={`${INPUT_CLASS} tabular-nums`}
             />
           </label>
@@ -94,8 +105,11 @@ export function AcShapeFields({
             <span>{labels.unit}</span>
             <input
               name="ac_unit"
-              defaultValue={initialUnit}
-              onChange={() => onDirty?.()}
+              value={unitVal}
+              onChange={(e) => {
+                setUnitVal(e.target.value);
+                onDirty?.();
+              }}
               className={INPUT_CLASS}
             />
           </label>
@@ -108,8 +122,11 @@ export function AcShapeFields({
             <input
               name="ac_value"
               inputMode="decimal"
-              defaultValue={initialValue}
-              onChange={() => onDirty?.()}
+              value={numVal}
+              onChange={(e) => {
+                setNumVal(e.target.value);
+                onDirty?.();
+              }}
               className={`${INPUT_CLASS} tabular-nums`}
             />
           </label>
@@ -117,8 +134,11 @@ export function AcShapeFields({
             <span>{labels.unit}</span>
             <input
               name="ac_unit"
-              defaultValue={initialUnit}
-              onChange={() => onDirty?.()}
+              value={unitVal}
+              onChange={(e) => {
+                setUnitVal(e.target.value);
+                onDirty?.();
+              }}
               className={INPUT_CLASS}
             />
           </label>
@@ -129,8 +149,11 @@ export function AcShapeFields({
           <span>{labels.allowed}</span>
           <input
             name="ac_allowed"
-            defaultValue={initialAllowed}
-            onChange={() => onDirty?.()}
+            value={allowedVal}
+            onChange={(e) => {
+              setAllowedVal(e.target.value);
+              onDirty?.();
+            }}
             className={INPUT_CLASS}
           />
         </label>

@@ -520,3 +520,76 @@ test("an Approver-only identity does not get the no-deciding-role banner; a read
   renderPage(protocolView(), reader);
   expect(screen.getByText(/tidak memiliki peran pengambil keputusan/)).toBeDefined();
 });
+
+test("protocol useActionState forms preserve typed inputs when inline action returns error (422/409)", async () => {
+  const user = userEvent.setup();
+  const base = protocolView();
+  const baseRows = base.rows ?? [];
+  const rowNeedWrite = baseRows.find((r) => r.requirement === "URS-TP201-002")!;
+  const view: ProtocolView = {
+    ...base,
+    rows: [
+      { ...rowNeedWrite, kind: "test_step", test_step: null },
+      ...baseRows.filter((r) => r.requirement !== "URS-TP201-002"),
+    ],
+  };
+
+  const c: ProtocolControls = {
+    ...controls,
+    writeInline: vi.fn(async () => ({ ok: false as const, error: "refused" as const })),
+    editInline: vi.fn(async () => ({ ok: false as const, error: "refused" as const })),
+    answerInline: vi.fn(async () => ({ ok: false as const, error: "refused" as const })),
+  };
+
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <RunShellProvider>
+        <AssembledProtocolView protocol={view} runId={RUN_ID} decisions={decider} controls={c} />
+      </RunShellProvider>
+    </NextIntlClientProvider>,
+  );
+
+  // 1. WriteForm preserves description on 422/409
+  await user.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+  const writeDialog = await screen.findByRole("dialog");
+  const writeForm = within(within(writeDialog).getByRole("form", { name: "Tulis langkah uji" }));
+  const descInput = writeForm.getByLabelText("Deskripsi");
+  await user.clear(descInput);
+  await user.type(descInput, "Langkah uji baru yang belum tersimpan");
+  const methodInput = writeForm.getByLabelText("Metode");
+  await user.clear(methodInput);
+  await user.type(methodInput, "Inspeksi visual");
+  const acShape = writeForm.getByLabelText("Bentuk");
+  await user.selectOptions(acShape, "present");
+  await user.click(writeForm.getByRole("button", { name: "Simpan versi" }));
+
+  expect(await within(writeDialog).findByRole("alert")).toBeDefined();
+  expect((writeForm.getByLabelText("Deskripsi") as HTMLTextAreaElement).value).toBe(
+    "Langkah uji baru yang belum tersimpan",
+  );
+
+  // 2. EditDraftForm preserves Reason for Change on 422/409 (also present on URS-TP201-002)
+  const reasonInput = within(writeDialog).getByLabelText("Alasan perubahan");
+  await user.type(reasonInput, "Alasan koreksi yang harus tetap ada");
+  await user.click(within(writeDialog).getByRole("button", { name: "Simpan suntingan" }));
+
+  expect(await within(writeDialog).findAllByRole("alert")).toHaveLength(2);
+  expect((within(writeDialog).getByLabelText("Alasan perubahan") as HTMLTextAreaElement).value).toBe(
+    "Alasan koreksi yang harus tetap ada",
+  );
+
+  // 3. MissedNumbers AnswerForm preserves justification on 422/409
+  await user.click(within(writeDialog).getByRole("button", { name: "Tutup panel" }));
+  const discardBtn = within(writeDialog).queryByRole("button", { name: /Buang/i });
+  if (discardBtn) await user.click(discardBtn);
+  await user.click(await screen.findByRole("tab", { name: /Nomor terlewat/i }));
+  const missedCard = within(await screen.findByTestId("URS-TP201/0/URS-TP201-004"));
+  await user.selectOptions(missedCard.getByLabelText("Jawaban"), "not_a_requirement");
+  await user.type(missedCard.getByLabelText("Justifikasi"), "Justifikasi nomor terlewat tetap terjaga");
+  await user.click(missedCard.getByRole("button", { name: "Simpan jawaban" }));
+
+  expect(await missedCard.findByRole("alert")).toBeDefined();
+  expect((missedCard.getByLabelText("Justifikasi") as HTMLTextAreaElement).value).toBe(
+    "Justifikasi nomor terlewat tetap terjaga",
+  );
+});
