@@ -90,7 +90,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 # Rendered documents write ranges with an en dash (20–60 rpm), as in the design doc.
 allowed-confusables = ["–"]
 
-# ADR 0008: module boundaries of the TraceQ system, checked by tests/test_boundaries.py.
+# ADR 0008: module boundaries of the TraceQ system, checked by uv run lint-imports in CI.
 [tool.importlinter]
 root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
 include_external_packages = true
