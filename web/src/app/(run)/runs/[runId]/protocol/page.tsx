@@ -8,14 +8,18 @@ import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
 import {
   answerMissedNumber,
+  answerMissedNumberInline,
   approveProtocol,
   editDraftedTestStep,
+  editDraftedTestStepInline,
   removeTestStep,
+  removeTestStepInline,
   returnProtocol,
   startProtocol,
   submitProtocol,
   withdrawProtocol,
   writeTestStep,
+  writeTestStepInline,
 } from "@/protocol/actions";
 import { fetchProtocol, fetchRun } from "@/runs/fetchers";
 
@@ -102,6 +106,10 @@ export default async function ProtocolPage({
                 edit: editDraftedTestStep,
                 answer: answerMissedNumber,
                 submit: submitProtocol,
+                writeInline: writeTestStepInline,
+                removeInline: removeTestStepInline,
+                editInline: editDraftedTestStepInline,
+                answerInline: answerMissedNumberInline,
               }
             : null
         }
