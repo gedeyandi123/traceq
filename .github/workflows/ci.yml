@@ -148,3 +148,18 @@ jobs:
 
       - name: npm dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  checks:
+    name: checks
+    runs-on: ubuntu-24.04
+    needs: [py-fast, py-db, py-slow]
+    if: always()
+    steps:
+      - name: verify all Python checks passed
+        run: |
+          if [ "${{ needs.py-fast.result }}" != "success" ] || \
+             [ "${{ needs.py-db.result }}" != "success" ] || \
+             [ "${{ needs.py-slow.result }}" != "success" ]; then
+            echo "py-fast=${{ needs.py-fast.result }} py-db=${{ needs.py-db.result }} py-slow=${{ needs.py-slow.result }}"
+            exit 1
+          fi
