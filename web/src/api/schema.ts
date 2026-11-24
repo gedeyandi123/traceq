@@ -450,6 +450,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/protocols/{protocol_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Execution
+         * @description Starts the Execution of an Approved Protocol in ``in_progress`` status, with its Audit
+         *     Trail entry. Refused (409) unless the Protocol is Approved, and for a second Execution
+         *     of the same Protocol. Needs the executing role.
+         */
+        post: operations["startExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Execution
+         * @description Reads the Execution of the run's Protocol: its status, events and rows from the
+         *     Approved Protocol's frozen copy. Any signed-in role may read it.
+         */
+        get: operations["getExecution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -847,8 +890,6 @@ export interface components {
             /** Reason */
             reason: string;
         };
-        /** @enum {string} */
-        EventKind: "started" | "submitted" | "approved" | "returned" | "withdrawn";
         /**
          * EvidenceStep
          * @description A vendor FAT/SAT step linked to a requirement, with its verdict.
@@ -878,6 +919,87 @@ export interface components {
             /** Failure */
             failure: string | null;
             citation: components["schemas"]["Cite"];
+        };
+        /**
+         * ExecutionEvent
+         * @description A status change of an Execution: what, who and when.
+         */
+        ExecutionEvent: {
+            /** Id */
+            id: number;
+            event: components["schemas"]["traceq__execution__lifecycle__EventKind"];
+            status: components["schemas"]["traceq__execution__lifecycle__Status"];
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * ExecutionRowView
+         * @description One row of the Execution, in the order of the Approved Protocol's frozen copy.
+         */
+        ExecutionRowView: {
+            /** Requirement */
+            requirement: string;
+            /** Text */
+            text: string;
+            source: components["schemas"]["Cite"];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vendor_reference" | "test_step";
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceStep"][];
+            test_step: components["schemas"]["ExecutionTestStep"] | null;
+        };
+        /**
+         * ExecutionTestStep
+         * @description The Test Step of a Test Step row, from the Approved Protocol's frozen copy.
+         */
+        ExecutionTestStep: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "accepted_draft" | "written";
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            acceptance: components["schemas"]["Acceptance"];
+        };
+        /**
+         * ExecutionView
+         * @description An Execution of an Approved Protocol: its status, events, and rows from the frozen copy.
+         */
+        ExecutionView: {
+            /** Id */
+            id: number;
+            /** Protocol Id */
+            protocol_id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            /** Submission Event Id */
+            submission_event_id: number;
+            /** Submission Hash */
+            submission_hash: string;
+            status: components["schemas"]["traceq__execution__lifecycle__Status"];
+            /** Events */
+            events: components["schemas"]["ExecutionEvent"][];
+            /** Rows */
+            rows: components["schemas"]["ExecutionRowView"][];
         };
         /**
          * Findings
@@ -1405,8 +1527,8 @@ export interface components {
         ProtocolEvent: {
             /** Id */
             id: number;
-            event: components["schemas"]["EventKind"];
-            status: components["schemas"]["Status"];
+            event: components["schemas"]["traceq__assembly__lifecycle__EventKind"];
+            status: components["schemas"]["traceq__assembly__lifecycle__Status"];
             /** Reason */
             reason: string | null;
             /** Subject */
@@ -1477,7 +1599,7 @@ export interface components {
             equipment: string;
             /** Run Id */
             run_id: string;
-            status: components["schemas"]["Status"];
+            status: components["schemas"]["traceq__assembly__lifecycle__Status"];
             /** Events */
             events: components["schemas"]["ProtocolEvent"][];
             /** Rows */
@@ -1640,8 +1762,6 @@ export interface components {
         };
         /** @enum {string} */
         State: "decided" | "changed" | "undecided";
-        /** @enum {string} */
-        Status: "draft" | "submitted" | "approved" | "withdrawn";
         /**
          * SubmissionView
          * @description A submission of the Protocol: the frozen copy it stored and that copy's hash.
@@ -1806,6 +1926,14 @@ export interface components {
              */
             at: string;
         };
+        /** @enum {string} */
+        traceq__assembly__lifecycle__EventKind: "started" | "submitted" | "approved" | "returned" | "withdrawn";
+        /** @enum {string} */
+        traceq__assembly__lifecycle__Status: "draft" | "submitted" | "approved" | "withdrawn";
+        /** @enum {string} */
+        traceq__execution__lifecycle__EventKind: "started" | "completed";
+        /** @enum {string} */
+        traceq__execution__lifecycle__Status: "in_progress" | "completed";
     };
     responses: never;
     parameters: never;
@@ -2476,6 +2604,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    startExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
                 };
             };
             /** @description Validation Error */

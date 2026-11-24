@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, History as HistoryIcon, Info } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, History as HistoryIcon, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { useState } from "react";
 
 import type { ProtocolEvent, ProtocolView } from "@/api/client";
@@ -230,9 +231,18 @@ export function ProtocolStatusPanel({
       </div>
 
       {protocol.status === "approved" && (
-        <div className="flex items-start gap-2 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{t("approval.approvedNote")}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass">
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{t("approval.approvedNote")}</span>
+          </div>
+          <Link
+            href={`/runs/${encodeURIComponent(runId)}/execution`}
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline transition-colors hover:bg-accent-hover"
+          >
+            <span>{t("toExecution")}</span>
+            <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          </Link>
         </div>
       )}
 

@@ -1015,6 +1015,96 @@
           }
         }
       }
+    },
+    "/protocols/{protocol_id}/execution": {
+      "post": {
+        "summary": "Start Execution",
+        "description": "Starts the Execution of an Approved Protocol in ``in_progress`` status, with its Audit\nTrail entry. Refused (409) unless the Protocol is Approved, and for a second Execution\nof the same Protocol. Needs the executing role.",
+        "operationId": "startExecution",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/execution": {
+      "get": {
+        "summary": "Get Execution",
+        "description": "Reads the Execution of the run's Protocol: its status, events and rows from the\nApproved Protocol's frozen copy. Any signed-in role may read it.",
+        "operationId": "getExecution",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2228,16 +2318,6 @@
         "title": "DroppedClaim",
         "description": "A claim the citation check dropped, with its reason in plain text."
       },
-      "EventKind": {
-        "type": "string",
-        "enum": [
-          "started",
-          "submitted",
-          "approved",
-          "returned",
-          "withdrawn"
-        ]
-      },
       "EvidenceStep": {
         "properties": {
           "doc": {
@@ -2360,6 +2440,207 @@
         ],
         "title": "EvidenceStep",
         "description": "A vendor FAT/SAT step linked to a requirement, with its verdict."
+      },
+      "ExecutionEvent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "event": {
+            "$ref": "#/components/schemas/traceq__execution__lifecycle__EventKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/traceq__execution__lifecycle__Status"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "event",
+          "status",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "ExecutionEvent",
+        "description": "A status change of an Execution: what, who and when."
+      },
+      "ExecutionRowView": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Cite"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "vendor_reference",
+              "test_step"
+            ],
+            "title": "Kind"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceStep"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionTestStep"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement",
+          "text",
+          "source",
+          "kind",
+          "evidence",
+          "test_step"
+        ],
+        "title": "ExecutionRowView",
+        "description": "One row of the Execution, in the order of the Approved Protocol's frozen copy."
+      },
+      "ExecutionTestStep": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "accepted_draft",
+              "written"
+            ],
+            "title": "Origin"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/Acceptance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "origin",
+          "description",
+          "method",
+          "instrument",
+          "acceptance"
+        ],
+        "title": "ExecutionTestStep",
+        "description": "The Test Step of a Test Step row, from the Approved Protocol's frozen copy."
+      },
+      "ExecutionView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "protocol_id": {
+            "type": "integer",
+            "title": "Protocol Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "submission_event_id": {
+            "type": "integer",
+            "title": "Submission Event Id"
+          },
+          "submission_hash": {
+            "type": "string",
+            "title": "Submission Hash"
+          },
+          "status": {
+            "$ref": "#/components/schemas/traceq__execution__lifecycle__Status"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutionEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutionRowView"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "protocol_id",
+          "equipment",
+          "run_id",
+          "submission_event_id",
+          "submission_hash",
+          "status",
+          "events",
+          "rows"
+        ],
+        "title": "ExecutionView",
+        "description": "An Execution of an Approved Protocol: its status, events, and rows from the frozen copy."
       },
       "Findings": {
         "properties": {
@@ -3798,10 +4079,10 @@
             "title": "Id"
           },
           "event": {
-            "$ref": "#/components/schemas/EventKind"
+            "$ref": "#/components/schemas/traceq__assembly__lifecycle__EventKind"
           },
           "status": {
-            "$ref": "#/components/schemas/Status"
+            "$ref": "#/components/schemas/traceq__assembly__lifecycle__Status"
           },
           "reason": {
             "anyOf": [
@@ -4012,7 +4293,7 @@
             "title": "Run Id"
           },
           "status": {
-            "$ref": "#/components/schemas/Status"
+            "$ref": "#/components/schemas/traceq__assembly__lifecycle__Status"
           },
           "events": {
             "items": {
@@ -4522,15 +4803,6 @@
           "undecided"
         ]
       },
-      "Status": {
-        "type": "string",
-        "enum": [
-          "draft",
-          "submitted",
-          "approved",
-          "withdrawn"
-        ]
-      },
       "SubmissionView": {
         "properties": {
           "event_id": {
@@ -4931,6 +5203,39 @@
         ],
         "title": "WrittenVersionView",
         "description": "A version of a written Test Step: its full content, or a removal, who and when."
+      },
+      "traceq__assembly__lifecycle__EventKind": {
+        "type": "string",
+        "enum": [
+          "started",
+          "submitted",
+          "approved",
+          "returned",
+          "withdrawn"
+        ]
+      },
+      "traceq__assembly__lifecycle__Status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "submitted",
+          "approved",
+          "withdrawn"
+        ]
+      },
+      "traceq__execution__lifecycle__EventKind": {
+        "type": "string",
+        "enum": [
+          "started",
+          "completed"
+        ]
+      },
+      "traceq__execution__lifecycle__Status": {
+        "type": "string",
+        "enum": [
+          "in_progress",
+          "completed"
+        ]
       }
     },
     "securitySchemes": {

@@ -159,3 +159,33 @@ export function ProtocolStatusBadge({ status }: { status: ProtocolStatusBadgeKey
     </span>
   );
 }
+
+export type ExecutionStatusBadgeKey = "in_progress" | "completed";
+
+const EXECUTION_STYLE: Record<
+  ExecutionStatusBadgeKey,
+  { badgeClass: string; icon: typeof CheckCircle2 }
+> = {
+  in_progress: {
+    badgeClass: "bg-info-soft text-info border-info-edge",
+    icon: Clock,
+  },
+  completed: {
+    badgeClass: "bg-pass-soft text-pass border-pass-edge",
+    icon: CheckCircle2,
+  },
+};
+
+export function ExecutionStatusBadge({ status }: { status: ExecutionStatusBadgeKey }) {
+  const t = useTranslations("ui.executionStatuses");
+  const cfg = EXECUTION_STYLE[status];
+  const Icon = cfg.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${cfg.badgeClass}`}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{t(status)}</span>
+    </span>
+  );
+}
