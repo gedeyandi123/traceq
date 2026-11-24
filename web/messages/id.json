@@ -163,7 +163,27 @@
     "filterApply": "Terapkan",
     "filterReset": "Atur ulang",
     "filterCount": "Menampilkan {shown} dari {total} persyaratan",
-    "filterEmpty": "Tidak ada persyaratan yang cocok dengan filter."
+    "filterEmpty": "Tidak ada persyaratan yang cocok dengan filter.",
+    "disyaratkan": "Disyaratkan",
+    "teramati": "Teramati",
+    "ambiguousConfirm": "Perlu konfirmasi nilai (ambigu)",
+    "advisoryNote": "Saran AI (hanya penasihat)",
+    "filterBlockers": {
+      "all": "Semua",
+      "conflict": "Konflik",
+      "gap": "Celah",
+      "undecided": "Belum diputuskan"
+    },
+    "drawer": {
+      "prev": "Sebelumnya",
+      "next": "Berikutnya",
+      "position": "{current} / {total}",
+      "openDetail": "Buka rincian {id}",
+      "dirtyWarning": "Alasan perubahan yang diketik belum disimpan. Buang perubahan dan lanjutkan?",
+      "discardChanges": "Buang perubahan",
+      "keepEditing": "Tetap menyunting",
+      "readOnlyCell": "Hanya membaca"
+    }
   },
   "decisions": {
     "column": "Keputusan",

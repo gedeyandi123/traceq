@@ -1,239 +1,464 @@
+"use client";
+
+import { AlertCircle, ArrowRight, ChevronDown, FileWarning, Info, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { Cite, Matrix, MatrixRow, ObservedValue, Proposal, Value } from "@/api/client";
-import { CiteLink } from "./CiteLink";
-import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
-import type { DecisionView } from "./Decisions";
-import { Button, cell, CoveragePill, DataTable, EmptyState, HandoffBar, Panel } from "./ui/ui";
-import type { CoverageKey } from "./ui/ui";
+import type { CoverageClass, DecisionCounts, Matrix, Proposal } from "@/api/client";
+import type { DecisionView } from "@/components/Decisions";
+import { MatrixDrawer } from "@/components/MatrixDrawer";
+import { formatValue, RequiredObservedUnit } from "@/components/RequiredObservedUnit";
+import { useRunShell } from "@/components/RunShellContext";
 
-import s from "./MatrixTable.module.css";
+export { formatValue };
+import {
+  CoverageStatusBadge,
+  DecisionStateBadge,
+  type CoverageBadgeKey,
+} from "@/components/ui/StatusBadge";
 
-type T = ReturnType<typeof useTranslations<"matrix">>;
-type Evidence = MatrixRow["evidence"][number];
-
-const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
-
-/** Riskiest first: the order of the Coverage summary and the legend. */
-const RISK: readonly CoverageKey[] = ["conflict", "gap", "partial", "site_only", "covered_by_vendor", "none"];
-
-/** A required or observed value in a few characters. */
-export function formatValue(t: T, v: Value | ObservedValue, observed = false): string {
-  switch (v.type) {
-    case "range":
-      if (v.min != null && v.max != null) {
-        return `${number.format(v.min)}–${number.format(v.max)} ${v.unit}`;
-      }
-      return v.min != null
-        ? t("values.atLeast", { min: number.format(v.min), unit: v.unit })
-        : t("values.atMost", { max: number.format(v.max ?? 0), unit: v.unit });
-    case "number":
-      return `${number.format(v.value)} ${v.unit}`;
-    case "one_of":
-      return v.allowed.join(" / ");
-    case "text":
-      return v.value;
-    case "present":
-      if (!observed || v.value == null) return t("values.present");
-      return v.value ? t("values.presentObserved") : t("values.absentObserved");
-    case "ambiguous":
-      return t("ambiguous", { readings: v.readings.map((r) => number.format(r)).join(" / ") });
-  }
-}
-
-/** An observed value in a few characters, for a chip. A reading that needs confirmation shows
- * its readings and a question mark; the full sentence is in the opened list. */
-function shortObserved(t: T, e: Evidence): string {
-  const v = e.observed_value;
-  if (!v) return e.observed;
-  if (v.type === "ambiguous") return `${v.readings.map((r) => number.format(r)).join(" / ")} ?`;
-  return formatValue(t, v, true);
-}
-
-function sameCite(a: Cite, b: Cite): boolean {
-  return a.doc === b.doc && a.rev === b.rev && a.page === b.page && a.quote === b.quote;
-}
-
-const MARK = { pass: "✓", fail: "✕", none: "·" } as const;
-
-/** Evidence on one line of chips (each step with its observed value, and the first design
- * value); the full list, its quotes and citations one click away. A chip is not a link, and
- * its text is one node, so it never doubles a value or a citation the row shows elsewhere. */
-function EvidenceCell({ row, runId, t }: { row: MatrixRow; runId: string; t: T }) {
-  if (row.evidence.length === 0 && row.design.length === 0) {
-    return <span className="muted">{t("noEvidence")}</span>;
-  }
-  const [design] = row.design;
-  return (
-    <details className={s.evidence}>
-      <summary>
-        <span className={s.chips}>
-          {row.evidence.map((e) => {
-            const result = e.result ?? "none";
-            return (
-              <span
-                key={`${e.doc}/${e.step}`}
-                className={`${s.chip} ${s[`chip_${result}`]}`}
-                title={`${e.stage} ${e.step}: ${t(`results.${result}`)}`}
-              >
-                <span aria-hidden="true">{MARK[result]}</span>
-                <span className={s.chipText}>{`${e.step} · ${shortObserved(t, e)}`}</span>
-              </span>
-            );
-          })}
-          {design && (
-            <span className={s.chip} title={design.name}>
-              <span className={s.chipText}>{`${t("designShort")} · ${design.printed}`}</span>
-            </span>
-          )}
-        </span>
-        <span className="visually-hidden">{t("allEvidence")}</span>
-      </summary>
-      <ul className={s.evidenceList}>
-        {row.evidence.map((e) => (
-          <li key={`${e.doc}/${e.step}`}>
-            <strong>
-              {e.stage} {e.step}
-            </strong>{" "}
-            {e.test}
-            <div className={s.observed}>
-              {t("observed", {
-                observed: e.observed_value ? formatValue(t, e.observed_value, true) : e.observed,
-              })}
-              {" · "}
-              {t("result", { result: t(`results.${e.result ?? "none"}`) })}
-            </div>
-            {e.failure && <div className={s.failure}>{e.failure}</div>}
-            <CiteLink runId={runId} cite={e.citation} />
-          </li>
-        ))}
-        {row.design.map((d) => (
-          <li key={`${d.doc}/${d.name}`}>
-            <strong>{t("design")}</strong> {d.name}: {t("printed", { printed: d.printed })}
-            <div>
-              <CiteLink runId={runId} cite={d.citation} />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </details>
-  );
-}
-
-/** The proposed class, and after it the class a human changed it to, so the final class does
- * not hide in the decision text. */
-function CoverageCell({ row, proposal, t }: { row: MatrixRow; proposal: Proposal | undefined; t: T }) {
-  const proposed: CoverageKey = row.coverage ?? "none";
-  const current = proposal?.state === "decided" ? proposal.decisions[0] : undefined;
-  const decided = current?.decision === "edited" ? current.coverage : null;
-  return (
-    <span className={s.classes}>
-      <CoveragePill cls={proposed} label={t(`classes.${proposed}`)} help={t(`help.${proposed}`)} />
-      {decided != null && (
-        <>
-          <span aria-hidden="true" className={s.arrow}>
-            →
-          </span>
-          <span className="visually-hidden">{t("decidedClass")}</span>
-          <CoveragePill cls={decided} label={t(`classes.${decided}`)} help={t(`help.${decided}`)} />
-        </>
-      )}
-    </span>
-  );
-}
-
-/** How many rows the system put in each class, riskiest first, and the meaning of each class
- * one click away. */
-function CoverageSummary({ rows, t }: { rows: readonly MatrixRow[]; t: T }) {
-  const counts = new Map<CoverageKey, number>();
-  for (const r of rows) {
-    const k = r.coverage ?? "none";
-    counts.set(k, (counts.get(k) ?? 0) + 1);
-  }
-  return (
-    <Panel title={t("summaryTitle")}>
-      <ul className={s.summary} aria-label={t("summaryTitle")}>
-        {RISK.map((k) => (
-          <li key={k} className={counts.has(k) ? undefined : s.zero}>
-            <span className={s.summaryCount}>{counts.get(k) ?? 0}</span>
-            <CoveragePill cls={k} label={t(`classes.${k}`)} help={t(`help.${k}`)} />
-          </li>
-        ))}
-      </ul>
-      <details className={s.legend}>
-        <summary>{t("legendTitle")}</summary>
-        <dl>
-          {RISK.map((k) => (
-            <div key={k}>
-              <dt>
-                <CoveragePill cls={k} label={t(`classes.${k}`)} />
-              </dt>
-              <dd>{t(`help.${k}`)}</dd>
-            </div>
-          ))}
-        </dl>
-      </details>
-    </Panel>
-  );
-}
-
-export type MatrixFilter = {
-  coverage?: CoverageKey;
-  status?: Proposal["state"];
-};
+const RISK: readonly CoverageBadgeKey[] = [
+  "conflict",
+  "gap",
+  "partial",
+  "site_only",
+  "covered_by_vendor",
+  "none",
+];
 
 const STATES: readonly Proposal["state"][] = ["undecided", "changed", "decided"];
 
-/** The traceability matrix: one row per requirement, with its Coverage class and reason,
- * and every piece of Evidence linked to the page it cites. For an imported run each row also
- * shows its decision state and decisions, and the decision forms when the viewer may decide. */
+export type MatrixFilter = {
+  coverage?: CoverageBadgeKey;
+  status?: Proposal["state"];
+};
+
+function buildMatrixUrl(
+  base: string,
+  coverage: CoverageBadgeKey | undefined,
+  status: Proposal["state"] | undefined,
+  selected: string | null,
+): string {
+  const qs = new URLSearchParams();
+  if (coverage) qs.set("coverage", coverage);
+  if (status) qs.set("status", status);
+  if (selected) qs.set("selected", selected);
+  const query = qs.toString();
+  return query ? `${base}?${query}` : base;
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.closest(
+      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
+    ) !== null
+  );
+}
+
+function DecisionCountsPanel({ counts }: { counts: DecisionCounts }) {
+  const td = useTranslations("decisions");
+  const [open, setOpen] = useState(false);
+  const total = counts.coverage.total;
+  const decided =
+    counts.coverage.accepted + counts.coverage.edited + counts.coverage.rejected;
+  const kinds: readonly Proposal["kind"][] = ["coverage", "test_step"];
+
+  return (
+    <div className="flex flex-col items-start gap-2 sm:items-end">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-ink tabular-nums">
+          {td("progress", { decided, total })}
+        </span>
+        <button
+          type="button"
+          data-tw=""
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 text-xs font-medium text-ink-muted hover:bg-sunken hover:text-ink"
+        >
+          <span>{td("counts.title")}</span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+      {open && (
+        <div className="w-full overflow-x-auto rounded-lg border border-border bg-surface p-2 shadow-sm">
+          <table className="w-full border-collapse text-left text-xs tabular-nums">
+            <caption className="sr-only">{td("counts.title")}</caption>
+            <thead>
+              <tr className="border-b border-border text-ink-muted">
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.kind")}
+                </th>
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.total")}
+                </th>
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.undecided")}
+                </th>
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.accepted")}
+                </th>
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.edited")}
+                </th>
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.rejected")}
+                </th>
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.changed")}
+                </th>
+                <th scope="col" className="px-2 py-1 font-semibold">
+                  {td("counts.decidedNotProposed")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {kinds.map((k) => {
+                const c = counts[k];
+                return (
+                  <tr key={k} className="border-b border-border last:border-b-0">
+                    <th scope="row" className="px-2 py-1 font-medium text-ink">
+                      {td(`kinds.${k}`)}
+                    </th>
+                    <td className="px-2 py-1">{c.total}</td>
+                    <td className="px-2 py-1">{c.undecided}</td>
+                    <td className="px-2 py-1">{c.accepted}</td>
+                    <td className="px-2 py-1">{c.edited}</td>
+                    <td className="px-2 py-1">{c.rejected}</td>
+                    <td className="px-2 py-1">{c.changed}</td>
+                    <td className="px-2 py-1">{c.decided_not_proposed}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MatrixTable({
   matrix,
   runId,
   decisions,
   filter,
+  initialSelected = null,
 }: {
   matrix: Matrix;
   runId: string;
   decisions: DecisionView;
   filter?: MatrixFilter;
+  initialSelected?: string | null;
 }) {
   const t = useTranslations("matrix");
   const td = useTranslations("decisions");
   const th = useTranslations("runHeader");
-  const byRequirement = new Map(
-    (decisions.proposals ?? [])
-      .filter((p) => p.kind === "coverage")
-      .map((p) => [p.requirement, p] as const),
+  const { setDrawerOpen } = useRunShell();
+
+  const [activeCoverage, setActiveCoverage] = useState<CoverageBadgeKey | undefined>(
+    filter?.coverage,
   );
+  const [activeStatus, setActiveStatus] = useState<Proposal["state"] | undefined>(
+    decisions.proposals !== undefined ? filter?.status : undefined,
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelected);
+  const [legendOpen, setLegendOpen] = useState(false);
+
+  // Dirty-form guard state
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [pendingTargetId, setPendingTargetId] = useState<string | null | undefined>(undefined);
+
+  const byRequirement = useMemo(
+    () =>
+      new Map(
+        (decisions.proposals ?? [])
+          .filter((p) => p.kind === "coverage")
+          .map((p) => [p.requirement, p] as const),
+      ),
+    [decisions.proposals],
+  );
+
   const decided = decisions.proposals !== undefined;
-  const activeCoverage = filter?.coverage;
-  const activeStatus = decided ? filter?.status : undefined;
   const isFiltered = activeCoverage !== undefined || activeStatus !== undefined;
-  const filteredRows = matrix.requirements.filter((row) => {
-    if (activeCoverage !== undefined && (row.coverage ?? "none") !== activeCoverage) return false;
-    if (activeStatus !== undefined) {
-      const state = byRequirement.get(row.id)?.state ?? "undecided";
-      if (state !== activeStatus) return false;
+
+  const filteredRows = useMemo(
+    () =>
+      matrix.requirements.filter((row) => {
+        if (activeCoverage !== undefined && (row.coverage ?? "none") !== activeCoverage) {
+          return false;
+        }
+        if (activeStatus !== undefined) {
+          const state = byRequirement.get(row.id)?.state ?? "undecided";
+          if (state !== activeStatus) return false;
+        }
+        return true;
+      }),
+    [matrix.requirements, activeCoverage, activeStatus, byRequirement],
+  );
+
+  const base = `/runs/${encodeURIComponent(runId)}`;
+
+  const syncUrl = useCallback(
+    (
+      cov: CoverageBadgeKey | undefined,
+      st: Proposal["state"] | undefined,
+      sel: string | null,
+    ) => {
+      if (typeof window === "undefined") return;
+      const next = buildMatrixUrl(base, cov, st, sel);
+      window.history.replaceState(null, "", next);
+    },
+    [base],
+  );
+
+  // Wire drawer open/close state with RunShellContext so left sidebar auto-collapses below 1440px
+  useEffect(() => {
+    setDrawerOpen(selectedId !== null);
+    return () => setDrawerOpen(false);
+  }, [selectedId, setDrawerOpen]);
+
+  const applySelection = useCallback(
+    (nextId: string | null) => {
+      setSelectedId(nextId);
+      setIsFormDirty(false);
+      setPendingTargetId(undefined);
+      syncUrl(activeCoverage, activeStatus, nextId);
+    },
+    [activeCoverage, activeStatus, syncUrl],
+  );
+
+  const requestSelection = useCallback(
+    (nextId: string | null) => {
+      if (nextId === selectedId) return;
+      if (selectedId !== null && isFormDirty) {
+        setPendingTargetId(nextId);
+        return;
+      }
+      applySelection(nextId);
+    },
+    [selectedId, isFormDirty, applySelection],
+  );
+
+  const applyFilters = useCallback(
+    (cov: CoverageBadgeKey | undefined, st: Proposal["state"] | undefined) => {
+      setActiveCoverage(cov);
+      setActiveStatus(decided ? st : undefined);
+      syncUrl(cov, decided ? st : undefined, selectedId);
+    },
+    [decided, selectedId, syncUrl],
+  );
+
+  const selectedIndex = useMemo(
+    () => (selectedId ? filteredRows.findIndex((r) => r.id === selectedId) : -1),
+    [filteredRows, selectedId],
+  );
+  const selectedRow =
+    selectedId !== null
+      ? (filteredRows.find((r) => r.id === selectedId) ??
+        matrix.requirements.find((r) => r.id === selectedId) ??
+        null)
+      : null;
+
+  // J/K keyboard shortcuts (disabled inside inputs/menus/combos or with modifier keys)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key !== "j" && e.key !== "J" && e.key !== "k" && e.key !== "K") return;
+      if (isTypingTarget(e.target)) return;
+      if (filteredRows.length === 0) return;
+
+      e.preventDefault();
+      const goingDown = e.key === "j" || e.key === "J";
+      if (selectedIndex === -1) {
+        const first = filteredRows[0];
+        if (first) requestSelection(first.id);
+        return;
+      }
+      const nextIdx = goingDown
+        ? Math.min(selectedIndex + 1, filteredRows.length - 1)
+        : Math.max(selectedIndex - 1, 0);
+      const target = filteredRows[nextIdx];
+      if (target) requestSelection(target.id);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [filteredRows, selectedIndex, requestSelection]);
+
+  const countsByClass = useMemo(() => {
+    const map = new Map<CoverageBadgeKey, number>();
+    for (const r of matrix.requirements) {
+      const k: CoverageBadgeKey = r.coverage ?? "none";
+      map.set(k, (map.get(k) ?? 0) + 1);
     }
-    return true;
-  });
+    return map;
+  }, [matrix.requirements]);
+
+  const undecidedCount = useMemo(() => {
+    if (!decided) return 0;
+    return matrix.requirements.filter((r) => (byRequirement.get(r.id)?.state ?? "undecided") === "undecided").length;
+  }, [decided, matrix.requirements, byRequirement]);
+
   const qs = new URLSearchParams();
   if (activeCoverage) qs.set("coverage", activeCoverage);
   if (activeStatus) qs.set("status", activeStatus);
   const returnQuery = qs.toString() || undefined;
-  const base = `/runs/${encodeURIComponent(runId)}`;
+
   return (
-    <>
-      <DecisionNotice view={decisions} />
-      <div className={s.overview}>
-        <CoverageSummary rows={matrix.requirements} t={t} />
-        <DecisionTally counts={decisions.counts} kinds={["coverage"]} also={["test_step"]} />
+    <div className="space-y-3">
+      {/* Read-only or error notice */}
+      {(decisions.access.mode === "readOnly" || decisions.error) && (
+        <div className="space-y-2">
+          {decisions.access.mode === "readOnly" && (
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-ink-muted">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" aria-hidden="true" />
+              <span>{td(`readOnly.${decisions.access.why}`)}</span>
+            </div>
+          )}
+          {decisions.error && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-fail-edge bg-fail-soft px-3 py-2 text-xs text-fail"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{td(`errors.${decisions.error}`)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Compact 1-line coverage summary + decision progress */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-3.5 py-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <ul
+            aria-label={t("summaryTitle")}
+            className="m-0 flex list-none flex-wrap items-center gap-1.5 p-0"
+          >
+            {RISK.map((k) => {
+              const count = countsByClass.get(k) ?? 0;
+              return (
+                <li
+                  key={k}
+                  className={`inline-flex items-center gap-1 rounded-md px-1 py-0.5 ${
+                    count === 0 ? "opacity-55" : ""
+                  }`}
+                >
+                  <span className="text-xs font-bold text-ink tabular-nums">{count}</span>
+                  <CoverageStatusBadge coverage={k} size="xs" />
+                </li>
+              );
+            })}
+          </ul>
+          <button
+            type="button"
+            data-tw=""
+            aria-expanded={legendOpen}
+            onClick={() => setLegendOpen((o) => !o)}
+            className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-canvas px-2 py-0.5 text-[11px] font-medium text-ink-muted hover:bg-sunken hover:text-ink"
+          >
+            <span>{t("legendTitle")}</span>
+            <ChevronDown
+              className={`h-3 w-3 transition-transform ${legendOpen ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+
+        {decisions.counts && <DecisionCountsPanel counts={decisions.counts} />}
       </div>
-      <form method="get" action={base} className={s.filterBar}>
-        <label className={s.filterField}>
-          <span>{t("filterCoverage")}</span>
-          <select name="coverage" defaultValue={activeCoverage ?? ""}>
+
+      {legendOpen && (
+        <dl className="m-0 grid grid-cols-1 gap-2 rounded-lg border border-border bg-surface p-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
+          {RISK.map((k) => (
+            <div key={k} className="flex items-start gap-2">
+              <dt className="shrink-0">
+                <CoverageStatusBadge coverage={k} size="xs" />
+              </dt>
+              <dd className="m-0 text-ink-muted">{t(`help.${k}`)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {/* 1-click blocker filter pills + secondary select filters */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("filterCoverage")}>
+          <button
+            type="button"
+            data-tw=""
+            aria-pressed={!isFiltered}
+            onClick={() => applyFilters(undefined, undefined)}
+            className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+              !isFiltered
+                ? "border-accent bg-accent text-on-accent"
+                : "border-border bg-surface text-ink hover:bg-sunken"
+            }`}
+          >
+            {t("filterBlockers.all")} ({matrix.requirements.length})
+          </button>
+          <button
+            type="button"
+            data-tw=""
+            aria-pressed={activeCoverage === "conflict" && activeStatus === undefined}
+            onClick={() =>
+              applyFilters(activeCoverage === "conflict" ? undefined : "conflict", undefined)
+            }
+            className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold tabular-nums transition-colors ${
+              activeCoverage === "conflict" && activeStatus === undefined
+                ? "border-cov-conflict-edge bg-cov-conflict-bg text-cov-conflict-fg"
+                : "border-border bg-surface text-ink hover:bg-sunken"
+            }`}
+          >
+            {t("filterBlockers.conflict")} ({countsByClass.get("conflict") ?? 0})
+          </button>
+          <button
+            type="button"
+            data-tw=""
+            aria-pressed={activeCoverage === "gap" && activeStatus === undefined}
+            onClick={() => applyFilters(activeCoverage === "gap" ? undefined : "gap", undefined)}
+            className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold tabular-nums transition-colors ${
+              activeCoverage === "gap" && activeStatus === undefined
+                ? "border-cov-gap-edge bg-cov-gap-bg text-cov-gap-fg"
+                : "border-border bg-surface text-ink hover:bg-sunken"
+            }`}
+          >
+            {t("filterBlockers.gap")} ({countsByClass.get("gap") ?? 0})
+          </button>
+          {decided && (
+            <button
+              type="button"
+              data-tw=""
+              aria-pressed={activeStatus === "undecided" && activeCoverage === undefined}
+              onClick={() =>
+                applyFilters(undefined, activeStatus === "undecided" ? undefined : "undecided")
+              }
+              className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold tabular-nums transition-colors ${
+                activeStatus === "undecided" && activeCoverage === undefined
+                  ? "border-accent bg-accent text-on-accent"
+                  : "border-border bg-surface text-ink hover:bg-sunken"
+              }`}
+            >
+              {t("filterBlockers.undecided")} ({undecidedCount})
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label={t("filterCoverage")}
+            value={activeCoverage ?? ""}
+            onChange={(e) => {
+              const val = e.target.value as CoverageBadgeKey | "";
+              applyFilters(val === "" ? undefined : val, activeStatus);
+            }}
+            className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-ink"
+          >
             <option value="">{t("filterAll")}</option>
             {RISK.map((k) => (
               <option key={k} value={k}>
@@ -241,11 +466,16 @@ export function MatrixTable({
               </option>
             ))}
           </select>
-        </label>
-        {decided && (
-          <label className={s.filterField}>
-            <span>{t("filterStatus")}</span>
-            <select name="status" defaultValue={activeStatus ?? ""}>
+          {decided && (
+            <select
+              aria-label={t("filterStatus")}
+              value={activeStatus ?? ""}
+              onChange={(e) => {
+                const val = e.target.value as Proposal["state"] | "";
+                applyFilters(activeCoverage, val === "" ? undefined : val);
+              }}
+              className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-ink"
+            >
               <option value="">{t("filterAll")}</option>
               {STATES.map((st) => (
                 <option key={st} value={st}>
@@ -253,104 +483,193 @@ export function MatrixTable({
                 </option>
               ))}
             </select>
-          </label>
-        )}
-        <Button type="submit" variant="soft">
-          {t("filterApply")}
-        </Button>
-        {isFiltered && (
-          <>
-            <a href={base} className={s.filterReset}>
-              {t("filterReset")}
-            </a>
-            <span className={s.filterCount}>
-              {t("filterCount", { shown: filteredRows.length, total: matrix.requirements.length })}
-            </span>
-          </>
-        )}
-      </form>
+          )}
+          {isFiltered && (
+            <>
+              <button
+                type="button"
+                data-tw=""
+                onClick={() => applyFilters(undefined, undefined)}
+                className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-ink-muted hover:bg-sunken hover:text-ink"
+              >
+                <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                <span>{t("filterReset")}</span>
+              </button>
+              <span className="text-xs text-ink-muted tabular-nums">
+                {t("filterCount", {
+                  shown: filteredRows.length,
+                  total: matrix.requirements.length,
+                })}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Opsi A 4-column compact table */}
       {filteredRows.length === 0 && isFiltered ? (
-        <EmptyState title={t("filterEmpty")} />
+        <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-ink-muted">
+          {t("filterEmpty")}
+        </div>
       ) : (
-        <DataTable
-          className={decisions.access.mode === "readOnly" ? `${s.matrix} ${s.readOnly}` : s.matrix}
-        >
-          <thead>
-            <tr>
-              <th className={s.colRequirement}>{t("requirement")}</th>
-              <th className={s.colValue}>{t("value")}</th>
-              <th className={s.colCoverage}>{t("coverage")}</th>
-              <th className={s.colReason}>{t("reason")}</th>
-              <th className={s.colEvidence}>{t("evidence")}</th>
-              {decided && <th className={s.colDecision}>{td("column")}</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row) => (
-              <tr key={row.id} id={row.id} data-testid={row.id} className={s[`edge_${row.coverage ?? "none"}`]}>
-                <td>
-                  <strong className={cell.id}>{row.id}</strong>
-                  <p className={s.text}>{row.text}</p>
-                  <span className={s.cite}>
-                    <CiteLink runId={runId} cite={row.source} />
-                  </span>
-                </td>
-                <td>
-                  {row.value ? (
-                    <span className={s.value}>{formatValue(t, row.value)}</span>
-                  ) : (
-                    <span className="muted">{t("noValue")}</span>
-                  )}
-                  {row.value_citation && !sameCite(row.value_citation, row.source) && (
-                    <div className={s.cite}>
-                      <CiteLink runId={runId} cite={row.value_citation} />
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <CoverageCell row={row} proposal={byRequirement.get(row.id)} t={t} />
-                </td>
-                <td className={s.reason}>{row.reason}</td>
-                <td>
-                  <EvidenceCell row={row} runId={runId} t={t} />
-                </td>
-                {decided && (
-                  <td>
-                    <DecisionCell
-                      proposal={byRequirement.get(row.id)}
-                      runId={runId}
-                      screen="matrix"
-                      access={decisions.access}
-                      proposed={row.coverage}
-                      returnQuery={returnQuery}
-                      anchor={row.id}
-                    />
-                  </td>
-                )}
+        <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-border bg-canvas text-xs font-semibold tracking-wide text-ink-muted uppercase">
+                <th scope="col" className="w-[34%] px-3 py-2.5">
+                  {t("requirement")}
+                </th>
+                <th scope="col" className="w-[34%] px-3 py-2.5">
+                  {t("disyaratkan")} / {t("teramati")}
+                </th>
+                <th scope="col" className="w-[16%] px-3 py-2.5">
+                  {t("coverage")}
+                </th>
+                <th scope="col" className="w-[16%] px-3 py-2.5">
+                  {td("column")}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </DataTable>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredRows.map((row) => {
+                const proposal = byRequirement.get(row.id);
+                const proposed: CoverageBadgeKey = row.coverage ?? "none";
+                const current = proposal?.state === "decided" ? proposal.decisions[0] : undefined;
+                const decidedClass: CoverageClass | null | undefined =
+                  current?.decision === "edited" ? current.coverage : null;
+                const isSelected = selectedId === row.id;
+
+                return (
+                  <tr
+                    key={row.id}
+                    id={row.id}
+                    data-testid={row.id}
+                    className={`transition-colors ${
+                      isSelected ? "bg-accent-soft" : "hover:bg-canvas/70"
+                    }`}
+                  >
+                    <td className="px-3 py-2.5 align-middle">
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          data-tw=""
+                          onClick={() => requestSelection(row.id)}
+                          aria-expanded={isSelected}
+                          aria-label={row.id}
+                          className="w-fit cursor-pointer rounded text-left text-xs font-bold text-accent tabular-nums underline decoration-accent/40 underline-offset-2 hover:text-accent-hover hover:decoration-accent"
+                        >
+                          {row.id}
+                        </button>
+                        <p className="m-0 line-clamp-1 text-xs text-ink" title={row.text}>
+                          {row.text}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 align-middle">
+                      <RequiredObservedUnit row={row} runId={runId} variant="compact" />
+                    </td>
+                    <td className="px-3 py-2.5 align-middle">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <CoverageStatusBadge coverage={proposed} size="xs" />
+                        {decidedClass != null && (
+                          <>
+                            <span aria-hidden="true" className="text-xs text-ink-muted">
+                              →
+                            </span>
+                            <span className="sr-only">{t("decidedClass")}</span>
+                            <CoverageStatusBadge coverage={decidedClass} size="xs" />
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 align-middle">
+                      {proposal !== undefined ? (
+                        <DecisionStateBadge state={proposal.state} />
+                      ) : (
+                        <span className="text-xs text-ink-muted">{t("drawer.readOnlyCell")}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
+
+      {/* Preserved matrix.not_read panel */}
       {matrix.not_read.length > 0 && (
-        <section className={s.notRead}>
-          <h2>{t("notRead")}</h2>
-          <ul>
+        <section className="rounded-lg border border-warn-edge bg-warn-soft p-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-warn">
+            <FileWarning className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <h2 className="m-0 text-sm font-bold text-warn">{t("notRead")}</h2>
+          </div>
+          <ul className="mt-2 mb-0 list-disc space-y-1 pl-5 text-xs text-ink">
             {matrix.not_read.map((d) => (
-              <li key={`${d.doc_id}/${d.rev}`}>
+              <li key={`${d.doc_id}/${d.rev}`} className="tabular-nums">
                 {d.doc_id} rev {d.rev} ({d.format})
               </li>
             ))}
           </ul>
         </section>
       )}
-      <HandoffBar
-        label={th("handoffTitle")}
-        links={[
-          { href: `${base}/findings`, text: th("toFindings") },
-          { href: `${base}/protocol`, text: th("toProtocol") },
-        ]}
+
+      {/* Handoff bar */}
+      <nav
+        aria-label={th("handoffTitle")}
+        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3"
+      >
+        <span className="text-xs font-semibold text-ink-muted">{th("handoffTitle")}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`${base}/findings`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-canvas px-3 py-1.5 text-xs font-semibold text-ink no-underline hover:bg-sunken"
+          >
+            <span>{th("toFindings")}</span>
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+          <Link
+            href={`${base}/protocol`}
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
+          >
+            <span>{th("toProtocol")}</span>
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+      </nav>
+
+      {/* Slide-over drawer */}
+      <MatrixDrawer
+        row={selectedRow}
+        proposal={selectedRow ? byRequirement.get(selectedRow.id) : undefined}
+        runId={runId}
+        decisions={decisions}
+        returnQuery={returnQuery}
+        open={selectedRow !== null}
+        rowIndex={selectedIndex}
+        totalRows={filteredRows.length}
+        dirtyPrompt={pendingTargetId !== undefined}
+        onClose={() => requestSelection(null)}
+        onPrev={() => {
+          if (selectedIndex > 0) {
+            const prev = filteredRows[selectedIndex - 1];
+            if (prev) requestSelection(prev.id);
+          }
+        }}
+        onNext={() => {
+          if (selectedIndex >= 0 && selectedIndex < filteredRows.length - 1) {
+            const next = filteredRows[selectedIndex + 1];
+            if (next) requestSelection(next.id);
+          }
+        }}
+        onDirtyChange={setIsFormDirty}
+        onDiscardAndProceed={() => {
+          if (pendingTargetId !== undefined) {
+            applySelection(pendingTargetId);
+          }
+        }}
+        onCancelProceed={() => setPendingTargetId(undefined)}
       />
-    </>
+    </div>
   );
 }

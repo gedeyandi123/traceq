@@ -1,6 +1,6 @@
 // The decision progress line and the folded decision forms (spec #135, ticket #139), over the
 // fixture run folder and the decision fixtures.
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import type { Findings, Matrix, Proposal } from "@/api/client";
@@ -74,22 +74,27 @@ test("no progress line when the API gave no counts", () => {
   expect(screen.queryByText(/usulan sudah diputuskan/)).toBeNull();
 });
 
-test("only a decided Proposal offers to decide again; a changed one is decided afresh", () => {
+test("only a decided Proposal offers to decide again; a changed one is decided afresh", async () => {
   renderMatrix({ proposals, counts, access: { mode: "decide", action } });
 
-  const decided = within(screen.getByTestId("URS-TP201-002"));
-  expect(decided.getByText("Putuskan ulang")).toBeDefined();
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+  let dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(dialog).getByRole("button", { name: "Putuskan ulang" })).toBeDefined();
 
-  const changed = within(screen.getByTestId("URS-TP201-026"));
-  expect(changed.queryByText("Putuskan ulang")).toBeNull();
-  expect(changed.getByRole("button", { name: "Terima" })).toBeDefined();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Berikutnya" }));
+  dialog = await screen.findByRole("dialog", { name: "URS-TP201-026" });
+  expect(within(dialog).queryByRole("button", { name: "Putuskan ulang" })).toBeNull();
+  expect(within(dialog).getByRole("button", { name: "Terima" })).toBeDefined();
 
-  const undecided = within(screen.getByTestId("URS-TP201-030"));
-  expect(undecided.queryByText("Putuskan ulang")).toBeNull();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Berikutnya" }));
+  dialog = await screen.findByRole("dialog", { name: "URS-TP201-030" });
+  expect(within(dialog).queryByRole("button", { name: "Putuskan ulang" })).toBeNull();
 });
 
-test("a read-only viewer gets no fold to decide again", () => {
+test("a read-only viewer gets no fold to decide again", async () => {
   renderMatrix({ proposals, counts, access: { mode: "readOnly", why: "noRole" } });
 
-  expect(screen.queryByText("Putuskan ulang")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+  const dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(dialog).queryByRole("button", { name: "Putuskan ulang" })).toBeNull();
 });

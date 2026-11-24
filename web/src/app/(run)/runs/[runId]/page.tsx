@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 
 import { api, type Proposal } from "@/api/client";
 import { MatrixTable, type MatrixFilter } from "@/components/MatrixTable";
-import type { CoverageKey } from "@/components/ui/ui";
+import type { CoverageBadgeKey } from "@/components/ui/StatusBadge";
 import { decisionError, loadDecisions } from "@/decisions/load";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 import { fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
 
-const VALID_COVERAGE = new Set<CoverageKey>([...COVERAGE_CLASSES, "none"]);
+const VALID_COVERAGE = new Set<CoverageBadgeKey>([...COVERAGE_CLASSES, "none"]);
 const VALID_STATUS = new Set<Proposal["state"]>(["undecided", "decided", "changed"]);
 
 /** The browser tab reads "<screen> · TraceQ" (the root layout's template); translations only, no fetch. */
@@ -24,7 +24,12 @@ export default async function MatrixPage({
   searchParams,
 }: {
   params: Promise<{ runId: string }>;
-  searchParams: Promise<{ error?: string | string[]; coverage?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{
+    error?: string | string[];
+    coverage?: string | string[];
+    status?: string | string[];
+    selected?: string | string[];
+  }>;
 }) {
   const { runId } = await params;
   const query = await searchParams;
@@ -37,12 +42,15 @@ export default async function MatrixPage({
   ]);
   decisions.error = decisionError(query.error);
   if (!run || !matrix.data) notFound();
-  const cov = typeof query.coverage === "string" && VALID_COVERAGE.has(query.coverage as CoverageKey)
-    ? (query.coverage as CoverageKey)
-    : undefined;
-  const st = typeof query.status === "string" && VALID_STATUS.has(query.status as Proposal["state"])
-    ? (query.status as Proposal["state"])
-    : undefined;
+  const cov =
+    typeof query.coverage === "string" && VALID_COVERAGE.has(query.coverage as CoverageBadgeKey)
+      ? (query.coverage as CoverageBadgeKey)
+      : undefined;
+  const st =
+    typeof query.status === "string" && VALID_STATUS.has(query.status as Proposal["state"])
+      ? (query.status as Proposal["state"])
+      : undefined;
+  const selected = typeof query.selected === "string" && query.selected.trim() !== "" ? query.selected : null;
   const filter: MatrixFilter = { coverage: cov, status: st };
   return (
     <div className="space-y-4">
@@ -50,7 +58,13 @@ export default async function MatrixPage({
         <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
         <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
       </div>
-      <MatrixTable matrix={matrix.data} runId={runId} decisions={decisions} filter={filter} />
+      <MatrixTable
+        matrix={matrix.data}
+        runId={runId}
+        decisions={decisions}
+        filter={filter}
+        initialSelected={selected}
+      />
     </div>
   );
 }
