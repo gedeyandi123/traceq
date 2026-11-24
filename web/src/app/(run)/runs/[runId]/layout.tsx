@@ -1,3 +1,5 @@
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -5,6 +7,7 @@ import { signOutAction } from "@/auth/actions";
 import { currentSession } from "@/auth/session";
 import { RunShell } from "@/components/RunShell";
 import type { RunSidebarBadges } from "@/components/RunSidebar";
+import { LOCALE } from "@/i18n/request";
 import { fetchDecisionCounts, fetchProtocol, fetchRun } from "@/runs/fetchers";
 
 export default async function RunWorkspaceLayout({
@@ -15,11 +18,12 @@ export default async function RunWorkspaceLayout({
   children: ReactNode;
 }) {
   const { runId } = await params;
-  const [run, counts, protocolRes, session] = await Promise.all([
+  const [run, counts, protocolRes, session, allMessages] = await Promise.all([
     fetchRun(runId),
     fetchDecisionCounts(runId),
     fetchProtocol(runId),
     currentSession(),
+    getMessages(),
   ]);
 
   if (!run) notFound();
@@ -39,14 +43,16 @@ export default async function RunWorkspaceLayout({
   const protocolStatus = protocolRes.kind === "ok" ? protocolRes.data.status : null;
 
   return (
-    <RunShell
-      run={run}
-      badges={badges}
-      protocolStatus={protocolStatus}
-      session={session}
-      signOutAction={signOutAction}
-    >
-      {children}
-    </RunShell>
+    <NextIntlClientProvider locale={LOCALE} messages={allMessages}>
+      <RunShell
+        run={run}
+        badges={badges}
+        protocolStatus={protocolStatus}
+        session={session}
+        signOutAction={signOutAction}
+      >
+        {children}
+      </RunShell>
+    </NextIntlClientProvider>
   );
 }
