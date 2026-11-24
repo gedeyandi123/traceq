@@ -13,7 +13,7 @@ Universal protocol for all coding agents (Antigravity, Claude Code). Public-repo
 - **Domain & decisions:** `GLOSSARY.md` (`docs/agents/domain.md`), `docs/adr/`, `docs/design/synthetic-dataset.md`, `docs/demo-runbook.md`.
 - **Architecture & UI:**
   - **ADR 0008:** Layered modular monolith (`uv run lint-imports`, `pyright` strict on `src/traceq/`). System never imports `traceq_dataset`/`traceq_eval`; scorer never loads `assembly`/`proposals`/`db`. Ports only for two real implementations.
-  - **ADR 0011:** CSS Modules + `:root` tokens (`web/src/app/globals.css`), bundled `@fontsource-variable/inter`, colour-literal guard (`web/src/colour-literals.test.ts`). Do NOT add Tailwind, UI kits, `docs/DESIGN.md`, or font CDNs.
+  - **ADR 0014 (supersedes ADR 0011):** Tailwind CSS v4 (`@theme` + `--color-*: initial` in `web/src/app/globals.css`), owned `radix-ui` primitives (`web/src/components/ui/`), `lucide-react`, bundled `@fontsource-variable/inter`, light-only, 100% self-hosted/offline, semantic colour-literal guard (`web/src/colour-literals.test.ts`), and `docs/DESIGN.md` as visual/UX SSOT. Do NOT add font/asset CDNs, dark mode, or unapproved suppressions (`tests/test_boundaries.py`).
 
 ## 3. Verification Loop
 - **Fast inner loop:** `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1 -Mode fast` (optional `-TestPath <path>`).
