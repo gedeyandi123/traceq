@@ -57,7 +57,6 @@ function AnswerForm({
     <div className="pt-1">
       <button
         type="button"
-        data-tw=""
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-xs font-semibold text-ink hover:bg-sunken"
@@ -130,7 +129,6 @@ function AnswerForm({
             </label>
             <button
               type="submit"
-              data-tw=""
               disabled={isPending}
               className="inline-flex cursor-pointer items-center justify-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -204,7 +202,6 @@ function Missed({
         <div className="space-y-1.5">
           <button
             type="button"
-            data-tw=""
             aria-expanded={historyOpen}
             onClick={() => setHistoryOpen((o) => !o)}
             className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink"
@@ -363,7 +360,6 @@ export function MissedNumbers({
                     >
                       <button
                         type="button"
-                        data-tw=""
                         aria-expanded={isOpen}
                         onClick={() =>
                           setUnquotedOpen((prev) => ({ ...prev, [key]: !isOpen }))

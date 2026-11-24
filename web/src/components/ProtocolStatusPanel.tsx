@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, History as HistoryIcon } from "lucide-react";
+import { AlertTriangle, CheckCircle2, History as HistoryIcon, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -37,18 +37,27 @@ export function StartForm({
 }
 
 /** Chronological protocol lifecycle event timeline. */
-export function ProtocolHistory({ t, events }: { t: T; events: readonly ProtocolEvent[] }) {
+export function ProtocolHistory({
+  t,
+  events,
+  headingLevel = "h3",
+}: {
+  t: T;
+  events: readonly ProtocolEvent[];
+  headingLevel?: "h2" | "h3";
+}) {
   const when = useTranslations("decisions");
+  const Heading = headingLevel;
   return (
     <section
       aria-labelledby="protocol-history"
       className="space-y-3 rounded-lg border border-border bg-surface p-4"
     >
-      <h3 id="protocol-history" className="m-0 flex items-center gap-2 text-sm font-bold text-ink">
+      <Heading id="protocol-history" className="m-0 flex items-center gap-2 text-sm font-bold text-ink">
         <HistoryIcon className="h-4 w-4 text-ink-muted" aria-hidden="true" />
         <span>{t("history")}</span>
-      </h3>
-      <ol className="m-0 list-decimal space-y-2 pl-5 text-xs">
+      </Heading>
+      <ol className="m-0 list-decimal space-y-2 pl-5 text-xs tabular-nums">
         {events.map((e) => (
           <li key={e.id} className="space-y-1 text-ink">
             <div>{t(`events.${e.event}`, { name: e.name, when: formatWhen(when, e.at) })}</div>
@@ -94,7 +103,6 @@ function ApprovalForms({
         </form>
         <button
           type="button"
-          data-tw=""
           onClick={() => setReturnOpen(true)}
           className="inline-flex cursor-pointer items-center justify-center rounded-md border border-fail-edge bg-surface px-3 py-1.5 text-xs font-semibold text-fail hover:bg-fail-soft"
         >
@@ -126,7 +134,6 @@ function ApprovalForms({
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              data-tw=""
               onClick={() => setReturnOpen(false)}
               className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
             >
@@ -140,8 +147,10 @@ function ApprovalForms({
   );
 }
 
-/** Compact protocol status header card with lifecycle actions (withdraw modal, approve/return,
- * or restart after withdrawal). */
+const LIFECYCLE_STEPS = ["draft", "submitted", "approved"] as const;
+
+/** Compact protocol status header card with 3-step lifecycle indicator, withdraw modal,
+ * approve/return, SoD note, or restart after withdrawal. */
 export function ProtocolStatusPanel({
   t,
   protocol,
@@ -156,6 +165,8 @@ export function ProtocolStatusPanel({
   approval: ApprovalControls;
 }) {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const currentStepIdx =
+    protocol.status === "approved" ? 2 : protocol.status === "submitted" ? 1 : 0;
 
   return (
     <section
@@ -175,17 +186,47 @@ export function ProtocolStatusPanel({
           </p>
         </div>
 
-        {protocol.status === "draft" && controls !== null && (
-          <button
-            type="button"
-            data-tw=""
-            onClick={() => setWithdrawOpen(true)}
-            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-fail-edge bg-surface px-3 py-1.5 text-xs font-semibold text-fail hover:bg-fail-soft"
-          >
-            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{t("withdraw")}</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {protocol.status !== "withdrawn" && (
+            <ol className="m-0 flex list-none items-center gap-1.5 p-0 text-[11px]">
+              {LIFECYCLE_STEPS.map((step, idx) => {
+                const done = idx < currentStepIdx;
+                const current = idx === currentStepIdx;
+                return (
+                  <li key={step} className="flex items-center gap-1.5">
+                    {idx > 0 && (
+                      <span aria-hidden="true" className="text-ink-muted">
+                        →
+                      </span>
+                    )}
+                    <span
+                      className={`rounded-full border px-2 py-0.5 font-semibold ${
+                        current
+                          ? "border-accent bg-accent-soft text-accent"
+                          : done
+                            ? "border-pass-edge bg-pass-soft text-pass"
+                            : "border-border bg-sunken text-ink-muted"
+                      }`}
+                    >
+                      {t(`lifecycle.${step}`)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
+          {protocol.status === "draft" && controls !== null && (
+            <button
+              type="button"
+              onClick={() => setWithdrawOpen(true)}
+              className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-fail-edge bg-surface px-3 py-1.5 text-xs font-semibold text-fail hover:bg-fail-soft"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t("withdraw")}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {protocol.status === "approved" && (
@@ -195,10 +236,17 @@ export function ProtocolStatusPanel({
         </div>
       )}
 
+      {protocol.status === "submitted" && controls !== null && approval === null && (
+        <div className="flex items-start gap-2 rounded-md border border-info-edge bg-info-soft px-3 py-2 text-xs text-info">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{t("preparerSubmittedNote")}</span>
+        </div>
+      )}
+
       <ApprovalForms t={t} protocol={protocol} runId={runId} approval={approval} />
 
       {protocol.status === "withdrawn" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-canvas px-3.5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-sunken px-3.5 py-2.5">
           <p className="m-0 text-xs text-ink-muted">{t("withdrawnNote")}</p>
           <StartForm t={t} runId={runId} action={controls} again />
         </div>
@@ -229,7 +277,6 @@ export function ProtocolStatusPanel({
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                data-tw=""
                 onClick={() => setWithdrawOpen(false)}
                 className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
               >

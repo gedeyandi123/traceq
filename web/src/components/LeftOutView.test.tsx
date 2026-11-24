@@ -27,7 +27,7 @@ function show(c: Completeness | null, items: DroppedClaim[] = dropped) {
 test("an acceptance claim dropped for another reason stays in its kind group", () => {
   show(null, [...dropped, otherAc]);
 
-  const group = within(screen.getByRole("region", { name: "Jenis: acceptance" }));
+  const group = within(screen.getByRole("region", { name: "Jenis: Kriteria penerimaan" }));
   expect(group.getByText("URS-TP201-009")).toBeDefined();
   expect(group.queryByText("URS-TP201-007")).toBeNull();
   const human = within(screen.getByRole("region", { name: "Kriteria penerimaan yang diserahkan ke manusia" }));
@@ -38,12 +38,12 @@ test("an acceptance claim dropped for another reason stays in its kind group", (
 test("groups dropped claims by kind, apart from Acceptance Criteria left to a human", () => {
   show(completeness as Completeness);
 
-  const req = within(screen.getByRole("region", { name: "Jenis: requirement" }));
+  const req = within(screen.getByRole("region", { name: "Jenis: Persyaratan" }));
   expect(req.getByText("URS-TP201 p2")).toBeDefined();
   expect(req.getByText("bad answer")).toBeDefined();
-  const value = within(screen.getByRole("region", { name: "Jenis: value" }));
+  const value = within(screen.getByRole("region", { name: "Jenis: Nilai" }));
   expect(value.getByText("quote not on page or value not in it")).toBeDefined();
-  expect(screen.queryByRole("region", { name: "Jenis: acceptance" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Jenis: Kriteria penerimaan" })).toBeNull();
 
   const human = within(screen.getByRole("region", { name: "Kriteria penerimaan yang diserahkan ke manusia" }));
   expect(human.getByText("URS-TP201-007")).toBeDefined();

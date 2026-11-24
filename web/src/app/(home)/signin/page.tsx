@@ -12,13 +12,29 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("signin"))("title") };
 }
 
+function validNextPath(raw: string | string[] | undefined): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return undefined;
+  return trimmed;
+}
+
 async function signInAction(formData: FormData) {
   "use server";
   const username = formData.get("username");
-  if (typeof username === "string" && (await signIn(username))) redirect("/");
-  redirect("/signin");
+  const rawNext = formData.get("next");
+  const nextPath = typeof rawNext === "string" ? validNextPath(rawNext) : undefined;
+  if (typeof username === "string" && (await signIn(username))) {
+    redirect(nextPath ?? "/");
+  }
+  redirect(nextPath ? `/signin?next=${encodeURIComponent(nextPath)}` : "/signin");
 }
 
-export default async function SignInPage() {
-  return <SignInView personas={await listPersonas()} action={signInAction} />;
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
+  const nextPath = validNextPath((await searchParams).next);
+  return <SignInView personas={await listPersonas()} action={signInAction} nextPath={nextPath} />;
 }

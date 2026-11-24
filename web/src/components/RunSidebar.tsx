@@ -3,11 +3,11 @@
 import {
   ArchiveX,
   BarChart3,
-  ChevronLeft,
-  ChevronRight,
   ClipboardCheck,
   FileSearch,
   FileWarning,
+  PanelLeftClose,
+  PanelLeftOpen,
   PlayCircle,
   Table2,
   X,
@@ -62,6 +62,7 @@ function SidebarNavList({
   onNavigate?: () => void;
 }) {
   const t = useTranslations("runHeader");
+  const ui = useTranslations("ui");
   const segment = useSelectedLayoutSegment();
   const activeKey: RunNavKey = (segment ? SEGMENT_TO_KEY[segment] : undefined) ?? "matrix";
   const base = `/runs/${encodeURIComponent(run.run_id)}`;
@@ -103,13 +104,15 @@ function SidebarNavList({
   const renderLink = (item: NavItem) => {
     const Icon = item.icon;
     const isActive = item.key === activeKey;
+    const hasBadge = item.badge !== undefined && item.badge > 0;
+    const badgeLabel = hasBadge ? ui("undecidedCount", { count: item.badge ?? 0 }) : undefined;
     const linkEl = (
       <Link
         key={item.key}
         href={item.href}
         aria-current={isActive ? "page" : undefined}
         onClick={onNavigate}
-        className={`group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium no-underline transition-colors ${
+        className={`group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium no-underline transition-colors ${
           isActive
             ? "bg-accent-soft font-semibold text-accent"
             : "text-ink-muted hover:bg-sunken hover:text-ink"
@@ -119,9 +122,19 @@ function SidebarNavList({
           className={`h-4 w-4 shrink-0 ${isActive ? "text-accent" : "text-ink-muted group-hover:text-ink"}`}
           aria-hidden="true"
         />
+        {collapsed && hasBadge && (
+          <span
+            aria-label={badgeLabel}
+            className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-accent"
+          />
+        )}
         {!collapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
-        {!collapsed && item.badge !== undefined && item.badge > 0 && (
-          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-sunken px-1.5 py-0.5 text-[11px] font-semibold text-ink tabular-nums">
+        {!collapsed && hasBadge && (
+          <span
+            title={badgeLabel}
+            aria-label={badgeLabel}
+            className="inline-flex min-w-5 items-center justify-center rounded-full bg-sunken px-1.5 py-0.5 text-[11px] font-semibold text-ink tabular-nums"
+          >
             {item.badge}
           </span>
         )}
@@ -135,12 +148,33 @@ function SidebarNavList({
       return (
         <Tooltip key={item.key}>
           <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
-          <TooltipContent side="right">{item.label}</TooltipContent>
+          <TooltipContent side="right">
+            {hasBadge ? `${item.label} (${item.badge})` : item.label}
+          </TooltipContent>
         </Tooltip>
       );
     }
     return linkEl;
   };
+
+  const step5bSlot = (
+    <div
+      aria-disabled="true"
+      className={`flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium text-ink-muted/60 ${
+        collapsed ? "justify-center px-0" : ""
+      }`}
+    >
+      <PlayCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+      {!collapsed && (
+        <>
+          <span className="min-w-0 flex-1 truncate">{t("executionDeviation")}</span>
+          <span className="rounded border border-border bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">
+            {t("comingSoon")}
+          </span>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -152,23 +186,10 @@ function SidebarNavList({
             </div>
           )}
           {workflowItems.map(renderLink)}
-          <div
-            aria-disabled="true"
-            title={t("executionDeviation")}
-            className={`flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium text-ink-muted/60 ${
-              collapsed ? "justify-center px-0" : ""
-            }`}
-          >
-            <PlayCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {!collapsed && (
-              <>
-                <span className="min-w-0 flex-1 truncate">{t("executionDeviation")}</span>
-                <span className="rounded border border-border bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">
-                  {t("comingSoon")}
-                </span>
-              </>
-            )}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>{step5bSlot}</TooltipTrigger>
+            <TooltipContent side="right">{ui("comingSoonTooltip")}</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex flex-col gap-1 border-t border-border pt-3">
@@ -227,7 +248,7 @@ export function RunSidebar({
   return (
     <>
       <aside
-        className={`hidden shrink-0 flex-col overflow-x-hidden border-r border-border bg-canvas transition-[width] duration-150 lg:sticky lg:top-0 lg:flex lg:h-screen ${widthClass}`}
+        className={`hidden shrink-0 flex-col overflow-x-hidden border-r border-border bg-surface transition-[width] duration-150 lg:sticky lg:top-0 lg:flex lg:h-screen ${widthClass}`}
       >
         <div
           className={`flex h-12 shrink-0 items-center border-b border-border px-3 ${
@@ -245,15 +266,14 @@ export function RunSidebar({
           )}
           <button
             type="button"
-            data-tw=""
             onClick={onToggleCollapse}
             aria-label={effectiveCollapsed ? t("expandSidebar") : t("collapseSidebar")}
             className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-ink-muted hover:bg-sunken hover:text-ink"
           >
             {effectiveCollapsed ? (
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
             ) : (
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
             )}
           </button>
         </div>
@@ -279,7 +299,6 @@ export function RunSidebar({
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  data-tw=""
                   aria-label={ui("closePanel")}
                   className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-ink-muted hover:bg-sunken hover:text-ink"
                 >

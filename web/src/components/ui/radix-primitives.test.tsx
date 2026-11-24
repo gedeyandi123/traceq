@@ -158,7 +158,7 @@ describe("Owned Radix UI primitives", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "DS-TP201 rev 0, hlm. 1" }));
-    expect(await screen.findByText("Buka / Unduh dokumen")).toBeTruthy();
+    expect(await screen.findByText("Unduh lembar kerja")).toBeTruthy();
     expect(screen.queryByTitle("DS-TP201 rev 0, hlm. 1")).toBeNull();
   });
 

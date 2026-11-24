@@ -95,12 +95,12 @@ test("filters matrix rows by coverage and decision status, supports 1-click pill
 
   // Close drawer, then test 1-click "Semua" pill resets filter and syncs URL
   fireEvent.click(within(dialog).getByRole("button", { name: "Tutup panel" }));
-  fireEvent.click(screen.getByRole("button", { name: /Semua \(2\)/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Semua\s*2$/ }));
   expect(within(screen.getByRole("table")).getAllByRole("row").slice(1)).toHaveLength(2);
   expect(window.location.search).toBe("");
 
-  // Click "Celah (1)" blocker pill
-  fireEvent.click(screen.getByRole("button", { name: /Celah \(1\)/ }));
+  // Click "Celah 1" blocker pill
+  fireEvent.click(screen.getByRole("button", { name: /^Celah\s*1$/ }));
   expect(within(screen.getByRole("table")).getAllByRole("row").slice(1)).toHaveLength(1);
   expect(window.location.search).toBe("?coverage=gap");
 });

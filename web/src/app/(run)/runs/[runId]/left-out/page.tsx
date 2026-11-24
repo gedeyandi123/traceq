@@ -29,7 +29,11 @@ export default async function LeftOutPage({ params }: { params: Promise<{ runId:
         <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
         <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
       </div>
-      <LeftOutView dropped={dropped.data} completeness={completeness.data ?? null} />
+      <LeftOutView
+        dropped={dropped.data}
+        completeness={completeness.data ?? null}
+        runId={runId}
+      />
     </div>
   );
 }

@@ -1,6 +1,14 @@
 "use client";
 
-import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
@@ -8,6 +16,7 @@ import type { CoverageClass, Decision, MatrixRow, Proposal } from "@/api/client"
 import type { DecisionAccess, DecisionView } from "@/components/Decisions";
 import { formatWhen } from "@/components/formatWhen";
 import { RequiredObservedUnit } from "@/components/RequiredObservedUnit";
+import { DirtyGuardBanner } from "@/components/ui/DirtyGuardBanner";
 import { Drawer } from "@/components/ui/Drawer";
 import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
 import {
@@ -58,6 +67,8 @@ function MatrixDecisionForm({
   runId,
   access,
   returnQuery,
+  hasNext,
+  onNext,
   onDirtyChange,
 }: {
   proposal: Proposal;
@@ -65,6 +76,8 @@ function MatrixDecisionForm({
   runId: string;
   access: Extract<DecisionAccess, { mode: "decide" }>;
   returnQuery?: string;
+  hasNext: boolean;
+  onNext: () => void;
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const td = useTranslations("decisions");
@@ -74,6 +87,7 @@ function MatrixDecisionForm({
   const [reason, setReason] = useState("");
   const [coverage, setCoverage] = useState<string>("");
   const [redecideOpen, setRedecideOpen] = useState(false);
+  const [redecideChoice, setRedecideChoice] = useState<"accepted" | "edited">("accepted");
   const [editOpen, setEditOpen] = useState(false);
 
   const [state, formAction, isPending] = useActionState(
@@ -107,6 +121,7 @@ function MatrixDecisionForm({
   const replacing = proposal.state === "decided";
   const proposed: CoverageClass | null | undefined = row.coverage;
   const canAccept = proposed != null;
+  const effectiveChoice: "accepted" | "edited" = canAccept ? redecideChoice : "edited";
 
   const hiddenInputs = (decision: Decision["decision"]) => (
     <>
@@ -122,22 +137,9 @@ function MatrixDecisionForm({
   const acceptForm = canAccept ? (
     <form action={formAction} className="space-y-2">
       {hiddenInputs("accepted")}
-      {replacing && (
-        <textarea
-          name="reason"
-          required
-          rows={2}
-          value={reason}
-          onChange={(e) => handleReasonChange(e.target.value)}
-          aria-label={td("reason")}
-          placeholder={td("reason")}
-          className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
-        />
-      )}
       <button
         type="submit"
         disabled={isPending}
-        data-tw=""
         className="inline-flex cursor-pointer items-center justify-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         {td("accept")}
@@ -178,7 +180,6 @@ function MatrixDecisionForm({
       <button
         type="submit"
         disabled={isPending}
-        data-tw=""
         className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-60"
       >
         {td("edit")}
@@ -198,11 +199,30 @@ function MatrixDecisionForm({
         </div>
       )}
 
+      {state.ok && state.submittedAt && hasNext && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass"
+        >
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>{tm("drawer.savedNext")}</span>
+          </span>
+          <button
+            type="button"
+            onClick={onNext}
+            className="inline-flex cursor-pointer items-center gap-1 rounded border border-pass-edge bg-surface px-2 py-0.5 text-xs font-semibold text-pass hover:bg-sunken"
+          >
+            <span>{tm("drawer.next")}</span>
+            <ArrowRight className="h-3 w-3" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {replacing ? (
         <div className="space-y-2">
           <button
             type="button"
-            data-tw=""
             aria-expanded={redecideOpen}
             onClick={() => setRedecideOpen((o) => !o)}
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
@@ -214,11 +234,73 @@ function MatrixDecisionForm({
             />
           </button>
           {redecideOpen && (
-            <div className="space-y-3 rounded-lg border border-border bg-sunken p-3">
-              {acceptForm}
-              {acceptForm && <div className="border-t border-border" />}
-              {editForm}
-            </div>
+            <form action={formAction} className="space-y-2.5 rounded-lg border border-border bg-sunken p-3">
+              {hiddenInputs(effectiveChoice)}
+              {canAccept && (
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={td("redecide")}>
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink">
+                    <input
+                      type="radio"
+                      name="redecide_choice"
+                      value="accepted"
+                      checked={effectiveChoice === "accepted"}
+                      onChange={() => setRedecideChoice("accepted")}
+                    />
+                    <span>{td("accept")}</span>
+                  </label>
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink">
+                    <input
+                      type="radio"
+                      name="redecide_choice"
+                      value="edited"
+                      checked={effectiveChoice === "edited"}
+                      onChange={() => setRedecideChoice("edited")}
+                    />
+                    <span>{td("edit")}</span>
+                  </label>
+                </div>
+              )}
+              {effectiveChoice === "edited" && (
+                <select
+                  name="coverage"
+                  required
+                  value={coverage}
+                  onChange={(e) => handleCoverageChange(e.target.value)}
+                  aria-label={td("toClass")}
+                  className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                >
+                  <option value="" disabled>
+                    {td("toClass")}
+                  </option>
+                  {COVERAGE_CLASSES.filter((c) => c !== proposed).map((c) => (
+                    <option key={c} value={c}>
+                      {tm(`classes.${c}`)}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <textarea
+                name="reason"
+                required
+                rows={2}
+                value={reason}
+                onChange={(e) => handleReasonChange(e.target.value)}
+                aria-label={td("reason")}
+                placeholder={td("reason")}
+                className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={isPending}
+                className={`inline-flex cursor-pointer items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+                  effectiveChoice === "accepted"
+                    ? "bg-accent text-on-accent hover:bg-accent-hover"
+                    : "border border-border-strong bg-surface text-ink hover:bg-canvas"
+                }`}
+              >
+                {effectiveChoice === "accepted" ? td("accept") : td("edit")}
+              </button>
+            </form>
           )}
         </div>
       ) : (
@@ -228,7 +310,6 @@ function MatrixDecisionForm({
             {canAccept && (
               <button
                 type="button"
-                data-tw=""
                 aria-expanded={editOpen}
                 onClick={() => setEditOpen((o) => !o)}
                 className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
@@ -307,70 +388,51 @@ export function MatrixDrawer({
         if (!nextOpen) onClose();
       }}
       title={row.id}
-      description={row.text}
       headerExtra={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <PdfCitationButton runId={runId} cite={row.source} compact />
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              data-tw=""
-              onClick={onPrev}
-              disabled={rowIndex <= 0}
-              aria-label={tm("drawer.prev")}
-              className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{tm("drawer.prev")}</span>
-            </button>
-            <span className="px-1.5 text-xs font-medium text-ink-muted tabular-nums">
-              {tm("drawer.position", { current: rowIndex + 1, total: totalRows })}
-            </span>
-            <button
-              type="button"
-              data-tw=""
-              onClick={onNext}
-              disabled={rowIndex < 0 || rowIndex >= totalRows - 1}
-              aria-label={tm("drawer.next")}
-              className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <span>{tm("drawer.next")}</span>
-              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onPrev}
+            disabled={rowIndex <= 0}
+            aria-label={tm("drawer.prev")}
+            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">{tm("drawer.prev")}</span>
+          </button>
+          <span className="px-1.5 text-xs font-medium text-ink-muted tabular-nums">
+            {tm("drawer.position", { current: rowIndex + 1, total: totalRows })}
+          </span>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={rowIndex < 0 || rowIndex >= totalRows - 1}
+            aria-label={tm("drawer.next")}
+            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <span className="hidden sm:inline">{tm("drawer.next")}</span>
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
         {dirtyPrompt && (
-          <div
-            role="alertdialog"
-            aria-label={tm("drawer.dirtyWarning")}
-            className="rounded-lg border border-warn-edge bg-warn-soft p-3 text-xs text-warn"
-          >
-            <p className="m-0 font-semibold">{tm("drawer.dirtyWarning")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                data-tw=""
-                onClick={onDiscardAndProceed}
-                className="cursor-pointer rounded border border-warn-edge bg-surface px-2.5 py-1 text-xs font-semibold text-warn hover:bg-sunken"
-              >
-                {tm("drawer.discardChanges")}
-              </button>
-              <button
-                type="button"
-                data-tw=""
-                onClick={onCancelProceed}
-                className="cursor-pointer rounded bg-accent px-2.5 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
-              >
-                {tm("drawer.keepEditing")}
-              </button>
-            </div>
-          </div>
+          <DirtyGuardBanner
+            message={tm("drawer.dirtyWarning")}
+            discardLabel={tm("drawer.discardChanges")}
+            keepLabel={tm("drawer.keepEditing")}
+            onDiscard={onDiscardAndProceed}
+            onKeep={onCancelProceed}
+          />
         )}
+
+        <div className="space-y-2 rounded-lg border border-border bg-sunken p-3">
+          <p className="m-0 text-xs leading-relaxed text-ink">{row.text}</p>
+          <div>
+            <PdfCitationButton runId={runId} cite={row.source} compact />
+          </div>
+        </div>
 
         {/* Coverage & AI advisory rationale */}
         <section className="space-y-2 rounded-lg border border-border bg-sunken p-3.5">
@@ -423,7 +485,7 @@ export function MatrixDrawer({
                   {earlierDecisions.map((d) => (
                     <li
                       key={d.id}
-                      className="rounded-md border border-border bg-canvas px-2.5 py-2"
+                      className="rounded-md border border-border bg-sunken px-2.5 py-2"
                     >
                       <DecisionEntry td={td} tm={tm} d={d} />
                     </li>
@@ -454,6 +516,8 @@ export function MatrixDrawer({
                 runId={runId}
                 access={decisions.access}
                 returnQuery={returnQuery}
+                hasNext={rowIndex >= 0 && rowIndex < totalRows - 1}
+                onNext={onNext}
                 onDirtyChange={onDirtyChange}
               />
             )}

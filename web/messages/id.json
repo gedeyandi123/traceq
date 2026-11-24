@@ -19,6 +19,12 @@
     "documentLoadFailed": "Gagal memuat dokumen {doc} (HTTP {status}).",
     "documentServerError": "Tidak dapat menghubungi server dokumen untuk {doc} rev {rev}.",
     "fileType": "Tipe berkas",
+    "excelFileType": "Microsoft Excel (.xlsx)",
+    "downloadSpreadsheet": "Unduh lembar kerja",
+    "copyHash": "Salin hash",
+    "copied": "Disalin",
+    "undecidedCount": "{count} belum diputuskan",
+    "comingSoonTooltip": "Tahap 5b: Eksekusi & Deviasi akan tersedia pada rilis berikutnya.",
     "nonPdfNotice": "Berkas ini bukan PDF dan tidak dapat dipratinjau langsung di dalam modal.",
     "mobilePdfNotice": "Pratinjau PDF inline tersedia di layar desktop. Buka dokumen di tab baru untuk membacanya.",
     "switchPersona": "Ganti persona",
@@ -90,7 +96,13 @@
     "out": "Keluar",
     "lead": "Pilih siapa yang memakai aplikasi. Perannya menentukan apakah keputusan dapat dibuat.",
     "role": "Peran",
-    "canApprove": "Dapat menyetujui"
+    "canApprove": "Dapat menyetujui",
+    "empty": "Belum ada persona demo yang tersedia.",
+    "roleDesc": {
+      "canDecide": "Dapat memutuskan matriks, temuan, draf, menyusun dan mengajukan protokol.",
+      "canApprove": "Dapat meninjau salinan beku, menyetujui, atau mengembalikan protokol.",
+      "readOnly": "Hanya dapat membaca seluruh layar tanpa mengubah keputusan atau protokol."
+    }
   },
   "runs": {
     "title": "Run analisis",
@@ -106,7 +118,9 @@
     "run": "Run",
     "emptyTitle": "Belum ada run",
     "unavailableTitle": "API tidak dapat dihubungi",
-    "reviewPackageBadge": "Paket Tinjauan"
+    "reviewPackageBadge": "Paket Tinjauan",
+    "signedOutBanner": "Anda belum masuk. Pilih persona demo untuk memutuskan usulan atau membuka Draf dan Protokol.",
+    "openRow": "Buka"
   },
   "matrix": {
     "title": "Matriks ketertelusuran",
@@ -167,6 +181,11 @@
     "disyaratkan": "Disyaratkan",
     "teramati": "Teramati",
     "ambiguousConfirm": "Perlu konfirmasi nilai (ambigu)",
+    "ambiguousShort": "Ambigu — konfirmasi",
+    "moreDesigns": "+{count} desain",
+    "moreEvidence": "+{count}",
+    "inspectRow": "Periksa",
+    "notReadJump": "{count} dokumen tidak terbaca",
     "advisoryNote": "Saran AI (hanya penasihat)",
     "filterBlockers": {
       "all": "Semua",
@@ -182,7 +201,8 @@
       "dirtyWarning": "Alasan perubahan yang diketik belum disimpan. Buang perubahan dan lanjutkan?",
       "discardChanges": "Buang perubahan",
       "keepEditing": "Tetap menyunting",
-      "readOnlyCell": "Hanya membaca"
+      "readOnlyCell": "Hanya membaca",
+      "savedNext": "Tersimpan. Lanjut ke baris berikutnya"
     }
   },
   "decisions": {
@@ -337,7 +357,17 @@
     "unquoted": "Teks URS yang tidak dikutip persyaratan mana pun",
     "page": "hlm. {page}",
     "intro": "Yang sengaja tidak dimasukkan sistem: klaim yang gagal pemeriksaan kutipan, kriteria penerimaan yang harus ditetapkan manusia, dan teks URS yang tidak dikutip persyaratan mana pun.",
-    "showUnquoted": "Tampilkan teks ({count})"
+    "showUnquoted": "Tampilkan teks ({count})",
+    "zeroMissed": "0 terlewat",
+    "claimKinds": {
+      "requirement": "Persyaratan",
+      "value": "Nilai",
+      "evidence": "Bukti",
+      "design": "Data desain",
+      "finding": "Temuan",
+      "acceptance": "Kriteria penerimaan",
+      "test_step": "Langkah uji"
+    }
   },
   "eval": {
     "title": "Hasil evaluasi",
@@ -349,6 +379,8 @@
     "gatesPassed": "Gerbang fabrikasi: lulus",
     "gatesFailed": "Gerbang fabrikasi: GAGAL",
     "cost": "Biaya run: {usd} USD",
+    "replayCostNote": "Biaya tercatat saat rekaman dibuat (putar ulang = 0 USD live)",
+    "splitLabel": "Set: {split}",
     "model": "model {model}",
     "scorer": "penilai {version}",
     "smallN": "Selisih satu item bukan bukti. Set held-out tidak pernah dipakai untuk mengembangkan prompt dan dilaporkan terpisah.",
@@ -442,7 +474,9 @@
       "keepEditing": "Lanjutkan menyunting",
       "inspect": "Periksa"
     },
-    "noMatches": "Tidak ada langkah uji yang cocok dengan filter ini."
+    "noMatches": "Tidak ada langkah uji yang cocok dengan filter ini.",
+    "citeTooltipNote": "Kutipan dari draf (tidak dibuka sebagai tautan PDF).",
+    "wholeFindingsJump": "{count} temuan dokumen"
   },
   "protocol": {
     "title": "Protokol (disusun di TraceQ)",
@@ -495,6 +529,20 @@
       "approved": "Disetujui",
       "withdrawn": "Ditarik"
     },
+    "lifecycle": {
+      "draft": "1. Draft",
+      "submitted": "2. Diajukan",
+      "approved": "3. Disetujui"
+    },
+    "submitModalTitle": "Ajukan protokol untuk persetujuan?",
+    "submitModalDesc": "Pengajuan membekukan salinan protokol saat ini beserta hash SHA-256. Anda akan tercatat sebagai Penyusun (Preparer) dan tidak dapat menyetujui pengajuan ini sendiri.",
+    "preparerSubmittedNote": "Protokol telah diajukan dan menunggu tinjauan oleh peran penyetuju (Pemisahan Tugas).",
+    "filters": {
+      "all": "Semua",
+      "blocking": "Memblokir",
+      "vendor": "Referensi vendor",
+      "testStep": "Langkah uji"
+    },
     "history": "Riwayat status",
     "events": {
       "started": "Dimulai oleh {name}, {when}",
@@ -536,7 +584,10 @@
         "acceptance_not_shaped": "Kriteria penerimaan belum ada atau berupa teks bebas: {count}",
         "missed_undecided": "Nomor persyaratan terlewat tanpa jawaban: {count}"
       },
-      "ready": "Tidak ada yang memblokir: protokol dapat diajukan."
+      "ready": "Tidak ada yang memblokir: protokol dapat diajukan.",
+      "moreBlockers": "+{count} lainnya",
+      "collapse": "Ringkas",
+      "expand": "Rincian"
     },
     "submit": "Ajukan protokol",
     "copy": {

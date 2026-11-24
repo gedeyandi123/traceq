@@ -15,8 +15,20 @@ import { ProtocolRowDrawer } from "./ProtocolRowDrawer";
 import { ProtocolRowsTable } from "./ProtocolRowsTable";
 import { ProtocolHistory, ProtocolStatusPanel, StartForm } from "./ProtocolStatusPanel";
 import { useRunShell } from "./RunShellContext";
+import { FilterBar } from "./ui/FilterBar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
 import { EmptyState } from "./ui/ui";
+
+type RowFilter = "all" | "blocking" | "vendor" | "testStep";
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.closest(
+      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
+    ) !== null
+  );
+}
 
 /** Why the API refused a start or a withdrawal, as the page reports it. */
 export type ProtocolError = "conflict" | "refused" | "invalid" | "forbidden" | "unauthorized" | "failed";
@@ -81,6 +93,7 @@ export function AssembledProtocolView({
   controls,
   approval = null,
   error,
+  initialSelected = null,
 }: {
   protocol: ProtocolView | null;
   runId: string;
@@ -88,6 +101,7 @@ export function AssembledProtocolView({
   controls: ProtocolControls;
   approval?: ApprovalControls;
   error?: ProtocolError;
+  initialSelected?: string | null;
 }) {
   const t = useTranslations("protocol");
   const { setDrawerOpen } = useRunShell();
@@ -99,7 +113,8 @@ export function AssembledProtocolView({
     .filter((m) => m.blocking).length;
 
   const [activeTab, setActiveTab] = useState<string>(rows !== null ? "rows" : "copy");
-  const [selectedReq, setSelectedReq] = useState<string | null>(null);
+  const [rowFilter, setRowFilter] = useState<RowFilter>("all");
+  const [selectedReq, setSelectedReq] = useState<string | null>(initialSelected);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [pendingReq, setPendingReq] = useState<string | null | undefined>(undefined);
 
@@ -108,17 +123,55 @@ export function AssembledProtocolView({
     return () => setDrawerOpen(false);
   }, [selectedReq, setDrawerOpen]);
 
-  const selectedIndex = useMemo(
-    () => (rows && selectedReq ? rows.findIndex((r) => r.requirement === selectedReq) : -1),
-    [rows, selectedReq],
-  );
-  const selectedRow = rows && selectedIndex >= 0 ? (rows[selectedIndex] ?? null) : null;
+  useEffect(() => {
+    if (!selectedReq || typeof document === "undefined") return;
+    const el = document.getElementById(`row-${selectedReq}`);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedReq]);
 
-  const applySelection = useCallback((nextReq: string | null) => {
-    setSelectedReq(nextReq);
-    setIsFormDirty(false);
-    setPendingReq(undefined);
-  }, []);
+  const filteredRows = useMemo(() => {
+    if (!rows) return [];
+    return rows.filter((r) => {
+      if (rowFilter === "blocking") return r.blockers.length > 0;
+      if (rowFilter === "vendor") return r.kind === "vendor_reference";
+      if (rowFilter === "testStep") return r.kind === "test_step";
+      return true;
+    });
+  }, [rows, rowFilter]);
+
+  const selectedIndex = useMemo(
+    () => (selectedReq ? filteredRows.findIndex((r) => r.requirement === selectedReq) : -1),
+    [filteredRows, selectedReq],
+  );
+  const selectedRow =
+    rows && selectedReq
+      ? (filteredRows[selectedIndex] ?? rows.find((r) => r.requirement === selectedReq) ?? null)
+      : null;
+
+  const syncSelectedUrl = useCallback(
+    (nextReq: string | null) => {
+      if (typeof window === "undefined") return;
+      const base = `/runs/${encodeURIComponent(runId)}/protocol`;
+      const qs = new URLSearchParams(window.location.search);
+      if (nextReq) qs.set("selected", nextReq);
+      else qs.delete("selected");
+      const q = qs.toString();
+      window.history.replaceState(null, "", q ? `${base}?${q}` : base);
+    },
+    [runId],
+  );
+
+  const applySelection = useCallback(
+    (nextReq: string | null) => {
+      setSelectedReq(nextReq);
+      setIsFormDirty(false);
+      setPendingReq(undefined);
+      syncSelectedUrl(nextReq);
+    },
+    [syncSelectedUrl],
+  );
 
   const requestSelection = useCallback(
     (nextReq: string | null) => {
@@ -132,13 +185,62 @@ export function AssembledProtocolView({
     [selectedReq, isFormDirty, applySelection],
   );
 
+  useEffect(() => {
+    if (rows === null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key !== "j" && e.key !== "J" && e.key !== "k" && e.key !== "K") return;
+      if (isTypingTarget(e.target)) return;
+      if (filteredRows.length === 0) return;
+
+      e.preventDefault();
+      const goingDown = e.key === "j" || e.key === "J";
+      if (selectedIndex === -1) {
+        const first = filteredRows[0];
+        if (first) requestSelection(first.requirement);
+        return;
+      }
+      const nextIdx = goingDown
+        ? Math.min(selectedIndex + 1, filteredRows.length - 1)
+        : Math.max(selectedIndex - 1, 0);
+      const target = filteredRows[nextIdx];
+      if (target) requestSelection(target.requirement);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [rows, filteredRows, selectedIndex, requestSelection]);
+
   const navigateToRow = useCallback(
     (req: string) => {
       setActiveTab("rows");
+      setRowFilter("all");
       requestSelection(req);
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          const el = document.getElementById(`row-${req}`);
+          if (el && typeof el.scrollIntoView === "function") {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        });
+      }
     },
     [requestSelection],
   );
+
+  const navigateToMissed = useCallback(() => {
+    setActiveTab("missed");
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        const el = document.getElementById("protocol-missed");
+        if (el && typeof el.scrollIntoView === "function") {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    }
+  }, []);
+
+  const normalizedDraftTab =
+    activeTab === "missed" || activeTab === "history" ? activeTab : "rows";
 
   return (
     <div className="space-y-4">
@@ -179,11 +281,11 @@ export function AssembledProtocolView({
                   protocolId={protocol.id}
                   controls={controls}
                   onNavigateToRow={navigateToRow}
-                  onNavigateToMissed={() => setActiveTab("missed")}
+                  onNavigateToMissed={navigateToMissed}
                 />
               )}
 
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={normalizedDraftTab} onValueChange={setActiveTab}>
                 <TabsList>
                   <TabsTrigger value="rows">
                     <span>{t("tabs.rows")}</span>
@@ -203,6 +305,25 @@ export function AssembledProtocolView({
                 </TabsList>
 
                 <TabsContent value="rows" className="space-y-3">
+                  <FilterBar
+                    ariaLabel={t("rows")}
+                    options={[
+                      { id: "all", label: t("filters.all"), count: rows.length },
+                      { id: "blocking", label: t("filters.blocking"), count: blocking },
+                      {
+                        id: "vendor",
+                        label: t("filters.vendor"),
+                        count: rows.filter((r) => r.kind === "vendor_reference").length,
+                      },
+                      {
+                        id: "testStep",
+                        label: t("filters.testStep"),
+                        count: rows.filter((r) => r.kind === "test_step").length,
+                      },
+                    ]}
+                    activeId={rowFilter}
+                    onSelect={setRowFilter}
+                  />
                   <p className="m-0 text-xs font-medium text-ink-muted tabular-nums">
                     {t("summary", {
                       rows: rows.length,
@@ -219,7 +340,7 @@ export function AssembledProtocolView({
                       <span className="text-xs text-ink-muted">{t("rowsNote")}</span>
                     </div>
                     <ProtocolRowsTable
-                      rows={rows}
+                      rows={filteredRows}
                       runId={runId}
                       selectedRequirement={selectedReq}
                       onSelect={requestSelection}
@@ -254,18 +375,18 @@ export function AssembledProtocolView({
                 controls={controls}
                 open={selectedRow !== null}
                 rowIndex={selectedIndex}
-                totalRows={rows.length}
+                totalRows={filteredRows.length}
                 dirtyPrompt={pendingReq !== undefined}
                 onClose={() => requestSelection(null)}
                 onPrev={() => {
                   if (selectedIndex > 0) {
-                    const prev = rows[selectedIndex - 1];
+                    const prev = filteredRows[selectedIndex - 1];
                     if (prev) requestSelection(prev.requirement);
                   }
                 }}
                 onNext={() => {
-                  if (selectedIndex >= 0 && selectedIndex < rows.length - 1) {
-                    const next = rows[selectedIndex + 1];
+                  if (selectedIndex >= 0 && selectedIndex < filteredRows.length - 1) {
+                    const next = filteredRows[selectedIndex + 1];
                     if (next) requestSelection(next.requirement);
                   }
                 }}

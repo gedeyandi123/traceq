@@ -1,8 +1,10 @@
+import { ArrowRight, Info } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 import { api } from "@/api/client";
+import { currentSession } from "@/auth/session";
 import { formatWhen } from "@/components/formatWhen";
 import { EmptyState, ModeBadge } from "@/components/ui/ui";
 
@@ -17,7 +19,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RunsPage() {
   const t = await getTranslations("runs");
   const when = await getTranslations("decisions");
-  const { data } = await api.GET("/runs").catch(() => ({ data: undefined }));
+  const signin = await getTranslations("signin");
+  const [{ data }, session] = await Promise.all([
+    api.GET("/runs").catch(() => ({ data: undefined })),
+    currentSession(),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -25,6 +31,21 @@ export default async function RunsPage() {
         <h1 className="m-0 text-xl font-bold tracking-tight text-ink">{t("title")}</h1>
         <p className="mt-1 mb-0 max-w-3xl text-sm text-ink-muted">{t("lead")}</p>
       </div>
+
+      {session === null && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-info-edge bg-info-soft px-4 py-3 text-xs text-info">
+          <div className="flex items-start gap-2">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p className="m-0">{t("signedOutBanner")}</p>
+          </div>
+          <Link
+            href="/signin"
+            className="inline-flex shrink-0 items-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
+          >
+            {signin("link")}
+          </Link>
+        </div>
+      )}
 
       {data === undefined && <EmptyState title={t("unavailableTitle")}>{t("unavailable")}</EmptyState>}
       {data?.length === 0 && <EmptyState title={t("emptyTitle")}>{t("empty")}</EmptyState>}
@@ -34,33 +55,40 @@ export default async function RunsPage() {
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
                   {t("equipment")}
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
                   {t("mode")}
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
                   {t("model")}
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
                   {t("created")}
                 </th>
-                <th scope="col" className="px-4 py-2.5">
+                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
                   {t("run")}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data.map((r) => (
-                <tr key={r.run_id} className="transition-colors hover:bg-sunken/40">
+                <tr key={r.run_id} className="group transition-colors hover:bg-sunken/40">
                   <th scope="row" className="px-4 py-3 font-semibold text-ink">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/runs/${encodeURIComponent(r.run_id)}`}
-                        className="font-bold text-accent no-underline tabular-nums hover:text-accent-hover hover:underline"
+                        className="inline-flex items-center gap-1.5 font-bold text-accent no-underline tabular-nums hover:text-accent-hover hover:underline"
                       >
-                        {r.equipment}
+                        <span>{r.equipment}</span>
+                        <span
+                          aria-hidden="true"
+                          className="inline-flex items-center gap-0.5 text-[11px] font-semibold opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          {t("openRow")}
+                          <ArrowRight className="h-3 w-3" />
+                        </span>
                       </Link>
                       {r.review_package && (
                         <span className="inline-flex items-center rounded-full border border-info-edge bg-info-soft px-2 py-0.5 text-[11px] font-semibold text-info tabular-nums">

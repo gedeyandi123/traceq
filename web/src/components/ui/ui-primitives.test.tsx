@@ -1,70 +1,51 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { vi } from "vitest";
 
-import {
-  AlertCircleIcon,
-  AlertTriangleIcon,
-  CheckCircleIcon,
-  ChevronRightIcon,
-  ExternalLinkIcon,
-  FileTextIcon,
-  InfoIcon,
-  ShieldCheckIcon,
-} from "./icons";
-import { Alert, Button, Disclosure, ProgressBar, StatusBadge } from "./ui";
+import { DirtyGuardBanner } from "./DirtyGuardBanner";
+import { FilterBar } from "./FilterBar";
 
-describe("new Phase A ui primitives", () => {
-  it("renders Button danger variant as a button", () => {
-    render(<Button variant="danger">Hapus</Button>);
-    expect(screen.getByRole("button", { name: "Hapus" })).toBeDefined();
-  });
-
-  it("renders StatusBadge with its label", () => {
-    render(<StatusBadge tone="pass">Disetujui</StatusBadge>);
-    expect(screen.getByText("Disetujui")).toBeDefined();
-  });
-
-  it("renders Alert with role, title, and body", () => {
+describe("shared UI primitives", () => {
+  it("renders DirtyGuardBanner as alertdialog and triggers discard/keep callbacks", () => {
+    const onDiscard = vi.fn();
+    const onKeep = vi.fn();
     render(
-      <Alert tone="fail" role="alert" title="Gagal">
-        Permintaan ditolak.
-      </Alert>,
+      <DirtyGuardBanner
+        message="Perubahan belum disimpan."
+        discardLabel="Buang perubahan"
+        keepLabel="Tetap menyunting"
+        onDiscard={onDiscard}
+        onKeep={onKeep}
+      />,
     );
-    const alert = screen.getByRole("alert");
-    expect(alert.textContent).toContain("Gagal");
-    expect(alert.textContent).toContain("Permintaan ditolak.");
+
+    const dialog = screen.getByRole("alertdialog", { name: "Perubahan belum disimpan." });
+    expect(dialog).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Buang perubahan" }));
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Tetap menyunting" }));
+    expect(onKeep).toHaveBeenCalledTimes(1);
   });
 
-  it("renders ProgressBar with clamped aria attributes", () => {
-    render(<ProgressBar value={15} max={20} label="Progres keputusan" />);
-    const bar = screen.getByRole("progressbar", { name: "Progres keputusan" });
-    expect(bar.getAttribute("aria-valuenow")).toBe("15");
-    expect(bar.getAttribute("aria-valuemin")).toBe("0");
-    expect(bar.getAttribute("aria-valuemax")).toBe("20");
-  });
-
-  it("renders Disclosure keeping content in the DOM", () => {
-    render(<Disclosure summary="Detail">Isi tersembunyi</Disclosure>);
-    expect(screen.getByText("Detail")).toBeDefined();
-    expect(screen.getByText("Isi tersembunyi")).toBeDefined();
-  });
-
-  it("renders all inline SVG icons as aria-hidden", () => {
-    const { container } = render(
-      <div>
-        <CheckCircleIcon />
-        <AlertTriangleIcon />
-        <AlertCircleIcon />
-        <InfoIcon />
-        <ChevronRightIcon />
-        <ExternalLinkIcon />
-        <FileTextIcon />
-        <ShieldCheckIcon />
-      </div>,
+  it("renders FilterBar pills with aria-pressed and invokes onSelect", () => {
+    const onSelect = vi.fn();
+    render(
+      <FilterBar
+        ariaLabel="Filter baris"
+        options={[
+          { id: "all", label: "Semua", count: 10 },
+          { id: "blocking", label: "Memblokir", count: 2 },
+        ]}
+        activeId="all"
+        onSelect={onSelect}
+      />,
     );
-    const svgs = container.querySelectorAll("svg");
-    expect(svgs.length).toBe(8);
-    for (const svg of svgs) {
-      expect(svg.getAttribute("aria-hidden")).toBe("true");
-    }
+
+    const allBtn = screen.getByRole("button", { name: /Semua/ });
+    const blockBtn = screen.getByRole("button", { name: /Memblokir/ });
+    expect(allBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(blockBtn.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(blockBtn);
+    expect(onSelect).toHaveBeenCalledWith("blocking");
   });
 });
