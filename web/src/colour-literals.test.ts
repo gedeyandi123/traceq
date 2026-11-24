@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { colourLiterals } from "./colour-literals";
+import { colourLiterals, stripAllowedCssBlocks, tsxColourLiterals } from "./colour-literals";
 
-// ADR 0011: a CSS Module uses only tokens, never a colour value.
+// ADR 0014: no colour literals in `.css` or `.tsx` outside `@theme` in `globals.css`.
 
 describe("colourLiterals", () => {
   it.each([
@@ -35,15 +35,52 @@ describe("colourLiterals", () => {
   });
 });
 
-describe("every CSS Module under src", () => {
-  const src = import.meta.dirname;
-  const modules = readdirSync(src, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".module.css"));
-
-  it("exists, so the guard is not vacuous", () => {
-    expect(modules.length).toBeGreaterThan(0);
+describe("tsxColourLiterals", () => {
+  it.each([
+    ["arbitrary hex bg", '<div className="bg-[#fff]" />', "bg-[#fff]"],
+    ["arbitrary rgb text", '<span className="text-[rgb(15,23,42)]" />', "text-[rgb(15,23,42)]"],
+    ["arbitrary oklch border", '<div className="border-[oklch(0.5_0.1_200)]" />', "border-[oklch(0.5_0.1_200)]"],
+    ["arbitrary named colour", '<div className="bg-[red]" />', "bg-[red]"],
+    ["inline style hex", '<div style={{ color: "#0f172a" }} />', "#0f172a"],
+    ["inline style rgb", '<div style={{ backgroundColor: "rgb(0, 0, 0)" }} />', "rgb("],
+    ["SVG hex fill", '<svg><rect fill="#ff0000" /></svg>', "#ff0000"],
+    ["SVG named stroke", '<svg><path stroke="red" /></svg>', "red"],
+  ])("flags %s", (_, tsx, literal) => {
+    expect(tsxColourLiterals(tsx)).toEqual([literal]);
   });
 
-  it.each(modules)("%s has no colour literal", (file) => {
-    expect(colourLiterals(readFileSync(join(src, file), "utf8"))).toEqual([]);
+  it.each([
+    ["semantic Tailwind tokens", '<div className="bg-surface text-ink border-border" />'],
+    ["arbitrary size classes", '<div className="w-[560px] text-[11px] backdrop-blur-[1px]" />'],
+    ["SVG currentColor and none", '<svg><path fill="none" stroke="currentColor" /></svg>'],
+    ["inline style width percentage", '<div style={{ width: `${pct}%` }} />'],
+    ["inline style token", '<div style={{ color: "var(--color-ink)" }} />'],
+  ])("passes %s", (_, tsx) => {
+    expect(tsxColourLiterals(tsx)).toEqual([]);
+  });
+});
+
+describe("every CSS and TSX file under src", () => {
+  const src = import.meta.dirname;
+  const allFiles = readdirSync(src, { recursive: true, encoding: "utf8" });
+  const cssFiles = allFiles.filter((f) => f.endsWith(".css"));
+  const tsxFiles = allFiles.filter((f) => f.endsWith(".tsx"));
+
+  it("exists, so the guards are not vacuous", () => {
+    expect(cssFiles.length).toBeGreaterThan(0);
+    expect(tsxFiles.length).toBeGreaterThan(0);
+  });
+
+  it.each(cssFiles)("%s has no colour literal outside @theme", (file) => {
+    const normalized = file.replace(/\\/g, "/");
+    const isGlobalsCss = normalized === "app/globals.css";
+    const raw = readFileSync(join(src, file), "utf8");
+    const stripped = stripAllowedCssBlocks(raw, isGlobalsCss);
+    expect(colourLiterals(stripped)).toEqual([]);
+  });
+
+  it.each(tsxFiles)("%s has no colour literal", (file) => {
+    const raw = readFileSync(join(src, file), "utf8");
+    expect(tsxColourLiterals(raw)).toEqual([]);
   });
 });

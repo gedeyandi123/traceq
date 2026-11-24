@@ -139,6 +139,28 @@ def test_opens_the_cited_document_as_released(client: TestClient) -> None:
     assert r.content == (CORPUS / "FAT-TP201-M_rev0.pdf").read_bytes()
 
 
+def test_document_headers_and_head_precheck(client: TestClient) -> None:
+    expected_bytes = (CORPUS / "FAT-TP201-M_rev0.pdf").read_bytes()
+    expected_sha256 = hashlib.sha256(expected_bytes).hexdigest()
+
+    get_res = client.get(f"/runs/{RUN_ID}/documents/FAT-TP201-M/0")
+    assert get_res.status_code == 200
+    assert get_res.headers["content-security-policy"] == "frame-ancestors 'self'"
+    assert get_res.headers["cache-control"] == "private, max-age=300"
+    assert get_res.headers["etag"] == f'"{expected_sha256}"'
+
+    head_res = client.head(f"/runs/{RUN_ID}/documents/FAT-TP201-M/0")
+    assert head_res.status_code == 200
+    assert head_res.content == b""
+    assert head_res.headers["content-type"] == "application/pdf"
+    assert head_res.headers["content-length"] == str(len(expected_bytes))
+    assert head_res.headers["content-security-policy"] == "frame-ancestors 'self'"
+    assert head_res.headers["cache-control"] == "private, max-age=300"
+    assert head_res.headers["etag"] == f'"{expected_sha256}"'
+
+    assert client.head(f"/runs/{RUN_ID}/documents/SAT-TP201/0").status_code == 404
+
+
 def test_a_document_the_run_did_not_read_is_not_served(client: TestClient, tmp_path: Path) -> None:
     assert client.get(f"/runs/{RUN_ID}/documents/SAT-TP201/0").status_code == 404
     assert client.get(f"/runs/{RUN_ID}/documents/FAT-TP201-M/1").status_code == 404

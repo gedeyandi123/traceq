@@ -6,6 +6,45 @@
     "notFoundBody": "Run atau halaman dengan alamat ini tidak ada. Periksa alamatnya, atau buka daftar run.",
     "toRuns": "Kembali ke daftar run"
   },
+  "ui": {
+    "closePanel": "Tutup panel",
+    "closeDialog": "Tutup dialog",
+    "openInNewTab": "Buka di tab baru",
+    "openOrDownload": "Buka / Unduh dokumen",
+    "citationTitle": "Sitasi: {label}",
+    "verbatimQuote": "Kutipan verbatim",
+    "checkingDocument": "Memeriksa dokumen {doc}…",
+    "documentUnavailable": "Dokumen tidak dapat ditampilkan",
+    "documentNotFound": "Dokumen {doc} rev {rev} tidak ditemukan pada run ini (HTTP 404).",
+    "documentLoadFailed": "Gagal memuat dokumen {doc} (HTTP {status}).",
+    "documentServerError": "Tidak dapat menghubungi server dokumen untuk {doc} rev {rev}.",
+    "fileType": "Tipe berkas",
+    "nonPdfNotice": "Berkas ini bukan PDF dan tidak dapat dipratinjau langsung di dalam modal.",
+    "mobilePdfNotice": "Pratinjau PDF inline tersedia di layar desktop. Buka dokumen di tab baru untuk membacanya.",
+    "switchPersona": "Ganti persona",
+    "coverage": {
+      "covered_by_vendor": "Dicakup vendor",
+      "partial": "Sebagian",
+      "site_only": "Hanya di lokasi",
+      "gap": "Celah",
+      "conflict": "Konflik",
+      "none": "Belum dinilai"
+    },
+    "decisionStates": {
+      "undecided": "Belum diputuskan",
+      "decided": "Sudah diputuskan",
+      "changed": "Isi berubah",
+      "accepted": "Diterima",
+      "edited": "Diubah",
+      "rejected": "Ditolak"
+    },
+    "protocolStatuses": {
+      "draft": "Draft",
+      "submitted": "Diajukan",
+      "approved": "Disetujui",
+      "withdrawn": "Ditarik"
+    }
+  },
   "runHeader": {
     "back": "Semua run",
     "breadcrumb": "Lokasi",

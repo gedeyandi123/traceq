@@ -58,7 +58,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
     - `Protokol IQ/OQ` (`/runs/[runId]/protocol`) — status badge (`Draft` / `Disetujui`)
     - `Eksekusi & Deviasi` — reserved Step 5b slot ([ADR 0013](adr/0013-execution-results-judged-by-code-deviations-opened-by-code.md))
   - **Audit & Diagnostik:** `Yang Tidak Dimasukkan` (`/left-out`) · `Hasil Evaluasi` (`/eval`).
-- **Compact Sticky Context Bar (`48px`):** Equipment/run identity (`TP-201`), signed-in persona + role badge, and one primary next-action CTA (using a thin client `useSelectedLayoutSegment()` wrapper).
+- **Compact Sticky Context Bar (`48px`):** Equipment/run identity (`TP-201`), signed-in persona Radix `DropdownMenu` (displaying persona name + role badge, with actions *"Ganti persona"* → `/signin` and *"Keluar"*), and one primary next-action CTA (using a thin client `useSelectedLayoutSegment()` wrapper).
 
 ---
 
@@ -66,12 +66,14 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 
 | Screen | Pattern | Key Rules |
 | :--- | :--- | :--- |
-| **Daftar Run (`/`)** | Clean Data Table | Equipment name (`TP-201`) primary; status/blocker counts; `run_id` secondary metadata; consistent header/cell alignment. |
+| **Daftar Run (`/`)** | Clean Data Table | **Unauthenticated-safe without N+1 API calls** (renders only `listRuns` fields: equipment name `TP-201` primary; `created`/`model`/`mode`/`run_id` secondary metadata; no per-run blocker/decision count fetches on `/`). |
 | **Matriks (`/runs/[runId]`)** | Compact Scannable Table + Right Slide-Over Drawer (`560–640px`) | 4–5 columns (~56px/row → 8–10 rows above the fold at `1366×768`). URL `?selected=URS-...`, Prev/Next navigation, Required vs Observed side-by-side. |
-| **Temuan (`/findings`) & Draf (`/draft`)** | Master-Detail Split-Pane | Left triage queue with 1-click blocker filters (`Konflik`, `Celah`, `Belum diputuskan`); right inspection & decision workspace. |
-| **Protokol (`/protocol`)** | Compact Table + Slide-Over Drawer | Compact status header; destructive *"Tarik protokol"* moved inside a Radix Confirmation Dialog; balanced column widths. |
+| **Temuan (`/findings`)** | Grouped Master-Detail Split-Pane (Opsi B) | Separates *Temuan Pemeriksaan (Aturan Deterministik)* vs *Temuan AI (Saran)* and *Dokumen yang Tidak Ada*, with 1-click triage filters (`Belum diputuskan`, `Aturan`, `AI`) and right inspection/decision workspace. |
+| **Draf (`/draft`)** | Compact Ordered Table + Slide-Over Drawer (Opsi A) | Preserves draft step order in a compact table, opens step inspection/decisions in a right slide-over drawer, and keeps the *"Temuan tentang seluruh dokumen"* section below. |
+| **Protokol (`/protocol`)** | Compact Table + Slide-Over Drawer + Radix Tabs | Compact status header; destructive *"Tarik protokol"* inside a Radix Confirmation Dialog; Radix `Tabs` organizing *Baris Protokol*, *Checklist & Salinan Beku* (`FrozenCopy`, `ApprovalForms` for approver role e.g. Dewi), and *Nomor Terlewat & Batas* (`MissedNumbers`, ADR 0012 *"Batas yang diketahui"*). |
 | **Eksekusi & Deviasi (Step 5b)** | Full-Width Execution Workbench + Wide Sheet (`720px+`) | Locked non-editable AC unit suffix; ALCOA server timestamps; multi-attempt history, versioned corrections + Reason for Change, multi-instrument calibration validation, hash-bound Witness badge, and 4-way SoD Deviation Investigation/CAPA/Closure. |
 | **Audit (`/left-out`, `/eval`)** | Diagnostic Tables & Summary Cards | Shared tokens and typography; remove redundant heading/column duplication. |
+| **System States (`loading.tsx`, `error.tsx`, `not-found.tsx`)** | Shared Semantic Recovery Screens | Loading skeletons, localised error boundaries with retry, and localised not-found recovery screens included in redesign scope using shared semantic tokens. |
 
 ---
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { getTranslations } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages, getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -45,22 +46,29 @@ function Mark() {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const t = await getTranslations("app");
+  const allMessages = await getMessages();
+  const clientMessages = {
+    ui: allMessages.ui,
+    common: allMessages.common,
+  };
   return (
     <html lang={LOCALE} className={inter.variable}>
       <body>
-        <header className={s.appbar}>
-          <div className={s.inner}>
-            <Link href="/" className={s.brand}>
-              <Mark />
-              {t("title")}
-            </Link>
-            <span className={s.tagline}>{t("tagline")}</span>
-            <div className={s.session}>
-              <SessionBar />
+        <NextIntlClientProvider locale={LOCALE} messages={clientMessages}>
+          <header className={s.appbar}>
+            <div className={s.inner}>
+              <Link href="/" className={s.brand}>
+                <Mark />
+                {t("title")}
+              </Link>
+              <span className={s.tagline}>{t("tagline")}</span>
+              <div className={s.session}>
+                <SessionBar />
+              </div>
             </div>
-          </div>
-        </header>
-        <main className={s.main}>{children}</main>
+          </header>
+          <main className={s.main}>{children}</main>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
