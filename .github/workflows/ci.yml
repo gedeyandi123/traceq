@@ -62,7 +62,7 @@ jobs:
       - name: python dependency audit
         run: |
           uv export --frozen --no-hashes --no-emit-project -o "$RUNNER_TEMP/reqs.txt"
-          uv run --with pip-audit pip-audit --no-deps --disable-pip -r "$RUNNER_TEMP/reqs.txt" --progress-spinner off
+          uv run --no-project --with pip-audit pip-audit --no-deps --disable-pip -r "$RUNNER_TEMP/reqs.txt" --progress-spinner off
 
   web:
     name: web
