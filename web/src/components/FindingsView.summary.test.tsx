@@ -1,5 +1,5 @@
-// The findings screen's summary panel: one count per section, each a jump link (#158).
-import { render, screen, within } from "@testing-library/react";
+// The findings screen's tab and filter counts over the fixture run.
+import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import type { Findings } from "@/api/client";
@@ -8,7 +8,7 @@ import fixture from "../../../tests/fixtures/run/runs/20261113T090000Z-f1a2b3/fi
 import { RUN_ID } from "./decisions.fixture";
 import { FindingsView } from "./FindingsView";
 
-test("the summary counts each section of the fixture run and links to it", () => {
+test("the tabs and filter chips count each section of the fixture run", () => {
   render(
     <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
       <FindingsView
@@ -19,11 +19,9 @@ test("the summary counts each section of the fixture run and links to it", () =>
     </NextIntlClientProvider>,
   );
 
-  const summary = within(screen.getByRole("list", { name: "Ringkasan temuan" }));
-  const links = summary.getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
-  expect(links).toEqual([
-    ["2 Temuan pemeriksaan (aturan)", "#check-findings"],
-    ["1 Temuan AI (saran)", "#ai-findings"],
-    ["2 Dokumen yang tidak ada", "#missing-documents"],
-  ]);
+  expect(screen.getByRole("tab", { name: /Temuan pemeriksaan & AI\s*3/ })).toBeDefined();
+  expect(screen.getByRole("tab", { name: /Dokumen yang tidak ada\s*2/ })).toBeDefined();
+  expect(screen.getByRole("button", { name: /Semua\s*3/ })).toBeDefined();
+  expect(screen.getByRole("button", { name: /Aturan\s*2/ })).toBeDefined();
+  expect(screen.getByRole("button", { name: /AI\s*1/ })).toBeDefined();
 });

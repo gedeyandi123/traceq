@@ -1,0 +1,426 @@
+"use client";
+
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import type { Cite, DraftFindingView, DraftTestStep, ProtocolDraftView as Draft } from "@/api/client";
+import type { DecisionView } from "@/components/Decisions";
+import { FindingDecisionPanel } from "@/components/FindingDecisionPanel";
+import { Drawer } from "@/components/ui/Drawer";
+import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
+
+type T = ReturnType<typeof useTranslations<"draft">>;
+type VendorDoc = Draft["vendor_documents"][number];
+type Comparator = DraftTestStep["traced"][number]["comparators"][number];
+
+const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
+
+/** A value as code read it from the print, in a few characters. */
+export function formatPrinted(t: T, v: DraftTestStep["traced"][number]["urs_limit"] & object): string {
+  switch (v.type) {
+    case "range": {
+      if (v.min != null && v.max != null) {
+        return `${number.format(v.min)}–${number.format(v.max)} ${v.unit}`;
+      }
+      if (v.min != null) {
+        return t(v.min_exclusive ? "values.above" : "values.atLeast", {
+          min: number.format(v.min),
+          unit: v.unit,
+        });
+      }
+      return t(v.max_exclusive ? "values.below" : "values.atMost", {
+        max: number.format(v.max ?? 0),
+        unit: v.unit,
+      });
+    }
+    case "number":
+      return `${number.format(v.value)} ${v.unit}`;
+    case "tolerance":
+      return t("values.tolerance", {
+        nominal: number.format(v.nominal),
+        unit: v.unit,
+        tolerance: number.format(v.tolerance),
+        toleranceUnit: v.tolerance_unit,
+      });
+    case "text":
+      return v.value;
+    case "ambiguous":
+      return t("values.ambiguous", {
+        readings: v.readings.map((r) => number.format(r)).join(" / "),
+      });
+  }
+}
+
+/** A citation into the draft. The draft is not a corpus document the API serves, so it names
+ * the page, with the verbatim quote on hover, and links nowhere (K22). */
+export function DraftCite({ cite }: { cite: Cite }) {
+  const c = useTranslations("common");
+  return (
+    <span
+      title={cite.quote}
+      className="inline-block cursor-help text-[11px] text-ink-muted underline decoration-dotted underline-offset-2 tabular-nums"
+    >
+      {c("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
+    </span>
+  );
+}
+
+/** A citation: into the draft (no link) or into a document the run read (PdfCitationButton). */
+export function AnyCite({
+  cite,
+  runId,
+  draftDoc,
+}: {
+  cite: Cite;
+  runId: string;
+  draftDoc: string;
+}) {
+  return cite.doc === draftDoc ? (
+    <DraftCite cite={cite} />
+  ) : (
+    <PdfCitationButton runId={runId} cite={cite} compact />
+  );
+}
+
+function Facts({
+  step,
+  of,
+  runId,
+}: {
+  step: DraftTestStep;
+  of: (c: Comparator) => boolean;
+  runId: string;
+}) {
+  const many = step.traced.length > 1;
+  const facts = step.traced.flatMap((tr) =>
+    tr.comparators
+      .filter(of)
+      .flatMap((c) => c.facts.map((f) => ({ requirement: tr.requirement, c, f }))),
+  );
+  return (
+    <ul className="m-0 mt-1 list-none space-y-1.5 pl-3">
+      {facts.map(({ requirement, c, f }) => (
+        <li
+          key={`${requirement}/${c.doc}/${f.name}/${f.citation.quote}`}
+          className="flex flex-wrap items-center gap-1.5 text-xs text-ink"
+        >
+          <span>
+            {many && <span className="font-mono font-semibold">{requirement} </span>}
+            <span className="font-medium">{f.name}:</span> {f.printed}
+          </span>
+          <PdfCitationButton runId={runId} cite={f.citation} compact />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DrawerComparators({
+  t,
+  step,
+  vendorDocs,
+  runId,
+}: {
+  t: T;
+  step: DraftTestStep;
+  vendorDocs: readonly VendorDoc[];
+  runId: string;
+}) {
+  const same = (d: { doc: string; rev: number }) => (c: Comparator) =>
+    c.doc === d.doc && c.rev === d.rev;
+  const listed = (c: Comparator) => vendorDocs.some((d) => same(d)(c));
+  const others = [
+    ...new Map(
+      step.traced.flatMap((tr) =>
+        tr.comparators.filter((c) => !listed(c)).map((c) => [`${c.doc}/${c.rev}`, c] as const),
+      ),
+    ).values(),
+  ];
+
+  if (vendorDocs.length === 0 && others.length === 0) {
+    return <p className="m-0 text-xs text-ink-muted">{t("noComparators")}</p>;
+  }
+
+  return (
+    <ul className="m-0 list-none space-y-2 p-0">
+      {vendorDocs.map((d) => {
+        const has = step.traced.some((tr) =>
+          tr.comparators.some((c) => same(d)(c) && c.facts.length > 0),
+        );
+        return (
+          <li key={`${d.doc}/${d.rev}`} className="rounded-md border border-border bg-canvas p-2.5 text-xs">
+            <div className="font-semibold text-ink">
+              {t(`vendorKinds.${d.kind}`)} {d.doc}:
+            </div>
+            {has ? (
+              <Facts step={step} of={same(d)} runId={runId} />
+            ) : (
+              <div className="mt-0.5 text-ink-muted">{t("noComparators")}</div>
+            )}
+          </li>
+        );
+      })}
+      {others.map((c) => (
+        <li key={`${c.doc}/${c.rev}`} className="rounded-md border border-border bg-canvas p-2.5 text-xs">
+          <div className="font-semibold text-ink">
+            {t(`comparatorKinds.${c.kind}`)} {c.doc}:
+          </div>
+          <Facts step={step} of={same(c)} runId={runId} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function DraftStepDrawer({
+  step,
+  findings,
+  vendorDocs,
+  draftDoc,
+  runId,
+  decisions,
+  open,
+  stepIndex,
+  totalSteps,
+  dirtyPrompt,
+  onClose,
+  onPrev,
+  onNext,
+  onDirtyChange,
+  onDiscardAndProceed,
+  onCancelProceed,
+}: {
+  step: DraftTestStep | null;
+  findings: readonly DraftFindingView[];
+  vendorDocs: readonly VendorDoc[];
+  draftDoc: string;
+  runId: string;
+  decisions: DecisionView;
+  open: boolean;
+  stepIndex: number;
+  totalSteps: number;
+  dirtyPrompt: boolean;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  onDirtyChange: (dirty: boolean) => void;
+  onDiscardAndProceed: () => void;
+  onCancelProceed: () => void;
+}) {
+  const t = useTranslations("draft");
+
+  if (!step) {
+    return (
+      <Drawer open={false} onOpenChange={() => {}} title="">
+        {null}
+      </Drawer>
+    );
+  }
+
+  return (
+    <Drawer
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+      title={step.id}
+      description={
+        step.requirements.length > 0
+          ? t("tracesTo", { requirements: step.requirements.join(", ") })
+          : undefined
+      }
+      headerExtra={
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          <button
+            type="button"
+            data-tw=""
+            onClick={onPrev}
+            disabled={stepIndex <= 0}
+            aria-label={t("drawer.prev")}
+            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("drawer.prev")}</span>
+          </button>
+          <span className="px-1.5 text-xs font-medium text-ink-muted tabular-nums">
+            {t("drawer.position", { current: stepIndex + 1, total: totalSteps })}
+          </span>
+          <button
+            type="button"
+            data-tw=""
+            onClick={onNext}
+            disabled={stepIndex < 0 || stepIndex >= totalSteps - 1}
+            aria-label={t("drawer.next")}
+            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 text-xs font-medium text-ink hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <span>{t("drawer.next")}</span>
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        {dirtyPrompt && (
+          <div
+            role="alertdialog"
+            aria-label={t("drawer.dirtyWarning")}
+            className="rounded-lg border border-warn-edge bg-warn-soft p-3 text-xs text-warn"
+          >
+            <p className="m-0 font-semibold">{t("drawer.dirtyWarning")}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                data-tw=""
+                onClick={onDiscardAndProceed}
+                className="cursor-pointer rounded border border-warn-edge bg-surface px-2.5 py-1 text-xs font-semibold text-warn hover:bg-sunken"
+              >
+                {t("drawer.discardChanges")}
+              </button>
+              <button
+                type="button"
+                data-tw=""
+                onClick={onCancelProceed}
+                className="cursor-pointer rounded bg-accent px-2.5 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
+              >
+                {t("drawer.keepEditing")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Acceptance criteria */}
+        <section className="space-y-2 rounded-lg border border-border bg-sunken p-3.5">
+          <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
+            {t("ac")}
+          </h3>
+          {step.acceptance === null ? (
+            <p className="m-0 text-xs font-medium text-warn">
+              {t("notRead", { reason: step.not_read ?? "" })}
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="text-sm font-semibold text-ink">{step.acceptance.printed}</div>
+              {step.acceptance.value === null && (
+                <div className="text-xs text-ink-muted">{t("notParsed")}</div>
+              )}
+              <DraftCite cite={step.acceptance.citation} />
+            </div>
+          )}
+        </section>
+
+        {/* Traced URS requirements */}
+        {step.acceptance !== null && (
+          <section className="space-y-2.5 rounded-lg border border-border bg-surface p-3.5">
+            <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
+              {t("urs")}
+            </h3>
+            {step.traced.length === 0 && step.not_compared && (
+              <p className="m-0 text-xs text-warn">
+                {t("notComparedBecause", { reason: step.not_compared })}
+              </p>
+            )}
+            <ul className="m-0 list-none space-y-2.5 p-0">
+              {step.traced.map((tr) => (
+                <li
+                  key={tr.requirement}
+                  className="space-y-1.5 rounded-md border border-border bg-canvas p-2.5 text-xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-ink tabular-nums">
+                      {tr.requirement}
+                    </span>
+                    {tr.compared ? (
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                          tr.deviates
+                            ? "border-fail-edge bg-fail-soft text-fail"
+                            : "border-pass-edge bg-pass-soft text-pass"
+                        }`}
+                      >
+                        {t(tr.deviates ? "deviates" : "within")}
+                      </span>
+                    ) : (
+                      tr.not_compared && (
+                        <span className="rounded-full border border-warn-edge bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn">
+                          {t("notComparedBecause", { reason: tr.not_compared })}
+                        </span>
+                      )
+                    )}
+                  </div>
+                  {tr.urs_limit && (
+                    <div className="font-medium text-ink tabular-nums">
+                      {formatPrinted(t, tr.urs_limit)}
+                    </div>
+                  )}
+                  {tr.not_parsed && (
+                    <div className="text-ink-muted">
+                      {t("ursNotRead", { reason: tr.not_parsed })}
+                    </div>
+                  )}
+                  {tr.citation && (
+                    <div>
+                      <PdfCitationButton runId={runId} cite={tr.citation} compact />
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Comparators */}
+        {step.acceptance !== null && (
+          <section className="space-y-2.5 rounded-lg border border-border bg-surface p-3.5">
+            <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
+              {t("comparators")}
+            </h3>
+            <DrawerComparators t={t} step={step} vendorDocs={vendorDocs} runId={runId} />
+          </section>
+        )}
+
+        {/* Step findings & decisions */}
+        <section className="space-y-3">
+          <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
+            {t("findings")}
+          </h3>
+          {findings.length === 0 ? (
+            <p className="m-0 rounded-lg border border-border bg-surface p-3 text-xs text-ink-muted">
+              {t("noFinding")}
+            </p>
+          ) : (
+            findings.map((f, i) => (
+              <div
+                key={`${f.finding.requirement}/${i}`}
+                className="space-y-3 rounded-lg border border-fail-edge bg-surface p-3.5"
+              >
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-fail">
+                    {t(`types.${f.finding.type}`)}
+                  </div>
+                  <p className="m-0 text-xs leading-relaxed text-ink">{f.finding.detail}</p>
+                </div>
+                <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+                  {f.finding.citations.map((c) => (
+                    <li key={`${c.doc}/${c.rev}/${c.page}/${c.quote}`}>
+                      <AnyCite cite={c} runId={runId} draftDoc={draftDoc} />
+                    </li>
+                  ))}
+                </ul>
+                {f.proposal && (
+                  <FindingDecisionPanel
+                    key={`${step.id}-${f.proposal.id}-${f.proposal.state}-${f.proposal.decisions[0]?.id ?? 0}`}
+                    proposal={f.proposal}
+                    runId={runId}
+                    screen="draft"
+                    access={decisions.access}
+                    onDirtyChange={onDirtyChange}
+                  />
+                )}
+              </div>
+            ))
+          )}
+        </section>
+      </div>
+    </Drawer>
+  );
+}
