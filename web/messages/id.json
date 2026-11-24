@@ -293,6 +293,27 @@
       "sat": "Protokol SAT",
       "iq_protocol": "Protokol IQ",
       "oq_protocol": "Protokol OQ"
+    },
+    "tabs": {
+      "findings": "Temuan pemeriksaan & AI",
+      "missing": "Dokumen yang tidak ada"
+    },
+    "filters": {
+      "all": "Semua",
+      "undecided": "Belum diputuskan",
+      "rule": "Aturan",
+      "ai": "AI"
+    },
+    "badges": {
+      "rule": "Aturan deterministik",
+      "ai": "Saran AI"
+    },
+    "workspace": {
+      "empty": "Pilih temuan di sebelah kiri untuk memeriksa kutipan dan memutuskan.",
+      "noMatches": "Tidak ada temuan yang cocok dengan filter ini.",
+      "dirtyWarning": "Anda memiliki perubahan yang belum disimpan. Buang perubahan?",
+      "discardChanges": "Buang perubahan",
+      "keepEditing": "Lanjutkan menyunting"
     }
   },
   "leftOut": {
@@ -405,7 +426,23 @@
     "signedOut": "Masuk untuk melihat draf protokol",
     "signedOutBody": "Draf, temuan dan keputusannya dibaca dengan token: masuk dengan identitas demo mana pun.",
     "unavailable": "Draf protokol tidak dapat dimuat",
-    "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data."
+    "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data.",
+    "filters": {
+      "all": "Semua",
+      "withFindings": "Ada temuan",
+      "notCompared": "Tidak dibandingkan",
+      "notRead": "Tidak terbaca"
+    },
+    "drawer": {
+      "prev": "Sebelumnya",
+      "next": "Berikutnya",
+      "position": "{current} / {total}",
+      "dirtyWarning": "Anda memiliki perubahan yang belum disimpan. Buang perubahan?",
+      "discardChanges": "Buang perubahan",
+      "keepEditing": "Lanjutkan menyunting",
+      "inspect": "Periksa"
+    },
+    "noMatches": "Tidak ada langkah uji yang cocok dengan filter ini."
   },
   "protocol": {
     "title": "Protokol (disusun di TraceQ)",
