@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import type { CoverageClass, Decision, DecisionCounts, Proposal } from "@/api/client";
+import type { DecideActionState } from "@/decisions/actions";
 import { COVERAGE_CLASSES } from "@/decisions/vocabulary";
 import { formatWhen } from "./formatWhen";
 import { SubmitButton } from "./ui/SubmitButton";
@@ -15,7 +16,11 @@ export type ReadOnlyReason = "signedOut" | "noRole" | "notImported" | "unavailab
 export type DecisionError = "refused" | "conflict" | "forbidden" | "unauthorized" | "failed";
 
 export type DecisionAccess =
-  | { mode: "decide"; action: (formData: FormData) => void | Promise<void> }
+  | {
+      mode: "decide";
+      action: (formData: FormData) => void | Promise<void>;
+      inlineAction?: (prevState: DecideActionState, formData: FormData) => Promise<DecideActionState>;
+    }
   | { mode: "readOnly"; why: ReadOnlyReason };
 
 /** What a screen knows about the decisions of its run. ``proposals`` and ``counts`` are absent

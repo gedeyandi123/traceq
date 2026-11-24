@@ -4,7 +4,7 @@ import { bearerHeaders, currentSession } from "@/auth/session";
 import type { DecisionError, DecisionView } from "@/components/Decisions";
 import { fetchDecisionCounts } from "@/runs/fetchers";
 
-import { decide } from "./actions";
+import { decide, decideInline } from "./actions";
 
 const ERRORS: readonly DecisionError[] = ["refused", "conflict", "forbidden", "unauthorized", "failed"];
 
@@ -36,7 +36,7 @@ export async function loadDecisions(runId: string): Promise<DecisionView> {
       proposals: proposals.data,
       counts,
       access: session.mayDecide
-        ? { mode: "decide", action: decide }
+        ? { mode: "decide", action: decide, inlineAction: decideInline }
         : { mode: "readOnly", why: "noRole" },
     };
   } catch {
