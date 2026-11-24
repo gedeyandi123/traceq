@@ -142,14 +142,7 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
             raise HTTPException(404, f"the completeness check did not run for {run_id}")
         return Completeness.model_validate(read_served(path))
 
-    @router.get(
-        "/runs/{run_id}/documents/{doc_id}/{rev}",
-        operation_id="getDocument",
-        response_class=Response,
-        responses={200: {"content": {m: {} for m in _MEDIA.values()}}},
-    )
-    def get_document(run_id: str, doc_id: str, rev: int) -> Response:
-        """A document the run read, as released: a citation links here with ``#page=N``."""
+    def _resolve_document(run_id: str, doc_id: str, rev: int) -> tuple[bytes, str, dict[str, str]]:
         meta: dict[str, Any] = read_served(folder(run_id) / RUN_FILE)
         read = {
             (str(d["doc_id"]), int(d["rev"])): str(d["sha256"]) for d in meta["corpus"]["documents"]
@@ -163,7 +156,37 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
         if hashlib.sha256(data).hexdigest() != doc.sha256:
             raise HTTPException(404, f"{doc_id} rev {rev}: bytes do not match the manifest")
         media = _MEDIA.get(doc.path.suffix.lower(), "application/octet-stream")
-        disposition = f'inline; filename="{doc.path.name}"'
-        return Response(data, media_type=media, headers={"Content-Disposition": disposition})
+        headers = {
+            "Content-Disposition": f'inline; filename="{doc.path.name}"',
+            "Content-Security-Policy": "frame-ancestors 'self'",
+            "Cache-Control": "private, max-age=300",
+            "ETag": f'"{doc.sha256}"',
+        }
+        return data, media, headers
+
+    @router.get(
+        "/runs/{run_id}/documents/{doc_id}/{rev}",
+        operation_id="getDocument",
+        response_class=Response,
+        responses={200: {"content": {m: {} for m in _MEDIA.values()}}},
+    )
+    def get_document(run_id: str, doc_id: str, rev: int) -> Response:
+        """A document the run read, as released: a citation links here with ``#page=N``."""
+        data, media, headers = _resolve_document(run_id, doc_id, rev)
+        return Response(data, media_type=media, headers=headers)
+
+    @router.head(
+        "/runs/{run_id}/documents/{doc_id}/{rev}",
+        include_in_schema=False,
+        response_class=Response,
+    )
+    def head_document(run_id: str, doc_id: str, rev: int) -> Response:
+        """Pre-check document availability and media type without transferring bytes."""
+        data, media, headers = _resolve_document(run_id, doc_id, rev)
+        return Response(
+            b"",
+            media_type=media,
+            headers={**headers, "Content-Length": str(len(data))},
+        )
 
     return router

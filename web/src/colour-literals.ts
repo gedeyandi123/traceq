@@ -1,6 +1,5 @@
-// The guard of ADR 0011: a CSS Module uses tokens, never a colour value. Only declaration
-// values are read, so a property such as `white-space` or a selector such as `.a:hover`
-// never matches. `transparent` and `currentColor` are allowed.
+// The guard of ADR 0014: no colour literals in `.css` or `.tsx` outside `@theme` in
+// `globals.css`. `transparent` and `currentColor` are allowed.
 
 /** CSS named colours (CSS Color 4) and system colours, lower case. */
 const NAMED = new Set(
@@ -34,18 +33,91 @@ const FUNCTION = /(?<![-\w])(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/gi;
 const HEX = /#[0-9a-f]{3,8}(?![-\w])/gi;
 const WORD = /-?[a-z_][-\w]*/gi;
 
+const TW_ARBITRARY_COLOUR =
+  /\b(?:bg|text|border|border-[trblxy]|ring|ring-offset|outline|divide|fill|stroke|from|via|to|accent|caret|decoration|placeholder|shadow)-\[(#[0-9a-f]{3,8}|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)\]]*\)|[a-z]+)\]/gi;
+
+const INLINE_STYLE_COLOUR =
+  /\b(?:color|background|backgroundColor|borderColor|borderTopColor|borderRightColor|borderBottomColor|borderLeftColor|outlineColor|fill|stroke|caretColor|accentColor)\s*:\s*(['"`])([^'"`]+)\1/g;
+
+const SVG_COLOUR_ATTR = /\b(?:fill|stroke)\s*=\s*(?:\{\s*)?(['"`])([^'"`]+)\1/g;
+
+function stripCssBlock(css: string, headerRe: RegExp): string {
+  let result = css;
+  let match: RegExpExecArray | null;
+  while ((match = headerRe.exec(result)) !== null) {
+    const start = match.index;
+    const openBrace = result.indexOf("{", start);
+    if (openBrace === -1) break;
+    let depth = 1;
+    let pos = openBrace + 1;
+    while (pos < result.length && depth > 0) {
+      if (result[pos] === "{") depth++;
+      else if (result[pos] === "}") depth--;
+      pos++;
+    }
+    result = result.slice(0, start) + result.slice(pos);
+    headerRe.lastIndex = 0;
+  }
+  return result;
+}
+
+/** Remove `@theme` (and legacy `:root` in `globals.css` until PR 6) before scanning CSS. */
+export function stripAllowedCssBlocks(css: string, isGlobalsCss: boolean): string {
+  let stripped = stripCssBlock(css, /@theme\s*\{/g);
+  if (isGlobalsCss) {
+    stripped = stripCssBlock(stripped, /:root\s*\{/g);
+  }
+  return stripped;
+}
+
+function scanValueForColours(raw: string): string[] {
+  const found: string[] = [];
+  const value = raw.replace(/--[-\w]+/g, "");
+  for (const [m] of value.matchAll(HEX)) found.push(m.toLowerCase());
+  for (const [, fn = ""] of value.matchAll(FUNCTION)) found.push(`${fn.toLowerCase()}(`);
+  for (const [w] of value.replace(HEX, "").matchAll(WORD)) {
+    if (NAMED.has(w.toLowerCase())) found.push(w.toLowerCase());
+  }
+  return found;
+}
+
 /** The colour literals in the declaration values of a stylesheet, in order of appearance. */
 export function colourLiterals(css: string): string[] {
   const found: string[] = [];
   const code = css.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const [, , raw = ""] of code.matchAll(DECLARATION)) {
     // Strings (font names) and custom-property names (tokens) are not colours.
-    const value = raw.replace(/"[^"]*"|'[^']*'/g, "").replace(/--[-\w]+/g, "");
-    for (const [m] of value.matchAll(HEX)) found.push(m.toLowerCase());
-    for (const [, fn = ""] of value.matchAll(FUNCTION)) found.push(`${fn.toLowerCase()}(`);
-    for (const [w] of value.replace(HEX, "").matchAll(WORD)) {
-      if (NAMED.has(w.toLowerCase())) found.push(w.toLowerCase());
+    const value = raw.replace(/"[^"]*"|'[^']*'/g, "");
+    found.push(...scanValueForColours(value));
+  }
+  return found;
+}
+
+/** Colour literals in `.tsx` files: arbitrary Tailwind colour classes, inline styles, SVG fill/stroke. */
+export function tsxColourLiterals(source: string): string[] {
+  const found: string[] = [];
+  for (const [full, inner = ""] of source.matchAll(TW_ARBITRARY_COLOUR)) {
+    if (inner.startsWith("#") || FUNCTION.test(inner)) {
+      FUNCTION.lastIndex = 0;
+      found.push(full);
+    } else if (NAMED.has(inner.toLowerCase())) {
+      found.push(full);
     }
+    FUNCTION.lastIndex = 0;
+  }
+  for (const [, , val = ""] of source.matchAll(INLINE_STYLE_COLOUR)) {
+    const trimmed = val.trim();
+    if (/^(?:transparent|currentColor|inherit|none|initial|unset|var\()/i.test(trimmed)) {
+      continue;
+    }
+    found.push(...scanValueForColours(trimmed));
+  }
+  for (const [, , val = ""] of source.matchAll(SVG_COLOUR_ATTR)) {
+    const trimmed = val.trim();
+    if (/^(?:none|currentColor|transparent|inherit|url\()/i.test(trimmed)) {
+      continue;
+    }
+    found.push(...scanValueForColours(trimmed));
   }
   return found;
 }
