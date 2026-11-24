@@ -12,8 +12,24 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "heldout_run.sh"
-BASH = shutil.which("bash")
 MARKER = "MARKER-7f3a9c"
+
+
+def _find_bash() -> str | None:
+    if os.name == "nt":
+        for candidate in (
+            r"C:\Program Files\Git\bin\bash.exe",
+            r"C:\Program Files\Git\usr\bin\bash.exe",
+        ):
+            if Path(candidate).is_file():
+                return candidate
+    found = shutil.which("bash")
+    if found and os.name == "nt" and "system32" in found.lower():
+        return None
+    return found
+
+
+BASH = _find_bash()
 
 # Without bash the wrapper cannot run at all; CI (ubuntu) and Git Bash on Windows both have it.
 pytestmark = pytest.mark.skipif(BASH is None, reason="bash is not installed")
@@ -28,7 +44,10 @@ def run(*args: str, script: Path = SCRIPT) -> subprocess.CompletedProcess[str]:
 
 def log_path(result: subprocess.CompletedProcess[str]) -> Path:
     line = next(x for x in result.stdout.splitlines() if x.startswith("log: "))
-    return Path(line.removeprefix("log: "))
+    raw = line.removeprefix("log: ")
+    if os.name == "nt" and len(raw) >= 3 and raw[0] == "/" and raw[2] == "/":
+        raw = f"{raw[1].upper()}:{raw[2:]}"
+    return Path(raw)
 
 
 def test_an_unknown_tag_is_refused() -> None:

@@ -27,7 +27,7 @@ repos:
         types: [text]
       - id: hook-tests
         name: Claude Code hook tests (node)
-        entry: bash -c 'node .claude/hooks/readonly-bash.test.mjs && node .claude/hooks/heldout-bash.test.mjs'
+        entry: node -e "const {execFileSync}=require('node:child_process'); for (const f of ['.claude/hooks/readonly-bash.test.mjs','.claude/hooks/heldout-bash.test.mjs']) execFileSync(process.execPath,[f],{stdio:'inherit'})"
         language: system
         files: ^\.claude/hooks/
         pass_filenames: false

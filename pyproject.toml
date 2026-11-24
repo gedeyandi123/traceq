@@ -64,6 +64,10 @@ ocr = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers"]
+markers = [
+    "db: tests that require a Postgres database",
+    "slow: slow render, OCR, Docling, or full-pipeline tests",
+]
 # Two DeprecationWarnings come from Docling's own defaults (third-party code; we set neither
 # field): its default OCR options set `force_full_page_ocr`, which pydantic warns about when it
 # serialises them, and its table pipeline reads `generate_table_images`. Matched by message and
