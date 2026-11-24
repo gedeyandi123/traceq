@@ -59,6 +59,11 @@ jobs:
           uv run lint-imports
           uv run pytest -q
 
+      - name: python dependency audit
+        run: |
+          uv export --frozen --no-hashes --no-emit-project -o "$RUNNER_TEMP/reqs.txt"
+          uv run --with pip-audit pip-audit --no-deps --disable-pip -r "$RUNNER_TEMP/reqs.txt" --progress-spinner off
+
   web:
     name: web
     runs-on: ubuntu-24.04
@@ -89,3 +94,6 @@ jobs:
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: npm dependency audit
+        run: npm audit --omit=dev --audit-level=high
