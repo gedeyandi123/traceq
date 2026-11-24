@@ -2,13 +2,10 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { api } from "@/api/client";
-import { bearerHeaders, currentSession } from "@/auth/session";
+import { currentSession } from "@/auth/session";
 import { AssembledProtocolView, type ProtocolError } from "@/components/AssembledProtocolView";
-import { RunHeader } from "@/components/RunHeader";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
-import { loadTabBadges } from "@/decisions/tabBadges";
 import {
   answerMissedNumber,
   approveProtocol,
@@ -20,10 +17,18 @@ import {
   withdrawProtocol,
   writeTestStep,
 } from "@/protocol/actions";
+import { fetchProtocol, fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
 
-const PROTOCOL_ERRORS: readonly ProtocolError[] = ["conflict", "refused", "invalid", "forbidden", "unauthorized", "failed"];
+const PROTOCOL_ERRORS: readonly ProtocolError[] = [
+  "conflict",
+  "refused",
+  "invalid",
+  "forbidden",
+  "unauthorized",
+  "failed",
+];
 
 /** The browser tab reads "<screen> · TraceQ" (the root layout's template); translations only, no fetch. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,45 +48,48 @@ export default async function ProtocolPage({
   const { runId } = await params;
   const query = await searchParams;
   const t = await getTranslations("protocol");
-  const path = { params: { path: { run_id: runId } } };
-  const [run, decisions, session] = await Promise.all([
-    api.GET("/runs/{run_id}", path),
+  const [run, decisions, session, protocolRes] = await Promise.all([
+    fetchRun(runId),
     loadDecisions(runId),
     currentSession(),
+    fetchProtocol(runId),
   ]);
-  const badges = await loadTabBadges(runId, decisions.counts);
   decisions.error = decisionError(query.error);
-  if (!run.data) notFound();
-  const header = <RunHeader run={run.data} current="protocol" intro={t("intro")} badges={badges} />;
+  if (!run) notFound();
+  const heading = (
+    <div>
+      <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
+      <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
+    </div>
+  );
   const access = decisions.access;
   if (access.mode === "readOnly" && access.why !== "noRole") {
-    const why = access.why === "signedOut" ? "signedOut" : access.why === "notImported" ? "notImported" : "unavailable";
+    const why =
+      access.why === "signedOut"
+        ? "signedOut"
+        : access.why === "notImported"
+          ? "notImported"
+          : "unavailable";
     return (
-      <>
-        {header}
+      <div className="space-y-4">
+        {heading}
         <EmptyState title={t(why)}>{t(`${why}Body`)}</EmptyState>
-      </>
+      </div>
     );
   }
-  let protocol;
-  try {
-    protocol = await api.GET("/runs/{run_id}/protocol", { ...path, headers: await bearerHeaders() });
-  } catch {
-    protocol = undefined;
-  }
-  if (!protocol || (!protocol.data && protocol.response.status !== 404)) {
+  if (protocolRes.kind === "unavailable") {
     return (
-      <>
-        {header}
+      <div className="space-y-4">
+        {heading}
         <EmptyState title={t("unavailable")}>{t("unavailableBody")}</EmptyState>
-      </>
+      </div>
     );
   }
   return (
-    <>
-      {header}
+    <div className="space-y-4">
+      {heading}
       <AssembledProtocolView
-        protocol={protocol.data ?? null}
+        protocol={protocolRes.kind === "ok" ? protocolRes.data : null}
         runId={runId}
         decisions={decisions}
         controls={
@@ -100,6 +108,6 @@ export default async function ProtocolPage({
         approval={session?.mayApprove ? { approve: approveProtocol, return: returnProtocol } : null}
         error={PROTOCOL_ERRORS.find((e) => e === query.protocolError)}
       />
-    </>
+    </div>
   );
 }

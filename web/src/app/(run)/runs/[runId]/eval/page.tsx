@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { api, evalApi } from "@/api/client";
+import { evalApi } from "@/api/client";
 import { EvalView } from "@/components/EvalView";
-import { RunHeader } from "@/components/RunHeader";
-import { loadTabBadges } from "@/decisions/tabBadges";
+import { fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +18,18 @@ export default async function EvalPage({ params }: { params: Promise<{ runId: st
   const { runId } = await params;
   const t = await getTranslations("eval");
   const path = { params: { path: { run_id: runId } } };
-  const [run, summary, badges] = await Promise.all([
-    api.GET("/runs/{run_id}", path),
+  const [run, summary] = await Promise.all([
+    fetchRun(runId),
     evalApi.GET("/evals/{run_id}", path).catch(() => ({ data: undefined })),
-    loadTabBadges(runId),
   ]);
-  if (!run.data) notFound();
+  if (!run) notFound();
   return (
-    <>
-      <RunHeader run={run.data} current="eval" intro={t("intro")} badges={badges} />
+    <div className="space-y-4">
+      <div>
+        <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
+        <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
+      </div>
       <EvalView summary={summary.data ?? null} />
-    </>
+    </div>
   );
 }

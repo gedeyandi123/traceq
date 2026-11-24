@@ -2,6 +2,7 @@
 import { api } from "@/api/client";
 import { bearerHeaders, currentSession } from "@/auth/session";
 import type { DecisionError, DecisionView } from "@/components/Decisions";
+import { fetchDecisionCounts } from "@/runs/fetchers";
 
 import { decide } from "./actions";
 
@@ -23,17 +24,17 @@ export async function loadDecisions(runId: string): Promise<DecisionView> {
   try {
     const [proposals, counts] = await Promise.all([
       api.GET("/runs/{run_id}/proposals", init),
-      api.GET("/runs/{run_id}/decision-counts", init),
+      fetchDecisionCounts(runId),
     ]);
     if (proposals.response.status === 404) {
       return { access: { mode: "readOnly", why: "notImported" } };
     }
-    if (!proposals.data || !counts.data) {
+    if (!proposals.data || !counts) {
       return { access: { mode: "readOnly", why: "unavailable" } };
     }
     return {
       proposals: proposals.data,
-      counts: counts.data,
+      counts,
       access: session.mayDecide
         ? { mode: "decide", action: decide }
         : { mode: "readOnly", why: "noRole" },

@@ -1,0 +1,165 @@
+"use client";
+
+import { ArrowRight, ChevronDown, LogOut, Menu, UserRoundCog } from "lucide-react";
+import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useSelectedLayoutSegment } from "next/navigation";
+
+import type { RunSummary } from "@/api/client";
+import type { Session } from "@/auth/session";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
+import { ModeBadge } from "@/components/ui/ui";
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w.charAt(0))
+    .join("")
+    .toUpperCase();
+}
+
+export function RunContextBar({
+  run,
+  session,
+  signOutAction,
+  onOpenMobileNav,
+}: {
+  run: RunSummary;
+  session: Session | null;
+  signOutAction: () => Promise<void>;
+  onOpenMobileNav: () => void;
+}) {
+  const t = useTranslations("runHeader");
+  const runs = useTranslations("runs");
+  const signin = useTranslations("signin");
+  const ui = useTranslations("ui");
+  const segment = useSelectedLayoutSegment();
+
+  const base = `/runs/${encodeURIComponent(run.run_id)}`;
+  const pkg = run.review_package;
+
+  let nextAction: { href: string; label: string } | null = null;
+  if (segment === null) {
+    nextAction = { href: `${base}/findings`, label: t("toFindings") };
+  } else if (segment === "findings") {
+    nextAction = pkg
+      ? { href: `${base}/draft`, label: t("toDraft") }
+      : { href: `${base}/protocol`, label: t("toProtocol") };
+  } else if (segment === "draft") {
+    nextAction = { href: `${base}/protocol`, label: t("toProtocol") };
+  }
+
+  const roleLabel = session?.mayDecide
+    ? signin("canDecide")
+    : session?.mayApprove
+      ? signin("canApprove")
+      : signin("readOnly");
+
+  return (
+    <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-3 sm:px-5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <button
+          type="button"
+          data-tw=""
+          onClick={onOpenMobileNav}
+          aria-label={t("openNav")}
+          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-ink-muted hover:bg-sunken hover:text-ink lg:hidden"
+        >
+          <Menu className="h-4 w-4" aria-hidden="true" />
+        </button>
+
+        <nav aria-label={t("breadcrumb")} className="flex min-w-0 items-center gap-1.5 text-xs">
+          <Link href="/" className="hidden text-ink-muted no-underline hover:text-ink sm:inline">
+            {t("back")}
+          </Link>
+          <span aria-hidden="true" className="hidden text-ink-muted sm:inline">
+            /
+          </span>
+          <span className="truncate font-bold text-ink tabular-nums">{run.equipment}</span>
+        </nav>
+
+        <ModeBadge>{runs(run.mode)}</ModeBadge>
+
+        {pkg && (
+          <span className="hidden items-center gap-1 rounded border border-border bg-sunken px-2 py-0.5 text-[11px] font-medium text-ink-muted tabular-nums xl:inline-flex">
+            {`${pkg.doc_id} rev ${pkg.rev} (${pkg.package} ${pkg.version})`}
+          </span>
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {nextAction && (
+          <Link
+            href={nextAction.href}
+            className="hidden h-8 items-center gap-1.5 rounded-md bg-accent px-3 text-xs font-semibold text-on-accent no-underline transition-colors hover:bg-accent-hover sm:inline-flex"
+          >
+            <span>{nextAction.label}</span>
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        )}
+
+        {session ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-tw=""
+                className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-ink transition-colors hover:bg-sunken"
+              >
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-bold text-accent"
+                >
+                  {initials(session.name)}
+                </span>
+                <span className="hidden max-w-[140px] truncate font-semibold md:inline">
+                  {session.name}
+                </span>
+                <span className="hidden rounded border border-border bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted lg:inline">
+                  {roleLabel}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-ink">{session.name}</span>
+                <span className="text-[11px] font-normal text-ink-muted">{roleLabel}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/signin" className="no-underline">
+                  <UserRoundCog className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{ui("switchPersona")}</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  void signOutAction();
+                }}
+              >
+                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{signin("out")}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Link
+            href="/signin"
+            className="inline-flex h-8 items-center rounded-md border border-border bg-surface px-3 text-xs font-semibold text-ink no-underline transition-colors hover:bg-sunken"
+          >
+            {signin("link")}
+          </Link>
+        )}
+      </div>
+    </header>
+  );
+}

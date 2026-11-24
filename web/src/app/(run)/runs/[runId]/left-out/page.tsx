@@ -4,8 +4,7 @@ import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
 import { LeftOutView } from "@/components/LeftOutView";
-import { RunHeader } from "@/components/RunHeader";
-import { loadTabBadges } from "@/decisions/tabBadges";
+import { fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
 
@@ -18,17 +17,19 @@ export default async function LeftOutPage({ params }: { params: Promise<{ runId:
   const { runId } = await params;
   const t = await getTranslations("leftOut");
   const path = { params: { path: { run_id: runId } } };
-  const [run, dropped, completeness, badges] = await Promise.all([
-    api.GET("/runs/{run_id}", path),
+  const [run, dropped, completeness] = await Promise.all([
+    fetchRun(runId),
     api.GET("/runs/{run_id}/dropped", path),
     api.GET("/runs/{run_id}/completeness", path),
-    loadTabBadges(runId),
   ]);
-  if (!run.data || !dropped.data) notFound();
+  if (!run || !dropped.data) notFound();
   return (
-    <>
-      <RunHeader run={run.data} current="leftOut" intro={t("intro")} badges={badges} />
+    <div className="space-y-4">
+      <div>
+        <h1 className="m-0 text-lg font-bold text-ink">{t("title")}</h1>
+        <p className="mt-0.5 mb-0 text-xs text-ink-muted">{t("intro")}</p>
+      </div>
       <LeftOutView dropped={dropped.data} completeness={completeness.data ?? null} />
-    </>
+    </div>
   );
 }
