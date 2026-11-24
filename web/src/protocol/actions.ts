@@ -8,6 +8,12 @@ import { bearerHeaders } from "@/auth/session";
 import type { ProtocolError } from "@/components/AssembledProtocolView";
 import { stepFrom } from "@/protocol/form";
 
+export type ProtocolFormActionState = {
+  ok: boolean;
+  error?: ProtocolError;
+  submittedAt?: number;
+};
+
 function field(form: FormData, name: string): string | undefined {
   const v = form.get(name);
   return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
@@ -25,6 +31,11 @@ function back(runId: string, failed: ProtocolError | undefined): never {
   revalidatePath("/runs/[runId]", "layout");
   const page = `/runs/${encodeURIComponent(runId)}/protocol`;
   redirect(failed ? `${page}?protocolError=${failed}` : page);
+}
+
+function inlineResult(failed: ProtocolError | undefined): ProtocolFormActionState {
+  revalidatePath("/runs/[runId]", "layout");
+  return failed ? { ok: false, error: failed } : { ok: true, submittedAt: Date.now() };
 }
 
 /** Starts the Protocol of the run's Equipment from the run, with the viewer's token, then
@@ -216,4 +227,102 @@ export async function submitProtocol(form: FormData): Promise<void> {
     failed = "failed";
   }
   back(runId, failed);
+}
+
+/** Inline `useActionState` variant of `writeTestStep` for drawer forms. */
+export async function writeTestStepInline(
+  _prevState: ProtocolFormActionState,
+  form: FormData,
+): Promise<ProtocolFormActionState> {
+  const protocolId = Number(field(form, "protocol_id"));
+  const requirement = field(form, "requirement") ?? "";
+  const step = stepFrom(form);
+  if (!Number.isInteger(protocolId) || requirement === "") return { ok: false, error: "failed" };
+  if (step === null) return { ok: false, error: "invalid" };
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/test-steps/{requirement}", {
+      params: { path: { protocol_id: protocolId, requirement } },
+      headers: await bearerHeaders(),
+      body: { test_step: step },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  return inlineResult(failed);
+}
+
+/** Inline `useActionState` variant of `removeTestStep` for drawer forms. */
+export async function removeTestStepInline(
+  _prevState: ProtocolFormActionState,
+  form: FormData,
+): Promise<ProtocolFormActionState> {
+  const protocolId = Number(field(form, "protocol_id"));
+  const requirement = field(form, "requirement") ?? "";
+  if (!Number.isInteger(protocolId) || requirement === "") return { ok: false, error: "failed" };
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/test-steps/{requirement}", {
+      params: { path: { protocol_id: protocolId, requirement } },
+      headers: await bearerHeaders(),
+      body: { test_step: null },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  return inlineResult(failed);
+}
+
+/** Inline `useActionState` variant of `editDraftedTestStep` for drawer forms. */
+export async function editDraftedTestStepInline(
+  _prevState: ProtocolFormActionState,
+  form: FormData,
+): Promise<ProtocolFormActionState> {
+  const protocolId = Number(field(form, "protocol_id"));
+  const proposalId = Number(field(form, "proposal_id"));
+  const step = stepFrom(form);
+  if (!Number.isInteger(protocolId) || !Number.isInteger(proposalId)) return { ok: false, error: "failed" };
+  if (step === null) return { ok: false, error: "invalid" };
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/drafts/{proposal_id}/edit", {
+      params: { path: { protocol_id: protocolId, proposal_id: proposalId } },
+      headers: await bearerHeaders(),
+      body: { reason: field(form, "reason") ?? "", test_step: step },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  return inlineResult(failed);
+}
+
+/** Inline `useActionState` variant of `answerMissedNumber` for tab forms. */
+export async function answerMissedNumberInline(
+  _prevState: ProtocolFormActionState,
+  form: FormData,
+): Promise<ProtocolFormActionState> {
+  const protocolId = Number(field(form, "protocol_id"));
+  const rev = Number(field(form, "rev"));
+  const doc = field(form, "doc") ?? "";
+  const number = field(form, "number") ?? "";
+  const kind = field(form, "kind");
+  if (!Number.isInteger(protocolId) || !Number.isInteger(rev) || doc === "" || number === "") {
+    return { ok: false, error: "failed" };
+  }
+  if (kind !== "not_a_requirement" && kind !== "not_tested_here") return { ok: false, error: "invalid" };
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/missed-numbers", {
+      params: { path: { protocol_id: protocolId } },
+      headers: await bearerHeaders(),
+      body: { doc, rev, number, kind, justification: field(form, "justification") ?? "" },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  return inlineResult(failed);
 }

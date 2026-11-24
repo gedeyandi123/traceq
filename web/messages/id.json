@@ -452,7 +452,29 @@
       "approve": "Setujui protokol",
       "return": "Kembalikan ke Draft",
       "returnReason": "Alasan pengembalian",
+      "returnModalTitle": "Kembalikan protokol ke Draft?",
+      "returnModalDesc": "Protokol akan kembali ke status Draft agar Penyusun dapat memperbaikinya.",
       "approvedNote": "Disetujui: status yang dicatat atas salinan beku dan hash di bawah, bukan Tanda Tangan Elektronik (ADR 0007 fase 2). Versi baru protokol ini adalah langkah 6."
+    },
+    "cancel": "Batal",
+    "withdrawModalTitle": "Tarik protokol?",
+    "withdrawModalDesc": "Menarik protokol menghentikannya dari alur pengajuan. Anda dapat memulai protokol baru dari run ini setelahnya.",
+    "tabs": {
+      "rows": "Baris Protokol",
+      "missed": "Nomor Terlewat & URS",
+      "history": "Riwayat & Salinan",
+      "frozenCopy": "Salinan Beku"
+    },
+    "drawer": {
+      "prev": "Sebelumnya",
+      "next": "Berikutnya",
+      "position": "{current} / {total}",
+      "dirtyWarning": "Anda memiliki perubahan yang belum disimpan. Buang perubahan?",
+      "discardChanges": "Buang perubahan",
+      "keepEditing": "Lanjutkan menyunting",
+      "inspect": "Periksa",
+      "openRow": "Buka baris {requirement}",
+      "close": "Tutup"
     },
     "limitsTitle": "Batas yang diketahui",
     "limits": {
@@ -572,6 +594,7 @@
       "write": "Tulis langkah uji",
       "change": "Ubah langkah uji tertulis",
       "save": "Simpan versi",
+      "saved": "Tersimpan.",
       "remove": "Hapus langkah uji tertulis",
       "edit": "Sunting rancangan",
       "editSetAc": "Sunting rancangan dan tetapkan kriteria penerimaan",
@@ -623,6 +646,7 @@
       "chooseKind": "Pilih jawaban",
       "justification": "Justifikasi",
       "save": "Simpan jawaban",
+      "saved": "Jawaban tersimpan.",
       "answer": "Jawab {number}",
       "change": "Ubah jawaban {number}"
     },

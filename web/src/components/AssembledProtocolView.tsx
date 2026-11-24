@@ -1,21 +1,31 @@
+"use client";
+
+import { AlertCircle, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { ProtocolView } from "@/api/client";
-import { DecisionNotice } from "./Decisions";
+import type { ProtocolFormActionState } from "@/protocol/actions";
 import type { DecisionView } from "./Decisions";
+import { DecisionNoticeBanner } from "./FindingDecisionPanel";
 import { EarlierCopies, FrozenCopy } from "./FrozenCopy";
 import { MissedNumbers } from "./MissedNumbers";
 import { ProtocolChecklistPanel } from "./ProtocolChecklistPanel";
+import { ProtocolRowDrawer } from "./ProtocolRowDrawer";
 import { ProtocolRowsTable } from "./ProtocolRowsTable";
-import { ProtocolStatusPanel, StartForm } from "./ProtocolStatusPanel";
-import { Alert, EmptyState, SectionHeading } from "./ui/ui";
-
-import s from "./AssembledProtocolView.module.css";
+import { ProtocolHistory, ProtocolStatusPanel, StartForm } from "./ProtocolStatusPanel";
+import { useRunShell } from "./RunShellContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
+import { EmptyState } from "./ui/ui";
 
 /** Why the API refused a start or a withdrawal, as the page reports it. */
 export type ProtocolError = "conflict" | "refused" | "invalid" | "forbidden" | "unauthorized" | "failed";
 
 type Action = (formData: FormData) => void | Promise<void>;
+type InlineAction = (
+  prevState: ProtocolFormActionState,
+  formData: FormData,
+) => Promise<ProtocolFormActionState>;
 
 /** The forms' server actions (start, withdraw, write or remove a written Test Step, edit a
  * drafted one, answer a missed requirement number, submit), for a viewer with the deciding role;
@@ -28,6 +38,10 @@ export type ProtocolControls = {
   edit: Action;
   answer: Action;
   submit: Action;
+  writeInline?: InlineAction;
+  removeInline?: InlineAction;
+  editInline?: InlineAction;
+  answerInline?: InlineAction;
 } | null;
 
 /** The approve and return actions, for a viewer with the approving role; `null` otherwise. */
@@ -40,11 +54,14 @@ const LIMITS = ["oneStep", "combined", "noPrint", "notSignature", "noNewVersion"
 /** The known limits of the Protocol assembled in TraceQ (ADR 0012), always shown. */
 function Limits({ t }: { t: T }) {
   return (
-    <aside className={s.limits} aria-labelledby="protocol-limits">
-      <h2 id="protocol-limits" className={s.limitsTitle}>
+    <aside
+      aria-labelledby="protocol-limits"
+      className="space-y-2 rounded-lg border border-border bg-sunken px-4 py-3 text-xs text-ink-muted"
+    >
+      <h2 id="protocol-limits" className="m-0 text-xs font-bold tracking-wide text-ink uppercase">
         {t("limitsTitle")}
       </h2>
-      <ul>
+      <ul className="m-0 list-disc space-y-1 pl-4">
         {LIMITS.map((k) => (
           <li key={k}>{t(`limits.${k}`)}</li>
         ))}
@@ -53,19 +70,10 @@ function Limits({ t }: { t: T }) {
   );
 }
 
-/** The Protocol assembled in TraceQ from a run (spec #247, ADR 0012): its status and every
- * status change, and while in Draft status one row per requirement computed from the current
- * decisions (Coverage decided by a human, the kind of row, the Vendor Reference's Evidence or
- * its Test Step, accepted or written, and what blocks), each drafted Test Step with the
- * decision controls of slice 1 and its edit form, each row's write form with the four
- * Acceptance Criterion shapes and every version of its written Test Step, then the printed
- * requirement numbers the run missed with their answer forms and the unquoted URS text; the
- * checklist of what blocks submission and the submit control. A Submitted or Approved
- * Protocol shows its frozen copy and hash instead of live rows; while Submitted the approving
- * role approves it (a recorded status, not an Electronic Signature) or returns it with a
- * reason, and a returned Protocol lists its earlier copies with the reasons.
- * Without a Protocol, the start control; the known limits always. A
- * viewer without the deciding role sees no controls. Never the site's Protocol Draft. */
+/** The Protocol assembled in TraceQ from a run (spec #247, ADR 0012, ADR 0014):
+ * Sticky Submission Readiness Bar, Radix Tabs (Baris Protokol, Nomor Terlewat & URS,
+ * Riwayat & Salinan), Opsi A compact table + 640px Slide-Over Drawer, Confirmation Modals
+ * for destructive actions, FrozenCopy + ApprovalForms (Dewi), and ADR 0012 Limits. */
 export function AssembledProtocolView({
   protocol,
   runId,
@@ -82,76 +90,242 @@ export function AssembledProtocolView({
   error?: ProtocolError;
 }) {
   const t = useTranslations("protocol");
+  const { setDrawerOpen } = useRunShell();
+
   const rows = protocol?.rows ?? null;
   const blocking = rows?.filter((r) => r.blockers.length > 0).length ?? 0;
+  const unansweredMissed = (protocol?.urs ?? [])
+    .flatMap((u) => u.missed)
+    .filter((m) => m.blocking).length;
+
+  const [activeTab, setActiveTab] = useState<string>(rows !== null ? "rows" : "copy");
+  const [selectedReq, setSelectedReq] = useState<string | null>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [pendingReq, setPendingReq] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    setDrawerOpen(selectedReq !== null);
+    return () => setDrawerOpen(false);
+  }, [selectedReq, setDrawerOpen]);
+
+  const selectedIndex = useMemo(
+    () => (rows && selectedReq ? rows.findIndex((r) => r.requirement === selectedReq) : -1),
+    [rows, selectedReq],
+  );
+  const selectedRow = rows && selectedIndex >= 0 ? (rows[selectedIndex] ?? null) : null;
+
+  const applySelection = useCallback((nextReq: string | null) => {
+    setSelectedReq(nextReq);
+    setIsFormDirty(false);
+    setPendingReq(undefined);
+  }, []);
+
+  const requestSelection = useCallback(
+    (nextReq: string | null) => {
+      if (nextReq === selectedReq) return;
+      if (selectedReq !== null && isFormDirty) {
+        setPendingReq(nextReq);
+        return;
+      }
+      applySelection(nextReq);
+    },
+    [selectedReq, isFormDirty, applySelection],
+  );
+
+  const navigateToRow = useCallback(
+    (req: string) => {
+      setActiveTab("rows");
+      requestSelection(req);
+    },
+    [requestSelection],
+  );
+
   return (
-    <>
+    <div className="space-y-4">
       {error && (
-        <Alert tone="fail" role="alert" className={s.errorBanner}>
-          {t(`errors.${error}`)}
-        </Alert>
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-fail-edge bg-fail-soft px-3.5 py-2.5 text-xs text-fail"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{t(`errors.${error}`)}</span>
+        </div>
       )}
-      <DecisionNotice view={decisions} approver={approval !== null} />
+
+      <DecisionNoticeBanner view={decisions} approver={approval !== null} />
+
       {protocol === null ? (
         <EmptyState title={t("none")}>
-          <p>{t("noneBody")}</p>
+          <p className="m-0 mb-3 text-xs text-ink-muted">{t("noneBody")}</p>
           <StartForm t={t} runId={runId} action={controls} again={false} />
         </EmptyState>
       ) : (
-        <ProtocolStatusPanel t={t} protocol={protocol} runId={runId} controls={controls} approval={approval} />
-      )}
-      {rows !== null && (
         <>
-          {protocol?.checklist && (
-            <ProtocolChecklistPanel
-              t={t}
-              items={protocol.checklist}
-              runId={runId}
-              protocolId={protocol.id}
-              controls={controls}
-            />
-          )}
-          <p className={s.summary}>
-            {t("summary", {
-              rows: rows.length,
-              blocking,
-              vendor: rows.filter((r) => r.kind === "vendor_reference").length,
-              testStep: rows.filter((r) => r.kind === "test_step").length,
-            })}
-          </p>
-          <section className={s.section} aria-labelledby="protocol-rows">
-            <SectionHeading id="protocol-rows" title={t("rows")} count={rows.length} note={t("rowsNote")} />
-            <ProtocolRowsTable
-              t={t}
-              rows={rows}
-              runId={runId}
-              access={decisions.access}
-              protocolId={protocol?.id ?? 0}
-              controls={controls}
-            />
-          </section>
-          <MissedNumbers
+          <ProtocolStatusPanel
             t={t}
-            urs={protocol?.urs ?? null}
+            protocol={protocol}
             runId={runId}
-            protocolId={protocol?.id ?? 0}
-            answer={controls?.answer ?? null}
+            controls={controls}
+            approval={approval}
           />
-          {protocol && protocol.submissions.length > 0 && <EarlierCopies t={t} earlier={protocol.submissions} />}
+
+          {rows !== null && (
+            <>
+              {protocol.checklist && (
+                <ProtocolChecklistPanel
+                  t={t}
+                  items={protocol.checklist}
+                  runId={runId}
+                  protocolId={protocol.id}
+                  controls={controls}
+                  onNavigateToRow={navigateToRow}
+                  onNavigateToMissed={() => setActiveTab("missed")}
+                />
+              )}
+
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                  <TabsTrigger value="rows">
+                    <span>{t("tabs.rows")}</span>
+                    <span className="rounded-full bg-sunken px-1.5 py-0.5 text-[11px] text-ink-muted tabular-nums">
+                      {rows.length}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="missed">
+                    <span>{t("tabs.missed")}</span>
+                    {unansweredMissed > 0 && (
+                      <span className="rounded-full border border-fail-edge bg-fail-soft px-1.5 py-0.5 text-[11px] font-semibold text-fail tabular-nums">
+                        {unansweredMissed}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="rows" className="space-y-3">
+                  <p className="m-0 text-xs font-medium text-ink-muted tabular-nums">
+                    {t("summary", {
+                      rows: rows.length,
+                      blocking,
+                      vendor: rows.filter((r) => r.kind === "vendor_reference").length,
+                      testStep: rows.filter((r) => r.kind === "test_step").length,
+                    })}
+                  </p>
+                  <section aria-labelledby="protocol-rows" className="space-y-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <h2 id="protocol-rows" className="m-0 text-sm font-bold text-ink">
+                        {t("rows")}
+                      </h2>
+                      <span className="text-xs text-ink-muted">{t("rowsNote")}</span>
+                    </div>
+                    <ProtocolRowsTable
+                      rows={rows}
+                      runId={runId}
+                      selectedRequirement={selectedReq}
+                      onSelect={requestSelection}
+                    />
+                  </section>
+                </TabsContent>
+
+                <TabsContent value="missed">
+                  <MissedNumbers
+                    t={t}
+                    urs={protocol.urs ?? null}
+                    runId={runId}
+                    protocolId={protocol.id}
+                    answer={controls?.answer ?? null}
+                    answerInline={controls?.answerInline}
+                  />
+                </TabsContent>
+
+                <TabsContent value="history" className="space-y-4">
+                  <ProtocolHistory t={t} events={protocol.events} />
+                  {protocol.submissions.length > 0 && (
+                    <EarlierCopies t={t} earlier={protocol.submissions} />
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              <ProtocolRowDrawer
+                row={selectedRow}
+                runId={runId}
+                protocolId={protocol.id}
+                decisions={decisions}
+                controls={controls}
+                open={selectedRow !== null}
+                rowIndex={selectedIndex}
+                totalRows={rows.length}
+                dirtyPrompt={pendingReq !== undefined}
+                onClose={() => requestSelection(null)}
+                onPrev={() => {
+                  if (selectedIndex > 0) {
+                    const prev = rows[selectedIndex - 1];
+                    if (prev) requestSelection(prev.requirement);
+                  }
+                }}
+                onNext={() => {
+                  if (selectedIndex >= 0 && selectedIndex < rows.length - 1) {
+                    const next = rows[selectedIndex + 1];
+                    if (next) requestSelection(next.requirement);
+                  }
+                }}
+                onDirtyChange={setIsFormDirty}
+                onDiscardAndProceed={() => {
+                  if (pendingReq !== undefined) applySelection(pendingReq);
+                }}
+                onCancelProceed={() => setPendingReq(undefined)}
+              />
+            </>
+          )}
+
+          {rows === null && protocol.status !== "withdrawn" && (
+            <>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-canvas px-3.5 py-2 text-xs text-ink-muted">
+                <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t("notDraftRows")}</span>
+              </div>
+
+              <Tabs value={activeTab === "history" ? "history" : "copy"} onValueChange={setActiveTab}>
+                <TabsList>
+                  <TabsTrigger value="copy">{t("tabs.frozenCopy")}</TabsTrigger>
+                  <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="copy">
+                  {protocol.submission && (
+                    <FrozenCopy
+                      t={t}
+                      submission={protocol.submission}
+                      earlier={protocol.submissions.filter(
+                        (x) => x.event_id !== protocol.submission?.event_id,
+                      )}
+                      runId={runId}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="history" className="space-y-4">
+                  <ProtocolHistory t={t} events={protocol.events} />
+                  {protocol.submissions.length > 0 && (
+                    <EarlierCopies t={t} earlier={protocol.submissions} />
+                  )}
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+
+          {protocol.status === "withdrawn" && (
+            <div className="space-y-4">
+              <ProtocolHistory t={t} events={protocol.events} />
+              {protocol.submissions.length > 0 && (
+                <EarlierCopies t={t} earlier={protocol.submissions} />
+              )}
+            </div>
+          )}
         </>
       )}
-      {protocol?.submission && (
-        <FrozenCopy
-          t={t}
-          submission={protocol.submission}
-          earlier={protocol.submissions.filter((x) => x.event_id !== protocol.submission?.event_id)}
-          runId={runId}
-        />
-      )}
-      {protocol !== null && rows === null && protocol.status !== "withdrawn" && (
-        <p className={s.muted}>{t("notDraftRows")}</p>
-      )}
+
       <Limits t={t} />
-    </>
+    </div>
   );
 }
