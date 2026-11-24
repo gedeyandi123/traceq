@@ -9,23 +9,9 @@ permissions:
   contents: read
 
 jobs:
-  checks:
-    name: checks
+  py-fast:
+    name: py-fast
     runs-on: ubuntu-24.04
-    # The database tests connect as the superuser, create the roles and a database of their
-    # own; with CI set they fail, not skip, when Postgres is not reachable.
-    services:
-      postgres:
-        image: postgres:17.12
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 2s
-          --health-timeout 5s
-          --health-retries 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,6 +29,12 @@ jobs:
             | tar -xz gitleaks
           ./gitleaks git --redact --no-banner .
 
+      - name: cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
       - name: pre-commit
         env:
           DENYLIST: ${{ secrets.DENYLIST }}
@@ -51,18 +43,76 @@ jobs:
           pip install pre-commit==4.7.0
           pre-commit run --all-files --show-diff-on-failure
 
-      - name: typecheck and tests
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.23"
+          enable-cache: true
+
+      - name: typecheck, boundaries, and fast tests
         run: |
-          pip install uv==0.11.23
           uv sync --locked
           uv run pyright
           uv run lint-imports
-          uv run pytest -q
+          uv run pytest -m "not slow and not db" -q
 
       - name: python dependency audit
         run: |
           uv export --frozen --no-hashes --no-emit-project -o "$RUNNER_TEMP/reqs.txt"
           uv run --no-project --with pip-audit pip-audit --no-deps --disable-pip -r "$RUNNER_TEMP/reqs.txt" --progress-spinner off
+
+  py-db:
+    name: py-db
+    runs-on: ubuntu-24.04
+    # The database tests connect as the superuser, create the roles and a database of their
+    # own; with CI set they fail, not skip, when Postgres is not reachable.
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.23"
+          enable-cache: true
+
+      - name: postgres tests
+        run: |
+          uv sync --locked
+          uv run pytest -m db -q
+
+  py-slow:
+    name: py-slow
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.23"
+          enable-cache: true
+
+      - name: slow render, ingest, and pipeline tests
+        run: |
+          uv sync --locked
+          uv run pytest -m "slow and not db" -q
 
   web:
     name: web
@@ -90,6 +140,7 @@ jobs:
           git diff --exit-code -- src/api/schema.ts src/api/eval-schema.ts
 
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
       - run: npm run build
         env:
@@ -97,3 +148,18 @@ jobs:
 
       - name: npm dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  checks:
+    name: checks
+    runs-on: ubuntu-24.04
+    needs: [py-fast, py-db, py-slow]
+    if: always()
+    steps:
+      - name: verify all Python checks passed
+        run: |
+          if [ "${{ needs.py-fast.result }}" != "success" ] || \
+             [ "${{ needs.py-db.result }}" != "success" ] || \
+             [ "${{ needs.py-slow.result }}" != "success" ]; then
+            echo "py-fast=${{ needs.py-fast.result }} py-db=${{ needs.py-db.result }} py-slow=${{ needs.py-slow.result }}"
+            exit 1
+          fi

@@ -44,27 +44,35 @@ try {
     }
 
     if ($Mode -eq "fast") {
-        $FastTests = @(
-            "tests/test_boundaries.py",
-            "tests/test_isolation.py",
-            "tests/test_api.py",
-            "tests/test_web_vocabulary.py"
-        ) + $TestPath
-
-        Invoke-Step "Fast Python guard & contract tests" {
-            uv run --cache-dir $UvCacheDir pytest -q --tb=short @FastTests
+        Invoke-Step "Fast Python test suite (not slow and not db)" {
+            if ($TestPath.Count -gt 0) {
+                uv run --cache-dir $UvCacheDir pytest -p no:cacheprovider -q --tb=short @TestPath
+            }
+            else {
+                uv run --cache-dir $UvCacheDir pytest -p no:cacheprovider -m "not slow and not db" -q --tb=short
+            }
         }
     }
     else {
         Invoke-Step "Full Python test suite" {
-            uv run --cache-dir $UvCacheDir pytest -q --tb=short
+            uv run --cache-dir $UvCacheDir pytest -p no:cacheprovider -q --tb=short
         }
     }
 
-    Invoke-Step "Web typecheck & unit tests" {
-        npm --prefix web run typecheck
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        npm --prefix web test
+    Invoke-Step "Web typegen, typecheck, lint, & unit tests" {
+        Push-Location web
+        try {
+            npx next typegen
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run typecheck
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run lint
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm test
+        }
+        finally {
+            Pop-Location
+        }
     }
 
     if ($Mode -eq "full") {

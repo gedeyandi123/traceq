@@ -16,11 +16,13 @@ Universal protocol for all coding agents (Antigravity, Claude Code). Public-repo
   - **ADR 0014 (supersedes ADR 0011):** Tailwind CSS v4 (`@theme` + `--color-*: initial` in `web/src/app/globals.css`), owned `radix-ui` primitives (`web/src/components/ui/`), `lucide-react`, bundled `@fontsource-variable/inter`, light-only, 100% self-hosted/offline, semantic colour-literal guard (`web/src/colour-literals.test.ts`), and `docs/DESIGN.md` as visual/UX SSOT. Do NOT add font/asset CDNs, dark mode, or unapproved suppressions (`tests/test_boundaries.py`).
 
 ## 3. Verification Loop
-- **Fast inner loop:** `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1 -Mode fast` (optional `-TestPath <path>`).
-- **Full / pre-PR:** `pre-commit run --all-files`, `uv run pyright`, `uv run lint-imports`, `uv run pytest -q`; when `web/` changes, also `npm run typecheck`, `npm test`, `npm run build` in `web/` (+ affected `docs/demo-runbook.md` cases).
+- **Primary local pre-PR gate:** `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1 -Mode fast` (runs `ruff`, `pyright`, `lint-imports`, `pytest -m "not slow and not db"`, `next typegen`, `typecheck`, `lint`, `vitest`; optional `-TestPath <path>` for targeted tests). When `web/` changes, also run `npm run build` in `web/` (+ affected `docs/demo-runbook.md` cases).
+- **Full suite:** Parallel CI (`py-fast`, `py-db`, `py-slow`, `web`) runs all DB and slow OCR/Docling/render tests; run `-Mode full` locally only when changing slow/pipeline code.
 - **Memory (16 GB host):** Avoid concurrent heavy runs (`pytest` ~1.5 GB, `next build` ~1.4 GB, `vitest` ~1.0 GB); stop check servers right after verification.
 
 ## 4. Feature Flow & Eval Loop
 - **Feature flow:** `grilling` + `domain-modeling` → fresh-context doubt review → spec + owner approval → issues with native blocking edges → `tdd` on isolated branches/worktrees → code review + owner merge to `main`.
+- **Autonomous `ready-for-agent` Done:** For issues labelled `ready-for-agent`, complete end-to-end without pausing to ask: implement with TDD → verify → commit → push → `gh pr create` (`Closes #<n>`) → check CI green (auto-fix if red).
+- **Multi-PR epics:** Use an integration branch (e.g., `feat/<epic>`) per §1; merge ticket PRs into it after green CI, run 1 visual checkpoint (`390px`/`1366px`/`1440px`) for UI epics, then open 1 final PR to `main` for owner merge.
 - **Eval loop:** Prompt/model changes are experiments (Batch API within budget, `traceq_eval`, PR updating `baselines/*.json` + run link, replay tolerance 0). Report `k/n` split by dev (`TP-201`) vs held-out and log cost. Answer-key changes go in their own PR.
 - **Owner-only:** Grilling answers, spec approval, merging code to `main`, gates, scoring rules/claims, ADRs, spend, external comms.

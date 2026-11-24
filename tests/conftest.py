@@ -40,6 +40,35 @@ from traceq_dataset.world import load
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ingest"
 
+_DB_FIXTURES = frozenset({"postgres_admin", "new_database", "databases", "fresh_database"})
+_SLOW_FILES = frozenset(
+    {
+        "test_render.py",
+        "test_degrade.py",
+        "test_pack_release.py",
+        "test_ocr.py",
+        "test_ingest.py",
+        "test_pdf.py",
+        "test_segmentation.py",
+        "test_tp202.py",
+        "test_pw001.py",
+        "test_recorded_runs.py",
+        "test_run.py",
+        "test_no_llm.py",
+    }
+)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Partition collected tests into db, slow, and fast (not slow and not db)."""
+    for item in items:
+        if isinstance(item, pytest.Function) and _DB_FIXTURES.intersection(item.fixturenames):
+            item.add_marker(pytest.mark.db)
+        if (isinstance(item, pytest.Function) and "tp201_dist" in item.fixturenames) or (
+            item.path.name in _SLOW_FILES
+        ):
+            item.add_marker(pytest.mark.slow)
+
 
 def _seed(corpus_dir: Path, cache: Path) -> None:
     cache.mkdir(parents=True, exist_ok=True)
