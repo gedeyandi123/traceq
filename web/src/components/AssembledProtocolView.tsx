@@ -1,15 +1,14 @@
 import { useTranslations } from "next-intl";
 
-import type { ChecklistItem, ProtocolEvent, ProtocolRowView, ProtocolView, RowDraft } from "@/api/client";
-import { CiteLink } from "./CiteLink";
-import { DecisionCell, DecisionNotice } from "./Decisions";
-import type { DecisionAccess, DecisionView } from "./Decisions";
-import { formatWhen } from "./formatWhen";
+import type { ProtocolView } from "@/api/client";
+import { DecisionNotice } from "./Decisions";
+import type { DecisionView } from "./Decisions";
 import { EarlierCopies, FrozenCopy } from "./FrozenCopy";
-import { formatValue } from "./MatrixTable";
 import { MissedNumbers } from "./MissedNumbers";
-import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
-import { Button, cell, CoveragePill, DataTable, EmptyState, SectionHeading } from "./ui/ui";
+import { ProtocolChecklistPanel } from "./ProtocolChecklistPanel";
+import { ProtocolRowsTable } from "./ProtocolRowsTable";
+import { ProtocolStatusPanel, StartForm } from "./ProtocolStatusPanel";
+import { Alert, EmptyState, SectionHeading } from "./ui/ui";
 
 import s from "./AssembledProtocolView.module.css";
 
@@ -35,7 +34,6 @@ export type ProtocolControls = {
 export type ApprovalControls = { approve: Action; return: Action } | null;
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
-type MatrixT = ReturnType<typeof useTranslations<"matrix">>;
 
 const LIMITS = ["oneStep", "combined", "noPrint", "notSignature", "noNewVersion"] as const;
 
@@ -52,370 +50,6 @@ function Limits({ t }: { t: T }) {
         ))}
       </ul>
     </aside>
-  );
-}
-
-function StartForm({ t, runId, action, again }: { t: T; runId: string; action: ProtocolControls; again: boolean }) {
-  if (action === null) return null;
-  return (
-    <form action={action.start} className={s.form}>
-      <input type="hidden" name="run_id" value={runId} />
-      <Button type="submit" variant="primary">
-        {t(again ? "startAgain" : "start")}
-      </Button>
-    </form>
-  );
-}
-
-function History({ t, events }: { t: T; events: readonly ProtocolEvent[] }) {
-  const when = useTranslations("decisions");
-  return (
-    <section aria-labelledby="protocol-history" className={s.history}>
-      <h3 id="protocol-history" className={s.historyTitle}>
-        {t("history")}
-      </h3>
-      <ol>
-        {events.map((e) => (
-          <li key={e.id}>
-            {t(`events.${e.event}`, { name: e.name, when: formatWhen(when, e.at) })}
-            {e.reason && <div className={s.reason}>{e.reason}</div>}
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-/** Approve (bound to the submission shown: its event id and hash) and return with a reason,
- * for the approving role while Submitted. */
-function ApprovalForms({
-  t,
-  protocol,
-  runId,
-  approval,
-}: {
-  t: T;
-  protocol: ProtocolView;
-  runId: string;
-  approval: ApprovalControls;
-}) {
-  const shown = protocol.submission;
-  if (protocol.status !== "submitted" || approval === null || shown === null) return null;
-  return (
-    <div className={s.form}>
-      <p>{t("approval.note")}</p>
-      <form action={approval.approve} className={s.form}>
-        <input type="hidden" name="run_id" value={runId} />
-        <input type="hidden" name="protocol_id" value={protocol.id} />
-        <input type="hidden" name="submission_event_id" value={shown.event_id} />
-        <input type="hidden" name="hash" value={shown.hash} />
-        <Button type="submit" variant="primary">
-          {t("approval.approve")}
-        </Button>
-      </form>
-      <form action={approval.return} className={s.form}>
-        <input type="hidden" name="run_id" value={runId} />
-        <input type="hidden" name="protocol_id" value={protocol.id} />
-        <textarea name="reason" required aria-label={t("approval.returnReason")} placeholder={t("approval.returnReason")} />
-        <button type="submit">{t("approval.return")}</button>
-      </form>
-    </div>
-  );
-}
-
-function Status({
-  t,
-  protocol,
-  runId,
-  controls,
-  approval,
-}: {
-  t: T;
-  protocol: ProtocolView;
-  runId: string;
-  controls: ProtocolControls;
-  approval: ApprovalControls;
-}) {
-  return (
-    <section className={s.status} aria-labelledby="protocol-status">
-      <div className={s.statusRow}>
-        <h2 id="protocol-status" className={s.statusTitle}>
-          {t("status", { id: protocol.id })}
-        </h2>
-        <strong className={`${s.badge} ${s[`status_${protocol.status}`]}`}>{t(`statuses.${protocol.status}`)}</strong>
-      </div>
-      <p className={s.muted}>{t("startedFrom", { run: protocol.run_id })}</p>
-      <History t={t} events={protocol.events} />
-      {protocol.status === "approved" && <p>{t("approval.approvedNote")}</p>}
-      <ApprovalForms t={t} protocol={protocol} runId={runId} approval={approval} />
-      {protocol.status === "draft" && controls !== null && (
-        <form action={controls.withdraw} className={s.form}>
-          <input type="hidden" name="run_id" value={runId} />
-          <input type="hidden" name="protocol_id" value={protocol.id} />
-          <textarea name="reason" required aria-label={t("withdrawReason")} placeholder={t("withdrawReason")} />
-          <button type="submit">{t("withdraw")}</button>
-        </form>
-      )}
-      {protocol.status === "withdrawn" && (
-        <>
-          <p>{t("withdrawnNote")}</p>
-          <StartForm t={t} runId={runId} action={controls} again />
-        </>
-      )}
-    </section>
-  );
-}
-
-/** What blocks submission: each of the five checks with its count and links to the rows or
- * numbers concerned, then the submit control for the deciding role, usable when none blocks. */
-function Checklist({
-  t,
-  items,
-  runId,
-  protocolId,
-  controls,
-}: {
-  t: T;
-  items: readonly ChecklistItem[];
-  runId: string;
-  protocolId: number;
-  controls: ProtocolControls;
-}) {
-  const blocked = items.some((i) => i.count > 0);
-  return (
-    <section className={s.section} aria-labelledby="protocol-checklist">
-      <SectionHeading id="protocol-checklist" title={t("checklist.title")} note={t("checklist.note")} />
-      <ul className={s.list}>
-        {items.map((i) => (
-          <li key={i.check} data-testid={`check-${i.check}`} className={i.count > 0 ? s.blocking : undefined}>
-            {t(`checklist.items.${i.check}`, { count: i.count })}
-            {i.count > 0 && (
-              <>
-                {": "}
-                {i.requirements.map((r, n) => (
-                  <span key={r}>
-                    {n > 0 && ", "}
-                    <a href={`#row-${r}`}>{r}</a>
-                  </span>
-                ))}
-                {i.numbers.map((x, n) => (
-                  <span key={`${x.doc}/${x.rev}/${x.number}`}>
-                    {n > 0 && ", "}
-                    <a href="#protocol-missed">{x.number}</a>
-                  </span>
-                ))}
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      {!blocked && <p>{t("checklist.ready")}</p>}
-      {controls !== null && (
-        <form action={controls.submit} className={s.form}>
-          <input type="hidden" name="run_id" value={runId} />
-          <input type="hidden" name="protocol_id" value={protocolId} />
-          <Button type="submit" variant="primary" disabled={blocked}>
-            {t("submit")}
-          </Button>
-        </form>
-      )}
-    </section>
-  );
-}
-
-function Coverage({ t, m, row, runId }: { t: T; m: MatrixT; row: ProtocolRowView; runId: string }) {
-  if (row.decided_class) {
-    return <CoveragePill cls={row.decided_class} label={m(`classes.${row.decided_class}`)} />;
-  }
-  const changed = row.coverage.state === "changed";
-  return (
-    <div>
-      <strong className={s.blocking}>{t(changed ? "coverageChanged" : "coverageUndecided")}</strong>
-      <div>
-        <a href={`/runs/${encodeURIComponent(runId)}#${encodeURIComponent(row.requirement)}`}>{t("toMatrix")}</a>
-      </div>
-    </div>
-  );
-}
-
-function Content({
-  t,
-  m,
-  row,
-  runId,
-  protocolId,
-  controls,
-}: {
-  t: T;
-  m: MatrixT;
-  row: ProtocolRowView;
-  runId: string;
-  protocolId: number;
-  controls: ProtocolControls;
-}) {
-  const step = row.test_step;
-  return (
-    <div>
-      <strong className={s.kind}>{t(`kinds.${row.kind}`)}</strong>
-      {row.kind === "vendor_reference" && (
-        <>
-          <div>{t("vendorEvidence")}</div>
-          <ul className={s.list}>
-            {row.evidence.map((e) => (
-              <li key={`${e.doc}/${e.rev}/${e.step}`}>{t("evidenceStep", { doc: e.doc, rev: e.rev, step: e.step })}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      {step && (
-        <dl className={s.step}>
-          <dt className={s.stepOrigin}>
-            {step.origin === "written"
-              ? t(step.proposal_id === null ? "writtenStep" : "editedStep", { version: step.version ?? 1 })
-              : t("fromDraft")}
-          </dt>
-          <dt>{t("description")}</dt>
-          <dd>{step.description}</dd>
-          <dt>{t("method")}</dt>
-          <dd>{step.method}</dd>
-          <dt>{t("instrument")}</dt>
-          <dd>{step.instrument ?? t("noInstrument")}</dd>
-          <dt>{t("ac")}</dt>
-          <dd>
-            {step.acceptance ? formatValue(m, step.acceptance) : t("acToSet", { flag: step.acceptance_flag ?? "" })}
-          </dd>
-        </dl>
-      )}
-      {row.blockers.map((b) => (
-        <div key={b} className={s.blocking}>
-          {t(`blockers.${b}`)}
-        </div>
-      ))}
-      {controls !== null && row.kind !== "undecided" && (
-        <WriteForm
-          t={t}
-          row={row}
-          runId={runId}
-          protocolId={protocolId}
-          write={controls.write}
-          remove={controls.remove}
-        />
-      )}
-      <Versions t={t} m={m} versions={row.written} />
-    </div>
-  );
-}
-
-function Draft({
-  t,
-  m,
-  d,
-  runId,
-  access,
-  vendor,
-  edit,
-}: {
-  t: T;
-  m: MatrixT;
-  d: RowDraft;
-  runId: string;
-  access: DecisionAccess;
-  vendor: boolean;
-  /** The edit form, when the viewer may edit this draft now. */
-  edit: { protocolId: number; action: Action } | null;
-}) {
-  const x = d.draft;
-  return (
-    <div className={s.draft}>
-      <div>{x.description}</div>
-      <div className={s.muted}>
-        {t("method")}: {x.method}
-      </div>
-      <div className={s.muted}>
-        {t("instrument")}: {x.instrument ?? t("noInstrument")}
-      </div>
-      <div>
-        {t("ac")}:{" "}
-        {x.acceptance ? formatValue(m, x.acceptance) : t("acToSet", { flag: x.acceptance_flag ?? "" })}{" "}
-        {x.acceptance_citation && <CiteLink runId={runId} cite={x.acceptance_citation} />}
-      </div>
-      {vendor && <div className={s.muted}>{t("vendorDraftNote")}</div>}
-      <DecisionCell proposal={d.proposal} runId={runId} screen="protocol" access={access} />
-      {edit && <EditDraftForm t={t} d={d} runId={runId} protocolId={edit.protocolId} edit={edit.action} />}
-    </div>
-  );
-}
-
-function Rows({
-  t,
-  rows,
-  runId,
-  access,
-  protocolId,
-  controls,
-}: {
-  t: T;
-  rows: readonly ProtocolRowView[];
-  runId: string;
-  access: DecisionAccess;
-  protocolId: number;
-  controls: ProtocolControls;
-}) {
-  const m = useTranslations("matrix");
-  return (
-    <DataTable>
-      <thead>
-        <tr>
-          <th>{t("requirement")}</th>
-          <th>{t("coverage")}</th>
-          <th>{t("content")}</th>
-          <th>{t("drafts")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr
-            key={r.requirement}
-            id={`row-${r.requirement}`}
-            data-testid={r.requirement}
-            className={r.blockers.length > 0 ? s.blockingRow : undefined}>
-            <th scope="row">
-              <div className={cell.id}>{r.requirement}</div>
-              <div className={s.text}>{r.text}</div>
-              <CiteLink runId={runId} cite={r.source} />
-            </th>
-            <td>
-              <Coverage t={t} m={m} row={r} runId={runId} />
-            </td>
-            <td>
-              <Content t={t} m={m} row={r} runId={runId} protocolId={protocolId} controls={controls} />
-            </td>
-            <td className={s.drafts}>
-              {r.drafts.length === 0 ? (
-                <span className={s.muted}>{t("noDrafts")}</span>
-              ) : (
-                r.drafts.map((d) => (
-                  <Draft
-                    key={d.proposal.id}
-                    t={t}
-                    m={m}
-                    d={d}
-                    runId={runId}
-                    access={access}
-                    vendor={r.kind === "vendor_reference"}
-                    edit={
-                      controls !== null && r.test_step?.origin !== "written"
-                        ? { protocolId, action: controls.edit }
-                        : null
-                    }
-                  />
-                ))
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </DataTable>
   );
 }
 
@@ -453,9 +87,9 @@ export function AssembledProtocolView({
   return (
     <>
       {error && (
-        <p role="alert" className={s.failure}>
+        <Alert tone="fail" role="alert" className={s.errorBanner}>
           {t(`errors.${error}`)}
-        </p>
+        </Alert>
       )}
       <DecisionNotice view={decisions} approver={approval !== null} />
       {protocol === null ? (
@@ -464,12 +98,12 @@ export function AssembledProtocolView({
           <StartForm t={t} runId={runId} action={controls} again={false} />
         </EmptyState>
       ) : (
-        <Status t={t} protocol={protocol} runId={runId} controls={controls} approval={approval} />
+        <ProtocolStatusPanel t={t} protocol={protocol} runId={runId} controls={controls} approval={approval} />
       )}
       {rows !== null && (
         <>
           {protocol?.checklist && (
-            <Checklist
+            <ProtocolChecklistPanel
               t={t}
               items={protocol.checklist}
               runId={runId}
@@ -487,7 +121,7 @@ export function AssembledProtocolView({
           </p>
           <section className={s.section} aria-labelledby="protocol-rows">
             <SectionHeading id="protocol-rows" title={t("rows")} count={rows.length} note={t("rowsNote")} />
-            <Rows
+            <ProtocolRowsTable
               t={t}
               rows={rows}
               runId={runId}
@@ -514,7 +148,9 @@ export function AssembledProtocolView({
           runId={runId}
         />
       )}
-      {protocol !== null && rows === null && protocol.status !== "withdrawn" && <p className={s.muted}>{t("notDraftRows")}</p>}
+      {protocol !== null && rows === null && protocol.status !== "withdrawn" && (
+        <p className={s.muted}>{t("notDraftRows")}</p>
+      )}
       <Limits t={t} />
     </>
   );

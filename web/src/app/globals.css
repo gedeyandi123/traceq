@@ -1,6 +1,6 @@
 /* Design tokens and base element rules (ADR 0011). Component styles live in a CSS Module
  * next to each component and use only these variables; a module never writes a colour.
- * Palette: teal ink on warm neutrals (owner's choice, prototype round 2). Light theme only.
+ * Palette: teal ink on crisp cool-neutral slate. Light theme only.
  *
  * Breakpoints. Custom properties cannot be used in media queries, so the modules write
  * these three widths as numbers. A new width needs a reason here.
@@ -10,27 +10,27 @@
  */
 
 :root {
-  /* Neutrals */
-  --color-canvas: #f5f5f2;
+  /* Neutrals (crisp cool-neutral slate) */
+  --color-canvas: #f4f6f8;
   --color-surface: #ffffff;
-  --color-sunken: #efefea;
-  --color-border: #e1e0d8;
-  --color-border-strong: #c9c7bc;
-  --color-text: #171a19;
-  --color-text-2: #3d4342;
-  --color-text-3: #5f6664;
+  --color-sunken: #edf1f5;
+  --color-border: #d8e0e8;
+  --color-border-strong: #bcc7d4;
+  --color-text: #111820;
+  --color-text-2: #364150;
+  --color-text-3: #576373;
 
   /* Ink: navigation, primary action, focus */
   --color-ink: #0b5d63;
   --color-ink-hover: #084a4f;
-  --color-ink-soft: #e2f0f0;
+  --color-ink-soft: #e2f1f2;
   --color-on-ink: #ffffff;
   --color-focus: #0b7d86;
 
   /* App bar */
-  --color-appbar: #102a2c;
-  --color-appbar-text: #e8f0ef;
-  --color-appbar-muted: #9cb5b3;
+  --color-appbar: #0f2529;
+  --color-appbar-text: #e8f1f2;
+  --color-appbar-muted: #9bb5b8;
   --color-appbar-strong: #ffffff;
 
   /* Semantic */
