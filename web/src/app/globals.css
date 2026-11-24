@@ -62,128 +62,7 @@
   --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
 }
 
-/* Legacy CSS Module custom properties preserved until PR 6 (ADR 0011 -> ADR 0014).
- *
- * Breakpoints. Custom properties cannot be used in media queries, so the modules write
- * these three widths as numbers. A new width needs a reason here.
- *   max-width: 640px   phone: tighter gutter, secondary text hides
- *   max-width: 900px   the app bar stacks (the tagline hides)
- *   max-width: 1199px  wide tables fold: they scroll inside their own frame
- */
-
-:root {
-  /* Neutrals (crisp cool-neutral slate) */
-  --color-canvas: #f4f6f8;
-  --color-surface: #ffffff;
-  --color-sunken: #edf1f5;
-  --color-border: #d8e0e8;
-  --color-border-strong: #bcc7d4;
-  --color-text: #111820;
-  --color-text-2: #364150;
-  --color-text-3: #576373;
-
-  /* Ink: navigation, primary action, focus */
-  --color-ink: #0b5d63;
-  --color-ink-hover: #084a4f;
-  --color-ink-soft: #e2f1f2;
-  --color-on-ink: #ffffff;
-  --color-focus: #0b7d86;
-
-  /* App bar */
-  --color-appbar: #0f2529;
-  --color-appbar-text: #e8f1f2;
-  --color-appbar-muted: #9bb5b8;
-  --color-appbar-strong: #ffffff;
-
-  /* Semantic */
-  --color-pass: #1b6a36;
-  --color-pass-soft: #e4f3e9;
-  --color-fail: #b42318;
-  --color-fail-soft: #fdecea;
-  --color-warn: #8a5300;
-  --color-warn-soft: #fdf1d8;
-  --color-info: #2b5a8a;
-  --color-info-soft: #e6eef8;
-
-  /* Coverage classes: foreground, background, edge */
-  --cov-covered-fg: #1b6a36;
-  --cov-covered-bg: #e4f3e9;
-  --cov-covered-edge: #6fbf8a;
-  --cov-partial-fg: #8a5300;
-  --cov-partial-bg: #fdf1d8;
-  --cov-partial-edge: #e3b04f;
-  --cov-site-fg: #2b5a8a;
-  --cov-site-bg: #e6eef8;
-  --cov-site-edge: #8cb0d6;
-  --cov-gap-fg: #b42318;
-  --cov-gap-bg: #fdecea;
-  --cov-gap-edge: #ec8a80;
-  --cov-conflict-fg: #ffffff;
-  --cov-conflict-bg: #a51d12;
-  --cov-conflict-edge: #a51d12;
-  --cov-none-fg: #47515e;
-  --cov-none-bg: #eceff3;
-  --cov-none-edge: #c3ccd7;
-
-  /* Type: Inter from the build (--font-inter, set by the root layout), system fallback */
-  --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
-  --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.875rem;
-  --text-md: 1rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.625rem;
-  --leading: 1.5;
-  --leading-tight: 1.25;
-
-  /* Space (4 px base) */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
-  --gutter: 1.5rem;
-  --content-max: 1440px;
-
-  /* Shape and depth */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-pill: 999px;
-  --shadow-1: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.08);
-  --shadow-sticky: 0 1px 0 var(--color-border), 0 4px 8px -6px rgb(16 24 40 / 0.18);
-
-  /* Controls */
-  --control-h: 2rem;
-  --control-h-sm: 1.75rem;
-  --appbar-h: 3rem;
-
-  /* Motion */
-  --ease: cubic-bezier(0.2, 0, 0, 1);
-  --dur: 120ms;
-}
-
-@media (max-width: 640px) {
-  :root {
-    --gutter: 1rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --dur: 0ms;
-  }
-}
-
-/* Legacy base rules wrapped in @layer base so Tailwind @layer utilities always win. */
 @layer base {
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
   html {
     -webkit-text-size-adjust: 100%;
   }
@@ -191,167 +70,25 @@
   body {
     margin: 0;
     font-family: var(--font-sans);
-    font-size: var(--text-base);
-    line-height: var(--leading);
-    color: var(--color-text);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--color-ink);
     background: var(--color-canvas);
     -webkit-font-smoothing: antialiased;
   }
 
-  h1,
-  h2,
-  h3,
-  h4 {
-    margin: 0 0 var(--space-3);
-    line-height: var(--leading-tight);
-    letter-spacing: -0.011em;
-  }
-  h1 {
-    font-size: var(--text-xl);
-    font-weight: 700;
-  }
-  h2 {
-    font-size: var(--text-lg);
-    font-weight: 650;
-  }
-  h3 {
-    font-size: var(--text-md);
-    font-weight: 650;
-  }
-  h4 {
-    font-size: var(--text-base);
-    font-weight: 650;
-  }
-  p {
-    margin: 0 0 var(--space-2);
-  }
-
-  a {
-    color: var(--color-ink);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
-    text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
-    transition:
-      color var(--dur) var(--ease),
-      text-decoration-color var(--dur) var(--ease);
-  }
-  a:hover {
-    color: var(--color-ink-hover);
-    text-decoration-color: currentColor;
-  }
-
-  /* The focus ring: every link, button, summary and field shows where the keyboard is. */
   :focus-visible {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
-    border-radius: var(--radius-sm);
+    border-radius: 4px;
   }
 
   summary {
     cursor: pointer;
-    color: var(--color-ink);
-    font-weight: 600;
-  }
-
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
-    color: inherit;
-  }
-
-  /* A button without a variant: neutral. Scoped so Tailwind utilities (with data-tw) win. */
-  :where(button:not([data-tw])) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    min-height: var(--control-h-sm);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--color-surface);
-    color: var(--color-text);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background var(--dur) var(--ease),
-      border-color var(--dur) var(--ease),
-      color var(--dur) var(--ease);
-  }
-  :where(button:not([data-tw])):hover {
-    background: var(--color-sunken);
-    border-color: var(--color-text-3);
-  }
-  :where(button:not([data-tw])):disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  :where(select:not([data-tw])),
-  :where(textarea:not([data-tw])),
-  :where(input[type="text"]:not([data-tw])) {
-    max-width: 100%;
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--color-surface);
-    font-size: var(--text-sm);
-  }
-  :where(select:not([data-tw])) {
-    min-height: var(--control-h-sm);
-    padding: 0 var(--space-2);
-  }
-  :where(textarea:not([data-tw])) {
-    min-height: 3.5rem;
-    padding: var(--space-2);
-    line-height: var(--leading);
-    resize: vertical;
-  }
-  :where(textarea:not([data-tw]))::placeholder {
-    color: var(--color-text-3);
-  }
-
-  :where(table:not([data-tw])) {
-    border-collapse: collapse;
-    font-size: var(--text-sm);
-  }
-  :where(table:not([data-tw])) th,
-  :where(table:not([data-tw])) td {
-    padding: var(--space-2) var(--space-3);
-    text-align: left;
-    vertical-align: top;
-    border-bottom: 1px solid var(--color-border);
-  }
-  :where(table:not([data-tw])) th {
-    color: var(--color-text-2);
-    font-weight: 600;
-  }
-  :where(table:not([data-tw])) caption {
-    text-align: left;
-    font-weight: 650;
-    padding-bottom: var(--space-2);
   }
 
   pre {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-  }
-}
-
-/* Utilities shared by every component. */
-@layer components {
-  .muted {
-    color: var(--color-text-3);
-  }
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 }

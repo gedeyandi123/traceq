@@ -1,260 +1,81 @@
+"use client";
+
+import { ArrowRight, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { Cite, DraftFindingView, DraftTestStep, PrintedRead, ProtocolDraftView as Draft } from "@/api/client";
-import { CiteLink } from "./CiteLink";
-import { DecisionCell, DecisionNotice, DecisionTally } from "./Decisions";
-import type { DecisionView } from "./Decisions";
-import { cell, DataTable, EmptyState, HandoffBar, SectionHeading, SummaryLinks } from "./ui/ui";
+import type {
+  DraftFindingView,
+  DraftTestStep,
+  ProtocolDraftView as Draft,
+} from "@/api/client";
+import type { DecisionView } from "@/components/Decisions";
+import {
+  AnyCite,
+  DraftCite,
+  DraftStepDrawer,
+  formatPrinted,
+} from "@/components/DraftStepDrawer";
+import {
+  DecisionCountsSummary,
+  DecisionNoticeBanner,
+  FindingDecisionPanel,
+} from "@/components/FindingDecisionPanel";
+import { useRunShell } from "@/components/RunShellContext";
+import { DecisionStateBadge } from "@/components/ui/StatusBadge";
 
-import s from "./ProtocolDraftView.module.css";
+export { formatPrinted };
 
-type T = ReturnType<typeof useTranslations<"draft">>;
-
-const number = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
-
-/** A value as code read it from the print, in a few characters. */
-export function formatPrinted(t: T, v: PrintedRead): string {
-  switch (v.type) {
-    case "range": {
-      if (v.min != null && v.max != null) return `${number.format(v.min)}–${number.format(v.max)} ${v.unit}`;
-      if (v.min != null) {
-        return t(v.min_exclusive ? "values.above" : "values.atLeast", { min: number.format(v.min), unit: v.unit });
-      }
-      return t(v.max_exclusive ? "values.below" : "values.atMost", { max: number.format(v.max ?? 0), unit: v.unit });
-    }
-    case "number":
-      return `${number.format(v.value)} ${v.unit}`;
-    case "tolerance":
-      return t("values.tolerance", {
-        nominal: number.format(v.nominal),
-        unit: v.unit,
-        tolerance: number.format(v.tolerance),
-        toleranceUnit: v.tolerance_unit,
-      });
-    case "text":
-      return v.value;
-    case "ambiguous":
-      return t("values.ambiguous", { readings: v.readings.map((r) => number.format(r)).join(" / ") });
-  }
-}
-
-/** A citation into the draft. The draft is not a corpus document the API serves, so it names
- * the page, with the verbatim quote on hover, and links nowhere. */
-function DraftCite({ cite }: { cite: Cite }) {
-  const c = useTranslations("common");
-  return (
-    <span className={s.draftCite} title={cite.quote}>
-      {c("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
-    </span>
-  );
-}
-
-/** A citation: into the draft (no link) or into a document the run read (a link). */
-function AnyCite({ cite, runId, draftDoc }: { cite: Cite; runId: string; draftDoc: string }) {
-  return cite.doc === draftDoc ? <DraftCite cite={cite} /> : <CiteLink runId={runId} cite={cite} />;
-}
-
-function Finding({
-  t,
-  view,
-  runId,
-  draftDoc,
-  decisions,
-}: {
-  t: T;
-  view: DraftFindingView;
-  runId: string;
-  draftDoc: string;
-  decisions: DecisionView;
-}) {
-  const f = view.finding;
-  return (
-    <div className={s.finding}>
-      <strong className={s.findingType}>{t(`types.${f.type}`)}</strong>
-      <div>{f.detail}</div>
-      <ul className={s.citations}>
-        {f.citations.map((c) => (
-          <li key={`${c.doc}/${c.rev}/${c.page}/${c.quote}`}>
-            <AnyCite cite={c} runId={runId} draftDoc={draftDoc} />
-          </li>
-        ))}
-      </ul>
-      {view.proposal && (
-        <DecisionCell proposal={view.proposal} runId={runId} screen="draft" access={decisions.access} />
-      )}
-    </div>
-  );
-}
-
+type DraftFilter = "all" | "withFindings" | "notCompared" | "notRead";
 type VendorDoc = Draft["vendor_documents"][number];
 type Comparator = DraftTestStep["traced"][number]["comparators"][number];
 
-/** The facts of one document for the step's requirements, prefixed with the requirement when
- * the step traces to more than one. */
-function Facts({ step, of, runId }: { step: DraftTestStep; of: (c: Comparator) => boolean; runId: string }) {
-  const many = step.traced.length > 1;
-  const facts = step.traced.flatMap((tr) =>
-    tr.comparators.filter(of).flatMap((c) => c.facts.map((f) => ({ requirement: tr.requirement, c, f }))),
-  );
-  return (
-    <ul className={s.facts}>
-      {facts.map(({ requirement, c, f }) => (
-        <li key={`${requirement}/${c.doc}/${f.name}/${f.citation.quote}`}>
-          <span>
-            {many && `${requirement} `}
-            {f.name}: {f.printed}
-          </span>{" "}
-          <CiteLink runId={runId} cite={f.citation} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** Story 6: per vendor document (datasheet, FAT, SAT) the facts of the step's requirements, or
- * "none"; then the facts of any other document (a certificate). Shown only, never a finding. */
-function Comparators({
+function CompactComparators({
   t,
   step,
   vendorDocs,
-  runId,
 }: {
-  t: T;
+  t: ReturnType<typeof useTranslations<"draft">>;
   step: DraftTestStep;
   vendorDocs: readonly VendorDoc[];
-  runId: string;
 }) {
-  const same = (d: { doc: string; rev: number }) => (c: Comparator) => c.doc === d.doc && c.rev === d.rev;
-  const listed = (c: Comparator) => vendorDocs.some((d) => same(d)(c));
-  const others = [
-    ...new Map(
-      step.traced.flatMap((tr) =>
-        tr.comparators.filter((c) => !listed(c)).map((c) => [`${c.doc}/${c.rev}`, c] as const),
-      ),
-    ).values(),
-  ];
-  if (vendorDocs.length === 0 && others.length === 0) return <span className={s.muted}>{t("noComparators")}</span>;
+  const same = (d: { doc: string; rev: number }) => (c: Comparator) =>
+    c.doc === d.doc && c.rev === d.rev;
+
+  if (vendorDocs.length === 0) {
+    return <span className="text-ink-muted">{t("noComparators")}</span>;
+  }
+
   return (
-    <ul className={s.comparators}>
+    <ul className="m-0 list-none space-y-0.5 p-0 text-[11px]">
       {vendorDocs.map((d) => {
-        const has = step.traced.some((tr) => tr.comparators.some((c) => same(d)(c) && c.facts.length > 0));
+        const facts = step.traced.flatMap((tr) =>
+          tr.comparators.filter(same(d)).flatMap((c) => c.facts),
+        );
         return (
-          <li key={`${d.doc}/${d.rev}`} data-vendor-doc="">
-            <span className={s.vendorDoc}>
+          <li key={`${d.doc}/${d.rev}`} data-vendor-doc="" className="text-ink-muted">
+            <span className="font-medium text-ink">
               {t(`vendorKinds.${d.kind}`)} {d.doc}:
             </span>{" "}
-            {has ? (
-              <Facts step={step} of={same(d)} runId={runId} />
+            {facts.length > 0 ? (
+              <span className="tabular-nums">
+                {facts.map((f) => `${f.name}: ${f.printed}`).join(", ")}
+              </span>
             ) : (
-              <span className={s.muted}>{t("noComparators")}</span>
+              <span>{t("noComparators")}</span>
             )}
           </li>
         );
       })}
-      {others.map((c) => (
-        <li key={`${c.doc}/${c.rev}`}>
-          <span className={s.vendorDoc}>
-            {t(`comparatorKinds.${c.kind}`)} {c.doc}:
-          </span>{" "}
-          <Facts step={step} of={same(c)} runId={runId} />
-        </li>
-      ))}
     </ul>
   );
 }
 
-/** Story 7: a Test Step the draft prints whose reading the citation check dropped: listed in
- * its place, with the reason, and nothing read or compared. */
-function NotReadRow({ t, step, anchor }: { t: T; step: DraftTestStep; anchor?: string }) {
-  return (
-    <tr id={anchor}>
-      <th scope="row" className={cell.id}>
-        {step.id}
-      </th>
-      <td colSpan={4} className={s.notCompared}>
-        {t("notRead", { reason: step.not_read ?? "" })}
-      </td>
-    </tr>
-  );
-}
-
-function StepRow({
-  t,
-  step,
-  findings,
-  runId,
-  draftDoc,
-  decisions,
-  vendorDocs,
-  anchor,
-}: {
-  t: T;
-  step: DraftTestStep;
-  findings: readonly DraftFindingView[];
-  runId: string;
-  draftDoc: string;
-  decisions: DecisionView;
-  vendorDocs: readonly VendorDoc[];
-  anchor?: string;
-}) {
-  const ac = step.acceptance;
-  if (ac === null) return <NotReadRow t={t} step={step} anchor={anchor} />;
-  return (
-    <tr id={anchor}>
-      <th scope="row" className={cell.id}>
-        {step.id}
-      </th>
-      <td>
-        <div className={s.printed}>{ac.printed}</div>
-        {ac.value === null && <div className={s.muted}>{t("notParsed")}</div>}
-        <DraftCite cite={ac.citation} />
-      </td>
-      <td>
-        <ul className={s.traced}>
-          {step.traced.map((tr) => (
-            <li key={tr.requirement}>
-              <span className={cell.id}>{tr.requirement}</span>
-              {tr.urs_limit && <div className={s.printed}>{formatPrinted(t, tr.urs_limit)}</div>}
-              {tr.not_parsed && <div className={s.muted}>{t("ursNotRead", { reason: tr.not_parsed })}</div>}
-              {tr.citation && (
-                <div>
-                  <CiteLink runId={runId} cite={tr.citation} />
-                </div>
-              )}
-              {tr.compared ? (
-                <div className={tr.deviates ? s.deviates : s.within}>{t(tr.deviates ? "deviates" : "within")}</div>
-              ) : (
-                tr.not_compared && <div className={s.notCompared}>{t("notComparedBecause", { reason: tr.not_compared })}</div>
-              )}
-            </li>
-          ))}
-        </ul>
-        {step.traced.length === 0 && step.not_compared && (
-          <div className={s.notCompared}>{t("notComparedBecause", { reason: step.not_compared })}</div>
-        )}
-      </td>
-      <td>
-        <Comparators t={t} step={step} vendorDocs={vendorDocs} runId={runId} />
-      </td>
-      <td className={s.findings}>
-        {findings.length === 0 ? (
-          <span className={s.muted}>{t("noFinding")}</span>
-        ) : (
-          findings.map((f, i) => (
-            <Finding key={`${f.finding.requirement}/${i}`} t={t} view={f} runId={runId} draftDoc={draftDoc} decisions={decisions} />
-          ))
-        )}
-      </td>
-    </tr>
-  );
-}
-
-/** The Protocol Draft of a Review Package run: every Test Step in draft order with its AC as
- * read, the URS value it was compared with, per vendor document the comparators available or
- * "none", and its findings (or "not compared" with the reason; a step whose reading was
- * dropped "not read" with the reason); then the findings about the whole document. Each finding
- * carries its decision state and, for the deciding role, the decision forms of slice 1.
- * TraceQ's own drafted OQ Test Steps are not shown here. */
+/** Protocol Draft (Opsi A Compact Ordered Table + Slide-Over Drawer): preserves sequential
+ * 26-step draft order in a compact table with 1-click triage filters, opens step inspection
+ * and decisions in a right slide-over Drawer, and keeps "Temuan tentang seluruh dokumen"
+ * below the table. */
 export function ProtocolDraftView({
   draft,
   runId,
@@ -266,104 +87,417 @@ export function ProtocolDraftView({
 }) {
   const t = useTranslations("draft");
   const th = useTranslations("runHeader");
+  const { setDrawerOpen } = useRunShell();
+
   const draftDoc = draft.document.doc_id;
-  const stepIds = new Set(draft.test_steps.map((st) => st.id));
-  const onStep = (id: string) => draft.findings.filter((f) => f.finding.test_step === id);
-  const whole = draft.findings.filter((f) => f.finding.test_step == null || !stepIds.has(f.finding.test_step));
-  const notRead = draft.test_steps.filter((st) => st.acceptance === null);
-  const notCompared = draft.test_steps.filter((st) => st.acceptance !== null && !st.compared);
-  const firstNotRead = notRead[0]?.id;
-  const firstNotCompared = notCompared[0]?.id;
-  const anchor = (id: string) =>
-    id === firstNotRead ? "draft-not-read" : id === firstNotCompared ? "draft-not-compared" : undefined;
+  const stepIds = useMemo(() => new Set(draft.test_steps.map((st) => st.id)), [draft.test_steps]);
+
+  const findingsByStep = useMemo(() => {
+    const map = new Map<string, DraftFindingView[]>();
+    for (const f of draft.findings) {
+      const id = f.finding.test_step;
+      if (id && stepIds.has(id)) {
+        const list = map.get(id) ?? [];
+        list.push(f);
+        map.set(id, list);
+      }
+    }
+    return map;
+  }, [draft.findings, stepIds]);
+
+  const whole = useMemo(
+    () =>
+      draft.findings.filter(
+        (f) => f.finding.test_step == null || !stepIds.has(f.finding.test_step),
+      ),
+    [draft.findings, stepIds],
+  );
+
+  const notRead = useMemo(
+    () => draft.test_steps.filter((st) => st.acceptance === null),
+    [draft.test_steps],
+  );
+  const notCompared = useMemo(
+    () => draft.test_steps.filter((st) => st.acceptance !== null && !st.compared),
+    [draft.test_steps],
+  );
+  const withFindings = useMemo(
+    () => draft.test_steps.filter((st) => (findingsByStep.get(st.id)?.length ?? 0) > 0),
+    [draft.test_steps, findingsByStep],
+  );
+
+  const [activeFilter, setActiveFilter] = useState<DraftFilter>("all");
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [pendingStepId, setPendingStepId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    setDrawerOpen(selectedStepId !== null);
+    return () => setDrawerOpen(false);
+  }, [selectedStepId, setDrawerOpen]);
+
+  const filteredSteps = useMemo(() => {
+    return draft.test_steps.filter((st) => {
+      if (activeFilter === "withFindings") return (findingsByStep.get(st.id)?.length ?? 0) > 0;
+      if (activeFilter === "notCompared") return st.acceptance !== null && !st.compared;
+      if (activeFilter === "notRead") return st.acceptance === null;
+      return true;
+    });
+  }, [draft.test_steps, activeFilter, findingsByStep]);
+
+  const selectedIndex = useMemo(
+    () => (selectedStepId ? filteredSteps.findIndex((st) => st.id === selectedStepId) : -1),
+    [filteredSteps, selectedStepId],
+  );
+  const selectedStep = selectedIndex >= 0 ? (filteredSteps[selectedIndex] ?? null) : null;
+
+  const applySelection = useCallback((nextId: string | null) => {
+    setSelectedStepId(nextId);
+    setIsFormDirty(false);
+    setPendingStepId(undefined);
+  }, []);
+
+  const requestSelection = useCallback(
+    (nextId: string | null) => {
+      if (nextId === selectedStepId) return;
+      if (selectedStepId !== null && isFormDirty) {
+        setPendingStepId(nextId);
+        return;
+      }
+      applySelection(nextId);
+    },
+    [selectedStepId, isFormDirty, applySelection],
+  );
+
+  const filterOptions: readonly { id: DraftFilter; label: string; count: number }[] = [
+    { id: "all", label: t("filters.all"), count: draft.test_steps.length },
+    { id: "withFindings", label: t("filters.withFindings"), count: withFindings.length },
+    { id: "notCompared", label: t("filters.notCompared"), count: notCompared.length },
+    ...(notRead.length > 0
+      ? [{ id: "notRead" as const, label: t("filters.notRead"), count: notRead.length }]
+      : []),
+  ];
+
   return (
-    <>
-      <p className={s.document}>
-        {t("document", { doc: draft.document.doc_id, rev: draft.document.rev, package: draft.package })}
-      </p>
-      <p className={s.note}>{t("ownSteps")}</p>
-      <DecisionNotice view={decisions} />
-      <div className={s.overview}>
-        <SummaryLinks
-          title={t("summaryTitle")}
-          items={[
-            { n: draft.test_steps.length, label: t("steps"), href: "#draft-steps" },
-            ...(notRead.length > 0 ? [{ n: notRead.length, label: t("notReadSteps"), href: "#draft-not-read" }] : []),
-            { n: notCompared.length, label: t("notComparedSteps"), href: "#draft-not-compared" },
-            { n: whole.length, label: t("documentFindings"), href: "#draft-document" },
-          ]}
-        />
-        <DecisionTally counts={decisions.counts} kinds={["draft"]} />
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-surface px-4 py-3 text-xs">
+        <div className="flex items-center gap-2 font-semibold text-ink tabular-nums">
+          <FileText className="h-4 w-4 text-accent" aria-hidden="true" />
+          <span>
+            {t("document", {
+              doc: draft.document.doc_id,
+              rev: draft.document.rev,
+              package: draft.package,
+            })}
+          </span>
+        </div>
+        <p className="mt-1 mb-0 text-ink-muted">{t("ownSteps")}</p>
       </div>
-      <section className={s.section} aria-labelledby="draft-steps">
-        <SectionHeading id="draft-steps" title={t("steps")} count={draft.test_steps.length} note={t("stepsNote")} />
+
+      <DecisionNoticeBanner view={decisions} />
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <DecisionCountsSummary counts={decisions.counts} kinds={["draft"]} />
+      </div>
+
+      {/* 1-click triage filters */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface p-2">
+        {filterOptions.map((opt) => {
+          const active = activeFilter === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              data-tw=""
+              aria-pressed={active}
+              onClick={() => setActiveFilter(opt.id)}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                active
+                  ? "border-accent bg-accent text-on-accent"
+                  : "border-border bg-canvas text-ink hover:bg-sunken"
+              }`}
+            >
+              <span>{opt.label}</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[11px] tabular-nums ${
+                  active ? "bg-surface/20 text-on-accent" : "bg-surface text-ink-muted"
+                }`}
+              >
+                {opt.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Section 1: Sequential Ordered Steps Table */}
+      <section aria-labelledby="draft-steps" className="space-y-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 id="draft-steps" className="m-0 text-sm font-bold text-ink">
+              {t("steps")}
+            </h2>
+            <span className="rounded-full bg-sunken px-2 py-0.5 text-xs font-semibold text-ink-muted tabular-nums">
+              {filteredSteps.length}
+            </span>
+          </div>
+          <p className="m-0 text-xs text-ink-muted">{t("stepsNote")}</p>
+        </div>
+
         {draft.test_steps.length === 0 ? (
-          <EmptyState title={t("noSteps")} />
+          <div className="rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
+            {t("noSteps")}
+          </div>
+        ) : filteredSteps.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
+            {t("noMatches")}
+          </div>
         ) : (
-          <DataTable>
-            <thead>
-              <tr>
-                <th>{t("step")}</th>
-                <th>{t("ac")}</th>
-                <th>{t("urs")}</th>
-                <th>{t("comparators")}</th>
-                <th>{t("findings")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {draft.test_steps.map((st) => (
-                <StepRow
-                  key={st.id}
-                  t={t}
-                  step={st}
-                  findings={onStep(st.id)}
-                  runId={runId}
-                  draftDoc={draftDoc}
-                  decisions={decisions}
-                  vendorDocs={draft.vendor_documents}
-                  anchor={anchor(st.id)}
-                />
-              ))}
-            </tbody>
-          </DataTable>
-        )}
-      </section>
-      <section className={s.section} aria-labelledby="draft-document">
-        <SectionHeading
-          id="draft-document"
-          title={t("documentFindings")}
-          count={whole.length}
-          note={t("documentFindingsNote")}
-        />
-        {whole.length === 0 ? (
-          <EmptyState title={t("noDocumentFinding")} />
-        ) : (
-          <DataTable>
-            <thead>
-              <tr>
-                <th>{t("requirement")}</th>
-                <th>{t("findings")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {whole.map((f, i) => (
-                <tr key={`${f.finding.requirement}/${i}`}>
-                  <th scope="row" className={cell.id}>
-                    {f.finding.row ?? f.finding.requirement}
+          <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-border bg-canvas text-ink-muted">
+                  <th scope="col" className="px-3 py-2 font-semibold">
+                    {t("step")}
                   </th>
-                  <td className={s.findings}>
-                    <Finding t={t} view={f} runId={runId} draftDoc={draftDoc} decisions={decisions} />
-                  </td>
+                  <th scope="col" className="px-3 py-2 font-semibold">
+                    {t("ac")}
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-semibold">
+                    {t("urs")}
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-semibold">
+                    {t("comparators")}
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-semibold">
+                    {t("findings")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </DataTable>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredSteps.map((st) => {
+                  const stepFindings = findingsByStep.get(st.id) ?? [];
+                  const isSelected = selectedStepId === st.id;
+                  const ac = st.acceptance;
+                  return (
+                    <tr
+                      key={st.id}
+                      className={isSelected ? "bg-accent-soft" : "hover:bg-canvas/60"}
+                    >
+                      <th scope="row" className="px-3 py-2.5 align-top whitespace-nowrap">
+                        <button
+                          type="button"
+                          data-tw=""
+                          onClick={() => requestSelection(st.id)}
+                          aria-expanded={isSelected}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 font-mono text-xs font-bold text-accent tabular-nums hover:border-accent hover:bg-accent-soft"
+                        >
+                          {st.id}
+                        </button>
+                      </th>
+
+                      {ac === null ? (
+                        <td colSpan={4} className="px-3 py-2.5 align-top text-warn">
+                          {t("notRead", { reason: st.not_read ?? "" })}
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-3 py-2.5 align-top">
+                            <div className="font-medium text-ink">{ac.printed}</div>
+                            {ac.value === null && (
+                              <div className="text-[11px] text-ink-muted">{t("notParsed")}</div>
+                            )}
+                            <div className="mt-0.5">
+                              <DraftCite cite={ac.citation} />
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <ul className="m-0 list-none space-y-1 p-0">
+                              {st.traced.map((tr) => (
+                                <li key={tr.requirement} className="space-y-0.5">
+                                  <div className="font-mono font-semibold text-ink tabular-nums">
+                                    {tr.requirement}
+                                  </div>
+                                  {tr.urs_limit && (
+                                    <div className="text-ink-muted tabular-nums">
+                                      {formatPrinted(t, tr.urs_limit)}
+                                    </div>
+                                  )}
+                                  {tr.compared ? (
+                                    <span
+                                      className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                        tr.deviates
+                                          ? "border-fail-edge bg-fail-soft text-fail"
+                                          : "border-pass-edge bg-pass-soft text-pass"
+                                      }`}
+                                    >
+                                      {t(tr.deviates ? "deviates" : "within")}
+                                    </span>
+                                  ) : (
+                                    tr.not_compared && (
+                                      <span className="inline-block text-[11px] text-warn">
+                                        {t("notComparedBecause", { reason: tr.not_compared })}
+                                      </span>
+                                    )
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                            {st.traced.length === 0 && st.not_compared && (
+                              <div className="text-[11px] text-warn">
+                                {t("notComparedBecause", { reason: st.not_compared })}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            <CompactComparators
+                              t={t}
+                              step={st}
+                              vendorDocs={draft.vendor_documents}
+                            />
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            {stepFindings.length === 0 ? (
+                              <span className="text-ink-muted">{t("noFinding")}</span>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {stepFindings.map((f, i) => (
+                                  <div key={`${f.finding.requirement}/${i}`} className="space-y-1">
+                                    <div className="font-semibold text-fail">
+                                      {t(`types.${f.finding.type}`)}
+                                    </div>
+                                    {f.proposal && <DecisionStateBadge state={f.proposal.state} />}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
-      <HandoffBar
-        label={th("handoffTitle")}
-        links={[{ href: `/runs/${encodeURIComponent(runId)}/protocol`, text: th("toProtocol") }]}
+
+      {/* Section 2: Findings about the whole document (below the table) */}
+      <section aria-labelledby="draft-document" className="space-y-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 id="draft-document" className="m-0 text-sm font-bold text-ink">
+              {t("documentFindings")}
+            </h2>
+            <span className="rounded-full bg-sunken px-2 py-0.5 text-xs font-semibold text-ink-muted tabular-nums">
+              {whole.length}
+            </span>
+          </div>
+          <p className="m-0 text-xs text-ink-muted">{t("documentFindingsNote")}</p>
+        </div>
+
+        {whole.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface p-4 text-xs text-ink-muted">
+            {t("noDocumentFinding")}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-border bg-canvas text-ink-muted">
+                  <th scope="col" className="px-3 py-2 font-semibold">
+                    {t("requirement")}
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-semibold">
+                    {t("findings")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {whole.map((f, i) => (
+                  <tr key={`${f.finding.requirement}/${i}`}>
+                    <th
+                      scope="row"
+                      className="px-3 py-3 align-top font-mono font-bold text-ink tabular-nums whitespace-nowrap"
+                    >
+                      {f.finding.row ?? f.finding.requirement}
+                    </th>
+                    <td className="space-y-3 px-3 py-3 align-top">
+                      <div className="space-y-1">
+                        <div className="font-bold text-ink">
+                          {t(`types.${f.finding.type}`)}
+                        </div>
+                        <p className="m-0 text-ink">{f.finding.detail}</p>
+                      </div>
+                      <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+                        {f.finding.citations.map((c) => (
+                          <li key={`${c.doc}/${c.rev}/${c.page}/${c.quote}`}>
+                            <AnyCite cite={c} runId={runId} draftDoc={draftDoc} />
+                          </li>
+                        ))}
+                      </ul>
+                      {f.proposal && (
+                        <FindingDecisionPanel
+                          key={`whole-${f.proposal.id}-${f.proposal.state}-${f.proposal.decisions[0]?.id ?? 0}`}
+                          proposal={f.proposal}
+                          runId={runId}
+                          screen="draft"
+                          access={decisions.access}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Handoff Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3">
+        <span className="text-xs font-medium text-ink-muted">{th("handoffTitle")}</span>
+        <Link
+          href={`/runs/${encodeURIComponent(runId)}/protocol`}
+          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
+        >
+          <span>{th("toProtocol")}</span>
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      </div>
+
+      {/* Slide-Over Step Inspection & Decision Drawer */}
+      <DraftStepDrawer
+        step={selectedStep}
+        findings={selectedStep ? (findingsByStep.get(selectedStep.id) ?? []) : []}
+        vendorDocs={draft.vendor_documents}
+        draftDoc={draftDoc}
+        runId={runId}
+        decisions={decisions}
+        open={selectedStep !== null}
+        stepIndex={selectedIndex}
+        totalSteps={filteredSteps.length}
+        dirtyPrompt={pendingStepId !== undefined}
+        onClose={() => requestSelection(null)}
+        onPrev={() => {
+          if (selectedIndex > 0) {
+            const prev = filteredSteps[selectedIndex - 1];
+            if (prev) requestSelection(prev.id);
+          }
+        }}
+        onNext={() => {
+          if (selectedIndex >= 0 && selectedIndex < filteredSteps.length - 1) {
+            const next = filteredSteps[selectedIndex + 1];
+            if (next) requestSelection(next.id);
+          }
+        }}
+        onDirtyChange={setIsFormDirty}
+        onDiscardAndProceed={() => {
+          if (pendingStepId !== undefined) applySelection(pendingStepId);
+        }}
+        onCancelProceed={() => setPendingStepId(undefined)}
       />
-    </>
+    </div>
   );
 }

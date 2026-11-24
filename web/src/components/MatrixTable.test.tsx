@@ -1,21 +1,40 @@
-// The matrix screen over the fixture run folder the API contract tests use (spec #29), and
-// with the Proposal Decisions of the run (spec #105).
-import { render, screen, within } from "@testing-library/react";
+// The matrix screen over the fixture run folder the API contract tests use (spec #29),
+// Proposal Decisions (spec #105, K1-K5, K8-K10, K15), and Opsi A Drawer + shortcuts (#284).
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { vi } from "vitest";
 
 import type { Matrix } from "@/api/client";
+import type { DecideActionState } from "@/decisions/actions";
 import messages from "../../messages/id.json";
 import fixture from "../../../tests/fixtures/run/runs/20261113T090000Z-f1a2b3/matrix.json";
 import type { DecisionView } from "./Decisions";
 import { counts, decision, BIMA, RUN_ID } from "./decisions.fixture";
 import { MatrixTable } from "./MatrixTable";
+import { RunShellProvider, useRunShell } from "./RunShellContext";
 
 const action = async () => {};
 
-function renderMatrix(decisions: DecisionView = { access: { mode: "readOnly", why: "signedOut" } }) {
+function DrawerSpy() {
+  const { drawerOpen } = useRunShell();
+  return <output data-testid="drawer-open-state">{String(drawerOpen)}</output>;
+}
+
+function renderMatrix(
+  decisions: DecisionView = { access: { mode: "readOnly", why: "signedOut" } },
+  initialSelected: string | null = null,
+) {
   return render(
     <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
-      <MatrixTable matrix={fixture as Matrix} runId={RUN_ID} decisions={decisions} />
+      <RunShellProvider>
+        <DrawerSpy />
+        <MatrixTable
+          matrix={fixture as Matrix}
+          runId={RUN_ID}
+          decisions={decisions}
+          initialSelected={initialSelected}
+        />
+      </RunShellProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -65,103 +84,147 @@ const proposals: DecisionView["proposals"] = [
   },
 ];
 
-test("renders each requirement with its Coverage class, reason and cited Evidence", () => {
-  renderMatrix();
-
-  expect(screen.getByRole("columnheader", { name: "Cakupan" })).toBeDefined();
-  const speed = within(screen.getByTestId("URS-TP201-002"));
-  expect(speed.getByText("Sebagian")).toBeDefined();
-  expect(speed.getByText(/FAT-M-02: result does not meet the URS/)).toBeDefined();
-  expect(speed.getByText("20–70 rpm")).toBeDefined();
-  expect(speed.getByText(/Terbaca ganda \(1\.500 \/ 1,5\): minta konfirmasi/)).toBeDefined();
-
-  const step = speed.getByRole("link", { name: "FAT-TP201-M rev 0, hlm. 1" });
-  expect(step.getAttribute("href")).toBe(
-    `/api/runs/${RUN_ID}/documents/FAT-TP201-M/0#page=1`,
-  );
-  expect(step.getAttribute("title")).toBe("FAT-M-02 Turret speed range 20-60 rpm 20-60 rpm Pass");
-  expect(speed.getByRole("link", { name: "DS-TP201 rev 0, hlm. 1" })).toBeDefined();
-
-  const power = within(screen.getByTestId("URS-TP201-026"));
-  expect(power.getByText("Hanya di lokasi")).toBeDefined();
-  expect(power.getByText("Tidak ada bukti vendor")).toBeDefined();
-
-  const unassessed = within(screen.getByTestId("URS-TP201-030"));
-  expect(unassessed.getByText("Belum dinilai")).toBeDefined();
-  expect(unassessed.getByText("Tidak ada nilai terverifikasi")).toBeDefined();
-
-  expect(screen.getByText("Dokumen vendor yang tidak terbaca")).toBeDefined();
-  expect(screen.getByText("SAT-TP201 rev 0 (scan)")).toBeDefined();
+beforeEach(() => {
+  window.history.replaceState(null, "", `/runs/${RUN_ID}`);
 });
 
-test("an imported run shows each row's decision state, its decisions and the counts", () => {
+test("renders 4-column Opsi A table with button triggers, Required vs Observed, and opens Drawer", async () => {
+  renderMatrix();
+
+  expect(screen.getByRole("columnheader", { name: "Persyaratan" })).toBeDefined();
+  expect(screen.getByRole("columnheader", { name: /Disyaratkan \/ Teramati/ })).toBeDefined();
+  expect(screen.getByRole("columnheader", { name: "Cakupan" })).toBeDefined();
+  expect(screen.getByRole("columnheader", { name: "Keputusan" })).toBeDefined();
+
+  const speedRow = screen.getByRole("row", { name: /URS-TP201-002/ });
+  expect(within(speedRow).getByText("Sebagian")).toBeDefined();
+  expect(within(speedRow).getByText("20–70 rpm")).toBeDefined();
+  // Stage prefix deduplicated: FAT-M-02, never "FAT FAT-M-02"
+  expect(within(speedRow).getByText(/FAT-M-02 · 20–60 rpm/)).toBeDefined();
+
+  const powerRow = screen.getByRole("row", { name: /URS-TP201-026/ });
+  expect(within(powerRow).getByText("Hanya di lokasi")).toBeDefined();
+  expect(within(powerRow).getByText("Tidak ada bukti vendor")).toBeDefined();
+
+  const unassessedRow = screen.getByRole("row", { name: /URS-TP201-030/ });
+  expect(within(unassessedRow).getByText("Belum dinilai")).toBeDefined();
+  expect(within(unassessedRow).getByText("Tidak ada nilai terverifikasi")).toBeDefined();
+
+  // matrix.not_read panel preserved
+  expect(screen.getByRole("heading", { name: "Dokumen vendor yang tidak terbaca" })).toBeDefined();
+  expect(screen.getByText("SAT-TP201 rev 0 (scan)")).toBeDefined();
+
+  // Clicking primary ID button opens Drawer and wires RunShellContext + URL
+  expect(screen.getByTestId("drawer-open-state").textContent).toBe("false");
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+
+  const dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(screen.getByTestId("drawer-open-state").textContent).toBe("true");
+  expect(window.location.search).toContain("selected=URS-TP201-002");
+
+  expect(within(dialog).getByText(/FAT-M-02: result does not meet the URS/)).toBeDefined();
+  expect(within(dialog).getByRole("button", { name: "FAT-TP201-M rev 0, hlm. 1" })).toBeDefined();
+  expect(within(dialog).getByRole("button", { name: "DS-TP201 rev 0, hlm. 1" })).toBeDefined();
+});
+
+test("an imported run shows each row's decision state, prior decisions (K15), and decision forms in Drawer", async () => {
   renderMatrix({ proposals, counts, access: { mode: "decide", action } });
 
-  expect(screen.queryByText(/Hanya membaca/)).toBeNull();
-  const decided = within(screen.getByTestId("URS-TP201-002"));
-  expect(decided.getByText("Sudah diputuskan")).toBeDefined();
-  expect(
-    decided.getByText("Diubah ke Celah oleh Ayu Kartika Sari, 16/11/2026 10.15 UTC"),
-  ).toBeDefined();
-  expect(decided.getByText("Rentang FAT tidak mencakup 70 rpm")).toBeDefined();
-  expect(decided.getByText("Diterima oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC")).toBeDefined();
-  // Replacing a decision on the same content needs a Reason for Change.
-  const accept = decided.getByRole("button", { name: "Terima" }).closest("form")!;
-  expect(within(accept).getByRole("textbox").hasAttribute("required")).toBe(true);
-  expect(decided.queryByRole("button", { name: /setuju/i })).toBeNull();
+  expect(screen.queryByText(/Hanya membaca:/)).toBeNull();
 
-  const changed = within(screen.getByTestId("URS-TP201-026"));
-  expect(changed.getByText("Berubah sejak diputuskan: belum diputuskan lagi")).toBeDefined();
+  // Open URS-TP201-002 (decided, with prior decision by Bima for K15)
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+  let dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(dialog).getByText("Sudah diputuskan")).toBeDefined();
   expect(
-    changed.getByText(
+    within(dialog).getByText("Diubah ke Celah oleh Ayu Kartika Sari, 16/11/2026 10.15 UTC"),
+  ).toBeDefined();
+  expect(within(dialog).getByText("Rentang FAT tidak mencakup 70 rpm")).toBeDefined();
+  expect(within(dialog).getByText("Keputusan sebelumnya atas isi ini:")).toBeDefined();
+  expect(
+    within(dialog).getByText("Diterima oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC"),
+  ).toBeDefined();
+
+  // Replacing a decision on the same content needs a Reason for Change (K8)
+  fireEvent.click(within(dialog).getByRole("button", { name: "Putuskan ulang" }));
+  const acceptForm = within(dialog).getByRole("button", { name: "Terima" }).closest("form")!;
+  expect(within(acceptForm).getByRole("textbox").hasAttribute("required")).toBe(true);
+  expect(within(dialog).queryByRole("button", { name: /setuju/i })).toBeNull();
+
+  // Navigate to next row (URS-TP201-026, changed)
+  fireEvent.click(within(dialog).getByRole("button", { name: "Berikutnya" }));
+  dialog = await screen.findByRole("dialog", { name: "URS-TP201-026" });
+  expect(within(dialog).getByText("Isi berubah")).toBeDefined();
+  expect(
+    within(dialog).getByText(
       "Keputusan sebelumnya, atas isi lain: Diterima oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC",
     ),
   ).toBeDefined();
-  // What was decided before, so the reviewer sees what changed; on changed rows only.
-  expect(changed.getByText("sebelumnya: Dicakup vendor")).toBeDefined();
-  expect(decided.queryByText(/^sebelumnya:/)).toBeNull();
-  const acceptChanged = changed.getByRole("button", { name: "Terima" }).closest("form")!;
+  expect(within(dialog).getByText("sebelumnya: Dicakup vendor")).toBeDefined();
+
+  const acceptChanged = within(dialog).getByRole("button", { name: "Terima" }).closest("form")!;
   expect(within(acceptChanged).queryByRole("textbox")).toBeNull();
-  const edit = changed.getByRole("button", { name: "Ubah kelas" }).closest("form")!;
-  expect(within(edit).getByRole("textbox").hasAttribute("required")).toBe(true);
-  expect(within(edit).getByRole("combobox").hasAttribute("required")).toBe(true);
-  expect(within(edit).getByRole("option", { name: "Celah" })).toBeDefined();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Ubah kelas…" }));
+  const editForm = within(dialog).getByRole("button", { name: "Ubah kelas" }).closest("form")!;
+  expect(within(editForm).getByRole("textbox").hasAttribute("required")).toBe(true);
+  expect(within(editForm).getByRole("combobox").hasAttribute("required")).toBe(true);
+  expect(within(editForm).getByRole("option", { name: "Celah" })).toBeDefined();
 
-  // No class proposed: it can only be changed, not accepted.
-  const undecided = within(screen.getByTestId("URS-TP201-030"));
-  expect(undecided.getByText("Belum diputuskan")).toBeDefined();
-  expect(undecided.queryByRole("button", { name: "Terima" })).toBeNull();
-  expect(undecided.getByRole("button", { name: "Ubah kelas" })).toBeDefined();
-  expect(undecided.queryByText(/^sebelumnya:/)).toBeNull();
+  // Navigate to next row (URS-TP201-030, undecided, no proposed coverage -> only edit)
+  fireEvent.click(within(dialog).getByRole("button", { name: "Berikutnya" }));
+  dialog = await screen.findByRole("dialog", { name: "URS-TP201-030" });
+  expect(within(dialog).getByText("Belum diputuskan")).toBeDefined();
+  expect(within(dialog).queryByRole("button", { name: "Terima" })).toBeNull();
+  expect(within(dialog).getByRole("button", { name: "Ubah kelas" })).toBeDefined();
+  expect(within(dialog).queryByText(/^sebelumnya:/)).toBeNull();
 
+  // Close drawer, then check decision counts table (toggleable)
+  fireEvent.click(within(dialog).getByRole("button", { name: "Tutup panel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Jumlah keputusan" }));
   const tally = within(screen.getByRole("table", { name: "Jumlah keputusan" }));
   const row = within(tally.getByRole("row", { name: /Baris cakupan/ }));
   expect(row.getAllByRole("cell").map((c) => c.textContent)).toEqual([
-    "3", "1", "0", "1", "0", "1", "2",
+    "3",
+    "1",
+    "0",
+    "1",
+    "0",
+    "1",
+    "2",
   ]);
 });
 
 test("the decision counts show the drafted Test Steps beside the Coverage rows", () => {
   renderMatrix({ proposals, counts, access: { mode: "decide", action } });
 
+  expect(screen.getByText("1/3 usulan sudah diputuskan")).toBeDefined();
+  fireEvent.click(screen.getByRole("button", { name: "Jumlah keputusan" }));
   const tally = within(screen.getByRole("table", { name: "Jumlah keputusan" }));
   const row = within(tally.getByRole("row", { name: /Langkah uji rancangan TraceQ/ }));
   expect(row.getAllByRole("cell").map((c) => c.textContent)).toEqual([
-    "2", "1", "1", "0", "0", "0", "0",
+    "2",
+    "1",
+    "1",
+    "0",
+    "0",
+    "0",
+    "0",
   ]);
-  // They are decided on the Protocol page, so the matrix's progress counts Coverage only.
-  expect(screen.getByText("1/3 usulan sudah diputuskan")).toBeDefined();
 });
 
-test("a viewer without the deciding role reads the decisions and cannot decide", () => {
+test("a viewer without the deciding role reads the decisions and cannot decide", async () => {
   renderMatrix({ proposals, counts, access: { mode: "readOnly", why: "noRole" } });
 
   expect(
     screen.getByText(/Hanya membaca: identitas ini tidak memiliki peran pengambil keputusan/),
   ).toBeDefined();
-  expect(within(screen.getByTestId("URS-TP201-002")).getByText("Sudah diputuskan")).toBeDefined();
-  expect(screen.queryByRole("button", { name: "Terima" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Ubah kelas" })).toBeNull();
+  const row = screen.getByRole("row", { name: /URS-TP201-002/ });
+  expect(within(row).getByText("Sudah diputuskan")).toBeDefined();
+
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+  const dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(dialog).queryByRole("button", { name: "Terima" })).toBeNull();
+  expect(within(dialog).queryByRole("button", { name: "Ubah kelas" })).toBeNull();
 });
 
 test("a viewer who is not signed in sees the run read-only with what deciding needs", () => {
@@ -171,6 +234,76 @@ test("a viewer who is not signed in sees the run read-only with what deciding ne
     screen.getByText(/Hanya membaca: masuk sebagai orang dengan peran pengambil keputusan/),
   ).toBeDefined();
   expect(screen.queryByText("Belum diputuskan")).toBeNull();
-  expect(within(screen.getByRole("table")).queryByRole("button")).toBeNull();
+  const table = within(screen.getByRole("table"));
+  expect(table.queryByRole("button", { name: "Terima" })).toBeNull();
+  expect(table.queryByRole("button", { name: "Ubah kelas" })).toBeNull();
   expect(screen.queryByRole("table", { name: "Jumlah keputusan" })).toBeNull();
+});
+
+test("useActionState preserves typed Reason for Change on 422/409 error and dirty-form guard protects navigation", async () => {
+  const inlineAction = vi.fn(
+    async (_prev: DecideActionState, form: FormData): Promise<DecideActionState> => ({
+      ok: false,
+      error: "refused",
+      values: {
+        decision: "edited",
+        coverage: "gap",
+        reason: String(form.get("reason") ?? ""),
+      },
+    }),
+  );
+
+  renderMatrix(
+    { proposals, counts, access: { mode: "decide", action, inlineAction } },
+    "URS-TP201-026",
+  );
+
+  const dialog = await screen.findByRole("dialog", { name: "URS-TP201-026" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Ubah kelas…" }));
+
+  const select = within(dialog).getByRole("combobox", { name: "Pilih kelas cakupan" });
+  fireEvent.change(select, { target: { value: "gap" } });
+  const textarea = within(dialog).getByRole("textbox", { name: "Alasan perubahan" }) as HTMLTextAreaElement;
+  fireEvent.change(textarea, { target: { value: "Alasan yang diketik pengguna" } });
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Ubah kelas" }));
+  const alert = await within(dialog).findByRole("alert");
+  expect(alert.textContent).toContain("Keputusan ditolak API");
+  expect(textarea.value).toBe("Alasan yang diketik pengguna");
+
+  // Dirty-form guard blocks switching until confirmed
+  fireEvent.click(within(dialog).getByRole("button", { name: "Berikutnya" }));
+  const dirtyAlert = await within(dialog).findByRole("alertdialog");
+  expect(within(dirtyAlert).getByText(/Alasan perubahan yang diketik belum disimpan/)).toBeDefined();
+
+  fireEvent.click(within(dirtyAlert).getByRole("button", { name: "Buang perubahan" }));
+  await screen.findByRole("dialog", { name: "URS-TP201-030" });
+});
+
+test("J/K keyboard shortcuts navigate rows and are disabled inside inputs/combos or with modifiers", async () => {
+  renderMatrix({ proposals, counts, access: { mode: "decide", action } });
+
+  // J opens first row
+  fireEvent.keyDown(window, { key: "j" });
+  await screen.findByRole("dialog", { name: "URS-TP201-002" });
+
+  // J with Ctrl modifier is ignored
+  fireEvent.keyDown(window, { key: "j", ctrlKey: true });
+  expect(screen.getByRole("dialog", { name: "URS-TP201-002" })).toBeDefined();
+
+  // J moves to second row
+  fireEvent.keyDown(window, { key: "j" });
+  await screen.findByRole("dialog", { name: "URS-TP201-026" });
+
+  // K moves back to first row
+  fireEvent.keyDown(window, { key: "k" });
+  const firstDialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+
+  // J inside select/textarea is ignored
+  fireEvent.click(within(firstDialog).getByRole("button", { name: "Putuskan ulang" }));
+  const coverageSelect = within(firstDialog).getByRole("combobox", {
+    name: "Pilih kelas cakupan",
+  });
+  fireEvent.keyDown(coverageSelect, { key: "j" });
+  expect(screen.getByRole("dialog", { name: "URS-TP201-002" })).toBeDefined();
 });

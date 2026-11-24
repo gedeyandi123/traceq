@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import type { Matrix } from "@/api/client";
@@ -39,7 +39,7 @@ const matrix: Matrix = {
   ],
 };
 
-test("filters matrix rows by coverage and decision status and preserves returnQuery/anchor", () => {
+test("filters matrix rows by coverage and decision status, supports 1-click pills, and preserves returnQuery/anchor", async () => {
   const action = async () => {};
   render(
     <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
@@ -82,9 +82,25 @@ test("filters matrix rows by coverage and decision status and preserves returnQu
   const rows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
   expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual(["URS-TP201-001"]);
 
-  const acceptForm = screen.getByRole("button", { name: "Terima" }).closest("form")!;
+  // Open drawer for URS-TP201-001 and verify return_query/anchor in form
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-001" }));
+  const dialog = await screen.findByRole("dialog", { name: "URS-TP201-001" });
+  const acceptForm = within(dialog).getByRole("button", { name: "Terima" }).closest("form")!;
   expect(acceptForm.querySelector('input[name="return_query"]')?.getAttribute("value")).toBe(
     "coverage=gap&status=undecided",
   );
-  expect(acceptForm.querySelector('input[name="anchor"]')?.getAttribute("value")).toBe("URS-TP201-001");
+  expect(acceptForm.querySelector('input[name="anchor"]')?.getAttribute("value")).toBe(
+    "URS-TP201-001",
+  );
+
+  // Close drawer, then test 1-click "Semua" pill resets filter and syncs URL
+  fireEvent.click(within(dialog).getByRole("button", { name: "Tutup panel" }));
+  fireEvent.click(screen.getByRole("button", { name: /Semua \(2\)/ }));
+  expect(within(screen.getByRole("table")).getAllByRole("row").slice(1)).toHaveLength(2);
+  expect(window.location.search).toBe("");
+
+  // Click "Celah (1)" blocker pill
+  fireEvent.click(screen.getByRole("button", { name: /Celah \(1\)/ }));
+  expect(within(screen.getByRole("table")).getAllByRole("row").slice(1)).toHaveLength(1);
+  expect(window.location.search).toBe("?coverage=gap");
 });

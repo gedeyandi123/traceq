@@ -66,8 +66,14 @@ describe("every CSS and TSX file under src", () => {
   const cssFiles = allFiles.filter((f) => f.endsWith(".css"));
   const tsxFiles = allFiles.filter((f) => f.endsWith(".tsx"));
 
+  it("rejects legacy :root colour literals even in globals.css", () => {
+    const stripped = stripAllowedCssBlocks("@theme { --color-ink: #0f172a; } :root { --legacy: #fff; }", true);
+    expect(colourLiterals(stripped)).toEqual(["#fff"]);
+  });
+
   it("exists, so the guards are not vacuous", () => {
     expect(cssFiles.length).toBeGreaterThan(0);
+    expect(cssFiles.some((f) => f.endsWith(".module.css"))).toBe(false);
     expect(tsxFiles.length).toBeGreaterThan(0);
   });
 

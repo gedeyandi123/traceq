@@ -1,6 +1,6 @@
-// The findings screen's labels (spec #135, ticket #142): a missing document's type as a label
-// with the raw value as fallback, and AI Finding timestamps formatted like decision timestamps.
-import { render, screen, within } from "@testing-library/react";
+// The findings screen's labels: a missing document's type as a label with the raw value as
+// fallback, and AI Finding timestamps formatted like decision timestamps.
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import type { Findings } from "@/api/client";
@@ -29,6 +29,10 @@ test("a missing document's type shows as its label, and as the raw value when no
     missing_documents: [iq!, { ...iq!, doc_id: "XX-TP201", type: "pump_manual" }],
   });
 
+  const missingTab = screen.getByRole("tab", { name: /Dokumen yang tidak ada/ });
+  fireEvent.mouseDown(missingTab);
+  fireEvent.click(missingTab);
+
   const missing = within(screen.getByRole("region", { name: "Dokumen yang tidak ada" }));
   const [first, second] = missing.getAllByRole("row").slice(1);
   expect(within(first!).getByText("Protokol IQ")).toBeDefined();
@@ -40,6 +44,9 @@ test("an AI Finding's timestamp reads like a decision's", () => {
   renderFindings(fixture as Findings);
 
   const ai = within(screen.getByRole("region", { name: "Temuan AI (saran)" }));
-  expect(ai.getByText(/13\/11\/2026 09\.00 UTC/)).toBeDefined();
-  expect(ai.queryByText(/2026-11-13T09:00:00/)).toBeNull();
+  fireEvent.click(ai.getByRole("button", { name: /Data tidak konsisten/ }));
+
+  const detail = within(screen.getByRole("region", { name: "Rincian" }));
+  expect(detail.getByText(/13\/11\/2026 09\.00 UTC/)).toBeDefined();
+  expect(detail.queryByText(/2026-11-13T09:00:00/)).toBeNull();
 });

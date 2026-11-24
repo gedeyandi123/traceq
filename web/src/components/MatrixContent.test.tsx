@@ -1,6 +1,5 @@
-// What the restyled matrix adds (spec #135, ticket #141): the Coverage summary, the values on
-// the Evidence chips, the value citation only when it differs, and the changed-class arrow.
-import { render, screen, within } from "@testing-library/react";
+// RequiredObservedUnit, GMP-safe fail > ambiguous precedence, Coverage summary, and changed-class badges.
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import type { Matrix, Proposal } from "@/api/client";
@@ -12,7 +11,10 @@ import { MatrixTable } from "./MatrixTable";
 
 const matrix = fixture as Matrix;
 
-function renderMatrix(m: Matrix = matrix, decisions: DecisionView = { access: { mode: "readOnly", why: "signedOut" } }) {
+function renderMatrix(
+  m: Matrix = matrix,
+  decisions: DecisionView = { access: { mode: "readOnly", why: "signedOut" } },
+) {
   return render(
     <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
       <MatrixTable matrix={m} runId={RUN_ID} decisions={decisions} />
@@ -35,12 +37,11 @@ function coverage(id: number, requirement: string, over: Partial<Proposal>): Pro
   };
 }
 
-test("the Coverage summary counts the rows per class, riskiest first", () => {
+test("the Coverage summary counts the rows per class, riskiest first, and toggles legend", () => {
   renderMatrix();
 
   const summary = within(screen.getByRole("list", { name: "Ringkasan cakupan" }));
-  // Shapes are hidden from screen readers; the text a person reads is the count and the label.
-  const items = summary.getAllByRole("listitem").map((li) => li.textContent?.replace(/[●◐○▲◆–]/g, ""));
+  const items = summary.getAllByRole("listitem").map((li) => li.textContent);
   expect(items).toEqual([
     "0Konflik",
     "0Celah",
@@ -49,29 +50,49 @@ test("the Coverage summary counts the rows per class, riskiest first", () => {
     "0Dicakup vendor",
     "1Belum dinilai",
   ]);
-  // The meaning of each class is one click away.
-  expect(screen.getByText("Arti setiap kelas")).toBeDefined();
+
+  const legendBtn = screen.getByRole("button", { name: "Arti setiap kelas" });
+  fireEvent.click(legendBtn);
   expect(screen.getByText("Tidak ada bukti sama sekali.")).toBeDefined();
 });
 
-test("each Evidence chip carries its step and observed value, and the first design value", () => {
-  renderMatrix();
+test("RequiredObservedUnit deduplicates stage prefix and applies GMP-safe fail > ambiguous precedence", async () => {
+  // In fixture URS-TP201-002: FAT-M-02 is pass, FAT-M-05 is ambiguous with result: null
+  const first = renderMatrix();
 
-  const speed = within(screen.getByTestId("URS-TP201-002"));
-  expect(speed.getByText("FAT-M-02 · 20–60 rpm")).toBeDefined();
-  // A reading that needs confirmation shows its readings and a question mark.
-  expect(speed.getByText("FAT-M-05 · 1.500 / 1,5 ?")).toBeDefined();
-  expect(speed.getByText("Desain · 20-70 rpm")).toBeDefined();
-  // A chip is not a link: the only citation links are the requirement's and the full list's.
-  expect(speed.getAllByRole("link").map((a) => a.textContent)).toEqual([
-    "URS-TP201 rev 0, hlm. 1",
-    "FAT-TP201-M rev 0, hlm. 1",
-    "FAT-TP201-M rev 0, hlm. 2",
-    "DS-TP201 rev 0, hlm. 1",
-  ]);
+  const speedRow = screen.getByRole("row", { name: /URS-TP201-002/ });
+  expect(within(speedRow).getByText("FAT-M-02 · 20–60 rpm")).toBeDefined();
+  expect(within(speedRow).getByText("FAT-M-05 · 1.500 / 1,5 ?")).toBeDefined();
+  expect(within(speedRow).getByText("Desain · 20-70 rpm")).toBeDefined();
+  expect(within(speedRow).getByText("Perlu konfirmasi nilai (ambigu)")).toBeDefined();
+
+  // Open drawer: ambiguous warning renders when result !== "fail"
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+  const dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(dialog).getByText("Perlu konfirmasi nilai (ambigu)")).toBeDefined();
+
+  first.unmount();
+
+  // Now force result === "fail" on FAT-M-05: fail MUST override ambiguous!
+  const failOverridesAmbiguous: Matrix = {
+    ...matrix,
+    requirements: matrix.requirements.map((r) =>
+      r.id === "URS-TP201-002"
+        ? {
+            ...r,
+            evidence: r.evidence.map((e) =>
+              e.step === "FAT-M-05" ? { ...e, result: "fail" } : e,
+            ),
+          }
+        : r,
+    ),
+  };
+  renderMatrix(failOverridesAmbiguous);
+  const secondSpeedRow = screen.getByRole("row", { name: /URS-TP201-002/ });
+  expect(within(secondSpeedRow).queryByText("Perlu konfirmasi nilai (ambigu)")).toBeNull();
 });
 
-test("the value citation shows only when it differs from the requirement citation", () => {
+test("the value citation shows in Drawer only when it differs from the requirement citation", async () => {
   const differs: Matrix = {
     ...matrix,
     requirements: matrix.requirements.map((r) =>
@@ -82,17 +103,22 @@ test("the value citation shows only when it differs from the requirement citatio
   };
   renderMatrix(differs);
 
-  // Equal to the requirement citation: one link, not two.
-  const speed = within(screen.getByTestId("URS-TP201-002"));
-  expect(speed.getAllByRole("link", { name: "URS-TP201 rev 0, hlm. 1" })).toHaveLength(1);
-  // A different quote on the same page: both links, each with its own quote.
-  const power = within(screen.getByTestId("URS-TP201-026"));
+  fireEvent.click(screen.getByRole("button", { name: "URS-TP201-002" }));
+  const speedDialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
   expect(
-    power.getAllByRole("link", { name: "URS-TP201 rev 0, hlm. 2" }).map((a) => a.getAttribute("title")),
+    within(speedDialog).getAllByRole("button", { name: "URS-TP201 rev 0, hlm. 1" }),
+  ).toHaveLength(1);
+
+  fireEvent.click(within(speedDialog).getByRole("button", { name: "Berikutnya" }));
+  const powerDialog = await screen.findByRole("dialog", { name: "URS-TP201-026" });
+  expect(
+    within(powerDialog)
+      .getAllByRole("button", { name: "URS-TP201 rev 0, hlm. 2" })
+      .map((b) => b.getAttribute("title")),
   ).toEqual(["Catu daya 380 V, 3 fasa, 50 Hz.", "380 V, 3 fasa"]);
 });
 
-test("a class a human changed shows as proposed → decided; other rows show one class", () => {
+test("a class a human changed shows as proposed -> decided; other rows show one class", () => {
   const proposals: Proposal[] = [
     coverage(11, "URS-TP201-002", {
       state: "decided",
@@ -109,22 +135,27 @@ test("a class a human changed shows as proposed → decided; other rows show one
   ];
   renderMatrix(matrix, { proposals, counts, access: { mode: "readOnly", why: "noRole" } });
 
-  const edited = within(screen.getByTestId("URS-TP201-002"));
-  expect(edited.getByText("Sebagian")).toBeDefined();
-  expect(edited.getByText("Kelas setelah keputusan")).toBeDefined();
-  expect(edited.getByText("Celah")).toBeDefined();
+  const edited = screen.getByRole("row", { name: /URS-TP201-002/ });
+  expect(within(edited).getByText("Sebagian")).toBeDefined();
+  expect(within(edited).getByText("Kelas setelah keputusan")).toBeDefined();
+  expect(within(edited).getByText("Celah")).toBeDefined();
 
   for (const id of ["URS-TP201-026", "URS-TP201-030"]) {
-    expect(within(screen.getByTestId(id)).queryByText("Kelas setelah keputusan")).toBeNull();
+    expect(
+      within(screen.getByRole("row", { name: new RegExp(id) })).queryByText(
+        "Kelas setelah keputusan",
+      ),
+    ).toBeNull();
   }
-
 });
 
 test("an accepted class shows no arrow", () => {
-  const proposals = [coverage(11, "URS-TP201-002", { state: "decided", decisions: [decision({ id: 4, ...BIMA })] })];
+  const proposals = [
+    coverage(11, "URS-TP201-002", { state: "decided", decisions: [decision({ id: 4, ...BIMA })] }),
+  ];
   renderMatrix(matrix, { proposals, counts, access: { mode: "readOnly", why: "noRole" } });
 
-  const row = within(screen.getByTestId("URS-TP201-002"));
-  expect(row.getByText("Sebagian")).toBeDefined();
-  expect(row.queryByText("Kelas setelah keputusan")).toBeNull();
+  const row = screen.getByRole("row", { name: /URS-TP201-002/ });
+  expect(within(row).getByText("Sebagian")).toBeDefined();
+  expect(within(row).queryByText("Kelas setelah keputusan")).toBeNull();
 });

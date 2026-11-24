@@ -1,217 +1,169 @@
+"use client";
+
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 
-import type { ProtocolRowView, RowDraft } from "@/api/client";
-import type { ProtocolControls } from "./AssembledProtocolView";
-import { CiteLink } from "./CiteLink";
-import { DecisionCell } from "./Decisions";
-import type { DecisionAccess } from "./Decisions";
+import type { ProtocolRowView } from "@/api/client";
 import { formatValue } from "./MatrixTable";
-import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
-import { cell, CoveragePill, DataTable } from "./ui/ui";
+import { PdfCitationButton } from "./ui/PdfCitationModal";
+import { CoverageStatusBadge, DecisionStateBadge } from "./ui/StatusBadge";
 
-import s from "./AssembledProtocolView.module.css";
-
-type T = ReturnType<typeof useTranslations<"protocol">>;
-type MatrixT = ReturnType<typeof useTranslations<"matrix">>;
-type Action = (formData: FormData) => void | Promise<void>;
-
-function Coverage({ t, m, row, runId }: { t: T; m: MatrixT; row: ProtocolRowView; runId: string }) {
-  if (row.decided_class) {
-    return <CoveragePill cls={row.decided_class} label={m(`classes.${row.decided_class}`)} />;
-  }
-  const changed = row.coverage.state === "changed";
-  return (
-    <div>
-      <strong className={s.blocking}>{t(changed ? "coverageChanged" : "coverageUndecided")}</strong>
-      <div>
-        <a href={`/runs/${encodeURIComponent(runId)}#${encodeURIComponent(row.requirement)}`}>{t("toMatrix")}</a>
-      </div>
-    </div>
-  );
-}
-
-function Content({
-  t,
-  m,
-  row,
-  runId,
-  protocolId,
-  controls,
-}: {
-  t: T;
-  m: MatrixT;
-  row: ProtocolRowView;
-  runId: string;
-  protocolId: number;
-  controls: ProtocolControls;
-}) {
-  const step = row.test_step;
-  return (
-    <div>
-      <strong className={s.kind}>{t(`kinds.${row.kind}`)}</strong>
-      {row.kind === "vendor_reference" && (
-        <>
-          <div>{t("vendorEvidence")}</div>
-          <ul className={s.list}>
-            {row.evidence.map((e) => (
-              <li key={`${e.doc}/${e.rev}/${e.step}`}>{t("evidenceStep", { doc: e.doc, rev: e.rev, step: e.step })}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      {step && (
-        <dl className={s.step}>
-          <dt className={s.stepOrigin}>
-            {step.origin === "written"
-              ? t(step.proposal_id === null ? "writtenStep" : "editedStep", { version: step.version ?? 1 })
-              : t("fromDraft")}
-          </dt>
-          <dt>{t("description")}</dt>
-          <dd>{step.description}</dd>
-          <dt>{t("method")}</dt>
-          <dd>{step.method}</dd>
-          <dt>{t("instrument")}</dt>
-          <dd>{step.instrument ?? t("noInstrument")}</dd>
-          <dt>{t("ac")}</dt>
-          <dd>
-            {step.acceptance ? formatValue(m, step.acceptance) : t("acToSet", { flag: step.acceptance_flag ?? "" })}
-          </dd>
-        </dl>
-      )}
-      {row.blockers.map((b) => (
-        <div key={b} className={s.blocking}>
-          {t(`blockers.${b}`)}
-        </div>
-      ))}
-      {controls !== null && row.kind !== "undecided" && (
-        <WriteForm
-          t={t}
-          row={row}
-          runId={runId}
-          protocolId={protocolId}
-          write={controls.write}
-          remove={controls.remove}
-        />
-      )}
-      <Versions t={t} m={m} versions={row.written} />
-    </div>
-  );
-}
-
-function Draft({
-  t,
-  m,
-  d,
-  runId,
-  access,
-  vendor,
-  anchor,
-  edit,
-}: {
-  t: T;
-  m: MatrixT;
-  d: RowDraft;
-  runId: string;
-  access: DecisionAccess;
-  vendor: boolean;
-  anchor: string;
-  /** The edit form, when the viewer may edit this draft now. */
-  edit: { protocolId: number; action: Action } | null;
-}) {
-  const x = d.draft;
-  return (
-    <div className={s.draft}>
-      <div>{x.description}</div>
-      <div className={s.muted}>
-        {t("method")}: {x.method}
-      </div>
-      <div className={s.muted}>
-        {t("instrument")}: {x.instrument ?? t("noInstrument")}
-      </div>
-      <div>
-        {t("ac")}:{" "}
-        {x.acceptance ? formatValue(m, x.acceptance) : t("acToSet", { flag: x.acceptance_flag ?? "" })}{" "}
-        {x.acceptance_citation && <CiteLink runId={runId} cite={x.acceptance_citation} />}
-      </div>
-      {vendor && <div className={s.muted}>{t("vendorDraftNote")}</div>}
-      <DecisionCell proposal={d.proposal} runId={runId} screen="protocol" access={access} anchor={anchor} />
-      {edit && <EditDraftForm t={t} d={d} runId={runId} protocolId={edit.protocolId} edit={edit.action} />}
-    </div>
-  );
-}
-
-/** One row per requirement computed from the current decisions while the Protocol is in Draft status. */
+/** Opsi A compact 4-column table for Assembled Protocol rows in Draft status. */
 export function ProtocolRowsTable({
-  t,
   rows,
   runId,
-  access,
-  protocolId,
-  controls,
+  selectedRequirement,
+  onSelect,
 }: {
-  t: T;
   rows: readonly ProtocolRowView[];
   runId: string;
-  access: DecisionAccess;
-  protocolId: number;
-  controls: ProtocolControls;
+  selectedRequirement: string | null;
+  onSelect: (requirement: string) => void;
 }) {
+  const t = useTranslations("protocol");
   const m = useTranslations("matrix");
+
   return (
-    <DataTable>
-      <thead>
-        <tr>
-          <th>{t("requirement")}</th>
-          <th>{t("coverage")}</th>
-          <th>{t("content")}</th>
-          <th>{t("drafts")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr
-            key={r.requirement}
-            id={`row-${r.requirement}`}
-            data-testid={r.requirement}
-            className={r.blockers.length > 0 ? s.blockingRow : undefined}
-          >
-            <th scope="row">
-              <div className={cell.id}>{r.requirement}</div>
-              <div className={s.text}>{r.text}</div>
-              <CiteLink runId={runId} cite={r.source} />
+    <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
+      <table className="w-full border-collapse text-left text-xs">
+        <thead>
+          <tr className="border-b border-border bg-canvas text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+            <th scope="col" className="px-3 py-2.5">
+              {t("requirement")}
             </th>
-            <td>
-              <Coverage t={t} m={m} row={r} runId={runId} />
-            </td>
-            <td>
-              <Content t={t} m={m} row={r} runId={runId} protocolId={protocolId} controls={controls} />
-            </td>
-            <td className={s.drafts}>
-              {r.drafts.length === 0 ? (
-                <span className={s.muted}>{t("noDrafts")}</span>
-              ) : (
-                r.drafts.map((d) => (
-                    <Draft
-                    key={d.proposal.id}
-                    t={t}
-                    m={m}
-                    d={d}
-                    runId={runId}
-                    access={access}
-                    vendor={r.kind === "vendor_reference"}
-                    anchor={`row-${r.requirement}`}
-                    edit={
-                      controls !== null && r.test_step?.origin !== "written"
-                        ? { protocolId, action: controls.edit }
-                        : null
-                    }
-                  />
-                ))
-              )}
-            </td>
+            <th scope="col" className="px-3 py-2.5">
+              {t("coverage")}
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              {t("content")}
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              {t("drafts")}
+            </th>
           </tr>
-        ))}
-      </tbody>
-    </DataTable>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((r) => {
+            const isSelected = selectedRequirement === r.requirement;
+            const isBlocking = r.blockers.length > 0;
+            const step = r.test_step;
+            const changed = r.coverage.state === "changed";
+
+            return (
+              <tr
+                key={r.requirement}
+                id={`row-${r.requirement}`}
+                data-testid={r.requirement}
+                className={`transition-colors ${
+                  isSelected
+                    ? "bg-accent-soft/60"
+                    : isBlocking
+                      ? "bg-fail-soft/20 hover:bg-fail-soft/35"
+                      : "hover:bg-sunken/50"
+                }`}
+              >
+                <th scope="row" className="max-w-[260px] px-3 py-2.5 align-top font-normal">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      data-tw=""
+                      onClick={() => onSelect(r.requirement)}
+                      className="cursor-pointer font-mono text-xs font-semibold text-accent hover:underline tabular-nums"
+                    >
+                      {r.requirement}
+                    </button>
+                    <PdfCitationButton runId={runId} cite={r.source} compact />
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-xs text-ink-muted">{r.text}</div>
+                </th>
+
+                <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                  {r.decided_class ? (
+                    <CoverageStatusBadge coverage={r.decided_class} size="xs" />
+                  ) : (
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-fail-edge bg-fail-soft px-2 py-0.5 text-[11px] font-semibold text-fail">
+                        <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span>{t(changed ? "coverageChanged" : "coverageUndecided")}</span>
+                      </span>
+                      <div>
+                        <Link
+                          href={`/runs/${encodeURIComponent(runId)}#${encodeURIComponent(r.requirement)}`}
+                          className="text-[11px] font-semibold text-accent hover:underline"
+                        >
+                          {t("toMatrix")}
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </td>
+
+                <td className="max-w-[320px] px-3 py-2.5 align-top">
+                  <div className="font-semibold text-ink">{t(`kinds.${r.kind}`)}</div>
+                  {r.kind === "vendor_reference" && r.evidence.length > 0 && (
+                    <div className="mt-0.5 text-[11px] text-ink-muted tabular-nums">
+                      {r.evidence
+                        .map((e) => t("evidenceStep", { doc: e.doc, rev: e.rev, step: e.step }))
+                        .join(" · ")}
+                    </div>
+                  )}
+                  {step && (
+                    <div className="mt-0.5 space-y-0.5">
+                      <div className="line-clamp-1 text-[11px] text-ink-muted">
+                        {step.origin === "written"
+                          ? t(step.proposal_id === null ? "writtenStep" : "editedStep", {
+                              version: step.version ?? 1,
+                            })
+                          : t("fromDraft")}
+                        {" · "}
+                        <span className="font-medium text-ink tabular-nums">
+                          {step.acceptance
+                            ? formatValue(m, step.acceptance)
+                            : t("acToSet", { flag: step.acceptance_flag ?? "" })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {r.blockers.map((b) => (
+                    <div
+                      key={b}
+                      className="mt-1 inline-flex items-center gap-1 rounded border border-fail-edge bg-fail-soft px-1.5 py-0.5 text-[11px] font-medium text-fail"
+                    >
+                      <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span>{t(`blockers.${b}`)}</span>
+                    </div>
+                  ))}
+                </td>
+
+                <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1">
+                      {r.drafts.length === 0 ? (
+                        <span className="text-[11px] text-ink-muted">{t("noDrafts")}</span>
+                      ) : (
+                        r.drafts.map((d) => (
+                          <DecisionStateBadge key={d.proposal.id} state={d.proposal.state} />
+                        ))
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      data-tw=""
+                      aria-label={t("drawer.openRow", { requirement: r.requirement })}
+                      onClick={() => onSelect(r.requirement)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 text-[11px] font-semibold text-ink hover:bg-sunken"
+                    >
+                      <span>{t("drawer.inspect")}</span>
+                      <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

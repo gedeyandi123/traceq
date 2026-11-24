@@ -1,21 +1,20 @@
+"use client";
+
+import { AlertTriangle, CheckCircle2, History as HistoryIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import type { ProtocolEvent, ProtocolView } from "@/api/client";
 import type { ApprovalControls, ProtocolControls } from "./AssembledProtocolView";
 import { formatWhen } from "./formatWhen";
+import { Modal } from "./ui/Modal";
+import { ProtocolStatusBadge } from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
-import { StatusBadge, type SemanticTone } from "./ui/ui";
-
-import s from "./AssembledProtocolView.module.css";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
 
-const STATUS_TONE: Record<ProtocolView["status"], SemanticTone> = {
-  draft: "warn",
-  submitted: "info",
-  approved: "pass",
-  withdrawn: "neutral",
-};
+const TEXTAREA_CLASS =
+  "w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none";
 
 export function StartForm({
   t,
@@ -30,25 +29,34 @@ export function StartForm({
 }) {
   if (action === null) return null;
   return (
-    <form action={action.start} className={s.form}>
+    <form action={action.start}>
       <input type="hidden" name="run_id" value={runId} />
       <SubmitButton variant="primary">{t(again ? "startAgain" : "start")}</SubmitButton>
     </form>
   );
 }
 
-function History({ t, events }: { t: T; events: readonly ProtocolEvent[] }) {
+/** Chronological protocol lifecycle event timeline. */
+export function ProtocolHistory({ t, events }: { t: T; events: readonly ProtocolEvent[] }) {
   const when = useTranslations("decisions");
   return (
-    <section aria-labelledby="protocol-history" className={s.history}>
-      <h3 id="protocol-history" className={s.historyTitle}>
-        {t("history")}
+    <section
+      aria-labelledby="protocol-history"
+      className="space-y-3 rounded-lg border border-border bg-surface p-4"
+    >
+      <h3 id="protocol-history" className="m-0 flex items-center gap-2 text-sm font-bold text-ink">
+        <HistoryIcon className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+        <span>{t("history")}</span>
       </h3>
-      <ol>
+      <ol className="m-0 list-decimal space-y-2 pl-5 text-xs">
         {events.map((e) => (
-          <li key={e.id}>
-            {t(`events.${e.event}`, { name: e.name, when: formatWhen(when, e.at) })}
-            {e.reason && <div className={s.reason}>{e.reason}</div>}
+          <li key={e.id} className="space-y-1 text-ink">
+            <div>{t(`events.${e.event}`, { name: e.name, when: formatWhen(when, e.at) })}</div>
+            {e.reason && (
+              <div className="rounded border border-border bg-sunken px-2.5 py-1.5 text-ink-muted italic">
+                {e.reason}
+              </div>
+            )}
           </li>
         ))}
       </ol>
@@ -56,8 +64,8 @@ function History({ t, events }: { t: T; events: readonly ProtocolEvent[] }) {
   );
 }
 
-/** Approve (bound to the submission shown: its event id and hash) and return with a reason,
- * for the approving role while Submitted. */
+/** Approve (bound to the submission shown: its event id and hash) and return with a reason
+ * inside a Radix Confirmation Modal, for the approving role while Submitted. */
 function ApprovalForms({
   t,
   protocol,
@@ -69,37 +77,71 @@ function ApprovalForms({
   runId: string;
   approval: ApprovalControls;
 }) {
+  const [returnOpen, setReturnOpen] = useState(false);
   const shown = protocol.submission;
   if (protocol.status !== "submitted" || approval === null || shown === null) return null;
+
   return (
-    <div className={s.approvalForms}>
-      <p>{t("approval.note")}</p>
-      <div className={s.formRow}>
-        <form action={approval.approve} className={s.form}>
+    <div className="space-y-3 rounded-lg border border-info-edge bg-info-soft p-3.5 text-xs text-ink">
+      <p className="m-0 leading-relaxed">{t("approval.note")}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <form action={approval.approve}>
           <input type="hidden" name="run_id" value={runId} />
           <input type="hidden" name="protocol_id" value={protocol.id} />
           <input type="hidden" name="submission_event_id" value={shown.event_id} />
           <input type="hidden" name="hash" value={shown.hash} />
           <SubmitButton variant="primary">{t("approval.approve")}</SubmitButton>
         </form>
-        <form action={approval.return} className={s.form}>
+        <button
+          type="button"
+          data-tw=""
+          onClick={() => setReturnOpen(true)}
+          className="inline-flex cursor-pointer items-center justify-center rounded-md border border-fail-edge bg-surface px-3 py-1.5 text-xs font-semibold text-fail hover:bg-fail-soft"
+        >
+          {t("approval.return")}
+        </button>
+      </div>
+
+      <Modal
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        size="sm"
+        title={t("approval.returnModalTitle")}
+        description={t("approval.returnModalDesc")}
+      >
+        <form action={approval.return} className="space-y-3">
           <input type="hidden" name="run_id" value={runId} />
           <input type="hidden" name="protocol_id" value={protocol.id} />
-          <textarea
-            name="reason"
-            required
-            aria-label={t("approval.returnReason")}
-            placeholder={t("approval.returnReason")}
-          />
-          <SubmitButton variant="danger">{t("approval.return")}</SubmitButton>
+          <label className="block space-y-1 text-xs font-medium text-ink">
+            <span>{t("approval.returnReason")}</span>
+            <textarea
+              name="reason"
+              required
+              rows={3}
+              aria-label={t("approval.returnReason")}
+              placeholder={t("approval.returnReason")}
+              className={TEXTAREA_CLASS}
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              data-tw=""
+              onClick={() => setReturnOpen(false)}
+              className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
+            >
+              {t("cancel")}
+            </button>
+            <SubmitButton variant="danger">{t("approval.return")}</SubmitButton>
+          </div>
         </form>
-      </div>
+      </Modal>
     </div>
   );
 }
 
-/** Protocol status card: current status badge, event history, and lifecycle actions
- * (withdraw, approve/return, or restart after withdrawal). */
+/** Compact protocol status header card with lifecycle actions (withdraw modal, approve/return,
+ * or restart after withdrawal). */
 export function ProtocolStatusPanel({
   t,
   protocol,
@@ -113,31 +155,90 @@ export function ProtocolStatusPanel({
   controls: ProtocolControls;
   approval: ApprovalControls;
 }) {
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+
   return (
-    <section className={s.status} aria-labelledby="protocol-status">
-      <div className={s.statusRow}>
-        <h2 id="protocol-status" className={s.statusTitle}>
-          {t("status", { id: protocol.id })}
-        </h2>
-        <StatusBadge tone={STATUS_TONE[protocol.status] ?? "neutral"}>{t(`statuses.${protocol.status}`)}</StatusBadge>
+    <section
+      aria-labelledby="protocol-status"
+      className="space-y-3 rounded-lg border border-border bg-surface p-4 shadow-xs"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 id="protocol-status" className="m-0 text-base font-bold text-ink tabular-nums">
+              {t("status", { id: protocol.id })}
+            </h2>
+            <ProtocolStatusBadge status={protocol.status} />
+          </div>
+          <p className="m-0 text-xs text-ink-muted tabular-nums">
+            {t("startedFrom", { run: protocol.run_id })}
+          </p>
+        </div>
+
+        {protocol.status === "draft" && controls !== null && (
+          <button
+            type="button"
+            data-tw=""
+            onClick={() => setWithdrawOpen(true)}
+            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-fail-edge bg-surface px-3 py-1.5 text-xs font-semibold text-fail hover:bg-fail-soft"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("withdraw")}</span>
+          </button>
+        )}
       </div>
-      <p className={s.muted}>{t("startedFrom", { run: protocol.run_id })}</p>
-      <History t={t} events={protocol.events} />
-      {protocol.status === "approved" && <p className={s.approvedNote}>{t("approval.approvedNote")}</p>}
-      <ApprovalForms t={t} protocol={protocol} runId={runId} approval={approval} />
-      {protocol.status === "draft" && controls !== null && (
-        <form action={controls.withdraw} className={s.form}>
-          <input type="hidden" name="run_id" value={runId} />
-          <input type="hidden" name="protocol_id" value={protocol.id} />
-          <textarea name="reason" required aria-label={t("withdrawReason")} placeholder={t("withdrawReason")} />
-          <SubmitButton variant="danger">{t("withdraw")}</SubmitButton>
-        </form>
+
+      {protocol.status === "approved" && (
+        <div className="flex items-start gap-2 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{t("approval.approvedNote")}</span>
+        </div>
       )}
+
+      <ApprovalForms t={t} protocol={protocol} runId={runId} approval={approval} />
+
       {protocol.status === "withdrawn" && (
-        <>
-          <p>{t("withdrawnNote")}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-canvas px-3.5 py-2.5">
+          <p className="m-0 text-xs text-ink-muted">{t("withdrawnNote")}</p>
           <StartForm t={t} runId={runId} action={controls} again />
-        </>
+        </div>
+      )}
+
+      {protocol.status === "draft" && controls !== null && (
+        <Modal
+          open={withdrawOpen}
+          onOpenChange={setWithdrawOpen}
+          size="sm"
+          title={t("withdrawModalTitle")}
+          description={t("withdrawModalDesc")}
+        >
+          <form action={controls.withdraw} className="space-y-3">
+            <input type="hidden" name="run_id" value={runId} />
+            <input type="hidden" name="protocol_id" value={protocol.id} />
+            <label className="block space-y-1 text-xs font-medium text-ink">
+              <span>{t("withdrawReason")}</span>
+              <textarea
+                name="reason"
+                required
+                rows={3}
+                aria-label={t("withdrawReason")}
+                placeholder={t("withdrawReason")}
+                className={TEXTAREA_CLASS}
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                data-tw=""
+                onClick={() => setWithdrawOpen(false)}
+                className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
+              >
+                {t("cancel")}
+              </button>
+              <SubmitButton variant="danger">{t("withdraw")}</SubmitButton>
+            </div>
+          </form>
+        </Modal>
       )}
     </section>
   );
