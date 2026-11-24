@@ -1,0 +1,26 @@
+# TraceQ: Universal Agent Protocol
+
+Universal protocol for all coding agents (Antigravity, Claude Code). Public-repo safe (no local paths, private names, or secrets).
+
+## 1. Hard Boundaries (Never Violate)
+- **Held-out isolation:** NEVER open, read, or grep `world/tp202*`, `world/pw001*`, `answer_key/TP-202`, `answer_key/PW-001`, or held-out docs/recordings/matrix rows. Run held-out commands ONLY via `bash scripts/heldout_run.sh <TAG> -- <cmd>` and report only scorer outputs (`gate`, `item id`, expected/got, counts). Never re-run a failed held-out gate until fixed on dev (`TP-201`).
+- **Git & branch safety:** NEVER push to `main`, force-push, or pass `--no-verify`. Push only prefixed branches (`feat/`, `fix/`, `docs/`, `chore/`, `test/`, `refactor/`). Code reaches `main` only via owner-merged PRs (agents may merge `docs/*`/`chore/*` PRs or ticket PRs into an integration branch after green CI).
+- **Secrets & public repo (ADR 0001):** NEVER read/commit `.env` or `.denylist.local`, or leak private/plant/vendor names (`scripts/check_denylist.py`, `denylist-text.yml`; copy `.denylist.local` into new worktrees).
+- **Circuit breaker & integrity:** After 3 failed fixes on the same error, STOP and report root cause + options. Never weaken tests, loosen tolerances, or add unapproved suppressions (`tests/test_boundaries.py`). Cite only observed outputs after final edit.
+
+## 2. Single Source of Truth (SSOT)
+- **Work & order:** GitHub Issues in `gedeyandi123/traceq` (`docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`). Do NOT create `STATUS.md`, `tasks/plan.md`, or `BACKLOG.md`.
+- **Domain & decisions:** `GLOSSARY.md` (`docs/agents/domain.md`), `docs/adr/`, `docs/design/synthetic-dataset.md`, `docs/demo-runbook.md`.
+- **Architecture & UI:**
+  - **ADR 0008:** Layered modular monolith (`uv run lint-imports`, `pyright` strict on `src/traceq/`). System never imports `traceq_dataset`/`traceq_eval`; scorer never loads `assembly`/`proposals`/`db`. Ports only for two real implementations.
+  - **ADR 0011:** CSS Modules + `:root` tokens (`web/src/app/globals.css`), bundled `@fontsource-variable/inter`, colour-literal guard (`web/src/colour-literals.test.ts`). Do NOT add Tailwind, UI kits, `docs/DESIGN.md`, or font CDNs.
+
+## 3. Verification Loop
+- **Fast inner loop:** `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1 -Mode fast` (optional `-TestPath <path>`).
+- **Full / pre-PR:** `pre-commit run --all-files`, `uv run pyright`, `uv run lint-imports`, `uv run pytest -q`; when `web/` changes, also `npm run typecheck`, `npm test`, `npm run build` in `web/` (+ affected `docs/demo-runbook.md` cases).
+- **Memory (16 GB host):** Avoid concurrent heavy runs (`pytest` ~1.5 GB, `next build` ~1.4 GB, `vitest` ~1.0 GB); stop check servers right after verification.
+
+## 4. Feature Flow & Eval Loop
+- **Feature flow:** `grilling` + `domain-modeling` → fresh-context doubt review → spec + owner approval → issues with native blocking edges → `tdd` on isolated branches/worktrees → code review + owner merge to `main`.
+- **Eval loop:** Prompt/model changes are experiments (Batch API within budget, `traceq_eval`, PR updating `baselines/*.json` + run link, replay tolerance 0). Report `k/n` split by dev (`TP-201`) vs held-out and log cost. Answer-key changes go in their own PR.
+- **Owner-only:** Grilling answers, spec approval, merging code to `main`, gates, scoring rules/claims, ADRs, spend, external comms.

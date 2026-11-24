@@ -1,42 +1,10 @@
-# TraceQ: agent protocol
+@AGENTS.md
 
-Domain language: `GLOSSARY.md`. Decisions: `docs/adr/`. Dataset and eval design: `docs/design/synthetic-dataset.md`. Commands: `README.md`. Moving to another coding agent: `docs/agents/porting.md`.
+## Claude Code
 
-Where state lives: the work and its order are GitHub issues (open `ready-for-agent` tickets, the freeze checklist #133); decisions and records are in this repo (`GLOSSARY.md`, `docs/adr/`, `docs/design/`, `docs/review/`, `docs/demo-runbook.md`). Agent memory holds only what this public repo cannot: machine-local paths and running processes, private names, owner preferences, and pointers into the repo. Before a session ends, anything decided in it is in the repo or on an issue.
+This section applies only when running in Claude Code. Universal protocol, SSOT, boundaries, and verification rules live in `AGENTS.md`.
 
-Checks before claiming done (show the output): `pre-commit run --all-files`, `uv run pyright`, `uv run pytest -q`. When `web/` changes, also `npm run typecheck`, `npm test` and `npm run build` in `web/` (a new worktree needs `npm ci` there first); a UI change also re-runs the cases of `docs/demo-runbook.md` it touches. Local `pytest` (about 1.5 GB of RAM for 8 minutes) may be skipped when the diff touches only Markdown and files under `web/` that no test reads (tests read `web/openapi.json`, `web/eval-openapi.json` and `web/src/decisions/`); the PR then says so, and the required CI `checks` job, which runs the full suite, is the evidence.
-
-Memory on this laptop (16 GB, measured 17 Nov 2026): peaks of `pytest` 1.5 GB, `next build` 1.4 GB, `vitest` 1.0 GB, `npm ci` 0.7 GB. Claude Code stops its own background shells when RAM runs critically low, which killed `pytest` and the demo stack during #135. So the main session starts a check server only after the implementer has reported and stops it after the check, and runs one implementer at a time while free RAM is under 4 GB. Long-lived processes the owner needs (the demo stack, the eval screen) are started by the main session in their own console windows (`Start-Process`), not as background shells, so that cleanup cannot stop them.
-
-## Agent skills
-
-### Issue tracker
-
-GitHub Issues in `gedeyandi123/traceq` (public). See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `GLOSSARY.md` and `docs/adr/` at the root. See `docs/agents/domain.md`.
-
-## Flow per feature
-
-1. `grilling` + `domain-modeling`: decisions land in `GLOSSARY.md` and `docs/adr/`. Prototype only when code must answer a question; at most two rounds on paper, then a probe.
-2. The `reviewer` agent, in a fresh context, reviews the plan for doubts (strongest counter-argument per decision).
-3. to-spec, then the owner approves it, then to-tickets (issues with native blocking edges). Keep user stories to what the slice needs.
-4. implement-spec: integration branch `feat/<spec>`; each ticket in its own worktree, built by a fresh `implementer` with `tdd`. Ticket PRs target the integration branch and the agent merges them after CI; `code-review` runs on the integration branch; one PR to `main`, merged by the owner.
-5. `retro` per milestone, not per PR. No separate protocol audits.
-
-The user-only Matt skills (to-spec, to-tickets, implement-spec, retro, setup) run by reading their `SKILL.md` from the installed `mattpocock-skills` plugin when the owner asks in prose.
-
-## Eval loop (prompts and models)
-
-A prompt or model change is an experiment, not a ticket: change it, run live (Batch API), score with `traceq_eval`, and open a PR that updates `baselines/<Equipment>.json` (or a Review Package's `baselines/<Equipment>-<Stage>-draft.json`) and links the run. CI replays recorded outputs at tolerance 0. Report rates with k/n and the split (dev TP-201 vs held-out). Log the cost of each live run. API calls only within the prepaid budget. A prompt change stops the committed recordings from replaying: the same PR records a new live run, points the replay tests at it, and keeps the old run's figures in `recordings/README.md`. A held-out run that fails a gate is reported as it is and is not re-run until the cause is fixed on dev; re-running until it passes picks the result. Report it only from the scorer's report (gate, item id, expected and got classes, counts); never open the held-out item's text, answer key, world data, documents, recordings or matrix rows, because knowing them shapes the fix (in #85 reading URS-TP202-012 weakened its held-out result, see `DATASHEET.md`).
-
-## Models
+### Effort & Models
 
 The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec and merging. Subagents are spawned by name (`subagent_type`) from `.claude/agents/`, which fixes their model, effort and tools:
 
@@ -46,27 +14,20 @@ The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec an
 | `reviewer` | Both code-review axes and the plan doubt review | inherit (Opus) / `medium` | read-only |
 | `explorer` | A lookup: where is X, which files mention Y | Haiku / `low`, no CLAUDE.md | Read, Glob, Grep |
 
-How implement-spec's roles map here:
+The session's own effort changes only by the owner typing `/effort`. Say "switch to `/effort high`" before a decision on gates, scoring rules or ADRs, or after two failed attempts at the same bug, and "back to `/effort medium`" when done. `xhigh` and `max` are not used routinely. If Sonnet tickets keep failing CI or need rework, move that kind of ticket back to Opus.
 
-- **Exploration subagent (step 2):** `explorer` for codebase lookups. It cannot write, so the main session saves its notes in the session scratchpad, never in the repo. External docs go through the `research` or `claude-api` skill in the main session.
-- **Implementer subagents (step 4):** `implementer`, at most **two at a time**. The delegation message holds only pointers: ticket number, spec issue, integration branch, and the commit co-author line (subagents do not receive it otherwise).
-- **Merger subagent (step 5):** none. The main session merges the ticket PR into the integration branch (`gh pr merge <n> --squash`), then comments on the ticket and closes it, so native blocking edges unblock the next tickets. GitHub closes issues only from PRs into the default branch. On a merge conflict, a fresh implementer resolves it.
-- **Integration PR (steps 3 and 8):** a draft PR into `main` that closes the spec issue, listing every ticket. The owner merges it.
-- **Standalone ticket (no spec):** only for a ticket that does not build on another unmerged PR. One `implementer` in its own worktree, branch `<prefix>/<n>-<slug>` from `main`, PR into `main` with `Closes #<n>` in the body; the owner merges it. After the merge the main session checks that the issue closed, and closes it with a comment if not.
-- **Ticket chain (no spec):** tickets that build on each other share an integration branch `fix/<topic>` (or `feat/<topic>`) from `main`, as in implement-spec: the agent merges each ticket PR into it after CI and closes the ticket, and one PR goes to `main` for the owner. Stacked PRs into `main` conflict after every squash merge.
-- **Cleanup (step 9):** `git worktree prune` and delete leftover local `worktree-agent-*` and ticket branches.
+### `implement-spec` Subagent Mapping
 
-Quality checks on the agents themselves: the main session reads the `path:line` an `explorer` answer cites before relying on it; `reviewer` Bash is limited by `.claude/hooks/readonly-bash.mjs` (tests: `node .claude/hooks/readonly-bash.test.mjs`); every implementer PR still passes CI and the integration-branch code review.
+- **Exploration subagent (step 2):** `explorer` for codebase lookups (save notes in session scratchpad, never in the repo). External docs go through `research` or `claude-api` in the main session.
+- **Implementer subagents (step 4):** `implementer`, at most **two at a time** (respect 16 GB RAM limit in `AGENTS.md`). Delegation message holds only pointers: ticket number, spec issue, integration branch, and commit co-author line.
+- **Merger subagent (step 5):** none. Main session merges ticket PRs into the integration branch (`gh pr merge <n> --squash`), then comments and closes the ticket.
+- **Integration PR (steps 3 and 8):** draft PR into `main` closing the spec issue, listing every ticket; owner merges it.
+- **Standalone / ticket chain:** standalone uses `<prefix>/<n>-<slug>` into `main`; dependent tickets share `feat/<topic>` or `fix/<topic>`.
+- **Cleanup (step 9):** `git worktree prune` and delete leftover `worktree-agent-*` and ticket branches.
 
-Never use the general-purpose agent for these jobs, and prefer `explorer` over the built-in Explore (which runs on Opus) for lookups. A subagent cannot spawn further subagents unless its tools include Agent; none of these do.
+### Hook & Skill Notes
 
-The session's own effort changes only by the owner typing `/effort`. The agent says "switch to `/effort high`" before a decision on gates, scoring rules or ADRs, or after two failed attempts at the same bug, and "back to `/effort medium`" when that is done. `xhigh` and `max` are not used routinely. If Sonnet tickets keep failing CI or need rework, move that kind of ticket back to Opus.
-
-## Rules
-
-- The owner decides: grilling answers, spec approval, merging code into `main`, gates, scoring rules and claims, ADRs, money, contacting people.
-- The agent pushes branches with a standard prefix (`feat/`, `fix/`, `docs/`, `chore/`, `test/`, `refactor/`), never `main`, and never force-pushes. It merges, after CI is green, `docs/*` and `chore/*` PRs into `main` and ticket PRs into an integration branch; code reaches `main` only through the owner. A local hook (github-guard) and branch protection enforce this.
-- The system under test never reads world data, the answer key or baselines (`tests/test_isolation.py`); prompt examples never come from TP-201.
-- No `noqa`, skip, `pyright: ignore` or loosened tolerance without a written reason. Answer-key changes go in their own PR (design §10); the key and the scorer may share one when an oracle test needs both, but a system change never does. New product packages go in pyright `strict`.
-- A new task must pass: "if the result is A versus B, what do we build differently?" Ports only where a second implementation exists.
-- Public repo: no private names, documents or plant details in code, issues, PRs or commits; the denylist checks all of them. A new worktree needs `.denylist.local` copied from the main checkout, or the denylist check fails.
+- `.claude/hooks/heldout-bash.mjs` and `.claude/hooks/readonly-bash.mjs` guard Bash/PowerShell in Claude Code (tests: `node .claude/hooks/readonly-bash.test.mjs` and `node .claude/hooks/heldout-bash.test.mjs`).
+- Main session reads `path:line` cited by `explorer` before relying on it; never use the general-purpose agent for these roles.
+- User-only Matt skills (`to-spec`, `to-tickets`, `implement-spec`, `retro`, `setup`) run by reading their `SKILL.md` from `mattpocock-skills` when asked in prose. `retro` runs per milestone, not per PR.
+- Long-lived demo/eval servers are started by the main session in their own console windows (`Start-Process`), not as background shells.

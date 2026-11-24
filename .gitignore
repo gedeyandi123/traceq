@@ -19,6 +19,8 @@ __pycache__/
 .venv/
 .ruff_cache/
 .pytest_cache/
+/.uv-cache/
+/.import_linter_cache/
 
 # Editors / OS
 .vscode/
