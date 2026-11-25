@@ -241,6 +241,7 @@ def add_investigation(
         .mappings()
         .one()
     )
+    prev_inv = dev.investigations[-1] if dev.investigations else None
     inv = results.deviation_investigation_from_row(inv_row)
     audit.append(
         session,
@@ -248,6 +249,15 @@ def add_investigation(
         "deviation investigation recorded",
         "execution_deviation",
         f"{execution_id}/{dev.deviation_number}",
+        old=(
+            None
+            if prev_inv is None
+            else {
+                "investigation_id": prev_inv.id,
+                "version": prev_inv.version,
+                "deviation_class": prev_inv.deviation_class,
+            }
+        ),
         new={
             "execution_id": execution_id,
             "deviation_id": deviation_id,
@@ -257,6 +267,7 @@ def add_investigation(
             "deviation_class": inv.deviation_class,
             "reason_for_change": reason,
         },
+        reason=reason,
     )
     return inv
 
@@ -304,6 +315,7 @@ def submit_deviation(
         "deviation submitted",
         "execution_deviation",
         f"{execution_id}/{dev.deviation_number}",
+        old={"status": dev.status},
         new={
             "execution_id": execution_id,
             "deviation_id": deviation_id,
@@ -401,6 +413,7 @@ def close_deviation(
         "deviation closed",
         "execution_deviation",
         f"{execution_id}/{dev.deviation_number}",
+        old={"status": dev.status},
         new={
             "execution_id": execution_id,
             "deviation_id": deviation_id,
@@ -446,19 +459,22 @@ def return_deviation(
         .one()
     )
     ev = results.deviation_event_from_row(ev_row)
+    reason_stripped = req.reason.strip()
     audit.append(
         session,
         actor,
         "deviation returned",
         "execution_deviation",
         f"{execution_id}/{dev.deviation_number}",
+        old={"status": dev.status},
         new={
             "execution_id": execution_id,
             "deviation_id": deviation_id,
             "deviation_number": dev.deviation_number,
             "event_id": ev.id,
             "status": ev.status,
-            "reason": req.reason,
+            "reason": reason_stripped,
         },
+        reason=reason_stripped,
     )
     return ev

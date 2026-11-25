@@ -6,6 +6,7 @@ that depends on it answers 401, also for a token the demo issuer signed.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Annotated
 
@@ -14,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from traceq.identity.tokens import InvalidToken, IssuerUnavailable, Principal, Verifier
 
+_LOG = logging.getLogger(__name__)
 _BEARER = HTTPBearer(auto_error=False)
 _CHALLENGE = {"WWW-Authenticate": "Bearer"}
 
@@ -33,6 +35,7 @@ def authenticate(verifier: Verifier | None) -> Callable[..., Principal]:
         except InvalidToken as e:
             raise HTTPException(401, f"invalid token: {e}", _CHALLENGE) from e
         except IssuerUnavailable as e:
-            raise HTTPException(503, f"the issuer cannot be reached: {e}") from e
+            _LOG.warning("identity issuer unavailable: %s", e)
+            raise HTTPException(503, "the identity issuer is temporarily unavailable") from e
 
     return principal
