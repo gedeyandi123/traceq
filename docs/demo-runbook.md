@@ -1,6 +1,6 @@
-# Runbook demo irisan 1 (Proposal Decisions)
+# Runbook demo TraceQ (Proposal Decisions, Protocol Assembly, & Execution)
 
-Panduan menjalankan demo TraceQ irisan 1 untuk sesi praktisi: persiapan, alur end to end, kasus uji langkah demi langkah, hal yang diketahui salah, dan pemulihan. Perintah dasarnya ada di `README.md` (bagian "Demo"). Dokumen ini tidak mengulanginya kecuali bila urutannya penting.
+Panduan menjalankan demo TraceQ untuk sesi praktisi: persiapan, alur end to end (Proposal Decisions, Protocol Assembly, dan Execution & Deviations), kasus uji langkah demi langkah, hal yang diketahui salah, dan pemulihan. Perintah dasarnya ada di `README.md` (bagian "Demo"). Dokumen ini tidak mengulanginya kecuali bila urutannya penting.
 
 **Status:** dilatih penuh pada 17 Nov 2026 23.18–23.27 UTC di laptop Windows 11 dengan korpus rilis 0.1.1 (freeze), rekaman `haiku-r10`, `main` e3bb58e (sesudah #100, #101 dan #182) dan build produksi baru di Chrome; semua 17 kasus lulus (#133). Demo pindah dari r8 ke r10 atas keputusan owner. Gladi sebelumnya (r8 pada 17 Nov dengan `main` d00dec8 dan 9e85590; r7 pada rilis 0.1.0, 16–17 Nov) ada di riwayat git berkas ini. Hasil per kasus ada di kolom "Hasil" pada bagian 5. Sesi praktisi diadakan sesudah freeze 25 Nov di atas rilis dan rekaman yang sama.
 
@@ -42,7 +42,7 @@ Jalankan dari root repo, masing-masing di terminal sendiri:
    Penilaian sengaja tidak masuk `demo.py`: sistem tidak boleh membaca answer key (`tests/test_isolation.py`), dan penilaian adalah tugas harness.
 3. **UI:** `cd web && npm start`, lalu buka http://localhost:3000.
 
-**Cek siap (2 menit):** http://127.0.0.1:9000/demo/personas menampilkan 4 persona (Ayu, Bima, Citra, Dewi). Di `/`, daftar "Run analisis" berisi satu run TP-201 dengan mode "Putar ulang". Matriks menampilkan 38 baris dan baris "0/38 usulan sudah diputuskan"; buka "Jumlah keputusan" untuk melihat "Belum diputuskan 38".
+**Cek siap (2 menit):** http://127.0.0.1:9000/demo/personas menampilkan 5 persona (Ayu, Bima, Citra, Dewi, Eko). Di `/`, daftar "Run analisis" berisi satu run TP-201 dengan mode "Putar ulang". Matriks menampilkan 38 baris dan baris "0/38 usulan sudah diputuskan"; buka "Jumlah keputusan" untuk melihat "Belum diputuskan 38".
 
 ## 4. Alur demo end to end (urutan cerita)
 
