@@ -4,17 +4,22 @@ import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
-import type { ExecutionRowView } from "@/api/client";
+import type { AttemptView, DeviationView, ExecutionRowView } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
 import { formatValue } from "./MatrixTable";
 import { Drawer } from "./ui/Drawer";
 import { SubmitButton } from "./ui/SubmitButton";
 import { Button } from "./ui/ui";
 
-type RecordAction = (
+type ResultAction = (
   prevState: ExecutionActionState,
   formData: FormData,
 ) => Promise<ExecutionActionState>;
+
+export type ResultDrawerMode =
+  | { kind: "record" }
+  | { kind: "correct"; attempt: AttemptView }
+  | { kind: "retest"; openDeviations: DeviationView[] };
 
 const INITIAL_STATE: ExecutionActionState = { ok: true };
 
@@ -29,43 +34,77 @@ type EvidenceDraft = {
   value: string;
 };
 
-/** Drawer form to record the first attempt on a Test Step row (ADR 0013, spec #272).
+/** Drawer form to record, correct, or retest an attempt on a Test Step row (ADR 0013, #272, #277).
  * Uses React 19 `useActionState` with controlled inputs so 422/409 errors preserve typed text. */
 export function ExecutionResultDrawer({
   executionId,
   row,
+  mode = { kind: "record" },
   open,
   onOpenChange,
   recordAction,
 }: {
   executionId: number;
   row: ExecutionRowView;
+  mode?: ResultDrawerMode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  recordAction: RecordAction;
+  recordAction: ResultAction;
 }) {
   const t = useTranslations("execution");
   const m = useTranslations("matrix");
   const step = row.test_step;
+  const seed = mode.kind === "correct" ? mode.attempt.latest : null;
 
-  const [outcomeKind, setOutcomeKind] = useState<"value" | "not_performable">("value");
-  const [notPerformableReason, setNotPerformableReason] = useState("");
-  const [numericValue, setNumericValue] = useState("");
-  const [oneOfChoice, setOneOfChoice] = useState(
-    step?.acceptance.type === "one_of" ? (step.acceptance.allowed[0] ?? "") : "",
+  const [outcomeKind, setOutcomeKind] = useState<"value" | "not_performable">(
+    seed?.outcome_kind ?? "value",
   );
-  const [oneOfObserved, setOneOfObserved] = useState("");
-  const [presentValue, setPresentValue] = useState<"true" | "false">("true");
+  const [notPerformableReason, setNotPerformableReason] = useState(
+    seed?.not_performable_reason ?? "",
+  );
+  const [numericValue, setNumericValue] = useState(
+    seed?.value?.type === "number" ? String(seed.value.value) : "",
+  );
+  const [oneOfChoice, setOneOfChoice] = useState(() => {
+    if (seed?.value?.type === "one_of") {
+      return seed.value.not_one_of ? "__not_one_of__" : seed.value.value;
+    }
+    return step?.acceptance.type === "one_of" ? (step.acceptance.allowed[0] ?? "") : "";
+  });
+  const [oneOfObserved, setOneOfObserved] = useState(
+    seed?.value?.type === "one_of" && seed.value.not_one_of ? seed.value.value : "",
+  );
+  const [presentValue, setPresentValue] = useState<"true" | "false">(
+    seed?.value?.type === "present" ? (seed.value.value ? "true" : "false") : "true",
+  );
 
   const needsInstrument = step !== null && (step.instrument?.trim() ?? "") !== "";
-  const [instrumentMode, setInstrumentMode] = useState<"calibrated" | "none">("calibrated");
-  const [instruments, setInstruments] = useState<InstrumentDraft[]>([
-    { key: 1, identifier: step?.instrument ?? "", dueDate: "" },
-  ]);
-  const [noInstReason, setNoInstReason] = useState("");
-  const [evidenceItems, setEvidenceItems] = useState<EvidenceDraft[]>([]);
-  const [observation, setObservation] = useState("");
-  const [nextKey, setNextKey] = useState(2);
+  const [instrumentMode, setInstrumentMode] = useState<"calibrated" | "none">(
+    seed?.no_calibrated_instrument_reason ? "none" : "calibrated",
+  );
+  const [instruments, setInstruments] = useState<InstrumentDraft[]>(() => {
+    if (seed && seed.instruments.length > 0) {
+      return seed.instruments.map((inst, idx) => ({
+        key: idx + 1,
+        identifier: inst.identifier,
+        dueDate: inst.calibration_due_date,
+      }));
+    }
+    return [{ key: 1, identifier: step?.instrument ?? "", dueDate: "" }];
+  });
+  const [noInstReason, setNoInstReason] = useState(seed?.no_calibrated_instrument_reason ?? "");
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceDraft[]>(() =>
+    seed
+      ? seed.evidence.map((value, idx) => ({ key: 100 + idx, value }))
+      : [],
+  );
+  const [observation, setObservation] = useState(seed?.observation ?? "");
+  const [reasonForChange, setReasonForChange] = useState("");
+  const [retestReason, setRetestReason] = useState("");
+  const [selectedDeviationId, setSelectedDeviationId] = useState<string>(() =>
+    mode.kind === "retest" && mode.openDeviations[0] ? String(mode.openDeviations[0].id) : "",
+  );
+  const [nextKey, setNextKey] = useState(200);
 
   const [state, formAction] = useActionState(async (prev: ExecutionActionState, fd: FormData) => {
     const res = await recordAction(prev, fd);
@@ -97,11 +136,28 @@ export function ExecutionResultDrawer({
     setEvidenceItems((prev) => prev.filter((item) => item.key !== key));
   };
 
+  const drawerTitle =
+    mode.kind === "correct"
+      ? t("correctAttemptTitle", {
+          requirement: row.requirement,
+          attemptNumber: mode.attempt.attempt_number,
+        })
+      : mode.kind === "retest"
+        ? t("retestRowTitle", { requirement: row.requirement })
+        : t("recordResultTitle", { requirement: row.requirement });
+
+  const submitLabel =
+    mode.kind === "correct"
+      ? t("submitCorrection")
+      : mode.kind === "retest"
+        ? t("submitRetest")
+        : t("submitResult");
+
   return (
     <Drawer
       open={open}
       onOpenChange={onOpenChange}
-      title={t("recordResultTitle", { requirement: row.requirement })}
+      title={drawerTitle}
       description={step.description}
     >
       <form action={formAction} className="space-y-4">
@@ -109,6 +165,9 @@ export function ExecutionResultDrawer({
         <input type="hidden" name="requirement" value={row.requirement} />
         <input type="hidden" name="acceptance_type" value={ac.type} />
         <input type="hidden" name="outcome_kind" value={outcomeKind} />
+        {mode.kind === "correct" && (
+          <input type="hidden" name="attempt_number" value={mode.attempt.attempt_number} />
+        )}
         {needsInstrument && (
           <input type="hidden" name="instrument_mode" value={instrumentMode} />
         )}
@@ -448,8 +507,77 @@ export function ExecutionResultDrawer({
           />
         </div>
 
+        {mode.kind === "correct" && (
+          <div className="space-y-1">
+            <label
+              htmlFor={`rfc-${row.requirement}`}
+              className="block text-xs font-semibold text-ink"
+            >
+              {t("reasonForChangeLabel")}
+            </label>
+            <textarea
+              id={`rfc-${row.requirement}`}
+              name="reason_for_change"
+              rows={2}
+              required
+              placeholder={t("reasonForChangePlaceholder")}
+              value={reasonForChange}
+              onChange={(e) => setReasonForChange(e.target.value)}
+              className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink"
+            />
+          </div>
+        )}
+
+        {mode.kind === "retest" && (
+          <div className="space-y-3 rounded-md border border-border bg-sunken p-3">
+            <div className="space-y-1">
+              <label
+                htmlFor={`retest-dev-${row.requirement}`}
+                className="block text-xs font-semibold text-ink"
+              >
+                {t("retestDeviationLabel")}
+              </label>
+              <select
+                id={`retest-dev-${row.requirement}`}
+                name="deviation_id"
+                required
+                value={selectedDeviationId}
+                onChange={(e) => setSelectedDeviationId(e.target.value)}
+                className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink"
+              >
+                {mode.openDeviations.map((d) => (
+                  <option key={d.id} value={String(d.id)}>
+                    {t("retestDeviationItem", {
+                      number: d.deviation_number,
+                      description: d.description,
+                    })}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label
+                htmlFor={`retest-reason-${row.requirement}`}
+                className="block text-xs font-semibold text-ink"
+              >
+                {t("retestReasonLabel")}
+              </label>
+              <textarea
+                id={`retest-reason-${row.requirement}`}
+                name="retest_reason"
+                rows={2}
+                required
+                placeholder={t("retestReasonPlaceholder")}
+                value={retestReason}
+                onChange={(e) => setRetestReason(e.target.value)}
+                className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink"
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end border-t border-border pt-3">
-          <SubmitButton variant="primary">{t("submitResult")}</SubmitButton>
+          <SubmitButton variant="primary">{submitLabel}</SubmitButton>
         </div>
       </form>
     </Drawer>

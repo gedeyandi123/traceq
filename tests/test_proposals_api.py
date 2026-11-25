@@ -55,6 +55,8 @@ EXECUTION_ROUTES = {
     ("post", "/protocols/{protocol_id}/execution"),
     ("get", "/runs/{run_id}/execution"),
     ("post", "/executions/{execution_id}/rows/{requirement}/attempts"),
+    ("post", "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/corrections"),
+    ("post", "/executions/{execution_id}/rows/{requirement}/retests"),
     ("post", "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness"),
     ("post", "/executions/{execution_id}/deviations"),
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/investigations"),

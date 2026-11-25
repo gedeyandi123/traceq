@@ -11,8 +11,10 @@ import {
   closeDeviation,
   completeExecution,
   confirmWitness,
+  correctAttempt,
   openManualDeviation,
   recordAttempt,
+  retestRow,
   returnDeviation,
   startExecution,
   submitDeviation,
@@ -89,6 +91,8 @@ export default async function ExecutionPage({
         currentUser={{ subject: session.subject, issuer: session.issuer }}
         startAction={session.mayExecute ? startExecution : null}
         recordAction={session.mayExecute ? recordAttempt : null}
+        correctAction={session.mayExecute ? correctAttempt : null}
+        retestAction={session.mayExecute ? retestRow : null}
         witnessAction={session.mayWitness ? confirmWitness : null}
         openDeviationAction={session.mayExecute ? openManualDeviation : null}
         investigateAction={session.mayExecute ? addDeviationInvestigation : null}

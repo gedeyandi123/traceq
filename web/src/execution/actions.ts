@@ -72,17 +72,9 @@ type RecordAttemptBody = {
   evidence: string[];
 };
 
-/** Records the first attempt on a Test Step row of an Execution (ADR 0013, spec #270, #272). */
-export async function recordAttempt(
-  _prevState: ExecutionActionState,
-  form: FormData,
-): Promise<ExecutionActionState> {
-  const executionId = Number(field(form, "execution_id"));
-  const requirement = field(form, "requirement");
+function buildAttemptBody(form: FormData): RecordAttemptBody | null {
   const outcomeKind = field(form, "outcome_kind");
-  if (!Number.isInteger(executionId) || !requirement || !outcomeKind) {
-    return { ok: false, error: "unprocessable" };
-  }
+  if (!outcomeKind) return null;
 
   let body: RecordAttemptBody;
   if (outcomeKind === "not_performable") {
@@ -98,7 +90,7 @@ export async function recordAttempt(
       const raw = field(form, "numeric_value");
       const num = raw !== undefined ? Number(raw) : Number.NaN;
       if (!Number.isFinite(num)) {
-        return { ok: false, error: "unprocessable" };
+        return null;
       }
       body = {
         outcome_kind: "value",
@@ -130,7 +122,7 @@ export async function recordAttempt(
     } else if (acType === "present") {
       const presentChoice = field(form, "present_value");
       if (presentChoice !== "true" && presentChoice !== "false") {
-        return { ok: false, error: "unprocessable" };
+        return null;
       }
       body = {
         outcome_kind: "value",
@@ -139,7 +131,7 @@ export async function recordAttempt(
         evidence: [],
       };
     } else {
-      return { ok: false, error: "unprocessable" };
+      return null;
     }
   }
 
@@ -169,29 +161,95 @@ export async function recordAttempt(
     body.evidence = evidence;
   }
 
-  let failed: ExecutionError | undefined;
-  let detail: string | undefined;
-  try {
-    const { response, error } = await api.POST(
-      "/executions/{execution_id}/rows/{requirement}/attempts",
-      {
-        params: { path: { execution_id: executionId, requirement } },
-        body,
-        headers: await bearerHeaders(),
-      },
-    );
-    failed = errorFromStatus(response.status);
-    if (failed && error && typeof error === "object" && "detail" in error) {
-      const d = (error as { detail?: unknown }).detail;
-      if (typeof d === "string") detail = d;
-    }
-  } catch {
-    failed = "failed";
+  return body;
+}
+
+/** Records the first attempt on a Test Step row of an Execution (ADR 0013, spec #270, #272). */
+export async function recordAttempt(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const requirement = field(form, "requirement");
+  const body = buildAttemptBody(form);
+  if (!Number.isInteger(executionId) || !requirement || !body) {
+    return { ok: false, error: "unprocessable" };
   }
-  revalidatePath("/runs/[runId]", "layout");
-  return failed
-    ? { ok: false, error: failed, detail }
-    : { ok: true, submittedAt: Date.now() };
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/rows/{requirement}/attempts", {
+      params: { path: { execution_id: executionId, requirement } },
+      body,
+      headers,
+    }),
+  );
+}
+
+/** Adds a new version to an existing attempt with a required Reason for Change (spec #277). */
+export async function correctAttempt(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const requirement = field(form, "requirement");
+  const attemptNumber = Number(field(form, "attempt_number"));
+  const reasonForChange = field(form, "reason_for_change");
+  const baseBody = buildAttemptBody(form);
+  if (
+    !Number.isInteger(executionId) ||
+    !requirement ||
+    !Number.isInteger(attemptNumber) ||
+    !reasonForChange ||
+    !baseBody
+  ) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST(
+      "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/corrections",
+      {
+        params: {
+          path: {
+            execution_id: executionId,
+            requirement,
+            attempt_number: attemptNumber,
+          },
+        },
+        body: { ...baseBody, reason_for_change: reasonForChange },
+        headers,
+      },
+    ),
+  );
+}
+
+/** Records a new attempt (Retest) on a failed Test Step row (spec #277). */
+export async function retestRow(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const requirement = field(form, "requirement");
+  const deviationId = Number(field(form, "deviation_id"));
+  const retestReason = field(form, "retest_reason");
+  const baseBody = buildAttemptBody(form);
+  if (
+    !Number.isInteger(executionId) ||
+    !requirement ||
+    !Number.isInteger(deviationId) ||
+    !retestReason ||
+    !baseBody
+  ) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/rows/{requirement}/retests", {
+      params: { path: { execution_id: executionId, requirement } },
+      body: { ...baseBody, deviation_id: deviationId, retest_reason: retestReason },
+      headers,
+    }),
+  );
 }
 
 async function postExecutionMutation(

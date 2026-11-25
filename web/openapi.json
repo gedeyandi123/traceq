@@ -1170,6 +1170,143 @@
         }
       }
     },
+    "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/corrections": {
+      "post": {
+        "summary": "Correct Attempt",
+        "description": "Adds a new version to an existing attempt with a required Reason for Change,\nenforcing Performer ownership and Deviation status lock.",
+        "operationId": "correctAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "requirement",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Requirement"
+            }
+          },
+          {
+            "name": "attempt_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Attempt Number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectAttemptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{execution_id}/rows/{requirement}/retests": {
+      "post": {
+        "summary": "Retest Row",
+        "description": "Records a new attempt (Retest) on a failed Test Step row, naming an Open Deviation\nlinked to that Test Step.",
+        "operationId": "retestRow",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "requirement",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Requirement"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetestRowRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/executions/{execution_id}/deviations": {
       "post": {
         "summary": "Open Manual Deviation",
@@ -2145,6 +2282,84 @@
         ],
         "title": "ConfirmWitnessRequest",
         "description": "Payload to confirm an attempt's latest version as a Witness."
+      },
+      "CorrectAttemptRequest": {
+        "properties": {
+          "outcome_kind": {
+            "$ref": "#/components/schemas/OutcomeKind"
+          },
+          "not_performable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Performable Reason"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation"
+          },
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentInput"
+            },
+            "type": "array",
+            "title": "Instruments",
+            "default": []
+          },
+          "no_calibrated_instrument_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Calibrated Instrument Reason"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence",
+            "default": []
+          },
+          "reason_for_change": {
+            "type": "string",
+            "title": "Reason For Change"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "outcome_kind",
+          "reason_for_change"
+        ],
+        "title": "CorrectAttemptRequest",
+        "description": "Payload to add a new version to an existing attempt, with a required Reason for Change."
       },
       "Decision": {
         "properties": {
@@ -6380,6 +6595,125 @@
             "present": "#/components/schemas/PresentResultValue"
           }
         }
+      },
+      "RetestRowRequest": {
+        "properties": {
+          "outcome_kind": {
+            "$ref": "#/components/schemas/OutcomeKind"
+          },
+          "not_performable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Performable Reason"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation"
+          },
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentInput"
+            },
+            "type": "array",
+            "title": "Instruments",
+            "default": []
+          },
+          "no_calibrated_instrument_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Calibrated Instrument Reason"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence",
+            "default": []
+          },
+          "retest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retest Reason"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "deviation_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviation Number"
+          },
+          "deviation_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviation Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "outcome_kind"
+        ],
+        "title": "RetestRowRequest",
+        "description": "Payload to record a Retest (new attempt) on a failed Test Step row."
       },
       "Return": {
         "properties": {

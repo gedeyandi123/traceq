@@ -514,6 +514,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct Attempt
+         * @description Adds a new version to an existing attempt with a required Reason for Change,
+         *     enforcing Performer ownership and Deviation status lock.
+         */
+        post: operations["correctAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/rows/{requirement}/retests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retest Row
+         * @description Records a new attempt (Retest) on a failed Test Step row, naming an Open Deviation
+         *     linked to that Test Step.
+         */
+        post: operations["retestRow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/executions/{execution_id}/deviations": {
         parameters: {
             query?: never;
@@ -882,6 +924,32 @@ export interface components {
             version_number: number;
             /** Version Hash */
             version_hash: string;
+        };
+        /**
+         * CorrectAttemptRequest
+         * @description Payload to add a new version to an existing attempt, with a required Reason for Change.
+         */
+        CorrectAttemptRequest: {
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason?: string | null;
+            value?: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation?: string | null;
+            /**
+             * Instruments
+             * @default []
+             */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason?: string | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: string[];
+            /** Reason For Change */
+            reason_for_change: string;
         };
         /**
          * Decision
@@ -2344,6 +2412,38 @@ export interface components {
             citation: components["schemas"]["Cite"];
         };
         ResultValue: components["schemas"]["NumberResultValue"] | components["schemas"]["OneOfResultValue"] | components["schemas"]["PresentResultValue"];
+        /**
+         * RetestRowRequest
+         * @description Payload to record a Retest (new attempt) on a failed Test Step row.
+         */
+        RetestRowRequest: {
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason?: string | null;
+            value?: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation?: string | null;
+            /**
+             * Instruments
+             * @default []
+             */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason?: string | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: string[];
+            /** Retest Reason */
+            retest_reason?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Deviation Number */
+            deviation_number?: number | null;
+            /** Deviation Id */
+            deviation_id?: number | null;
+        };
         /** Return */
         Return: {
             /** Reason */
@@ -3438,6 +3538,79 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RecordAttemptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correctAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+                attempt_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorrectAttemptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retestRow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetestRowRequest"];
             };
         };
         responses: {

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
@@ -155,6 +155,43 @@ class RecordAttemptRequest(_Input):
                 "provide either instruments or no_calibrated_instrument_reason, not both"
             )
         return self
+
+
+class CorrectAttemptRequest(RecordAttemptRequest):
+    """Payload to add a new version to an existing attempt, with a required Reason for Change."""
+
+    reason_for_change: str
+
+    @field_validator("reason_for_change")
+    @classmethod
+    def _non_blank_reason_for_change(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("reason_for_change must not be blank")
+        return stripped
+
+
+class RetestRowRequest(RecordAttemptRequest):
+    """Payload to record a Retest (new attempt) on a failed Test Step row."""
+
+    retest_reason: str | None = None
+    reason: str | None = None
+    deviation_number: int | None = Field(default=None, ge=1)
+    deviation_id: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def _require_reason_and_deviation(self) -> RetestRowRequest:
+        r1 = self.retest_reason.strip() if self.retest_reason is not None else ""
+        r2 = self.reason.strip() if self.reason is not None else ""
+        if not (r1 or r2):
+            raise ValueError("retest_reason must not be blank")
+        if self.deviation_number is None and self.deviation_id is None:
+            raise ValueError("deviation_number or deviation_id is required")
+        return self
+
+    def effective_reason(self) -> str:
+        r1 = self.retest_reason.strip() if self.retest_reason is not None else ""
+        return r1 or (self.reason or "").strip()
 
 
 class ConfirmWitnessRequest(_Input):
@@ -509,8 +546,10 @@ def validate_instruments(
     session: Session,
     step_instrument: str | None,
     req: RecordAttemptRequest,
+    *,
+    reference_date: date | None = None,
 ) -> None:
-    """Enforces instrument presence (422) and calibration due date >= DB UTC date (409)."""
+    """Enforces instrument presence (422) and calibration due date >= reference UTC date (409)."""
     step_requires_instrument = step_instrument is not None and step_instrument.strip() != ""
     has_no_inst_reason = (
         req.no_calibrated_instrument_reason is not None
@@ -522,13 +561,13 @@ def validate_instruments(
             "or a non-blank no_calibrated_instrument_reason"
         )
     if req.instruments:
-        today_utc = database_utc_date(session)
+        ref_date = database_utc_date(session) if reference_date is None else reference_date
         for inst in req.instruments:
-            if inst.calibration_due_date < today_utc:
+            if inst.calibration_due_date < ref_date:
                 raise lifecycle.Conflict(
                     f"Instrument '{inst.identifier}' calibration expired on "
                     f"{inst.calibration_due_date.isoformat()} "
-                    f"(database UTC date is {today_utc.isoformat()})"
+                    f"(reference UTC date is {ref_date.isoformat()})"
                 )
 
 
@@ -751,24 +790,21 @@ def deviations_of(session: Session, execution_id: int) -> tuple[Deviation, ...]:
     )
 
 
-def record_attempt(
+def _require_test_step_row(
     session: Session,
-    actor: audit.Actor,
     execution_id: int,
     requirement: str,
-    req: RecordAttemptRequest,
-) -> tuple[Attempt, tuple[Deviation, ...]]:
-    """Records the first attempt (attempt 1, version 1) on a Test Step row of an ``in_progress``
-    Execution, judges it by code, validates instrument calibration dates against the DB UTC
-    date, opens automatic Deviations for ``failed`` / ``no_calibrated_instrument``, and appends
-    Audit Trail entries in the same transaction."""
+    *,
+    action_label: str,
+) -> FrozenRow:
+    """Locks the Execution, verifies ``in_progress``, and returns the frozen Test Step row."""
     lifecycle.lock_execution(session, execution_id)
     ex = lifecycle.get(session, execution_id)
     if ex is None:
         raise lifecycle.NotFound(f"no Execution {execution_id}")
     if ex.status != "in_progress":
         raise lifecycle.Conflict(
-            f"Execution {execution_id} is {ex.status}: Results are recorded only while In progress"
+            f"Execution {execution_id} is {ex.status}: {action_label} only while In progress"
         )
 
     copy = frozen_copy(session, ex)
@@ -777,23 +813,22 @@ def record_attempt(
         raise lifecycle.NotFound(f"no row {requirement} in Execution {execution_id}")
     if row.kind != "test_step" or row.test_step is None:
         raise lifecycle.Conflict(f"row {requirement} is a Vendor Reference, not a Test Step")
+    return row
 
-    existing_attempt = session.execute(
-        select(ATTEMPTS.c.id).where(
-            ATTEMPTS.c.execution_id == execution_id,
-            ATTEMPTS.c.requirement == requirement,
-        )
-    ).first()
-    if existing_attempt is not None:
-        raise lifecycle.Conflict(
-            f"row {requirement} in Execution {execution_id} already has an attempt"
-        )
 
-    verdict = judge(row.test_step.acceptance, req)
-    validate_instruments(session, row.test_step.instrument, req)
-
-    attempt_number = 1
-    version_number = 1
+def _insert_attempt_version(
+    session: Session,
+    actor: audit.Actor,
+    *,
+    execution_id: int,
+    requirement: str,
+    attempt_id: int,
+    attempt_number: int,
+    version_number: int,
+    req: RecordAttemptRequest,
+    verdict: Verdict,
+    reason_for_change: str | None,
+) -> AttemptVersion:
     v_hash = _version_hash(
         execution_id=execution_id,
         requirement=requirement,
@@ -803,24 +838,6 @@ def record_attempt(
         verdict=verdict,
         actor=actor,
     )
-
-    attempt_row = (
-        session.execute(
-            insert(ATTEMPTS)
-            .values(
-                execution_id=execution_id,
-                requirement=requirement,
-                attempt_number=attempt_number,
-                subject=actor.subject,
-                issuer=actor.issuer,
-                name=actor.name,
-            )
-            .returning(*ATTEMPTS.c)
-        )
-        .mappings()
-        .one()
-    )
-
     not_perf_reason = (
         req.not_performable_reason.strip() if req.not_performable_reason is not None else None
     )
@@ -838,7 +855,7 @@ def record_attempt(
         session.execute(
             insert(ATTEMPT_VERSIONS)
             .values(
-                attempt_id=attempt_row["id"],
+                attempt_id=attempt_id,
                 version=version_number,
                 outcome_kind=req.outcome_kind,
                 not_performable_reason=not_perf_reason,
@@ -849,7 +866,7 @@ def record_attempt(
                 evidence=list(req.evidence),
                 verdict=verdict,
                 version_hash=v_hash,
-                reason_for_change=None,
+                reason_for_change=reason_for_change,
                 subject=actor.subject,
                 issuer=actor.issuer,
                 name=actor.name,
@@ -859,7 +876,175 @@ def record_attempt(
         .mappings()
         .one()
     )
-    ver = _version_from_row(version_row)
+    return _version_from_row(version_row)
+
+
+def _open_automatic_deviations(
+    session: Session,
+    actor: audit.Actor,
+    *,
+    execution_id: int,
+    row: FrozenRow,
+    attempt_id: int,
+    req: RecordAttemptRequest,
+    verdict: Verdict,
+    existing_causes: frozenset[str] = frozenset(),
+) -> tuple[Deviation, ...]:
+    assert row.test_step is not None
+    no_inst_reason = (
+        req.no_calibrated_instrument_reason.strip()
+        if req.no_calibrated_instrument_reason is not None
+        else None
+    )
+    if no_inst_reason == "":
+        no_inst_reason = None
+
+    causes: list[Literal["failed", "no_calibrated_instrument"]] = []
+    if verdict == "fail" and "failed" not in existing_causes:
+        causes.append("failed")
+    if no_inst_reason is not None and "no_calibrated_instrument" not in existing_causes:
+        causes.append("no_calibrated_instrument")
+
+    opened: list[Deviation] = []
+    if not causes:
+        return ()
+
+    max_num: int = session.execute(
+        select(func.coalesce(func.max(DEVIATIONS.c.deviation_number), 0)).where(
+            DEVIATIONS.c.execution_id == execution_id
+        )
+    ).scalar_one()
+    for cause in causes:
+        max_num += 1
+        desc = _deviation_description(row, row.test_step, req, cause)
+        dev_row = (
+            session.execute(
+                insert(DEVIATIONS)
+                .values(
+                    execution_id=execution_id,
+                    deviation_number=max_num,
+                    requirement=row.requirement,
+                    attempt_id=attempt_id,
+                    cause=cause,
+                    description=desc,
+                    subject=actor.subject,
+                    issuer=actor.issuer,
+                    name=actor.name,
+                )
+                .returning(*DEVIATIONS.c)
+            )
+            .mappings()
+            .one()
+        )
+        ev_row = (
+            session.execute(
+                insert(DEVIATION_EVENTS)
+                .values(
+                    deviation_id=dev_row["id"],
+                    event="opened",
+                    reason=None,
+                    subject=actor.subject,
+                    issuer=actor.issuer,
+                    name=actor.name,
+                )
+                .returning(*DEVIATION_EVENTS.c)
+            )
+            .mappings()
+            .one()
+        )
+        ev = deviation_event_from_row(ev_row)
+        dev = Deviation(
+            id=dev_row["id"],
+            at=dev_row["at"],
+            execution_id=execution_id,
+            deviation_number=max_num,
+            requirement=row.requirement,
+            attempt_id=attempt_id,
+            cause=cause,
+            description=desc,
+            actor=audit.actor_of_row(dev_row),
+            events=(ev,),
+        )
+        opened.append(dev)
+        audit.append(
+            session,
+            actor,
+            "deviation opened",
+            "execution_deviation",
+            f"{execution_id}/{max_num}",
+            new={
+                "execution_id": execution_id,
+                "deviation_id": dev.id,
+                "deviation_number": max_num,
+                "requirement": row.requirement,
+                "attempt_id": attempt_id,
+                "cause": cause,
+                "status": dev.status,
+            },
+        )
+    return tuple(opened)
+
+
+def record_attempt(
+    session: Session,
+    actor: audit.Actor,
+    execution_id: int,
+    requirement: str,
+    req: RecordAttemptRequest,
+) -> tuple[Attempt, tuple[Deviation, ...]]:
+    """Records the first attempt (attempt 1, version 1) on a Test Step row of an ``in_progress``
+    Execution, judges it by code, validates instrument calibration dates against the DB UTC
+    date, opens automatic Deviations for ``failed`` / ``no_calibrated_instrument``, and appends
+    Audit Trail entries in the same transaction."""
+    row = _require_test_step_row(
+        session, execution_id, requirement, action_label="Results are recorded"
+    )
+    assert row.test_step is not None
+
+    existing_attempt = session.execute(
+        select(ATTEMPTS.c.id).where(
+            ATTEMPTS.c.execution_id == execution_id,
+            ATTEMPTS.c.requirement == requirement,
+        )
+    ).first()
+    if existing_attempt is not None:
+        raise lifecycle.Conflict(
+            f"row {requirement} in Execution {execution_id} already has an attempt"
+        )
+
+    verdict = judge(row.test_step.acceptance, req)
+    validate_instruments(session, row.test_step.instrument, req)
+
+    attempt_number = 1
+    version_number = 1
+    attempt_row = (
+        session.execute(
+            insert(ATTEMPTS)
+            .values(
+                execution_id=execution_id,
+                requirement=requirement,
+                attempt_number=attempt_number,
+                subject=actor.subject,
+                issuer=actor.issuer,
+                name=actor.name,
+            )
+            .returning(*ATTEMPTS.c)
+        )
+        .mappings()
+        .one()
+    )
+    ver = _insert_attempt_version(
+        session,
+        actor,
+        execution_id=execution_id,
+        requirement=requirement,
+        attempt_id=attempt_row["id"],
+        attempt_number=attempt_number,
+        version_number=version_number,
+        req=req,
+        verdict=verdict,
+        reason_for_change=None,
+    )
 
     audit.append(
         session,
@@ -880,87 +1065,15 @@ def record_attempt(
         },
     )
 
-    causes: list[Literal["failed", "no_calibrated_instrument"]] = []
-    if verdict == "fail":
-        causes.append("failed")
-    if no_inst_reason is not None:
-        causes.append("no_calibrated_instrument")
-
-    opened_deviations: list[Deviation] = []
-    if causes:
-        max_num: int = session.execute(
-            select(func.coalesce(func.max(DEVIATIONS.c.deviation_number), 0)).where(
-                DEVIATIONS.c.execution_id == execution_id
-            )
-        ).scalar_one()
-        for cause in causes:
-            max_num += 1
-            desc = _deviation_description(row, row.test_step, req, cause)
-            dev_row = (
-                session.execute(
-                    insert(DEVIATIONS)
-                    .values(
-                        execution_id=execution_id,
-                        deviation_number=max_num,
-                        requirement=requirement,
-                        attempt_id=attempt_row["id"],
-                        cause=cause,
-                        description=desc,
-                        subject=actor.subject,
-                        issuer=actor.issuer,
-                        name=actor.name,
-                    )
-                    .returning(*DEVIATIONS.c)
-                )
-                .mappings()
-                .one()
-            )
-            ev_row = (
-                session.execute(
-                    insert(DEVIATION_EVENTS)
-                    .values(
-                        deviation_id=dev_row["id"],
-                        event="opened",
-                        reason=None,
-                        subject=actor.subject,
-                        issuer=actor.issuer,
-                        name=actor.name,
-                    )
-                    .returning(*DEVIATION_EVENTS.c)
-                )
-                .mappings()
-                .one()
-            )
-            ev = deviation_event_from_row(ev_row)
-            dev = Deviation(
-                id=dev_row["id"],
-                at=dev_row["at"],
-                execution_id=execution_id,
-                deviation_number=max_num,
-                requirement=requirement,
-                attempt_id=attempt_row["id"],
-                cause=cause,
-                description=desc,
-                actor=audit.actor_of_row(dev_row),
-                events=(ev,),
-            )
-            opened_deviations.append(dev)
-            audit.append(
-                session,
-                actor,
-                "deviation opened",
-                "execution_deviation",
-                f"{execution_id}/{max_num}",
-                new={
-                    "execution_id": execution_id,
-                    "deviation_id": dev.id,
-                    "deviation_number": max_num,
-                    "requirement": requirement,
-                    "attempt_id": attempt_row["id"],
-                    "cause": cause,
-                    "status": dev.status,
-                },
-            )
+    opened_deviations = _open_automatic_deviations(
+        session,
+        actor,
+        execution_id=execution_id,
+        row=row,
+        attempt_id=attempt_row["id"],
+        req=req,
+        verdict=verdict,
+    )
 
     attempt = Attempt(
         id=attempt_row["id"],
@@ -971,7 +1084,255 @@ def record_attempt(
         actor=audit.actor_of_row(attempt_row),
         versions=(ver,),
     )
-    return attempt, tuple(opened_deviations)
+    return attempt, opened_deviations
+
+
+def correct_attempt(
+    session: Session,
+    actor: audit.Actor,
+    execution_id: int,
+    requirement: str,
+    attempt_number: int,
+    req: CorrectAttemptRequest,
+) -> tuple[Attempt, tuple[Deviation, ...]]:
+    """Adds a new version (``latest + 1``) to an existing attempt while the Execution is
+    ``in_progress``.
+
+    Enforces Performer ownership, Deviation status lock (refused while any Deviation linked to
+    that attempt is ``submitted`` or ``closed``), instrument calibration against the UTC date of
+    version 1, and automatic Deviation rules without closing existing Deviations.
+    """
+    row = _require_test_step_row(
+        session, execution_id, requirement, action_label="Results can be corrected"
+    )
+    assert row.test_step is not None
+
+    attempt_row = (
+        session.execute(
+            select(ATTEMPTS).where(
+                ATTEMPTS.c.execution_id == execution_id,
+                ATTEMPTS.c.requirement == requirement,
+                ATTEMPTS.c.attempt_number == attempt_number,
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if attempt_row is None:
+        raise lifecycle.NotFound(
+            f"no attempt {attempt_number} for row {requirement} in Execution {execution_id}"
+        )
+
+    if (actor.subject, actor.issuer) != (attempt_row["subject"], attempt_row["issuer"]):
+        raise lifecycle.Conflict("only the Performer of this attempt may correct it")
+
+    attempt_devs = [
+        d for d in deviations_of(session, execution_id) if d.attempt_id == attempt_row["id"]
+    ]
+    for d in attempt_devs:
+        if d.status in ("submitted", "closed"):
+            raise lifecycle.Conflict(
+                f"attempt {attempt_number} cannot be corrected while Deviation"
+                f" #{d.deviation_number} is {d.status}"
+            )
+
+    version_rows = (
+        session.execute(
+            select(ATTEMPT_VERSIONS)
+            .where(ATTEMPT_VERSIONS.c.attempt_id == attempt_row["id"])
+            .order_by(ATTEMPT_VERSIONS.c.version)
+        )
+        .mappings()
+        .all()
+    )
+    first_version_utc_date = version_rows[0]["at"].astimezone(UTC).date()
+    next_version = version_rows[-1]["version"] + 1
+
+    verdict = judge(row.test_step.acceptance, req)
+    validate_instruments(
+        session, row.test_step.instrument, req, reference_date=first_version_utc_date
+    )
+
+    ver = _insert_attempt_version(
+        session,
+        actor,
+        execution_id=execution_id,
+        requirement=requirement,
+        attempt_id=attempt_row["id"],
+        attempt_number=attempt_number,
+        version_number=next_version,
+        req=req,
+        verdict=verdict,
+        reason_for_change=req.reason_for_change,
+    )
+
+    audit.append(
+        session,
+        actor,
+        "attempt corrected",
+        "execution_attempt",
+        f"{execution_id}/{requirement}/{attempt_number}",
+        new={
+            "execution_id": execution_id,
+            "requirement": requirement,
+            "attempt_id": attempt_row["id"],
+            "attempt_number": attempt_number,
+            "version_id": ver.id,
+            "version": next_version,
+            "outcome_kind": ver.outcome_kind,
+            "verdict": ver.verdict,
+            "version_hash": ver.version_hash,
+            "reason_for_change": req.reason_for_change,
+        },
+    )
+
+    existing_causes = frozenset(d.cause for d in attempt_devs)
+    opened_deviations = _open_automatic_deviations(
+        session,
+        actor,
+        execution_id=execution_id,
+        row=row,
+        attempt_id=attempt_row["id"],
+        req=req,
+        verdict=verdict,
+        existing_causes=existing_causes,
+    )
+
+    updated_attempt = next(
+        a
+        for a in attempts_of(session, execution_id)[requirement]
+        if a.attempt_number == attempt_number
+    )
+    return updated_attempt, opened_deviations
+
+
+def retest_row(
+    session: Session,
+    actor: audit.Actor,
+    execution_id: int,
+    requirement: str,
+    req: RetestRowRequest,
+) -> tuple[Attempt, tuple[Deviation, ...]]:
+    """Records a new attempt (``latest + 1``, version 1) on a failed Test Step row of an
+    ``in_progress`` Execution, naming an ``open`` Deviation linked to that Test Step."""
+    row = _require_test_step_row(
+        session, execution_id, requirement, action_label="Test Steps can be retested"
+    )
+    assert row.test_step is not None
+
+    existing_attempts = attempts_of(session, execution_id).get(requirement, ())
+    if not existing_attempts:
+        raise lifecycle.Conflict(
+            f"row {requirement} has no attempt yet; record the first attempt before retesting"
+        )
+    latest_attempt = existing_attempts[-1]
+    if latest_attempt.latest.verdict == "pass":
+        raise lifecycle.Conflict(
+            f"row {requirement} latest Result passes; Retest is only allowed when it fails"
+        )
+
+    all_devs = deviations_of(session, execution_id)
+    dev: Deviation | None = None
+    for d in all_devs:
+        if req.deviation_id is not None and d.id != req.deviation_id:
+            continue
+        if req.deviation_number is not None and d.deviation_number != req.deviation_number:
+            continue
+        dev = d
+        break
+    if dev is None:
+        raise lifecycle.NotFound(f"no matching Deviation in Execution {execution_id}")
+    if dev.requirement is None:
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} is linked to the Execution only, not to"
+            f" {requirement}"
+        )
+    if dev.requirement != requirement:
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} is linked to {dev.requirement}, not {requirement}"
+        )
+    if dev.status != "open":
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} is {dev.status}; Retest requires an Open Deviation"
+        )
+
+    verdict = judge(row.test_step.acceptance, req)
+    validate_instruments(session, row.test_step.instrument, req)
+
+    attempt_number = latest_attempt.attempt_number + 1
+    version_number = 1
+    attempt_row = (
+        session.execute(
+            insert(ATTEMPTS)
+            .values(
+                execution_id=execution_id,
+                requirement=requirement,
+                attempt_number=attempt_number,
+                subject=actor.subject,
+                issuer=actor.issuer,
+                name=actor.name,
+            )
+            .returning(*ATTEMPTS.c)
+        )
+        .mappings()
+        .one()
+    )
+    ver = _insert_attempt_version(
+        session,
+        actor,
+        execution_id=execution_id,
+        requirement=requirement,
+        attempt_id=attempt_row["id"],
+        attempt_number=attempt_number,
+        version_number=version_number,
+        req=req,
+        verdict=verdict,
+        reason_for_change=None,
+    )
+
+    retest_reason = req.effective_reason()
+    audit.append(
+        session,
+        actor,
+        "attempt retested",
+        "execution_attempt",
+        f"{execution_id}/{requirement}/{attempt_number}",
+        new={
+            "execution_id": execution_id,
+            "requirement": requirement,
+            "attempt_id": attempt_row["id"],
+            "attempt_number": attempt_number,
+            "version_id": ver.id,
+            "version": version_number,
+            "outcome_kind": ver.outcome_kind,
+            "verdict": ver.verdict,
+            "version_hash": ver.version_hash,
+            "deviation_id": dev.id,
+            "deviation_number": dev.deviation_number,
+            "retest_reason": retest_reason,
+        },
+    )
+
+    opened_deviations = _open_automatic_deviations(
+        session,
+        actor,
+        execution_id=execution_id,
+        row=row,
+        attempt_id=attempt_row["id"],
+        req=req,
+        verdict=verdict,
+    )
+
+    attempt = Attempt(
+        id=attempt_row["id"],
+        at=attempt_row["at"],
+        execution_id=execution_id,
+        requirement=requirement,
+        attempt_number=attempt_number,
+        actor=audit.actor_of_row(attempt_row),
+        versions=(ver,),
+    )
+    return attempt, opened_deviations
 
 
 def confirm_witness(
