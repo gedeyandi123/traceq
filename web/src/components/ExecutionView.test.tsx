@@ -44,6 +44,7 @@ function executionFixture(): ExecutionView {
           method: "Atur turret ke 20 dan 70 rpm.",
           instrument: "TACH-07",
           acceptance: { type: "range", min: 20, max: 70, unit: "rpm" },
+          witness_required: false,
         },
         attempts: [],
       },
@@ -76,6 +77,7 @@ function executionFixture(): ExecutionView {
       blocked: true,
       rows_without_result: { count: 1, requirements: ["URS-TP201-002"] },
       open_deviations: { count: 0, items: [] },
+      unconfirmed_witness_rows: { count: 0, requirements: [] },
     },
     frozen_copy: null,
     copy_hash: null,
@@ -164,6 +166,7 @@ test("executor sees Catat hasil button and opens Result form for range, one_of, 
         method: "Pilih mode pada HMI.",
         instrument: null,
         acceptance: { type: "one_of", allowed: ["Auto", "Manual"] },
+        witness_required: false,
       },
       attempts: [],
     },
@@ -179,6 +182,7 @@ test("executor sees Catat hasil button and opens Result form for range, one_of, 
         method: "Inspeksi visual.",
         instrument: null,
         acceptance: { type: "present", value: null },
+        witness_required: false,
       },
       attempts: [],
     },
@@ -658,6 +662,7 @@ test("completion checklist shows blockers, enables complete button only for exec
     blocked: true,
     rows_without_result: { count: 1, requirements: ["URS-TP201-002"] },
     open_deviations: { count: 1, items: [{ deviation_number: 1, status: "open" }] },
+    unconfirmed_witness_rows: { count: 0, requirements: [] },
   };
 
   // 1. Executor sees checklist + disabled Complete button when blocked
@@ -686,6 +691,7 @@ test("completion checklist shows blockers, enables complete button only for exec
     blocked: false,
     rows_without_result: { count: 0, requirements: [] },
     open_deviations: { count: 0, items: [] },
+    unconfirmed_witness_rows: { count: 0, requirements: [] },
   };
   const { unmount: unmountReader } = render(
     <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
@@ -725,6 +731,7 @@ test("completion checklist shows blockers, enables complete button only for exec
     blocked: false,
     rows_without_result: { count: 0, requirements: [] },
     open_deviations: { count: 0, items: [] },
+    unconfirmed_witness_rows: { count: 0, requirements: [] },
   };
   completedEx.copy_hash = copyHash;
   completedEx.frozen_copy = {
@@ -924,4 +931,24 @@ test("shows all attempts and versions in order, Koreksi only for attempt Perform
   const rowBimaDialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
   expect(within(rowBimaDialog).queryByRole("button", { name: "Koreksi" })).toBeNull();
   expect(within(rowBimaDialog).getByRole("button", { name: "Uji ulang" })).toBeDefined();
+});
+
+test("displays stage/witness_required badges and unconfirmed_witness_rows blocker", () => {
+  const ex = executionFixture();
+  const row0 = ex.rows[0]!;
+  if (row0.test_step) {
+    row0.test_step.stage = "OQ";
+    row0.test_step.witness_required = true;
+  }
+  ex.completion_blockers.unconfirmed_witness_rows = {
+    count: 1,
+    requirements: ["URS-TP201-002"],
+  };
+
+  renderExecution(ex, approved, true);
+
+  expect(screen.getByText("Baris wajib Saksi yang belum dikonfirmasi (1)")).toBeDefined();
+  const rowEl = screen.getByTestId("exec-row-URS-TP201-002");
+  expect(within(rowEl).getByText("OQ")).toBeDefined();
+  expect(within(rowEl).getByText("Wajib Saksi")).toBeDefined();
 });

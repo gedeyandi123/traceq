@@ -277,6 +277,8 @@ def test_decided_coverage_gives_a_test_step_row_blocking_until_its_draft_is_acce
         "instrument": "TACH-07 Digital tachometer",
         "acceptance": {"type": "range", "min": 20.0, "max": 70.0, "unit": "rpm"},
         "acceptance_flag": None,
+        "stage": None,
+        "witness_required": False,
     }
 
 

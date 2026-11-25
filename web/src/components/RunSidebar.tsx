@@ -2,6 +2,7 @@
 
 import {
   ArchiveX,
+  Award,
   BarChart3,
   ClipboardCheck,
   FileSearch,
@@ -24,7 +25,16 @@ import { BrandMark } from "@/components/BrandMark";
 import { ExecutionStatusBadge, ProtocolStatusBadge, RoundStatusBadge } from "@/components/ui/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 
-export type RunNavKey = "matrix" | "findings" | "draft" | "rounds" | "protocol" | "execution" | "leftOut" | "eval";
+export type RunNavKey =
+  | "matrix"
+  | "findings"
+  | "draft"
+  | "rounds"
+  | "protocol"
+  | "execution"
+  | "report"
+  | "leftOut"
+  | "eval";
 
 export type RunSidebarBadges = {
   matrix?: number;
@@ -41,6 +51,7 @@ const SEGMENT_TO_KEY: Record<string, RunNavKey> = {
   rounds: "rounds",
   protocol: "protocol",
   execution: "execution",
+  report: "report",
   "left-out": "leftOut",
   eval: "eval",
 };
@@ -117,6 +128,12 @@ function SidebarNavList({
       icon: PlayCircle,
       executionStatus: badges?.executionStatus,
       openDeviations: badges?.openDeviations,
+    },
+    {
+      key: "report",
+      href: `${base}/report`,
+      label: t("report"),
+      icon: Award,
     },
   ];
 

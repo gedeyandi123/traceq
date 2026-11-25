@@ -72,6 +72,7 @@ function row(over: Partial<ProtocolRowView> & { requirement: string }): Protocol
     written: [],
     prefill: null,
     blockers: [],
+    witness_required: false,
     ...over,
   };
 }
@@ -131,6 +132,7 @@ export const rows: ProtocolRowView[] = [
       instrument: accepted.draft.instrument,
       acceptance: accepted.draft.acceptance,
       acceptance_flag: null,
+      witness_required: false,
     },
     drafts: [accepted],
   }),
@@ -174,6 +176,7 @@ export const rows: ProtocolRowView[] = [
       instrument: "Stopwatch",
       acceptance: { type: "range", min: null, max: 2, unit: "s" },
       acceptance_flag: null,
+      witness_required: false,
     },
     written,
     prefill: {
@@ -297,6 +300,7 @@ export const submissionView: SubmissionView = {
           method: accepted.draft.method,
           instrument: accepted.draft.instrument,
           acceptance: { type: "range", min: 20, max: 70, unit: "rpm" },
+          witness_required: false,
         },
         drafts: [
           {
@@ -306,6 +310,7 @@ export const submissionView: SubmissionView = {
           },
         ],
         written: [],
+        step_attributes: [],
       },
       {
         requirement: "URS-TP201-026",
@@ -326,6 +331,7 @@ export const submissionView: SubmissionView = {
           method: "Tekan tombol darurat saat turret berputar.",
           instrument: null,
           acceptance: { type: "present", value: null },
+          witness_required: false,
         },
         drafts: [],
         written: [
@@ -344,6 +350,7 @@ export const submissionView: SubmissionView = {
             at: "2026-11-19T09:08:00Z",
           },
         ],
+        step_attributes: [],
       },
     ],
     urs: [

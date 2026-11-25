@@ -66,6 +66,41 @@ def find_run(runs: Path, run_id: str) -> Path | None:
     return path if _RUN_ID.match(run_id) and (path / RUN_FILE).is_file() else None
 
 
+def run_summary(path: Path) -> RunSummary:
+    meta: dict[str, Any] = read_served(path / RUN_FILE)
+    package: dict[str, Any] | None = meta.get("review_package")
+    return RunSummary(
+        run_id=str(meta["run_id"]),
+        created=str(meta["created"]),
+        equipment=str(meta["corpus"]["equipment"]),
+        model=str(meta["model"]),
+        mode=meta["mode"],
+        pipeline_version=str(meta["pipeline_version"]),
+        review_package=None
+        if package is None
+        else RunPackage(
+            package=str(package["package"]),
+            version=str(package["version"]),
+            doc_id=str(package["document"]["doc_id"]),
+            rev=int(package["document"]["rev"]),
+        ),
+    )
+
+
+def scan_runs(runs: Path) -> list[RunSummary]:
+    """Every run folder, newest first."""
+    found = (
+        [
+            run_summary(p)
+            for p in runs.iterdir()
+            if _RUN_ID.match(p.name) and (p / RUN_FILE).is_file()
+        ]
+        if runs.is_dir()
+        else []
+    )
+    return sorted(found, key=lambda r: r.created, reverse=True)
+
+
 def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
     """``runs``: the directory ``traceq run`` writes run folders into. ``corpus``: the
     released corpus the runs read, for opening a cited page (none: no document route)."""
@@ -77,43 +112,14 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
             raise HTTPException(404, f"no run {run_id}")
         return path
 
-    def summary(path: Path) -> RunSummary:
-        meta: dict[str, Any] = read_served(path / RUN_FILE)
-        package: dict[str, Any] | None = meta.get("review_package")
-        return RunSummary(
-            run_id=str(meta["run_id"]),
-            created=str(meta["created"]),
-            equipment=str(meta["corpus"]["equipment"]),
-            model=str(meta["model"]),
-            mode=meta["mode"],
-            pipeline_version=str(meta["pipeline_version"]),
-            review_package=None
-            if package is None
-            else RunPackage(
-                package=str(package["package"]),
-                version=str(package["version"]),
-                doc_id=str(package["document"]["doc_id"]),
-                rev=int(package["document"]["rev"]),
-            ),
-        )
-
     @router.get("/runs", operation_id="listRuns")
     def list_runs() -> list[RunSummary]:
         """Every run folder, newest first."""
-        found = (
-            [
-                summary(p)
-                for p in runs.iterdir()
-                if _RUN_ID.match(p.name) and (p / RUN_FILE).is_file()
-            ]
-            if runs.is_dir()
-            else []
-        )
-        return sorted(found, key=lambda r: r.created, reverse=True)
+        return scan_runs(runs)
 
     @router.get("/runs/{run_id}", operation_id="getRun")
     def get_run(run_id: str) -> RunSummary:
-        return summary(folder(run_id))
+        return run_summary(folder(run_id))
 
     @router.get("/runs/{run_id}/matrix", operation_id="getMatrix")
     def get_matrix(run_id: str) -> Matrix:

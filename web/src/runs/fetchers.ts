@@ -3,8 +3,10 @@ import { cache } from "react";
 import {
   api,
   type DecisionCounts,
+  type EquipmentSummary,
   type ExecutionView,
   type ProtocolView,
+  type QualificationReportView,
   type RunRoundsView,
   type RunSummary,
 } from "@/api/client";
@@ -97,6 +99,51 @@ export const fetchRounds = cache(async (runId: string): Promise<RoundsFetchResul
     });
     if (res.data) return { kind: "ok", data: res.data };
     if (res.response.status === 404) return { kind: "not_found" };
+    return { kind: "unavailable" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+});
+
+export type QualificationReportFetchResult =
+  | { kind: "ok"; data: QualificationReportView }
+  | { kind: "not_found" }
+  | { kind: "unavailable" };
+
+/** Deduplicated per-request fetch for Qualification Report preview & exports (Step 7). */
+export const fetchQualificationReport = cache(
+  async (runId: string): Promise<QualificationReportFetchResult> => {
+    const session = await currentSession();
+    if (session === null) return { kind: "unavailable" };
+    try {
+      const res = await api.GET("/runs/{run_id}/qualification-report", {
+        params: { path: { run_id: runId } },
+        headers: await bearerHeaders(),
+      });
+      if (res.data) return { kind: "ok", data: res.data };
+      if (res.response.status === 404) return { kind: "not_found" };
+      return { kind: "unavailable" };
+    } catch {
+      return { kind: "unavailable" };
+    }
+  },
+);
+
+export type EquipmentListFetchResult =
+  | { kind: "ok"; data: EquipmentSummary[] }
+  | { kind: "unauthorized" }
+  | { kind: "unavailable" };
+
+/** Deduplicated per-request fetch for the Equipment Registry (`GET /equipment`, Step 7). */
+export const fetchEquipmentList = cache(async (): Promise<EquipmentListFetchResult> => {
+  const session = await currentSession();
+  if (session === null) return { kind: "unauthorized" };
+  try {
+    const res = await api.GET("/equipment", {
+      headers: await bearerHeaders(),
+    });
+    if (res.data) return { kind: "ok", data: res.data };
+    if (res.response.status === 401) return { kind: "unauthorized" };
     return { kind: "unavailable" };
   } catch {
     return { kind: "unavailable" };

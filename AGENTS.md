@@ -17,7 +17,7 @@ Universal protocol for all coding agents (Antigravity, Claude Code). Public-repo
 
 ## 3. Verification Loop
 - **Primary local pre-PR gate:** `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1 -Mode fast -Scope <all|python|web>` (supports `-TestPath <paths>`, `-DbPath <paths>`, `-Build`). Locally run `-Mode fast -Scope <affected>` + targeted `-DbPath`; rely on parallel CI (`hygiene`, `py-fast`, `py-db`, `py-slow`, `web`) for full DB/slow suites unless editing `src/traceq/db/`, migrations, or `tests/conftest.py`. When `web/` changes, also run `-Build` (+ affected `docs/demo-runbook.md` cases).
-- **Windows / Sandbox rules:** PowerShell 5.1 uses `;` + `$LASTEXITCODE` (never `&&`). Run `TestClient`/`anyio` (`socketpair`) DB/API tests and `gh` CLI with `BypassSandbox: true` when the sandbox blocks local sockets or network.
+- **Windows / Sandbox rules:** PowerShell 5.1 uses `;` + `$LASTEXITCODE` (never `&&`). Run `scripts/verify.ps1 -Scope python` (including `py-fast`, which runs `TestClient`/`anyio` `socketpair` tests), DB/API tests, and `gh` CLI with `BypassSandbox: true` when the sandbox blocks local sockets or network.
 - **Memory (16 GB host):** Avoid concurrent heavy runs (`pytest` ~1.5 GB, `next build` ~1.4 GB, `vitest` ~1.0 GB); stop check servers right after verification.
 
 ## 4. Feature Flow & Eval Loop

@@ -21,6 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.orm import Session
 
 from traceq import audit
+from traceq.assembly.attributes import Stage
 from traceq.assembly.submission import Author, FrozenRow, ProtocolCopy
 from traceq.assembly.written import Acceptance
 from traceq.execution import lifecycle, results
@@ -86,12 +87,20 @@ class OpenDeviationsBlocker(_Frozen):
     items: tuple[OpenDeviationBlockerItem, ...]
 
 
+class UnconfirmedWitnessBlocker(_Frozen):
+    """Test Step rows requiring Witness whose latest attempt lacks an active Witness."""
+
+    count: int
+    requirements: tuple[str, ...]
+
+
 class CompletionBlockers(_Frozen):
     """Blocking checklist computed for every Execution view."""
 
     blocked: bool
     rows_without_result: RowsWithoutResultBlocker
     open_deviations: OpenDeviationsBlocker
+    unconfirmed_witness_rows: UnconfirmedWitnessBlocker
 
 
 def compute_blockers(
@@ -110,8 +119,18 @@ def compute_blockers(
         for d in sorted(deviations_list, key=lambda item: item.deviation_number)
         if d.status != "closed"
     )
+    unconfirmed_witness: list[str] = []
+    for r in copy.rows:
+        if r.kind != "test_step" or r.test_step is None or not r.test_step.witness_required:
+            continue
+        attempts = attempts_by_req.get(r.requirement)
+        if attempts:
+            latest_ver = attempts[-1].latest
+            if not any(not w.voided for w in latest_ver.witness_confirmations):
+                unconfirmed_witness.append(r.requirement)
+    unconfirmed_tuple = tuple(unconfirmed_witness)
     return CompletionBlockers(
-        blocked=bool(missing_rows or open_devs),
+        blocked=bool(missing_rows or open_devs or unconfirmed_tuple),
         rows_without_result=RowsWithoutResultBlocker(
             count=len(missing_rows),
             requirements=missing_rows,
@@ -119,6 +138,10 @@ def compute_blockers(
         open_deviations=OpenDeviationsBlocker(
             count=len(open_devs),
             items=open_devs,
+        ),
+        unconfirmed_witness_rows=UnconfirmedWitnessBlocker(
+            count=len(unconfirmed_tuple),
+            requirements=unconfirmed_tuple,
         ),
     )
 
@@ -134,6 +157,8 @@ class FrozenExecutionTestStep(_Frozen):
     method: str
     instrument: str | None
     acceptance: Acceptance
+    stage: Stage | None = None
+    witness_required: bool = False
 
 
 class FrozenWitnessConfirmation(_Frozen):
@@ -176,6 +201,8 @@ class FrozenAttempt(_Frozen):
     performer: Author
     recorded_at: datetime
     versions: tuple[FrozenAttemptVersion, ...]
+    retest_deviation_id: int | None = None
+    retest_reason: str | None = None
 
 
 class FrozenExecutionRow(_Frozen):
@@ -295,6 +322,8 @@ def _frozen_attempt(a: Attempt) -> FrozenAttempt:
         performer=_author(a.actor),
         recorded_at=_utc(a.at),
         versions=tuple(_frozen_version(v) for v in a.versions),
+        retest_deviation_id=a.retest_deviation_id,
+        retest_reason=a.retest_reason,
     )
 
 
@@ -314,6 +343,8 @@ def _frozen_row(r: FrozenRow, attempts: tuple[Attempt, ...]) -> FrozenExecutionR
             method=step.method,
             instrument=step.instrument,
             acceptance=step.acceptance,
+            stage=step.stage,
+            witness_required=step.witness_required,
         ),
         attempts=tuple(_frozen_attempt(a) for a in attempts),
     )
@@ -415,6 +446,11 @@ def _format_blockers(blockers: CompletionBlockers) -> str:
             f"#{d.deviation_number} ({d.status})" for d in blockers.open_deviations.items
         )
         parts.append(f"open_deviations ({blockers.open_deviations.count}: {devs})")
+    if blockers.unconfirmed_witness_rows.count:
+        reqs = ", ".join(blockers.unconfirmed_witness_rows.requirements)
+        parts.append(
+            f"unconfirmed_witness_rows ({blockers.unconfirmed_witness_rows.count}: {reqs})"
+        )
     return "; ".join(parts)
 
 

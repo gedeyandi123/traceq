@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { CoverageClass, RoundStatus } from "@/api/client";
+import type { CoverageClass, RoundStatus, Stage, TechnicalConclusion } from "@/api/client";
 
 export type CoverageBadgeKey = CoverageClass | "none";
 
@@ -285,6 +285,61 @@ export function RoundStatusBadge({
       <span>
         {roundNumber !== undefined ? `R${roundNumber} · ${t(status)}` : t(status)}
       </span>
+    </span>
+  );
+}
+
+const CONCLUSION_STYLE: Record<
+  TechnicalConclusion,
+  { badgeClass: string; icon: typeof CheckCircle2 }
+> = {
+  qualified: {
+    badgeClass: "bg-pass-soft text-pass border-pass-edge",
+    icon: CheckCircle2,
+  },
+  qualified_with_deviations: {
+    badgeClass: "bg-warn-soft text-warn border-warn-edge",
+    icon: AlertTriangle,
+  },
+  not_qualified: {
+    badgeClass: "bg-fail-soft text-fail border-fail-edge",
+    icon: XCircle,
+  },
+};
+
+export function TechnicalConclusionBadge({
+  conclusion,
+  size = "sm",
+}: {
+  conclusion: TechnicalConclusion;
+  size?: "xs" | "sm";
+}) {
+  const t = useTranslations("ui.technicalConclusions");
+  const cfg = CONCLUSION_STYLE[conclusion];
+  const Icon = cfg.icon;
+  const sizing = size === "xs" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap ${sizing} ${cfg.badgeClass}`}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{t(conclusion)}</span>
+    </span>
+  );
+}
+
+export function StageBadge({ stage }: { stage?: Stage | null }) {
+  const t = useTranslations("ui.stages");
+  const label = stage === "IQ" ? t("IQ") : stage === "OQ" ? t("OQ") : t("unsplit");
+  const cls =
+    stage === "IQ" || stage === "OQ"
+      ? "border-info-edge bg-info-soft text-info"
+      : "border-border-strong bg-sunken text-ink-muted";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${cls}`}
+    >
+      {label}
     </span>
   );
 }

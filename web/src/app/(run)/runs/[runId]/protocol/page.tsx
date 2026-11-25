@@ -18,6 +18,7 @@ import {
   returnProtocol,
   startProtocol,
   submitProtocol,
+  updateRowAttributesInline,
   withdrawProtocol,
   writeTestStep,
   writeTestStepInline,
@@ -130,6 +131,7 @@ export default async function ProtocolPage({
                 removeInline: removeTestStepInline,
                 editInline: editDraftedTestStepInline,
                 answerInline: answerMissedNumberInline,
+                updateAttributesInline: updateRowAttributesInline,
               }
             : null
         }

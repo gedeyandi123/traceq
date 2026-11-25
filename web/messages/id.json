@@ -67,7 +67,22 @@
       "open": "Terbuka",
       "returned_for_revision": "Dikembalikan",
       "ready_for_protocol": "Siap protokol"
+    },
+    "technicalConclusions": {
+      "qualified": "Memenuhi Syarat (Qualified)",
+      "qualified_with_deviations": "Memenuhi Syarat dengan Deviasi",
+      "not_qualified": "Tidak Memenuhi Syarat"
+    },
+    "stages": {
+      "IQ": "IQ",
+      "OQ": "OQ",
+      "unsplit": "IQ/OQ (Belum Dipisah)"
     }
+  },
+  "homeNav": {
+    "ariaLabel": "Navigasi utama",
+    "runs": "Daftar Run",
+    "equipment": "Daftar Equipment"
   },
   "runHeader": {
     "back": "Semua run",
@@ -86,6 +101,9 @@
     "toDraft": "Lanjut ke Draf protokol",
     "toProtocol": "Lanjut ke Protokol (disusun di TraceQ)",
     "toExecution": "Buka Eksekusi & Deviasi",
+    "toReport": "Buka Laporan Kualifikasi",
+    "equipmentRegistry": "Daftar Equipment",
+    "report": "Laporan Kualifikasi",
     "loading": "Memuat layar run...",
     "errorTitle": "Gagal memuat layar run",
     "errorBody": "Terjadi kesalahan saat mengambil data dari API. Coba muat ulang halaman ini.",
@@ -733,6 +751,17 @@
       "none": "Tidak ada.",
       "show": "{doc} rev {rev}: tampilkan teks ({count})"
     },
+    "attributes": {
+      "title": "Atribut Tahap & Saksi",
+      "stageLabel": "Tahap Kualifikasi",
+      "stageUnsplit": "IQ/OQ (Belum Dipisah)",
+      "stageIQ": "IQ (Installation Qualification)",
+      "stageOQ": "OQ (Operational Qualification)",
+      "witnessLabel": "Wajib konfirmasi Saksi",
+      "witnessBadge": "Wajib Saksi",
+      "save": "Simpan atribut",
+      "saved": "Atribut baris tersimpan."
+    },
     "toExecution": "Buka Eksekusi & Deviasi"
   },
   "execution": {
@@ -901,6 +930,7 @@
     "deviationReturnReason": "Alasan pengembalian",
     "deviationReturnReasonPlaceholder": "Jelaskan hal yang perlu diperbaiki...",
     "deviationClosureNote": "Penutupan deviasi adalah status tercatat, bukan Tanda Tangan Elektronik.",
+    "witnessRequiredBadge": "Wajib Saksi",
     "completion": {
       "title": "Daftar periksa penyelesaian eksekusi",
       "ready": "Semua baris langkah uji memiliki hasil dan semua deviasi sudah ditutup. Eksekusi siap diselesaikan.",
@@ -909,6 +939,8 @@
       "rowsWithoutResultNone": "Semua baris langkah uji sudah memiliki hasil.",
       "openDeviations": "Deviasi belum ditutup ({count})",
       "openDeviationsNone": "Semua deviasi sudah ditutup.",
+      "unconfirmedWitness": "Baris wajib Saksi yang belum dikonfirmasi ({count})",
+      "unconfirmedWitnessNone": "Semua baris wajib Saksi telah dikonfirmasi.",
       "deviationItem": "#{number} ({status})",
       "deviationStatuses": {
         "open": "Terbuka",
@@ -1050,5 +1082,91 @@
       "unprocessable": "Data tidak valid: alasan wajib diisi saat mengembalikan ronde untuk revisi (422).",
       "failed": "Terjadi kesalahan saat menghubungi API. Coba lagi."
     }
+  },
+  "report": {
+    "title": "Laporan Kualifikasi",
+    "intro": "Pratinjau kesimpulan teknis, ringkasan IQ/OQ, riwayat uji ulang, deviasi, serta penerbitan ekspor PDF Laporan Kualifikasi yang tidak dapat diubah.",
+    "signedOut": "Masuk untuk membaca atau menerbitkan Laporan Kualifikasi",
+    "signedOutBody": "Laporan Kualifikasi memerlukan token. Masuk sebagai salah satu identitas demo untuk membacanya.",
+    "notCompletedTitle": "Eksekusi belum diselesaikan",
+    "notCompletedBody": "Laporan Kualifikasi baru tersedia setelah Eksekusi diselesaikan dan salinan eksekusi dibekukan.",
+    "toExecution": "Buka Eksekusi & Deviasi",
+    "unavailable": "Laporan Kualifikasi tidak dapat dimuat",
+    "unavailableBody": "API tidak menerima token atau layanan belum tersedia. Coba masuk kembali.",
+    "conclusionTitle": "Kesimpulan Teknis",
+    "executionMeta": "Eksekusi #{executionId} · Protokol #{protocolId} · Diselesaikan {when}",
+    "copyHash": "Hash Salinan Beku",
+    "stages": {
+      "iq": "IQ",
+      "oq": "OQ",
+      "unsplit": "IQ/OQ (Belum Dipisah)",
+      "vendorRef": "Referensi Vendor"
+    },
+    "stagePassFail": "{passed} lulus · {failed} gagal",
+    "totalSummary": "{rows} total baris · {deviations} deviasi",
+    "adrNoticeTitle": "Catatan Status Tercatat (ADR 0007)",
+    "adrNoticeBody": "Persetujuan Laporan Kualifikasi adalah status tercatat dengan jejak audit, bukan Tanda Tangan Elektronik.",
+    "issueTitle": "Terbitkan Laporan Kualifikasi (PDF)",
+    "latestRevision": "Revisi terakhir: Rev {rev}",
+    "noExportYet": "Belum ada ekspor PDF yang diterbitkan",
+    "approverOnly": "Hanya peran penyetuju (qualification-approver) yang dapat menerbitkan Laporan Kualifikasi.",
+    "issueSuccess": "Laporan Kualifikasi berhasil diterbitkan sebagai PDF yang tidak dapat diubah.",
+    "conclusionNoteLabel": "Catatan kesimpulan (opsional)",
+    "conclusionNotePlaceholder": "Ringkasan persetujuan atau catatan kualifikasi...",
+    "nextRequalificationLabel": "Tanggal rekualifikasi berikutnya (opsional)",
+    "nextRequalificationHint": "Format tanggal YYYY-MM-DD.",
+    "notQualifiedNoRequal": "Kesimpulan Tidak Memenuhi Syarat — tanggal rekualifikasi berikutnya tidak dapat dijadwalkan.",
+    "issueButton": "Terbitkan Laporan Kualifikasi (PDF)",
+    "exportsTitle": "Riwayat Ekspor Tidak Dapat Diubah",
+    "exportsCount": "{count} revisi",
+    "exportsEmptyTitle": "Belum ada ekspor PDF",
+    "exportsEmpty": "Penyetuju dapat menerbitkan revisi pertama Laporan Kualifikasi dari formulir di atas.",
+    "colRevision": "Revisi",
+    "colConclusion": "Kesimpulan",
+    "colIssuer": "Penyetuju & Waktu (UTC)",
+    "colRequalDate": "Rekualifikasi Berikutnya",
+    "colHashes": "Hash Verifikasi",
+    "colDownload": "Berkas",
+    "unscheduled": "Belum dijadwalkan",
+    "downloadPdf": "Unduh PDF",
+    "stepsTitle": "Langkah Uji & Silsilah Uji Ulang",
+    "stepsCount": "{count} langkah uji",
+    "colStageWitness": "Tahap & Saksi",
+    "colAttempts": "Percobaan & Uji Ulang",
+    "witnessRequiredBadge": "Wajib Saksi",
+    "attemptCount": "{count} percobaan",
+    "retestLink": "Percobaan #{attempt} (Deviasi #{devId})",
+    "deviationsTitle": "Ringkasan Deviasi",
+    "deviationsCount": "{count} deviasi",
+    "witnessingTitle": "Ringkasan Saksi (Witnessing)",
+    "witnessingCount": "{count} baris wajib Saksi",
+    "witnessingEmpty": "Tidak ada baris langkah uji yang mewajibkan Saksi.",
+    "witnessUnconfirmed": "Belum dikonfirmasi Saksi",
+    "errors": {
+      "conflict": "Ditolak API: status eksekusi atau konflik SoD tidak mengizinkan penerbitan (409).",
+      "forbidden": "Ditolak API: peran Anda tidak memiliki izin untuk menerbitkan laporan (403).",
+      "unauthorized": "Ditolak API: sesi tidak valid. Silakan masuk kembali (401).",
+      "notFound": "Ditolak API: eksekusi tidak ditemukan (404).",
+      "unprocessable": "Data tidak valid: periksa tanggal rekualifikasi atau catatan kesimpulan (422).",
+      "failed": "Terjadi kesalahan saat menghubungi API. Coba lagi."
+    }
+  },
+  "equipment": {
+    "title": "Daftar Equipment",
+    "lead": "Ringkasan siklus kualifikasi per peralatan: ronde tinjauan terakhir, protokol, eksekusi, laporan kualifikasi, dan jadwal rekualifikasi berikutnya.",
+    "signedOutBanner": "Anda belum masuk. Masuk dengan persona demo untuk melihat Daftar Equipment.",
+    "unavailableTitle": "Daftar Equipment tidak dapat dimuat",
+    "unavailable": "API tidak dapat dihubungi atau sesi tidak valid.",
+    "emptyTitle": "Belum ada equipment",
+    "empty": "Belum ada peralatan yang tercatat dari run atau basis data.",
+    "colEquipment": "Equipment",
+    "colRound": "Ronde Terakhir",
+    "colProtocol": "Protokol Terakhir",
+    "colExecution": "Eksekusi Terakhir",
+    "colReport": "Laporan Kualifikasi",
+    "colRequal": "Rekualifikasi Berikutnya",
+    "runCount": "{count} run",
+    "openDeviations": "{count} deviasi terbuka",
+    "unscheduled": "Belum dijadwalkan"
   }
 }

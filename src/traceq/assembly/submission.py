@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 from traceq.assembly import lifecycle
+from traceq.assembly.attributes import Stage, StepAttribute
 from traceq.assembly.lifecycle import EVENTS, Conflict
 from traceq.assembly.missed import (
     Disposition,
@@ -145,6 +146,16 @@ class FrozenVersion(_Frozen):
     at: datetime
 
 
+class FrozenStepAttribute(_Frozen):
+    """One version of a Test Step row's attributes (stage and witness_required)."""
+
+    version: int
+    stage: Stage | None = None
+    witness_required: bool = False
+    author: Author
+    at: datetime
+
+
 class FrozenTestStep(_Frozen):
     """The row's one Test Step and where it came from."""
 
@@ -159,6 +170,8 @@ class FrozenTestStep(_Frozen):
     method: str
     instrument: str | None
     acceptance: Acceptance
+    stage: Stage | None = None
+    witness_required: bool = False
 
 
 class FrozenRow(_Frozen):
@@ -174,6 +187,8 @@ class FrozenRow(_Frozen):
     drafts: tuple[FrozenDraft, ...]
     written: tuple[FrozenVersion, ...]
     """Every version of the row's written Test Step in this Protocol, oldest first."""
+    step_attributes: tuple[FrozenStepAttribute, ...] = ()
+    """Every version of the row's step attributes in this Protocol (Test Step rows only)."""
 
 
 class FrozenDisposition(_Frozen):
@@ -255,6 +270,16 @@ class NotFrozen(Exception):
     """What a copy is made of breaks a rule the submission checks enforce: never, after them."""
 
 
+def _step_attribute(a: StepAttribute) -> FrozenStepAttribute:
+    return FrozenStepAttribute(
+        version=a.version,
+        stage=a.stage,
+        witness_required=a.witness_required,
+        author=_author(a.actor),
+        at=_utc(a.at),
+    )
+
+
 def _test_step(r: ProtocolRow) -> FrozenTestStep | None:
     step = step_of(r)
     if step is None:
@@ -270,6 +295,8 @@ def _test_step(r: ProtocolRow) -> FrozenTestStep | None:
         method=step.method,
         instrument=step.instrument,
         acceptance=step.acceptance,
+        stage=step.stage,
+        witness_required=step.witness_required,
     )
 
 
@@ -298,6 +325,9 @@ def _row(r: ProtocolRow) -> FrozenRow:
             for d in r.drafts
         ),
         written=tuple(_version(v) for v in r.written),
+        step_attributes=tuple(_step_attribute(a) for a in r.step_attributes)
+        if r.kind == "test_step"
+        else (),
     )
 
 

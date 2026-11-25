@@ -54,6 +54,20 @@ export type ReportExportView = components["schemas"]["ReportExportView"];
 export type RoundStatus = components["schemas"]["RoundStatus"];
 export type RoundEventKind = components["schemas"]["RoundEventKind"];
 export type CloseOutcome = components["schemas"]["CloseOutcome"];
+export type Stage = components["schemas"]["Stage"];
+export type StepAttributesUpdate = components["schemas"]["StepAttributesUpdate"];
+export type TechnicalConclusion = components["schemas"]["TechnicalConclusion"];
+export type QualificationCounts = components["schemas"]["QualificationCounts"];
+export type QualificationExportView = components["schemas"]["QualificationExportView"];
+export type QualificationReportView = components["schemas"]["QualificationReportView"];
+export type ApproveQualificationReportRequest =
+  components["schemas"]["ApproveQualificationReportRequest"];
+export type EquipmentSummary = components["schemas"]["EquipmentSummary"];
+export type LatestRoundSummary = components["schemas"]["LatestRoundSummary"];
+export type LatestProtocolSummary = components["schemas"]["LatestProtocolSummary"];
+export type LatestExecutionSummary = components["schemas"]["LatestExecutionSummary"];
+export type LatestQualificationReportSummary =
+  components["schemas"]["LatestQualificationReportSummary"];
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */
 export const api = createClient<paths>({ baseUrl: API_URL, cache: "no-store" });

@@ -597,3 +597,31 @@ test("protocol useActionState forms preserve typed inputs when inline action ret
     "Justifikasi nomor terlewat tetap terjaga",
   );
 });
+
+test("ProtocolRowDrawer shows stage and witness_required controls when updateAttributesInline is provided", async () => {
+  const user = userEvent.setup();
+  const updateAttributesInline = vi.fn(async () => ({ ok: true, submittedAt: Date.now() }));
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <RunShellProvider>
+        <AssembledProtocolView
+          protocol={protocolView()}
+          runId={RUN_ID}
+          decisions={decider}
+          controls={{ ...controls, updateAttributesInline }}
+        />
+      </RunShellProvider>
+    </NextIntlClientProvider>,
+  );
+
+  const dialog = await openRowDrawer(user, "URS-TP201-002");
+  const stageSelect = dialog.getByLabelText("Tahap Kualifikasi") as HTMLSelectElement;
+  await user.selectOptions(stageSelect, "IQ");
+  const witnessCheckbox = dialog.getByLabelText("Wajib konfirmasi Saksi") as HTMLInputElement;
+  await user.click(witnessCheckbox);
+  await user.click(dialog.getByRole("button", { name: "Simpan atribut" }));
+
+  await waitFor(() => {
+    expect(updateAttributesInline).toHaveBeenCalledTimes(1);
+  });
+});

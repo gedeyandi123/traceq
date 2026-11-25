@@ -50,6 +50,7 @@ PROTOCOL_ROUTES = {
     ("post", "/protocols/{protocol_id}/submit"),
     ("post", "/protocols/{protocol_id}/approve"),
     ("post", "/protocols/{protocol_id}/return"),
+    ("put", "/protocols/{protocol_id}/rows/{requirement}/attributes"),
 }
 EXECUTION_ROUTES = {
     ("post", "/protocols/{protocol_id}/execution"),
@@ -64,6 +65,9 @@ EXECUTION_ROUTES = {
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/close"),
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/return"),
     ("post", "/executions/{execution_id}/complete"),
+    ("get", "/runs/{run_id}/qualification-report"),
+    ("post", "/executions/{execution_id}/qualification-reports"),
+    ("get", "/executions/{execution_id}/qualification-reports/{export_id}/pdf"),
 }
 ROUNDS_ROUTES = {
     ("get", "/runs/{run_id}/rounds"),
@@ -71,7 +75,12 @@ ROUNDS_ROUTES = {
     ("post", "/rounds/{round_id}/exports"),
     ("get", "/rounds/{round_id}/exports/{export_id}/pdf"),
 }
-DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES | ROUNDS_ROUTES
+REGISTRY_ROUTES = {
+    ("get", "/equipment"),
+}
+DATABASE_ROUTES = (
+    DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES | ROUNDS_ROUTES | REGISTRY_ROUTES
+)
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 

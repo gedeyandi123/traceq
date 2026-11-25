@@ -95,6 +95,7 @@ REPORT_EXPORTS = Table(
     _META,
     Column("id", BigInteger, primary_key=True),
     Column("round_id", BigInteger),
+    Column("execution_id", BigInteger),
     Column("report_kind", Text),
     Column("at", DateTime(timezone=True)),
     Column("subject", Text),
@@ -146,7 +147,7 @@ class RoundEvent:
 @dataclass(frozen=True)
 class ReportExport:
     id: int
-    round_id: int
+    round_id: int | None
     report_kind: str
     at: datetime
     actor: audit.Actor
@@ -154,6 +155,7 @@ class ReportExport:
     pdf_sha256: str
     template_version: str
     typst_version: str
+    execution_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -196,7 +198,7 @@ def _event_of(m: RowMapping) -> RoundEvent:
 def _export_of(m: RowMapping) -> ReportExport:
     return ReportExport(
         id=int(m["id"]),
-        round_id=int(m["round_id"]),
+        round_id=None if m["round_id"] is None else int(m["round_id"]),
         report_kind=str(m["report_kind"]),
         at=m["at"],
         actor=audit.actor_of_row(m),
@@ -204,6 +206,7 @@ def _export_of(m: RowMapping) -> ReportExport:
         pdf_sha256=str(m["pdf_sha256"]),
         template_version=str(m["template_version"]),
         typst_version=str(m["typst_version"]),
+        execution_id=None if m["execution_id"] is None else int(m["execution_id"]),
     )
 
 
@@ -411,7 +414,10 @@ def _load_round(session: Session, round_row: RowMapping) -> ReviewRound:
         _export_of(m)
         for m in session.execute(
             select(REPORT_EXPORTS)
-            .where(REPORT_EXPORTS.c.round_id == round_id)
+            .where(
+                REPORT_EXPORTS.c.round_id == round_id,
+                REPORT_EXPORTS.c.report_kind == "pre_review",
+            )
             .order_by(REPORT_EXPORTS.c.id)
         ).mappings()
     )
@@ -831,6 +837,7 @@ def render_stored_export_pdf(session: Session, round_id: int, export_id: int) ->
             select(REPORT_EXPORTS.c.snapshot_json, REPORT_EXPORTS.c.pdf_sha256).where(
                 REPORT_EXPORTS.c.id == export_id,
                 REPORT_EXPORTS.c.round_id == round_id,
+                REPORT_EXPORTS.c.report_kind == "pre_review",
             )
         )
         .mappings()

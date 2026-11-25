@@ -43,6 +43,7 @@ function renderShell(
       findings?: number;
       draft?: number;
       roundBadge?: { roundNumber: number; status: "open" | "returned_for_revision" | "ready_for_protocol" } | null;
+      executionStatus?: "in_progress" | "completed" | null;
     };
     protocolStatus?: "draft" | "submitted" | "approved" | "withdrawn" | null;
     session?: Session | null;
@@ -77,6 +78,7 @@ test("renders unnumbered workflow & audit links, omitting Draf protokol when rev
     "/runs/r7%20TP%2F201/rounds",
     "/runs/r7%20TP%2F201/protocol",
     "/runs/r7%20TP%2F201/execution",
+    "/runs/r7%20TP%2F201/report",
     "/runs/r7%20TP%2F201/left-out",
     "/runs/r7%20TP%2F201/eval",
   ]);
@@ -117,6 +119,18 @@ test("renders round badge in sidebar and protocol nextAction on rounds segment",
   expect(
     screen.getByRole("link", { name: /Lanjut ke Protokol \(disusun di TraceQ\)/ }).getAttribute("href"),
   ).toBe("/runs/r7%20TP%2F201/protocol");
+});
+
+test("shows toReport CTA on execution segment when executionStatus is completed and equipment breadcrumb", () => {
+  mockSegment = "execution";
+  renderShell({ badges: { executionStatus: "completed" } });
+
+  expect(screen.getByRole("link", { name: "Daftar Equipment" }).getAttribute("href")).toBe(
+    "/equipment",
+  );
+  expect(
+    screen.getByRole("link", { name: /Buka Laporan Kualifikasi/ }).getAttribute("href"),
+  ).toBe("/runs/r7%20TP%2F201/report");
 });
 
 test("context bar renders equipment, next-action CTA, and persona dropdown menu", async () => {

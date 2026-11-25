@@ -54,6 +54,7 @@ export type ProtocolControls = {
   removeInline?: InlineAction;
   editInline?: InlineAction;
   answerInline?: InlineAction;
+  updateAttributesInline?: InlineAction;
 } | null;
 
 /** The approve and return actions, for a viewer with the approving role; `null` otherwise. */
