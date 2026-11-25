@@ -932,3 +932,23 @@ test("shows all attempts and versions in order, Koreksi only for attempt Perform
   expect(within(rowBimaDialog).queryByRole("button", { name: "Koreksi" })).toBeNull();
   expect(within(rowBimaDialog).getByRole("button", { name: "Uji ulang" })).toBeDefined();
 });
+
+test("displays stage/witness_required badges and unconfirmed_witness_rows blocker", () => {
+  const ex = executionFixture();
+  const row0 = ex.rows[0]!;
+  if (row0.test_step) {
+    row0.test_step.stage = "OQ";
+    row0.test_step.witness_required = true;
+  }
+  ex.completion_blockers.unconfirmed_witness_rows = {
+    count: 1,
+    requirements: ["URS-TP201-002"],
+  };
+
+  renderExecution(ex, approved, true);
+
+  expect(screen.getByText("Baris wajib Saksi yang belum dikonfirmasi (1)")).toBeDefined();
+  const rowEl = screen.getByTestId("exec-row-URS-TP201-002");
+  expect(within(rowEl).getByText("OQ")).toBeDefined();
+  expect(within(rowEl).getByText("Wajib Saksi")).toBeDefined();
+});

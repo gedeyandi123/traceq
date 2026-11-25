@@ -1,13 +1,13 @@
 "use client";
 
-import { AlertTriangle, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 
 import type { ProtocolRowView } from "@/api/client";
 import { formatValue } from "./MatrixTable";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
-import { CoverageStatusBadge, DecisionStateBadge } from "./ui/StatusBadge";
+import { CoverageStatusBadge, DecisionStateBadge, StageBadge } from "./ui/StatusBadge";
 
 /** Opsi A compact 4-column table for Assembled Protocol rows in Draft status. */
 export function ProtocolRowsTable({
@@ -101,7 +101,20 @@ export function ProtocolRowsTable({
                 </td>
 
                 <td className="max-w-[320px] px-3 py-2.5 align-top">
-                  <div className="font-semibold text-ink">{t(`kinds.${r.kind}`)}</div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-ink">{t(`kinds.${r.kind}`)}</span>
+                    {r.kind === "test_step" && (
+                      <>
+                        <StageBadge stage={r.stage} />
+                        {r.witness_required && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-info-edge bg-info-soft px-2 py-0.5 text-[11px] font-semibold text-info">
+                            <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span>{t("attributes.witnessBadge")}</span>
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                   {r.kind === "vendor_reference" && r.evidence.length > 0 && (
                     <div className="mt-0.5 text-[11px] text-ink-muted tabular-nums">
                       {r.evidence

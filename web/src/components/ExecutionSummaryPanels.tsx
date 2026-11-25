@@ -285,6 +285,47 @@ export function CompletionChecklistPanel({
             </div>
           )}
         </li>
+
+        <li className="space-y-1">
+          <div className="flex items-center gap-2 font-semibold text-ink tabular-nums">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                blockers.unconfirmed_witness_rows.count > 0 ? "bg-warn" : "bg-pass"
+              }`}
+              aria-hidden="true"
+            />
+            <span>
+              {t("completion.unconfirmedWitness", {
+                count: blockers.unconfirmed_witness_rows.count,
+              })}
+            </span>
+          </div>
+          {blockers.unconfirmed_witness_rows.count === 0 ? (
+            <p className="m-0 pl-4 text-ink-muted">{t("completion.unconfirmedWitnessNone")}</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1.5 pl-4">
+              {blockers.unconfirmed_witness_rows.requirements.map((req) =>
+                onSelectRow ? (
+                  <button
+                    key={req}
+                    type="button"
+                    onClick={() => onSelectRow(req)}
+                    className="cursor-pointer rounded border border-warn-edge bg-warn-soft px-2 py-0.5 font-mono text-[11px] font-semibold text-warn tabular-nums hover:bg-warn-edge/30"
+                  >
+                    {req}
+                  </button>
+                ) : (
+                  <span
+                    key={req}
+                    className="rounded border border-warn-edge bg-warn-soft px-2 py-0.5 font-mono text-[11px] font-semibold text-warn tabular-nums"
+                  >
+                    {req}
+                  </span>
+                ),
+              )}
+            </div>
+          )}
+        </li>
       </ul>
     </section>
   );

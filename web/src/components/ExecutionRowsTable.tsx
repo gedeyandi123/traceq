@@ -9,7 +9,7 @@ import { formatAttemptValue } from "./ExecutionRowDrawer";
 import { formatValue } from "./MatrixTable";
 import { FilterBar, type FilterPillOption } from "./ui/FilterBar";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
-import { VerdictBadge } from "./ui/StatusBadge";
+import { StageBadge, VerdictBadge } from "./ui/StatusBadge";
 
 export type ExecutionFilter =
   | "all"
@@ -188,7 +188,20 @@ export function ExecutionRowsTable({
                     </th>
 
                     <td className="px-3 py-2.5 align-top whitespace-nowrap">
-                      <div className="font-semibold text-ink">{t(`kinds.${row.kind}`)}</div>
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="font-semibold text-ink">{t(`kinds.${row.kind}`)}</div>
+                        {row.kind === "test_step" && step && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <StageBadge stage={step.stage} />
+                            {step.witness_required && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-info-edge bg-info-soft px-2 py-0.5 text-[11px] font-semibold text-info">
+                                <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                <span>{t("witnessRequiredBadge")}</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     <td className="max-w-[280px] px-3 py-2.5 align-top">

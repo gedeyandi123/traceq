@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { api } from "@/api/client";
+import { api, type Stage } from "@/api/client";
 import { bearerHeaders } from "@/auth/session";
 import type { ProtocolError } from "@/components/AssembledProtocolView";
 import { stepFrom } from "@/protocol/form";
@@ -319,6 +319,38 @@ export async function answerMissedNumberInline(
       params: { path: { protocol_id: protocolId } },
       headers: await bearerHeaders(),
       body: { doc, rev, number, kind, justification: field(form, "justification") ?? "" },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  return inlineResult(failed);
+}
+
+/** Inline `useActionState` variant to update a Draft Protocol row's `stage` (`IQ` / `OQ` / null)
+ * and `witness_required` attributes (Step 7, #316). */
+export async function updateRowAttributesInline(
+  _prevState: ProtocolFormActionState,
+  form: FormData,
+): Promise<ProtocolFormActionState> {
+  const protocolId = Number(field(form, "protocol_id"));
+  const requirement = field(form, "requirement") ?? "";
+  if (!Number.isInteger(protocolId) || requirement === "") {
+    return { ok: false, error: "failed" };
+  }
+  const rawStage = field(form, "stage");
+  const stage: Stage | null = rawStage === "IQ" || rawStage === "OQ" ? rawStage : null;
+  const witnessRequired = form.get("witness_required") === "on" || form.get("witness_required") === "true";
+
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.PUT("/protocols/{protocol_id}/rows/{requirement}/attributes", {
+      params: { path: { protocol_id: protocolId, requirement } },
+      headers: await bearerHeaders(),
+      body: {
+        stage,
+        witness_required: witnessRequired,
+      },
     });
     failed = error(response.status);
   } catch {
