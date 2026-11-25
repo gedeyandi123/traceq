@@ -1169,6 +1169,297 @@
           }
         }
       }
+    },
+    "/executions/{execution_id}/deviations": {
+      "post": {
+        "summary": "Open Manual Deviation",
+        "description": "Opens a manual Deviation on an ``in_progress`` Execution, linked to one Test Step row\nor to the Execution.",
+        "operationId": "openManualDeviation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenManualDeviationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{execution_id}/deviations/{deviation_id}/investigations": {
+      "post": {
+        "summary": "Add Deviation Investigation",
+        "description": "Records an immutable Investigation version on an ``open`` Deviation.",
+        "operationId": "addDeviationInvestigation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "deviation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deviation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestigationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{execution_id}/deviations/{deviation_id}/submit": {
+      "post": {
+        "summary": "Submit Deviation",
+        "description": "Submits an ``open`` Deviation once an Investigation with a class is recorded.",
+        "operationId": "submitDeviation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "deviation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deviation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{execution_id}/deviations/{deviation_id}/close": {
+      "post": {
+        "summary": "Close Deviation",
+        "description": "Closes a ``submitted`` Deviation (a recorded status, not an Electronic Signature),\nenforcing 4-way Separation of Duties.",
+        "operationId": "closeDeviation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "deviation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deviation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{execution_id}/deviations/{deviation_id}/return": {
+      "post": {
+        "summary": "Return Deviation",
+        "description": "Returns a ``submitted`` Deviation to ``open`` with a required reason.",
+        "operationId": "returnDeviation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "deviation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deviation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnDeviationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1954,6 +2245,80 @@
         "title": "DeviationEventView",
         "description": "One status event on a Deviation."
       },
+      "DeviationInvestigationView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "investigation": {
+            "type": "string",
+            "title": "Investigation"
+          },
+          "deviation_class": {
+            "$ref": "#/components/schemas/DeviationClass"
+          },
+          "capa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa"
+          },
+          "reason_for_change": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason For Change"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "version",
+          "investigation",
+          "deviation_class",
+          "capa",
+          "reason_for_change",
+          "subject",
+          "issuer",
+          "name"
+        ],
+        "title": "DeviationInvestigationView",
+        "description": "One immutable version of a Deviation's Investigation."
+      },
       "DeviationStatus": {
         "type": "string",
         "enum": [
@@ -2037,6 +2402,24 @@
             },
             "type": "array",
             "title": "Events"
+          },
+          "investigations": {
+            "items": {
+              "$ref": "#/components/schemas/DeviationInvestigationView"
+            },
+            "type": "array",
+            "title": "Investigations"
+          },
+          "closure_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closure Note"
           }
         },
         "additionalProperties": false,
@@ -2054,7 +2437,8 @@
           "subject",
           "issuer",
           "name",
-          "events"
+          "events",
+          "investigations"
         ],
         "title": "DeviationView",
         "description": "One Deviation on an Execution."
@@ -3679,6 +4063,47 @@
         "title": "InstrumentInput",
         "description": "One calibrated instrument used during a Test Step."
       },
+      "InvestigationRequest": {
+        "properties": {
+          "investigation": {
+            "type": "string",
+            "title": "Investigation"
+          },
+          "deviation_class": {
+            "$ref": "#/components/schemas/DeviationClass"
+          },
+          "capa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa"
+          },
+          "reason_for_change": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason For Change"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "investigation",
+          "deviation_class"
+        ],
+        "title": "InvestigationRequest",
+        "description": "Payload to record an immutable version of a Deviation's Investigation."
+      },
       "Kind": {
         "type": "string",
         "enum": [
@@ -4356,6 +4781,32 @@
         ],
         "title": "OneOfResultValue",
         "description": "Choice for a ``one_of`` Acceptance Criterion, or ``not_one_of`` with observed text."
+      },
+      "OpenManualDeviationRequest": {
+        "properties": {
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "OpenManualDeviationRequest",
+        "description": "Payload to open a manual Deviation linked to a Test Step row or to the Execution."
       },
       "OutcomeKind": {
         "type": "string",
@@ -5119,6 +5570,21 @@
           "reason"
         ],
         "title": "Return"
+      },
+      "ReturnDeviationRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ReturnDeviationRequest",
+        "description": "Payload to return a Submitted Deviation to Open with a required reason."
       },
       "RowDraft": {
         "properties": {

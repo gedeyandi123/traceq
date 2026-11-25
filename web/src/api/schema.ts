@@ -514,6 +514,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/executions/{execution_id}/deviations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open Manual Deviation
+         * @description Opens a manual Deviation on an ``in_progress`` Execution, linked to one Test Step row
+         *     or to the Execution.
+         */
+        post: operations["openManualDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/investigations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Deviation Investigation
+         * @description Records an immutable Investigation version on an ``open`` Deviation.
+         */
+        post: operations["addDeviationInvestigation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Deviation
+         * @description Submits an ``open`` Deviation once an Investigation with a class is recorded.
+         */
+        post: operations["submitDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Deviation
+         * @description Closes a ``submitted`` Deviation (a recorded status, not an Electronic Signature),
+         *     enforcing 4-way Separation of Duties.
+         */
+        post: operations["closeDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Deviation
+         * @description Returns a ``submitted`` Deviation to ``open`` with a required reason.
+         */
+        post: operations["returnDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -802,6 +904,34 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * DeviationInvestigationView
+         * @description One immutable version of a Deviation's Investigation.
+         */
+        DeviationInvestigationView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Version */
+            version: number;
+            /** Investigation */
+            investigation: string;
+            deviation_class: components["schemas"]["DeviationClass"];
+            /** Capa */
+            capa: string | null;
+            /** Reason For Change */
+            reason_for_change: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
         /** @enum {string} */
         DeviationStatus: "open" | "submitted" | "closed";
         /**
@@ -835,6 +965,10 @@ export interface components {
             name: string;
             /** Events */
             events: components["schemas"]["DeviationEventView"][];
+            /** Investigations */
+            investigations: components["schemas"]["DeviationInvestigationView"][];
+            /** Closure Note */
+            closure_note?: string | null;
         };
         /**
          * DraftAcceptance
@@ -1365,6 +1499,19 @@ export interface components {
              */
             calibration_due_date: string;
         };
+        /**
+         * InvestigationRequest
+         * @description Payload to record an immutable version of a Deviation's Investigation.
+         */
+        InvestigationRequest: {
+            /** Investigation */
+            investigation: string;
+            deviation_class: components["schemas"]["DeviationClass"];
+            /** Capa */
+            capa?: string | null;
+            /** Reason For Change */
+            reason_for_change?: string | null;
+        };
         /** @enum {string} */
         Kind: "coverage" | "check" | "ai" | "draft" | "test_step";
         /**
@@ -1641,6 +1788,16 @@ export interface components {
              */
             not_one_of: boolean;
         };
+        /**
+         * OpenManualDeviationRequest
+         * @description Payload to open a manual Deviation linked to a Test Step row or to the Execution.
+         */
+        OpenManualDeviationRequest: {
+            /** Requirement */
+            requirement?: string | null;
+            /** Description */
+            description: string;
+        };
         /** @enum {string} */
         OutcomeKind: "value" | "not_performable";
         /** @enum {string} */
@@ -1885,6 +2042,14 @@ export interface components {
         ResultValue: components["schemas"]["NumberResultValue"] | components["schemas"]["OneOfResultValue"] | components["schemas"]["PresentResultValue"];
         /** Return */
         Return: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * ReturnDeviationRequest
+         * @description Payload to return a Submitted Deviation to Open with a required reason.
+         */
+        ReturnDeviationRequest: {
             /** Reason */
             reason: string;
         };
@@ -2937,6 +3102,177 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    openManualDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenManualDeviationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    addDeviationInvestigation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvestigationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submitDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    closeDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returnDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnDeviationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

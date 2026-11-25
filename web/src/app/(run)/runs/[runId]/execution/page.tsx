@@ -6,7 +6,15 @@ import { notFound } from "next/navigation";
 import { currentSession } from "@/auth/session";
 import { ExecutionViewPanel } from "@/components/ExecutionView";
 import { EmptyState } from "@/components/ui/ui";
-import { recordAttempt, startExecution } from "@/execution/actions";
+import {
+  addDeviationInvestigation,
+  closeDeviation,
+  openManualDeviation,
+  recordAttempt,
+  returnDeviation,
+  startExecution,
+  submitDeviation,
+} from "@/execution/actions";
 import { fetchExecution, fetchProtocol, fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +86,11 @@ export default async function ExecutionPage({
         runId={runId}
         startAction={session.mayExecute ? startExecution : null}
         recordAction={session.mayExecute ? recordAttempt : null}
+        openDeviationAction={session.mayExecute ? openManualDeviation : null}
+        investigateAction={session.mayExecute ? addDeviationInvestigation : null}
+        submitDeviationAction={session.mayExecute ? submitDeviation : null}
+        closeDeviationAction={session.mayApprove ? closeDeviation : null}
+        returnDeviationAction={session.mayApprove ? returnDeviation : null}
       />
     </div>
   );

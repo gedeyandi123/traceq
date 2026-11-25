@@ -216,6 +216,21 @@ DEVIATION_EVENTS = Table(
     Column("issuer", Text),
     Column("name", Text),
 )
+DEVIATION_INVESTIGATIONS = Table(
+    "execution_deviation_investigations",
+    _META,
+    Column("id", BigInteger, primary_key=True),
+    Column("at", DateTime(timezone=True)),
+    Column("deviation_id", BigInteger),
+    Column("version", Integer),
+    Column("investigation", Text),
+    Column("deviation_class", Text),
+    Column("capa", Text),
+    Column("reason_for_change", Text),
+    Column("subject", Text),
+    Column("issuer", Text),
+    Column("name", Text),
+)
 
 
 @dataclass(frozen=True)
@@ -273,8 +288,23 @@ class DeviationEvent:
 
 
 @dataclass(frozen=True)
+class DeviationInvestigation:
+    """One immutable version of a Deviation's Investigation."""
+
+    id: int
+    at: datetime
+    deviation_id: int
+    version: int
+    investigation: str
+    deviation_class: DeviationClass
+    capa: str | None
+    reason_for_change: str | None
+    actor: audit.Actor
+
+
+@dataclass(frozen=True)
 class Deviation:
-    """One Deviation on an Execution, with its status events oldest first."""
+    """One Deviation on an Execution, with status events and Investigation versions."""
 
     id: int
     at: datetime
@@ -286,6 +316,7 @@ class Deviation:
     description: str
     actor: audit.Actor
     events: tuple[DeviationEvent, ...]
+    investigations: tuple[DeviationInvestigation, ...] = ()
 
     @property
     def status(self) -> DeviationStatus:
@@ -293,7 +324,7 @@ class Deviation:
 
     @property
     def deviation_class(self) -> DeviationClass | None:
-        return None
+        return self.investigations[-1].deviation_class if self.investigations else None
 
 
 def _parse_value(raw: dict[str, Any] | None) -> ResultValue | None:
@@ -329,13 +360,27 @@ def _version_from_row(m: RowMapping) -> AttemptVersion:
     )
 
 
-def _deviation_event_from_row(m: RowMapping) -> DeviationEvent:
+def deviation_event_from_row(m: RowMapping) -> DeviationEvent:
     return DeviationEvent(
         id=m["id"],
         at=m["at"],
         deviation_id=m["deviation_id"],
         event=cast(DeviationEventKind, m["event"]),
         reason=m["reason"],
+        actor=audit.actor_of_row(m),
+    )
+
+
+def deviation_investigation_from_row(m: RowMapping) -> DeviationInvestigation:
+    return DeviationInvestigation(
+        id=m["id"],
+        at=m["at"],
+        deviation_id=m["deviation_id"],
+        version=m["version"],
+        investigation=m["investigation"],
+        deviation_class=cast(DeviationClass, m["deviation_class"]),
+        capa=m["capa"],
+        reason_for_change=m["reason_for_change"],
         actor=audit.actor_of_row(m),
     )
 
@@ -511,7 +556,7 @@ def _version_hash(
     return digest(payload)
 
 
-def _frozen_copy(session: Session, ex: lifecycle.Execution) -> ProtocolCopy:
+def frozen_copy(session: Session, ex: lifecycle.Execution) -> ProtocolCopy:
     for sub in submission.submissions_of(session, ex.protocol_id):
         if sub.event_id == ex.submission_event_id:
             return sub.copy
@@ -585,7 +630,19 @@ def deviations_of(session: Session, execution_id: int) -> tuple[Deviation, ...]:
         .mappings()
         .all()
     ):
-        events_by_dev.setdefault(em["deviation_id"], []).append(_deviation_event_from_row(em))
+        events_by_dev.setdefault(em["deviation_id"], []).append(deviation_event_from_row(em))
+
+    inv_by_dev: dict[int, list[DeviationInvestigation]] = {}
+    for im in (
+        session.execute(
+            select(DEVIATION_INVESTIGATIONS)
+            .where(DEVIATION_INVESTIGATIONS.c.deviation_id.in_(dev_ids))
+            .order_by(DEVIATION_INVESTIGATIONS.c.version)
+        )
+        .mappings()
+        .all()
+    ):
+        inv_by_dev.setdefault(im["deviation_id"], []).append(deviation_investigation_from_row(im))
 
     return tuple(
         Deviation(
@@ -599,6 +656,7 @@ def deviations_of(session: Session, execution_id: int) -> tuple[Deviation, ...]:
             description=dm["description"],
             actor=audit.actor_of_row(dm),
             events=tuple(events_by_dev.get(dm["id"], ())),
+            investigations=tuple(inv_by_dev.get(dm["id"], ())),
         )
         for dm in dev_rows
     )
@@ -624,7 +682,7 @@ def record_attempt(
             f"Execution {execution_id} is {ex.status}: Results are recorded only while In progress"
         )
 
-    copy = _frozen_copy(session, ex)
+    copy = frozen_copy(session, ex)
     row = next((r for r in copy.rows if r.requirement == requirement), None)
     if row is None:
         raise lifecycle.NotFound(f"no row {requirement} in Execution {execution_id}")
@@ -784,7 +842,7 @@ def record_attempt(
                 .mappings()
                 .one()
             )
-            ev = _deviation_event_from_row(ev_row)
+            ev = deviation_event_from_row(ev_row)
             dev = Deviation(
                 id=dev_row["id"],
                 at=dev_row["at"],

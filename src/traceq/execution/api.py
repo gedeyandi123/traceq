@@ -23,7 +23,13 @@ from traceq.assembly import submission
 from traceq.assembly.submission import FrozenRow, ProtocolCopy
 from traceq.assembly.written import Acceptance
 from traceq.db import transaction
-from traceq.execution import lifecycle, results
+from traceq.execution import deviations, lifecycle, results
+from traceq.execution.deviations import (
+    CLOSURE_NOTE,
+    InvestigationRequest,
+    OpenManualDeviationRequest,
+    ReturnDeviationRequest,
+)
 from traceq.execution.lifecycle import EventKind, Status
 from traceq.execution.results import (
     DeviationCause,
@@ -115,6 +121,21 @@ class DeviationEventView(_Model):
     name: str
 
 
+class DeviationInvestigationView(_Model):
+    """One immutable version of a Deviation's Investigation."""
+
+    id: int
+    at: datetime
+    version: int
+    investigation: str
+    deviation_class: DeviationClass
+    capa: str | None
+    reason_for_change: str | None
+    subject: str
+    issuer: str
+    name: str
+
+
 class DeviationView(_Model):
     """One Deviation on an Execution."""
 
@@ -131,6 +152,8 @@ class DeviationView(_Model):
     issuer: str
     name: str
     events: list[DeviationEventView]
+    investigations: list[DeviationInvestigationView]
+    closure_note: str | None = None
 
 
 class ExecutionRowView(_Model):
@@ -238,6 +261,22 @@ def _deviation(d: results.Deviation) -> DeviationView:
             )
             for e in d.events
         ],
+        investigations=[
+            DeviationInvestigationView(
+                id=inv.id,
+                at=inv.at,
+                version=inv.version,
+                investigation=inv.investigation,
+                deviation_class=inv.deviation_class,
+                capa=inv.capa,
+                reason_for_change=inv.reason_for_change,
+                subject=inv.actor.subject,
+                issuer=inv.actor.issuer,
+                name=inv.actor.name,
+            )
+            for inv in d.investigations
+        ],
+        closure_note=CLOSURE_NOTE if d.status == "closed" else None,
     )
 
 
@@ -361,5 +400,115 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             raise HTTPException(404, str(e)) from e
         except lifecycle.Conflict as e:
             raise HTTPException(409, str(e)) from e
+
+    def run_execution_write(execution_id: int, fn: Callable[[Session], object]) -> ExecutionView:
+        try:
+            with transaction(database()) as session:
+                fn(session)
+                updated = lifecycle.get(session, execution_id)
+                if updated is None:
+                    raise lifecycle.NotFound(f"no Execution {execution_id}")
+                return view(session, updated)
+        except results.InvalidResult as e:
+            raise HTTPException(422, str(e)) from e
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.post(
+        "/executions/{execution_id}/deviations",
+        operation_id="openManualDeviation",
+        status_code=201,
+    )
+    def open_manual_deviation(
+        execution_id: int,
+        body: OpenManualDeviationRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Opens a manual Deviation on an ``in_progress`` Execution, linked to one Test Step row
+        or to the Execution."""
+        if not who.may_execute:
+            raise HTTPException(403, "opening a manual Deviation needs the executing role")
+        return run_execution_write(
+            execution_id,
+            lambda s: deviations.open_manual_deviation(s, actor_of(who), execution_id, body),
+        )
+
+    @router.post(
+        "/executions/{execution_id}/deviations/{deviation_id}/investigations",
+        operation_id="addDeviationInvestigation",
+        status_code=201,
+    )
+    def add_deviation_investigation(
+        execution_id: int,
+        deviation_id: int,
+        body: InvestigationRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Records an immutable Investigation version on an ``open`` Deviation."""
+        if not who.may_execute:
+            raise HTTPException(403, "writing a Deviation Investigation needs the executing role")
+        return run_execution_write(
+            execution_id,
+            lambda s: deviations.add_investigation(
+                s, actor_of(who), execution_id, deviation_id, body
+            ),
+        )
+
+    @router.post(
+        "/executions/{execution_id}/deviations/{deviation_id}/submit",
+        operation_id="submitDeviation",
+    )
+    def submit_deviation(
+        execution_id: int,
+        deviation_id: int,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Submits an ``open`` Deviation once an Investigation with a class is recorded."""
+        if not who.may_execute:
+            raise HTTPException(403, "submitting a Deviation needs the executing role")
+        return run_execution_write(
+            execution_id,
+            lambda s: deviations.submit_deviation(s, actor_of(who), execution_id, deviation_id),
+        )
+
+    @router.post(
+        "/executions/{execution_id}/deviations/{deviation_id}/close",
+        operation_id="closeDeviation",
+    )
+    def close_deviation(
+        execution_id: int,
+        deviation_id: int,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Closes a ``submitted`` Deviation (a recorded status, not an Electronic Signature),
+        enforcing 4-way Separation of Duties."""
+        if not who.may_approve:
+            raise HTTPException(403, "closing a Deviation needs the approving role")
+        return run_execution_write(
+            execution_id,
+            lambda s: deviations.close_deviation(s, actor_of(who), execution_id, deviation_id),
+        )
+
+    @router.post(
+        "/executions/{execution_id}/deviations/{deviation_id}/return",
+        operation_id="returnDeviation",
+    )
+    def return_deviation(
+        execution_id: int,
+        deviation_id: int,
+        body: ReturnDeviationRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Returns a ``submitted`` Deviation to ``open`` with a required reason."""
+        if not who.may_approve:
+            raise HTTPException(403, "returning a Deviation needs the approving role")
+        return run_execution_write(
+            execution_id,
+            lambda s: deviations.return_deviation(
+                s, actor_of(who), execution_id, deviation_id, body
+            ),
+        )
 
     return router
