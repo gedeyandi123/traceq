@@ -25,9 +25,12 @@ const config: NextConfig = {
   experimental: {
     optimizePackageImports: ["radix-ui"],
   },
-  // A cited document opens through the same origin: /api/... is the read-only API.
+  // A cited document opens through the same origin: /api/... falls back to the read-only API
+  // after Next.js route handlers (such as auth-forwarding /api/rounds/.../pdf).
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${API_URL}/:path*` }];
+    return {
+      fallback: [{ source: "/api/:path*", destination: `${API_URL}/:path*` }],
+    };
   },
   async headers() {
     return [

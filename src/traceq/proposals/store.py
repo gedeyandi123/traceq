@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 from traceq.proposals.keys import proposals_of
-from traceq.runs.schemas import DraftedTestSteps, Findings, Matrix, ProtocolDraft
+from traceq.runs.schemas import Completeness, DraftedTestSteps, Findings, Matrix, ProtocolDraft
 
 _META = MetaData()
 RUNS = Table(
@@ -40,6 +40,7 @@ RUNS = Table(
     Column("pipeline_version", Text),
     Column("prompts", JSONB),
     Column("documents", JSONB),
+    Column("completeness", JSONB),
 )
 PROPOSALS = Table(
     "proposals",
@@ -75,6 +76,7 @@ class RunFiles:
     findings: Findings
     draft: ProtocolDraft | None = None
     drafted: DraftedTestSteps | None = None
+    completeness: Completeness | None = None
 
 
 @dataclass(frozen=True)
@@ -104,11 +106,18 @@ def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
         "prompts": meta["prompts"],
         "documents": meta["corpus"]["documents"],
     }
+    completeness_json = (
+        None if run.completeness is None else run.completeness.model_dump(mode="json")
+    )
     added = session.execute(
         insert(RUNS)
         .values(
             run_id=run_id,
-            **{**provenance, "created": datetime.fromisoformat(provenance["created"])},
+            **{
+                **provenance,
+                "created": datetime.fromisoformat(provenance["created"]),
+                "completeness": completeness_json,
+            },
         )
         .on_conflict_do_nothing(index_elements=["run_id"])
         .returning(RUNS.c.run_id)

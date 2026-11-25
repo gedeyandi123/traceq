@@ -62,6 +62,11 @@
       "open": "Terbuka",
       "submitted": "Diajukan",
       "closed": "Ditutup"
+    },
+    "roundStatuses": {
+      "open": "Terbuka",
+      "returned_for_revision": "Dikembalikan",
+      "ready_for_protocol": "Siap protokol"
     }
   },
   "runHeader": {
@@ -71,6 +76,7 @@
     "run": "Run",
     "matrix": "Matriks",
     "findings": "Temuan pra-tinjauan",
+    "rounds": "Dokumen & Ronde",
     "protocol": "Protokol (disusun di TraceQ)",
     "leftOut": "Yang tidak dimasukkan",
     "eval": "Hasil evaluasi",
@@ -934,6 +940,115 @@
       "oneExecution": "Satu eksekusi per protokol yang disetujui dan tidak dapat dibatalkan.",
       "combined": "IQ dan OQ digabung dalam satu eksekusi.",
       "notSignature": "Konfirmasi dan penutupan adalah status tercatat, bukan tanda tangan elektronik."
+    }
+  },
+  "rounds": {
+    "title": "Dokumen & Ronde Tinjauan",
+    "intro": "Versi dokumen peralatan, riwayat ronde tinjauan pra-protokol, diff lintas-ronde, dan ekspor laporan PDF.",
+    "signedOut": "Masuk untuk melihat dokumen & ronde tinjauan",
+    "signedOutBody": "Pilih persona demo untuk membaca versi dokumen, membandingkan ronde tinjauan, atau menerbitkan laporan pra-tinjauan.",
+    "unavailable": "Data ronde tinjauan tidak tersedia",
+    "unavailableBody": "Run ini belum diimpor ke basis data atau server API sedang tidak dapat dihubungi.",
+    "notFound": "Ronde tinjauan tidak ditemukan untuk run ini.",
+    "currentRoundLabel": "Ronde aktif saat ini: R{number}",
+    "tabs": {
+      "documents": "Versi Dokumen",
+      "rounds": "Ronde Tinjauan & Diff",
+      "exports": "Ekspor Laporan"
+    },
+    "documents": {
+      "heading": "Versi Dokumen Peralatan",
+      "note": "Daftar dokumen yang terekam pada ronde ini beserta status aktif dan perubahan dibanding ronde sebelumnya.",
+      "empty": "Belum ada versi dokumen yang terekam pada ronde ini.",
+      "colDocId": "ID Dokumen",
+      "colRev": "Rev",
+      "colType": "Tipe",
+      "colSource": "Sumber",
+      "colSha256": "SHA-256",
+      "colStatus": "Status",
+      "colDiff": "Perubahan Lintas-Ronde",
+      "colPreview": "Pratinjau",
+      "statusActive": "Aktif",
+      "statusSuperseded": "Digantikan",
+      "diffAdded": "Baru di ronde ini",
+      "diffRevised": "Revisi baru",
+      "diffUnchanged": "Tidak berubah",
+      "diffRemoved": "Dihapus dari ronde",
+      "removedHeading": "Dokumen yang Dihapus dari Ronde Sebelumnya",
+      "previewLink": "Buka PDF",
+      "typeUnknown": "—"
+    },
+    "reviewRounds": {
+      "heading": "Daftar Ronde Tinjauan",
+      "note": "Setiap ronde merekam paket dokumen peralatan dan keputusan penutupan sebelum penyusunan protokol.",
+      "roundLabel": "R{number}",
+      "runIdLabel": "Run: {runId}",
+      "openedAt": "Dibuka {when}",
+      "eventsTitle": "Riwayat Penutupan & Peristiwa",
+      "eventLabels": {
+        "opened": "Ronde dibuka",
+        "returned_for_revision": "Dikembalikan ke vendor untuk revisi",
+        "ready_for_protocol": "Dinyatakan siap untuk protokol"
+      },
+      "eventBy": "{name}, {when}",
+      "closeButton": "Tutup ronde",
+      "readOnlyNote": "Hanya peran pemutus (qualification-decider) yang dapat menutup ronde terbuka.",
+      "diffHeading": "Diff Lintas-Ronde (vs R{prevNumber})",
+      "diffSingleRound": "Ronde pertama (R1) — belum ada ronde sebelumnya untuk dibandingkan.",
+      "diffDocsTitle": "Perubahan Dokumen",
+      "diffDocsAdded": "Ditambahkan",
+      "diffDocsRevised": "Direvisi",
+      "diffDocsUnchanged": "Tetap",
+      "diffDocsRemoved": "Dihapus",
+      "diffFindingsTitle": "Temuan Pra-Tinjauan",
+      "diffFindingsResolved": "Selesai",
+      "diffFindingsPersisted": "Bertahan",
+      "diffFindingsNew": "Baru",
+      "diffDecisionsTitle": "Keputusan Matriks & Temuan",
+      "diffDecisionsCarriedForward": "Terbawa",
+      "diffDecisionsChanged": "Terbuka ulang / berubah",
+      "diffDecisionsUndecided": "Belum diputuskan"
+    },
+    "closeModal": {
+      "title": "Tutup ronde R{number}",
+      "description": "Catat hasil penutupan ronde tinjauan pra-protokol ini.",
+      "outcomeLabel": "Hasil penutupan",
+      "outcomeReturned": "Kembalikan untuk revisi vendor",
+      "outcomeReady": "Siap untuk penyusunan protokol",
+      "reasonLabel": "Alasan perubahan (Reason for Change)",
+      "reasonRequiredHint": "Wajib diisi jika dikembalikan untuk revisi.",
+      "reasonOptionalHint": "Opsional jika dinyatakan siap untuk protokol.",
+      "reasonPlaceholder": "Jelaskan alasan pengembalian revisi atau catatan penutupan...",
+      "adr0007Notice": "Status tercatat, bukan Tanda Tangan Elektronik.",
+      "confirmButton": "Simpan penutupan ronde",
+      "cancelButton": "Batal",
+      "dirtyWarning": "Ada isian penutupan ronde yang belum disimpan. Buang perubahan dan tutup dialog?",
+      "dirtyDiscard": "Buang & tutup",
+      "dirtyKeep": "Lanjut mengedit"
+    },
+    "exports": {
+      "heading": "Laporan Pra-Tinjauan (PDF)",
+      "note": "Terbitkan salinan PDF laporan pra-tinjauan yang dapat diaudit untuk ronde aktif saat ini.",
+      "issueButton": "Terbitkan Laporan Pra-Tinjauan (PDF)",
+      "roleNote": "Hanya peran pemutus atau penyetuju yang dapat menerbitkan laporan baru. Semua pengguna terautentikasi dapat mengunduh PDF.",
+      "historyHeading": "Riwayat Ekspor",
+      "empty": "Belum ada laporan pra-tinjauan yang diterbitkan untuk ronde ini.",
+      "colRound": "Ronde",
+      "colIssuedAt": "Diterbitkan (UTC)",
+      "colIssuer": "Penerbit",
+      "colSnapshotHash": "Snapshot Hash",
+      "colPdfSha256": "PDF SHA-256",
+      "colAction": "Berkas",
+      "downloadButton": "Unduh PDF",
+      "issuedSuccess": "Laporan pra-tinjauan berhasil diterbitkan."
+    },
+    "errors": {
+      "conflict": "Ditolak API: ronde sudah ditutup atau status tidak mengizinkan tindakan ini (409).",
+      "forbidden": "Ditolak API: peran Anda tidak memiliki izin untuk tindakan ini (403).",
+      "unauthorized": "Ditolak API: sesi tidak valid. Silakan masuk kembali (401).",
+      "notFound": "Ditolak API: ronde tidak ditemukan (404).",
+      "unprocessable": "Data tidak valid: alasan wajib diisi saat mengembalikan ronde untuk revisi (422).",
+      "failed": "Terjadi kesalahan saat menghubungi API. Coba lagi."
     }
   }
 }

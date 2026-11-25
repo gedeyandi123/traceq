@@ -40,6 +40,7 @@ from sqlalchemy.orm import Session
 from traceq import audit
 from traceq.assembly import lifecycle
 from traceq.assembly.lifecycle import NotFound, Refused
+from traceq.proposals.store import RUNS
 from traceq.runs.api import read_served
 from traceq.runs.completeness import COMPLETENESS_FILE
 from traceq.runs.schemas import Completeness, UnquotedText
@@ -118,6 +119,16 @@ def check_of(folder: Path | None) -> Completeness | None:
     if path is None or not path.is_file():
         return None
     return Completeness.model_validate(read_served(path))
+
+
+def check_for_run(session: Session, run_id: str, folder: Path | None) -> Completeness | None:
+    """Reads ``imported_runs.completeness`` first, falling back to disk when ``NULL``."""
+    stored = session.execute(
+        select(RUNS.c.completeness).where(RUNS.c.run_id == run_id)
+    ).scalar_one_or_none()
+    if stored is not None:
+        return Completeness.model_validate(stored)
+    return check_of(folder)
 
 
 def _disposition(m: RowMapping) -> Disposition:

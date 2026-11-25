@@ -150,9 +150,11 @@ def test_unquoted_text_is_shown_and_never_blocks(
 
 
 def test_a_run_without_a_completeness_check_lists_nothing_to_answer(
-    client: TestClient, runs: Path, decider: dict[str, str], protocol: Any
+    client: TestClient, runs: Path, decider: dict[str, str]
 ) -> None:
     (runs / RUN_ID / "completeness.json").unlink()
+    import_run(client, decider)
+    start(client, decider)
     assert read(client, decider)["urs"] is None
 
 

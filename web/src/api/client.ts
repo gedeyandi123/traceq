@@ -45,6 +45,15 @@ export type CompletionBlockers = components["schemas"]["CompletionBlockers"];
 export type ExecutionCopy = components["schemas"]["ExecutionCopy"];
 export type InstrumentInput = components["schemas"]["InstrumentInput"];
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
+export type RunRoundsView = components["schemas"]["RunRoundsView"];
+export type ReviewRoundView = components["schemas"]["ReviewRoundView"];
+export type RoundDiffView = components["schemas"]["RoundDiffView"];
+export type DocumentVersionView = components["schemas"]["DocumentVersionView"];
+export type ReviewRoundEventView = components["schemas"]["ReviewRoundEventView"];
+export type ReportExportView = components["schemas"]["ReportExportView"];
+export type RoundStatus = components["schemas"]["RoundStatus"];
+export type RoundEventKind = components["schemas"]["RoundEventKind"];
+export type CloseOutcome = components["schemas"]["CloseOutcome"];
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */
 export const api = createClient<paths>({ baseUrl: API_URL, cache: "no-store" });

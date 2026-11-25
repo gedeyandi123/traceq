@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   FileSearch,
   FileWarning,
+  Layers,
   PanelLeftClose,
   PanelLeftOpen,
   PlayCircle,
@@ -18,17 +19,18 @@ import { useSelectedLayoutSegment } from "next/navigation";
 import { Dialog } from "radix-ui";
 import { useEffect, useState } from "react";
 
-import type { ExecutionView, ProtocolView, RunSummary } from "@/api/client";
+import type { ExecutionView, ProtocolView, RoundStatus, RunSummary } from "@/api/client";
 import { BrandMark } from "@/components/BrandMark";
-import { ExecutionStatusBadge, ProtocolStatusBadge } from "@/components/ui/StatusBadge";
+import { ExecutionStatusBadge, ProtocolStatusBadge, RoundStatusBadge } from "@/components/ui/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 
-export type RunNavKey = "matrix" | "findings" | "draft" | "protocol" | "execution" | "leftOut" | "eval";
+export type RunNavKey = "matrix" | "findings" | "draft" | "rounds" | "protocol" | "execution" | "leftOut" | "eval";
 
 export type RunSidebarBadges = {
   matrix?: number;
   findings?: number;
   draft?: number;
+  roundBadge?: { roundNumber: number; status: RoundStatus } | null;
   executionStatus?: ExecutionView["status"] | null;
   openDeviations?: number;
 };
@@ -36,6 +38,7 @@ export type RunSidebarBadges = {
 const SEGMENT_TO_KEY: Record<string, RunNavKey> = {
   findings: "findings",
   draft: "draft",
+  rounds: "rounds",
   protocol: "protocol",
   execution: "execution",
   "left-out": "leftOut",
@@ -48,6 +51,7 @@ type NavItem = {
   label: string;
   icon: typeof Table2;
   badge?: number;
+  roundBadge?: { roundNumber: number; status: RoundStatus } | null;
   protocolStatus?: ProtocolView["status"] | null;
   executionStatus?: ExecutionView["status"] | null;
   openDeviations?: number;
@@ -92,6 +96,13 @@ function SidebarNavList({
           },
         ]
       : []),
+    {
+      key: "rounds",
+      href: `${base}/rounds`,
+      label: t("rounds"),
+      icon: Layers,
+      roundBadge: badges?.roundBadge,
+    },
     {
       key: "protocol",
       href: `${base}/protocol`,
@@ -150,6 +161,12 @@ function SidebarNavList({
           >
             {item.badge}
           </span>
+        )}
+        {!collapsed && item.roundBadge && (
+          <RoundStatusBadge
+            status={item.roundBadge.status}
+            roundNumber={item.roundBadge.roundNumber}
+          />
         )}
         {!collapsed && item.protocolStatus && (
           <ProtocolStatusBadge status={item.protocolStatus} />

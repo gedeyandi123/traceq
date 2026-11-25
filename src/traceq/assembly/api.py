@@ -471,13 +471,13 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
             raise HTTPException(401, "no database is configured")
         return db
 
-    def check_of(run_id: str) -> Completeness | None:
-        return missed.check_of(find_run(runs, run_id))
+    def check_of(session: Session, run_id: str) -> Completeness | None:
+        return missed.check_for_run(session, run_id, find_run(runs, run_id))
 
     def view(session: Session, p: lifecycle.AssembledProtocol) -> ProtocolView:
         draft = p.status == "draft"
         rows = rows_of(session, p) if draft else None
-        urs = missed.missed_of(session, p.id, check_of(p.run_id)) if draft else None
+        urs = missed.missed_of(session, p.id, check_of(session, p.run_id)) if draft else None
         submissions = [_submission(x, p) for x in submission.submissions_of(session, p.id)]
         frozen = p.status in ("submitted", "approved") and bool(submissions)
         return ProtocolView(
@@ -616,7 +616,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
                     session,
                     actor_of(who),
                     protocol_id,
-                    None if found is None else check_of(found.run_id),
+                    None if found is None else check_of(session, found.run_id),
                     (body.doc, body.rev, body.number),
                     body.kind,
                     body.justification,
@@ -648,7 +648,7 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
                     session,
                     actor_of(who),
                     protocol_id,
-                    None if found is None else check_of(found.run_id),
+                    None if found is None else check_of(session, found.run_id),
                 )
                 return view(session, done)
         except lifecycle.NotFound as e:

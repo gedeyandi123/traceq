@@ -26,7 +26,7 @@ from traceq.identity import Principal
 from traceq.proposals import decisions
 from traceq.proposals.decisions import State, Verdict
 from traceq.proposals.keys import Kind
-from traceq.proposals.store import RunFiles, import_run
+from traceq.proposals.store import Imported, RunFiles, import_run
 from traceq.runs.api import (
     DRAFTS_FILE,
     FINDINGS_FILE,
@@ -35,8 +35,10 @@ from traceq.runs.api import (
     find_run,
     read_served,
 )
+from traceq.runs.completeness import COMPLETENESS_FILE
 from traceq.runs.protocol_draft import DRAFT_FILE
 from traceq.runs.schemas import (
+    Completeness,
     DraftCheckFinding,
     DraftDocument,
     DraftedTestSteps,
@@ -224,6 +226,7 @@ def create_router(
     db: Engine | None,
     principal: Callable[..., Principal],
     before_accepting: Callable[[Session, str, int], None] | None = None,
+    after_import: Callable[[Session, Actor, Imported, RunFiles], None] | None = None,
 ) -> APIRouter:
     """``db``: the database as the application role; none with default settings, when
     ``principal`` refuses every request. ``before_accepting``: called with the session, run id
@@ -249,6 +252,7 @@ def create_router(
             meta: dict[str, Any] = read_served(folder / RUN_FILE)
             draft = folder / DRAFT_FILE
             drafted = folder / DRAFTS_FILE
+            comp_path = folder / COMPLETENESS_FILE
             files = RunFiles(
                 meta=meta,
                 matrix=Matrix.model_validate(read_served(folder / MATRIX_FILE)),
@@ -257,13 +261,19 @@ def create_router(
                 drafted=DraftedTestSteps.model_validate(read_served(drafted))
                 if drafted.is_file()
                 else None,
+                completeness=Completeness.model_validate(read_served(comp_path))
+                if comp_path.is_file()
+                else None,
             )
         except (OSError, ValueError, ValidationError) as e:
             raise HTTPException(422, f"{run_id} is not a run folder that can be imported") from e
         if meta.get("run_id") != run_id:
             raise HTTPException(422, f"the run folder {run_id} names another run id")
         with transaction(database()) as session:
-            done = import_run(session, actor_of(who), files)
+            actor = actor_of(who)
+            done = import_run(session, actor, files)
+            if not done.already_imported and after_import is not None:
+                after_import(session, actor, done, files)
         return ImportedRun(
             run_id=done.run_id,
             equipment=done.equipment,
