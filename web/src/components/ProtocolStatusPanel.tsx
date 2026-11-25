@@ -8,14 +8,14 @@ import { useState } from "react";
 import type { ProtocolEvent, ProtocolView } from "@/api/client";
 import type { ApprovalControls, ProtocolControls } from "./AssembledProtocolView";
 import { formatWhen } from "./formatWhen";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { Modal } from "./ui/Modal";
 import { ProtocolStatusBadge } from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
 
-const TEXTAREA_CLASS =
-  "w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none";
+const TEXTAREA_CLASS = `w-full text-xs ${FIELD_BASE_CLASS}`;
 
 export function StartForm({
   t,
@@ -238,7 +238,7 @@ export function ProtocolStatusPanel({
           </div>
           <Link
             href={`/runs/${encodeURIComponent(runId)}/execution`}
-            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline transition-colors hover:bg-accent-hover"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-accent no-underline hover:text-accent-hover hover:underline"
           >
             <span>{t("toExecution")}</span>
             <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

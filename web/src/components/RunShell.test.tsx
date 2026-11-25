@@ -75,8 +75,8 @@ test("renders unnumbered workflow & audit links, omitting Draf protokol when rev
     "/runs/r7%20TP%2F201/eval",
   ]);
   expect(links[0]?.getAttribute("aria-current")).toBe("page");
-  expect(within(nav).getByRole("link", { name: /Matriks & Triage/ }).textContent).toContain("5");
-  expect(within(nav).getByRole("link", { name: /Eksekusi & Deviasi/ }).getAttribute("href")).toBe(
+  expect(within(nav).getByRole("link", { name: /Matriks & triase/i }).textContent).toContain("5");
+  expect(within(nav).getByRole("link", { name: /Eksekusi & deviasi/i }).getAttribute("href")).toBe(
     "/runs/r7%20TP%2F201/execution",
   );
 });

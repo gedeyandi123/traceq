@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
+
 export type AcShapeFieldsProps = {
   id: string;
   initialShape: string;
@@ -25,8 +27,7 @@ export type AcShapeFieldsProps = {
   onDirty?: () => void;
 };
 
-const INPUT_CLASS =
-  "w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none";
+const INPUT_CLASS = `w-full text-xs ${FIELD_BASE_CLASS}`;
 
 /** Thin client island: shows only the Acceptance Criterion inputs matching the selected `ac_type`. */
 export function AcShapeFields({
@@ -49,7 +50,10 @@ export function AcShapeFields({
   const [allowedVal, setAllowedVal] = useState(initialAllowed);
 
   return (
-    <fieldset className="space-y-2.5 rounded-md border border-border bg-canvas p-3">
+    <fieldset
+      aria-describedby={`${id}-hint`}
+      className="space-y-2.5 rounded-md border border-border bg-canvas p-3"
+    >
       <legend className="px-1 text-xs font-semibold text-ink">{labels.legend}</legend>
       <label className="block space-y-1 text-xs font-medium text-ink">
         <span>{labels.shape}</span>

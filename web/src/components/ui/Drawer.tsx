@@ -12,6 +12,8 @@ export function Drawer({
   description,
   headerExtra,
   footer,
+  size = "md",
+  onCloseAutoFocus,
   children,
 }: {
   open: boolean;
@@ -20,14 +22,20 @@ export function Drawer({
   description?: string;
   headerExtra?: ReactNode;
   footer?: ReactNode;
+  size?: "md" | "wide";
+  onCloseAutoFocus?: (event: Event) => void;
   children: ReactNode;
 }) {
   const t = useTranslations("ui");
+  const widthClass = size === "wide" ? "md:w-[640px] xl:w-[760px]" : "md:w-[560px] xl:w-[640px]";
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="tq-fade-in fixed inset-0 z-50 bg-ink/25 backdrop-blur-[1px]" />
-        <Dialog.Content className="tq-slide-in-right fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-border bg-surface text-ink shadow-2xl outline-none md:w-[560px] xl:w-[640px]">
+        <Dialog.Content
+          onCloseAutoFocus={onCloseAutoFocus}
+          className={`tq-slide-in-right fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-border bg-surface text-ink shadow-2xl outline-none ${widthClass}`}
+        >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2.5">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -37,7 +45,10 @@ export function Drawer({
                 {headerExtra && <div className="flex items-center gap-1.5">{headerExtra}</div>}
               </div>
               {description ? (
-                <Dialog.Description className="mt-0.5 mb-0 truncate text-xs text-ink-muted">
+                <Dialog.Description
+                  title={description}
+                  className="mt-0.5 mb-0 truncate text-xs text-ink-muted"
+                >
                   {description}
                 </Dialog.Description>
               ) : (

@@ -7,6 +7,7 @@ import type { Session } from "@/auth/session";
 import { RunContextBar } from "@/components/RunContextBar";
 import { RunShellProvider, useRunShell } from "@/components/RunShellContext";
 import { RunSidebar, type RunSidebarBadges } from "@/components/RunSidebar";
+import { TooltipProvider } from "@/components/ui/Tooltip";
 
 function RunShellInner({
   run,
@@ -42,6 +43,7 @@ function RunShellInner({
       <div className="flex min-w-0 flex-1 flex-col">
         <RunContextBar
           run={run}
+          protocolStatus={protocolStatus}
           session={session}
           signOutAction={signOutAction}
           onOpenMobileNav={() => setMobileOpen(true)}
@@ -61,8 +63,10 @@ export function RunShell(props: {
   children: ReactNode;
 }) {
   return (
-    <RunShellProvider>
-      <RunShellInner {...props} />
-    </RunShellProvider>
+    <TooltipProvider delayDuration={200}>
+      <RunShellProvider>
+        <RunShellInner {...props} />
+      </RunShellProvider>
+    </TooltipProvider>
   );
 }

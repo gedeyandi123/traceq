@@ -220,13 +220,15 @@ export function PdfCitationButton({
         <span className="tabular-nums">{displayLabel}</span>
       </button>
 
-      <PdfCitationModal
-        open={open}
-        onOpenChange={setOpen}
-        runId={runId}
-        cite={cite}
-        label={displayLabel}
-      />
+      {open && (
+        <PdfCitationModal
+          open={open}
+          onOpenChange={setOpen}
+          runId={runId}
+          cite={cite}
+          label={displayLabel}
+        />
+      )}
     </>
   );
 }

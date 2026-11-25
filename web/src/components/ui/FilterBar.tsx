@@ -20,7 +20,7 @@ export function FilterBar<T extends string>({
 }: {
   ariaLabel: string;
   options: readonly FilterPillOption<T>[];
-  activeId: T;
+  activeId: T | null;
   onSelect: (id: T) => void;
   trailing?: ReactNode;
   className?: string;

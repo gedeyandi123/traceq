@@ -30,6 +30,7 @@ import { ExecutionResultDrawer, type ResultDrawerMode } from "./ExecutionResultD
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
 import { ManualDeviationDrawer } from "./ManualDeviationDrawer";
+import { CopyHashButton } from "./ui/CopyHashButton";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
 import {
   DeviationStatusBadge,
@@ -75,6 +76,8 @@ function Limits({ t }: { t: T }) {
   );
 }
 
+const numberFormatter = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
+
 function formatAttemptValue(t: T, row: ExecutionRowView, latest: AttemptVersionView): string {
   if (latest.outcome_kind === "not_performable") {
     return t("notPerformableDisplay", { reason: latest.not_performable_reason ?? "" });
@@ -84,7 +87,7 @@ function formatAttemptValue(t: T, row: ExecutionRowView, latest: AttemptVersionV
   if (v.type === "number") {
     const ac = row.test_step?.acceptance;
     const unit = ac && (ac.type === "number" || ac.type === "range") ? ` ${ac.unit}` : "";
-    return `${v.value}${unit}`;
+    return `${numberFormatter.format(v.value)}${unit}`;
   }
   if (v.type === "one_of") {
     return v.not_one_of ? `${t("oneOfNotListed")}: ${v.value}` : v.value;
@@ -314,6 +317,12 @@ function ExecutionRow({
                             <span className="font-semibold text-ink tabular-nums">
                               {formatAttemptValue(t, row, ver)}
                             </span>
+                            <code
+                              title={ver.version_hash}
+                              className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[10px] text-ink-muted tabular-nums"
+                            >
+                              {ver.version_hash.slice(0, 12)}
+                            </code>
                           </div>
 
                           {ver.reason_for_change && (
@@ -680,6 +689,7 @@ function ExecutionFrozenCopyPanel({
   frozenCopy: ExecutionCopy;
   copyHash: string;
 }) {
+  const ui = useTranslations("ui");
   return (
     <section
       aria-labelledby="execution-frozen-copy"
@@ -706,8 +716,15 @@ function ExecutionFrozenCopyPanel({
         })}
       </p>
       <div className="space-y-1 rounded border border-border bg-surface px-3 py-2">
-        <div className="text-[11px] font-semibold text-ink-muted">
-          {t("completion.frozenHashLabel")}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[11px] font-semibold text-ink-muted">
+            {t("completion.frozenHashLabel")}
+          </div>
+          <CopyHashButton
+            value={copyHash}
+            copyLabel={ui("copyHash")}
+            copiedLabel={ui("copied")}
+          />
         </div>
         <code className="block font-mono text-xs break-all text-ink tabular-nums">{copyHash}</code>
       </div>
@@ -803,7 +820,7 @@ export function ExecutionViewPanel({
           className="flex items-start gap-2 rounded-lg border border-fail-edge bg-fail-soft px-3.5 py-2.5 text-xs text-fail"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{t(`errors.${state.error}`)}</span>
+          <span>{state.detail ?? t(`errors.${state.error}`)}</span>
         </div>
       )}
 

@@ -12,6 +12,8 @@ import {
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
+import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
+
 import type { CoverageClass, Decision, MatrixRow, Proposal } from "@/api/client";
 import type { DecisionAccess, DecisionView } from "@/components/Decisions";
 import { formatWhen } from "@/components/formatWhen";
@@ -156,7 +158,7 @@ function MatrixDecisionForm({
         value={coverage}
         onChange={(e) => handleCoverageChange(e.target.value)}
         aria-label={td("toClass")}
-        className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+        className={`w-full text-xs ${FIELD_BASE_CLASS}`}
       >
         <option value="" disabled>
           {td("toClass")}
@@ -175,7 +177,7 @@ function MatrixDecisionForm({
         onChange={(e) => handleReasonChange(e.target.value)}
         aria-label={td("reason")}
         placeholder={td("reason")}
-        className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
+        className={`w-full text-xs ${FIELD_BASE_CLASS}`}
       />
       <button
         type="submit"
@@ -267,7 +269,7 @@ function MatrixDecisionForm({
                   value={coverage}
                   onChange={(e) => handleCoverageChange(e.target.value)}
                   aria-label={td("toClass")}
-                  className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 >
                   <option value="" disabled>
                     {td("toClass")}
@@ -287,7 +289,7 @@ function MatrixDecisionForm({
                 onChange={(e) => handleReasonChange(e.target.value)}
                 aria-label={td("reason")}
                 placeholder={td("reason")}
-                className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
+                className={`w-full text-xs ${FIELD_BASE_CLASS}`}
               />
               <button
                 type="submit"
