@@ -268,11 +268,11 @@ def test_a_submitted_protocol_shows_its_frozen_copy_and_hash(
         ("protocol submitted", str(protocol["id"])),
     ]
     assert trail[1].old_value == {"status": "draft"}
-    assert trail[1].new_value == {
-        "status": "submitted",
-        "event_id": sub["event_id"],
-        "hash": sub["hash"],
-    }
+    assert isinstance(trail[1].new_value, dict)
+    assert trail[1].new_value["status"] == "submitted"
+    assert trail[1].new_value["event_id"] == sub["event_id"]
+    assert trail[1].new_value["hash"] == sub["hash"]
+    assert isinstance(trail[1].new_value["signature_id"], int)
 
 
 def test_the_copy_holds_every_row_its_decisions_and_authors(
@@ -443,8 +443,8 @@ def test_the_hash_is_stable_and_changes_with_a_row(
     return_to_draft(client, demo_issuer, protocol)
     assert read(client, decider)["submission"] is None
 
-    # Resubmitted unchanged: the same hash, a new event.
-    second = submit(client, decider, protocol)
+    # Resubmitted unchanged: the same hash, a new event (fresh token per signature).
+    second = submit(client, bearer(token(demo_issuer, decider=True)), protocol)
     assert second["submission"]["hash"] == first["hash"]
     assert second["submission"]["event_id"] != first["event_id"]
     assert [s["event_id"] for s in second["submissions"]] == [
@@ -454,7 +454,7 @@ def test_the_hash_is_stable_and_changes_with_a_row(
 
     return_to_draft(client, demo_issuer, protocol)
     write(client, decider, protocol, R026, {**STEP, "method": "Read the tachometer twice."})
-    third = submit(client, decider, protocol)["submission"]
+    third = submit(client, bearer(token(demo_issuer, decider=True)), protocol)["submission"]
     assert third["hash"] != first["hash"]
     assert [v["version"] for v in frozen_rows(read(client, decider))[R026]["written"]] == [1, 2]
 

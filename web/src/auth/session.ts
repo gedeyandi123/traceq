@@ -86,6 +86,30 @@ export async function bearerHeaders(): Promise<Record<string, string>> {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
+/** Mints a fresh demo token (fresh ``auth_time`` and ``jti``) for a signing action using
+ * ``preferred_username`` from ``traceq_token``, falling back to ``bearerHeaders()``. */
+export async function consumeSignatureBearerHeaders(): Promise<Record<string, string>> {
+  const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+  if (!token) return {};
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString());
+    const username =
+      typeof payload.preferred_username === "string" ? payload.preferred_username : null;
+    if (!username) return { authorization: `Bearer ${token}` };
+    const r = await fetch(`${ISSUER_URL}/demo/token`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username }),
+      cache: "no-store",
+    });
+    if (!r.ok) return { authorization: `Bearer ${token}` };
+    const { access_token } = (await r.json()) as { access_token: string };
+    return { authorization: `Bearer ${access_token}` };
+  } catch {
+    return { authorization: `Bearer ${token}` };
+  }
+}
+
 /** Who is signed in, for display. The payload is read, not trusted: the API verifies the
  * token on every call. */
 export async function currentSession(): Promise<Session | null> {

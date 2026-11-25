@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from traceq import audit
 from traceq.assembly import lifecycle as assembly_lifecycle
 from traceq.assembly import submission
 from traceq.assembly.attributes import Stage
@@ -27,14 +28,14 @@ from traceq.db import transaction
 from traceq.execution import completion, deviations, lifecycle, reports, results
 from traceq.execution.completion import CompletionBlockers, ExecutionCopy, compute_blockers
 from traceq.execution.deviations import (
-    CLOSURE_NOTE,
+    CloseDeviationRequest,
     InvestigationRequest,
     OpenManualDeviationRequest,
     ReturnDeviationRequest,
+    deviation_closure_hash,
 )
 from traceq.execution.lifecycle import EventKind, Status
 from traceq.execution.results import (
-    WITNESS_NOTE,
     ConfirmWitnessRequest,
     CorrectAttemptRequest,
     DeviationCause,
@@ -50,7 +51,7 @@ from traceq.execution.results import (
 )
 from traceq.identity import Principal
 from traceq.proposals.api import actor_of
-from traceq.reports import QUALIFICATION_APPROVAL_NOTE, QualificationCounts, TechnicalConclusion
+from traceq.reports import QualificationCounts, TechnicalConclusion
 from traceq.runs.schemas import Cite, EvidenceStep
 
 
@@ -94,6 +95,7 @@ class WitnessConfirmationView(_Model):
     name: str
     voided: bool
     note: str
+    electronic_signature: audit.ElectronicSignatureView | None = None
 
 
 class AttemptVersionView(_Model):
@@ -145,6 +147,7 @@ class DeviationEventView(_Model):
     subject: str
     issuer: str
     name: str
+    electronic_signature: audit.ElectronicSignatureView | None = None
 
 
 class DeviationInvestigationView(_Model):
@@ -180,6 +183,7 @@ class DeviationView(_Model):
     events: list[DeviationEventView]
     investigations: list[DeviationInvestigationView]
     closure_note: str | None = None
+    closure_content_hash: str | None = None
 
 
 class ExecutionRowView(_Model):
@@ -220,6 +224,8 @@ class ApproveQualificationReportRequest(_Model):
 
     conclusion_note: str | None = None
     next_requalification_date: date | None = None
+    expected_revision_number: int
+    expected_execution_copy_hash: str
 
 
 class QualificationExportView(_Model):
@@ -239,6 +245,7 @@ class QualificationExportView(_Model):
     issuer: str
     name: str
     at: datetime
+    electronic_signature: audit.ElectronicSignatureView | None = None
 
 
 class QualificationReportView(_Model):
@@ -269,7 +276,9 @@ def _event(e: lifecycle.Event) -> ExecutionEvent:
     )
 
 
-def _attempt_version(v: results.AttemptVersion) -> AttemptVersionView:
+def _attempt_version(
+    v: results.AttemptVersion, witness_sigs: dict[int, audit.ElectronicSignature]
+) -> AttemptVersionView:
     return AttemptVersionView(
         id=v.id,
         at=v.at,
@@ -297,15 +306,18 @@ def _attempt_version(v: results.AttemptVersion) -> AttemptVersionView:
                 issuer=w.actor.issuer,
                 name=w.actor.name,
                 voided=w.voided,
-                note=WITNESS_NOTE,
+                note=audit.signature_label(witness_sigs.get(w.id)),
+                electronic_signature=audit.signature_view(
+                    witness_sigs.get(w.id), expected_content_hash=w.version_hash
+                ),
             )
             for w in v.witness_confirmations
         ],
     )
 
 
-def _attempt(a: results.Attempt) -> AttemptView:
-    versions = [_attempt_version(v) for v in a.versions]
+def _attempt(a: results.Attempt, witness_sigs: dict[int, audit.ElectronicSignature]) -> AttemptView:
+    versions = [_attempt_version(v, witness_sigs) for v in a.versions]
     return AttemptView(
         id=a.id,
         at=a.at,
@@ -321,7 +333,12 @@ def _attempt(a: results.Attempt) -> AttemptView:
     )
 
 
-def _deviation(d: results.Deviation) -> DeviationView:
+def _deviation(
+    d: results.Deviation, dev_sigs: dict[int, audit.ElectronicSignature]
+) -> DeviationView:
+    closed_sig = (
+        dev_sigs.get(d.events[-1].id) if d.events and d.events[-1].event == "closed" else None
+    )
     return DeviationView(
         id=d.id,
         at=d.at,
@@ -345,6 +362,7 @@ def _deviation(d: results.Deviation) -> DeviationView:
                 subject=e.actor.subject,
                 issuer=e.actor.issuer,
                 name=e.actor.name,
+                electronic_signature=audit.signature_view(dev_sigs.get(e.id)),
             )
             for e in d.events
         ],
@@ -363,11 +381,16 @@ def _deviation(d: results.Deviation) -> DeviationView:
             )
             for inv in d.investigations
         ],
-        closure_note=CLOSURE_NOTE if d.status == "closed" else None,
+        closure_note=audit.signature_label(closed_sig) if d.status == "closed" else None,
+        closure_content_hash=deviation_closure_hash(d) if d.status == "submitted" else None,
     )
 
 
-def _row(r: FrozenRow, attempts: tuple[results.Attempt, ...]) -> ExecutionRowView:
+def _row(
+    r: FrozenRow,
+    attempts: tuple[results.Attempt, ...],
+    witness_sigs: dict[int, audit.ElectronicSignature],
+) -> ExecutionRowView:
     step = r.test_step
     return ExecutionRowView(
         requirement=r.requirement,
@@ -386,7 +409,7 @@ def _row(r: FrozenRow, attempts: tuple[results.Attempt, ...]) -> ExecutionRowVie
             stage=step.stage,
             witness_required=step.witness_required,
         ),
-        attempts=[_attempt(a) for a in attempts],
+        attempts=[_attempt(a, witness_sigs) for a in attempts],
     )
 
 
@@ -399,7 +422,12 @@ def _frozen_copy(session: Session, ex: lifecycle.Execution) -> ProtocolCopy:
     )
 
 
-def create_router(db: Engine | None, principal: Callable[..., Principal]) -> APIRouter:
+def create_router(
+    db: Engine | None,
+    principal: Callable[..., Principal],
+    *,
+    fresh_auth: Callable[[Principal], Principal] | None = None,
+) -> APIRouter:
     """``db``: the database as the application role; none with default settings, when
     ``principal`` refuses every request."""
     router = APIRouter()
@@ -413,6 +441,16 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
         copy = _frozen_copy(session, ex)
         attempts_by_req = results.attempts_of(session, ex.id)
         deviations_list = results.deviations_of(session, ex.id)
+        witness_ids = [
+            w.id
+            for attempts in attempts_by_req.values()
+            for a in attempts
+            for v in a.versions
+            for w in v.witness_confirmations
+        ]
+        dev_event_ids = [e.id for d in deviations_list for e in d.events]
+        witness_sigs = audit.signatures_by_witness_confirmations(session, witness_ids)
+        dev_sigs = audit.signatures_by_deviation_events(session, dev_event_ids)
         blockers = compute_blockers(copy, attempts_by_req, deviations_list)
         comp = completion.get_completion(session, ex.id) if ex.status == "completed" else None
         return ExecutionView(
@@ -424,8 +462,8 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             submission_hash=ex.submission_hash,
             status=ex.status,
             events=[_event(e) for e in ex.events],
-            rows=[_row(r, attempts_by_req.get(r.requirement, ())) for r in copy.rows],
-            deviations=[_deviation(d) for d in deviations_list],
+            rows=[_row(r, attempts_by_req.get(r.requirement, ()), witness_sigs) for r in copy.rows],
+            deviations=[_deviation(d, dev_sigs) for d in deviations_list],
             completion_blockers=blockers,
             frozen_copy=None if comp is None else comp.copy,
             copy_hash=None if comp is None else comp.copy_hash,
@@ -450,7 +488,7 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
                 return view(session, started)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
-        except lifecycle.Conflict as e:
+        except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
     @router.get("/runs/{run_id}/execution", operation_id="getExecution")
@@ -492,7 +530,7 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             raise HTTPException(422, str(e)) from e
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
-        except lifecycle.Conflict as e:
+        except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
     @router.post(
@@ -550,7 +588,7 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             raise HTTPException(422, str(e)) from e
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
-        except lifecycle.Conflict as e:
+        except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
     @router.post(
@@ -617,15 +655,26 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
     def close_deviation(
         execution_id: int,
         deviation_id: int,
+        body: CloseDeviationRequest,
         who: Annotated[Principal, Depends(principal)],
     ) -> ExecutionView:
-        """Closes a ``submitted`` Deviation (a recorded status, not an Electronic Signature),
-        enforcing 4-way Separation of Duties."""
+        """Closes a ``submitted`` Deviation with Anti-TOCTOU and 4-way Separation of Duties."""
         if not who.may_approve:
             raise HTTPException(403, "closing a Deviation needs the approving role")
+        if fresh_auth is not None:
+            who = fresh_auth(who)
         return run_execution_write(
             execution_id,
-            lambda s: deviations.close_deviation(s, actor_of(who), execution_id, deviation_id),
+            lambda s: deviations.close_deviation(
+                s,
+                actor_of(who),
+                execution_id,
+                deviation_id,
+                body,
+                auth_time=who.auth_time,
+                jti=who.jti,
+                is_demo=who.is_demo,
+            ),
         )
 
     @router.post(
@@ -660,14 +709,23 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
         body: ConfirmWitnessRequest,
         who: Annotated[Principal, Depends(principal)],
     ) -> ExecutionView:
-        """Records a Witness confirmation bound to the latest version's ``version_hash``
-        (a recorded status, not an Electronic Signature (ADR 0007 phase 2))."""
+        """Records a Witness confirmation bound to the latest version's ``version_hash``."""
         if not who.may_witness:
             raise HTTPException(403, "confirming a Result as Witness needs the witnessing role")
+        if fresh_auth is not None:
+            who = fresh_auth(who)
         return run_execution_write(
             execution_id,
             lambda s: results.confirm_witness(
-                s, actor_of(who), execution_id, requirement, attempt_number, body
+                s,
+                actor_of(who),
+                execution_id,
+                requirement,
+                attempt_number,
+                body,
+                auth_time=who.auth_time,
+                jti=who.jti,
+                is_demo=who.is_demo,
             ),
         )
 
@@ -688,14 +746,16 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             lambda s: completion.complete_execution(s, actor_of(who), execution_id),
         )
 
-    def _qual_export_view(exp: reports.QualificationExport) -> QualificationExportView:
+    def _qual_export_view(
+        exp: reports.QualificationExport, sig: audit.ElectronicSignature | None
+    ) -> QualificationExportView:
         return QualificationExportView(
             id=exp.id,
             revision_number=exp.revision_number,
             technical_conclusion=exp.technical_conclusion,
             conclusion_note=exp.conclusion_note,
             next_requalification_date=exp.next_requalification_date,
-            approval_note=exp.approval_note,
+            approval_note=audit.signature_label(sig) if sig is not None else exp.approval_note,
             snapshot_hash=exp.snapshot_hash,
             pdf_sha256=exp.pdf_sha256,
             template_version=exp.template_version,
@@ -704,12 +764,16 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             issuer=exp.actor.issuer,
             name=exp.actor.name,
             at=exp.at,
+            electronic_signature=audit.signature_view(sig),
         )
 
     def _qual_report_view(
-        comp: completion.Completion, exports: list[reports.QualificationExport]
+        session: Session,
+        comp: completion.Completion,
+        exports: list[reports.QualificationExport],
     ) -> QualificationReportView:
-        export_views = [_qual_export_view(e) for e in exports]
+        sigs = audit.signatures_by_report_exports(session, [e.id for e in exports])
+        export_views = [_qual_export_view(e, sigs.get(e.id)) for e in exports]
         return QualificationReportView(
             execution_id=comp.execution_id,
             protocol_id=comp.copy.protocol_id,
@@ -719,7 +783,9 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             completed_at=comp.copy.completed_at,
             technical_conclusion=reports.compute_conclusion(comp.copy),
             counts=reports.compute_counts(comp.copy),
-            approval_note=QUALIFICATION_APPROVAL_NOTE,
+            approval_note=(
+                export_views[-1].approval_note if export_views else audit.UNSIGNED_STATUS_LABEL
+            ),
             latest_export=export_views[-1] if export_views else None,
             exports=export_views,
         )
@@ -737,7 +803,7 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
         try:
             with transaction(database()) as session:
                 _ex, comp, exports = reports.get_completed_for_run(session, run_id)
-                return _qual_report_view(comp, exports)
+                return _qual_report_view(session, comp, exports)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
 
@@ -756,6 +822,8 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
         Investigation authors, manual Deviation openers, Deviation submitters, and Witnesses."""
         if not who.may_approve:
             raise HTTPException(403, "approving a Qualification Report needs the approving role")
+        if fresh_auth is not None:
+            who = fresh_auth(who)
         try:
             with transaction(database()) as session:
                 comp, exports = reports.approve_qualification_report(
@@ -764,11 +832,16 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
                     execution_id,
                     conclusion_note=body.conclusion_note,
                     next_requalification_date=body.next_requalification_date,
+                    expected_revision_number=body.expected_revision_number,
+                    expected_execution_copy_hash=body.expected_execution_copy_hash,
+                    auth_time=who.auth_time,
+                    jti=who.jti,
+                    is_demo=who.is_demo,
                 )
-                return _qual_report_view(comp, exports)
+                return _qual_report_view(session, comp, exports)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
-        except lifecycle.Conflict as e:
+        except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
         except reports.Refused as e:
             raise HTTPException(422, str(e)) from e

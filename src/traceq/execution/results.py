@@ -1375,6 +1375,10 @@ def confirm_witness(
     requirement: str,
     attempt_number: int,
     req: ConfirmWitnessRequest,
+    *,
+    auth_time: datetime | None = None,
+    jti: str | None = None,
+    is_demo: bool = False,
 ) -> WitnessConfirmation:
     """Records a Witness confirmation bound to the latest version's ``version_hash`` of an
     attempt while the Execution is ``in_progress``.
@@ -1464,22 +1468,41 @@ def confirm_witness(
         .one()
     )
     confirmation = _witness_from_row(inserted, voided=False)
+    sig_id: int | None = None
+    if auth_time is not None and jti is not None:
+        sig = audit.record_signature(
+            session,
+            actor,
+            record_type="witness_confirmation",
+            signature_meaning="witnessed",
+            content_hash=latest.version_hash,
+            auth_time=auth_time,
+            jti=jti,
+            is_demo=is_demo,
+            witness_confirmation_id=confirmation.id,
+        )
+        sig_id = sig.id
 
+    new_audit: dict[str, audit.JsonValue] = {
+        "execution_id": execution_id,
+        "requirement": requirement,
+        "attempt_number": attempt_number,
+        "version_id": latest.id,
+        "version": latest.version,
+        "version_hash": latest.version_hash,
+        "confirmation_id": confirmation.id,
+        "note": audit.ELECTRONIC_SIGNATURE_LABEL
+        if (sig_id is not None and not is_demo)
+        else (audit.DEMO_SIGNATURE_LABEL if sig_id is not None else audit.UNSIGNED_STATUS_LABEL),
+    }
+    if sig_id is not None:
+        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,
         "witness confirmed",
         "execution_attempt_version",
         f"{execution_id}/{requirement}/{attempt_number}/v{latest.version}",
-        new={
-            "execution_id": execution_id,
-            "requirement": requirement,
-            "attempt_number": attempt_number,
-            "version_id": latest.id,
-            "version": latest.version,
-            "version_hash": latest.version_hash,
-            "confirmation_id": confirmation.id,
-            "note": WITNESS_NOTE,
-        },
+        new=new_audit,
     )
     return confirmation

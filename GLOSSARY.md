@@ -48,7 +48,7 @@ An authorised person, never the Preparer, who approves a submitted Protocol or r
 _Avoid_: reviewer, signer
 
 **Protocol Approval**:
-The recorded act that makes a submitted Protocol an approved one. Until Electronic Signatures exist it is a recorded status, not an Electronic Signature.
+The recorded act that makes a submitted Protocol an approved one, bound by an Electronic Signature (`approved`) or a recorded status in demo mode.
 _Avoid_: sign-off, signature
 
 **Test Step**:
@@ -91,7 +91,7 @@ The action that removes the cause of a Deviation and keeps it from recurring.
 _Avoid_: action item, fix
 
 **Deviation Closure**:
-The recorded act by which an authorised person, never an author of the Investigation, closes a Deviation. Until Electronic Signatures exist it is a recorded status, not an Electronic Signature.
+The recorded act by which an authorised person, never an author of the Investigation, closes a Deviation, bound by an Electronic Signature (`approved`) or a recorded status in demo mode.
 _Avoid_: sign-off, approval (for a Deviation)
 
 **Qualification Report**:
@@ -137,7 +137,7 @@ A signature bound to the content of one record that states one Signature Meaning
 _Avoid_: approval click, e-sign (as a verb)
 
 **Signature Meaning**:
-What an Electronic Signature asserts: authored, reviewed, approved, executed, or witnessed.
+What an Electronic Signature asserts: prepared, reviewed, approved, executed, or witnessed.
 
 **Witness**:
 A second person who directly verifies the performance of a critical Test Step and confirms its Result; never the Performer.

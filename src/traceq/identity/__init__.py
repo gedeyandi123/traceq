@@ -5,6 +5,7 @@ The demo issuer (``traceq.identity.issuer``) is a separate application; the API 
 it and knows only its URL.
 """
 
+from traceq.identity.http import authenticate, require_fresh_auth
 from traceq.identity.tokens import (
     APPROVING_ROLE,
     DECIDING_ROLE,
@@ -27,4 +28,6 @@ __all__ = [
     "IssuerUnavailable",
     "Principal",
     "Verifier",
+    "authenticate",
+    "require_fresh_auth",
 ]

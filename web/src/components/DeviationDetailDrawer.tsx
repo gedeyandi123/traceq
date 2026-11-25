@@ -364,6 +364,23 @@ export function DeviationDetailDrawer({
                   <form action={closeFormAction} className="space-y-3">
                     <input type="hidden" name="execution_id" value={executionId} />
                     <input type="hidden" name="deviation_id" value={deviation.id} />
+                    <input
+                      type="hidden"
+                      name="expected_event_id"
+                      value={deviation.events[deviation.events.length - 1]?.id ?? ""}
+                    />
+                    <input
+                      type="hidden"
+                      name="expected_investigation_version"
+                      value={
+                        deviation.investigations[deviation.investigations.length - 1]?.version ?? ""
+                      }
+                    />
+                    <input
+                      type="hidden"
+                      name="expected_content_hash"
+                      value={deviation.closure_content_hash ?? ""}
+                    />
                     <p className="m-0 text-xs text-ink">
                       {t("deviationDetailTitle", { number: deviation.deviation_number })}
                     </p>
@@ -389,6 +406,18 @@ export function DeviationDetailDrawer({
               <form action={retFormAction} className="space-y-2 border-t border-border pt-3">
                 <input type="hidden" name="execution_id" value={executionId} />
                 <input type="hidden" name="deviation_id" value={deviation.id} />
+                <input
+                  type="hidden"
+                  name="expected_event_id"
+                  value={deviation.events[deviation.events.length - 1]?.id ?? ""}
+                />
+                <input
+                  type="hidden"
+                  name="expected_investigation_version"
+                  value={
+                    deviation.investigations[deviation.investigations.length - 1]?.version ?? ""
+                  }
+                />
                 <label
                   htmlFor="dev-return-reason"
                   className="block text-xs font-semibold text-ink"
