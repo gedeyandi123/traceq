@@ -3,16 +3,27 @@
 import { AlertCircle, ArrowRight, History as HistoryIcon, PlayCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
-import type { ExecutionRowView, ExecutionView, ProtocolView } from "@/api/client";
+import type {
+  AttemptVersionView,
+  DeviationView,
+  ExecutionRowView,
+  ExecutionView,
+  ProtocolView,
+} from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
+import { ExecutionResultDrawer } from "./ExecutionResultDrawer";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
-import { ExecutionStatusBadge } from "./ui/StatusBadge";
+import {
+  DeviationStatusBadge,
+  ExecutionStatusBadge,
+  VerdictBadge,
+} from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
-import { EmptyState } from "./ui/ui";
+import { Button, EmptyState } from "./ui/ui";
 
 type T = ReturnType<typeof useTranslations<"execution">>;
 type MatrixT = ReturnType<typeof useTranslations<"matrix">>;
@@ -50,18 +61,44 @@ function Limits({ t }: { t: T }) {
   );
 }
 
+function formatAttemptValue(t: T, row: ExecutionRowView, latest: AttemptVersionView): string {
+  if (latest.outcome_kind === "not_performable") {
+    return t("notPerformableDisplay", { reason: latest.not_performable_reason ?? "" });
+  }
+  const v = latest.value;
+  if (!v) return "—";
+  if (v.type === "number") {
+    const ac = row.test_step?.acceptance;
+    const unit = ac && (ac.type === "number" || ac.type === "range") ? ` ${ac.unit}` : "";
+    return `${v.value}${unit}`;
+  }
+  if (v.type === "one_of") {
+    return v.not_one_of ? `${t("oneOfNotListed")}: ${v.value}` : v.value;
+  }
+  return v.value ? t("presentTrue") : t("presentFalse");
+}
+
 function ExecutionRow({
   t,
   m,
+  when,
   row,
   runId,
+  canRecord,
+  onRecord,
 }: {
   t: T;
   m: MatrixT;
+  when: WhenT;
   row: ExecutionRowView;
   runId: string;
+  canRecord: boolean;
+  onRecord: () => void;
 }) {
   const step = row.test_step;
+  const latestAttempt = row.attempts[row.attempts.length - 1];
+  const latest = latestAttempt?.latest;
+
   return (
     <tr data-testid={`exec-row-${row.requirement}`} className="border-b border-border last:border-b-0">
       <th scope="row" className="max-w-[260px] px-3 py-2.5 text-left align-top font-normal">
@@ -113,7 +150,111 @@ function ExecutionRow({
       <td className="px-3 py-2.5 align-top text-xs font-medium text-ink tabular-nums">
         {step ? formatValue(m, step.acceptance) : "—"}
       </td>
+
+      <td className="min-w-[220px] px-3 py-2.5 align-top text-xs">
+        {row.kind === "vendor_reference" ? (
+          <span className="text-ink-muted">—</span>
+        ) : latest ? (
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <VerdictBadge verdict={latest.verdict} />
+              <span className="font-semibold text-ink tabular-nums">
+                {formatAttemptValue(t, row, latest)}
+              </span>
+            </div>
+            {latest.instruments.length > 0 && (
+              <ul className="m-0 list-disc space-y-0.5 pl-4 text-[11px] text-ink-muted tabular-nums">
+                {latest.instruments.map((inst) => (
+                  <li key={`${inst.identifier}-${inst.calibration_due_date}`}>
+                    {inst.identifier} ({inst.calibration_due_date})
+                  </li>
+                ))}
+              </ul>
+            )}
+            {latest.no_calibrated_instrument_reason && (
+              <p className="m-0 text-[11px] text-warn">
+                {t("noCalibratedDisplay", { reason: latest.no_calibrated_instrument_reason })}
+              </p>
+            )}
+            {latest.evidence.length > 0 && (
+              <div className="text-[11px] text-ink-muted">
+                {t("evidenceTitle")}: {latest.evidence.join(", ")}
+              </div>
+            )}
+            {latest.observation && (
+              <p className="m-0 text-[11px] text-ink-muted">{latest.observation}</p>
+            )}
+            <div className="text-[11px] text-ink-muted tabular-nums">
+              {t("recordedBy", { name: latest.name, when: formatWhen(when, latest.at) })}
+            </div>
+          </div>
+        ) : canRecord ? (
+          <Button type="button" variant="soft" onClick={onRecord}>
+            {t("recordResult")}
+          </Button>
+        ) : (
+          <span className="text-ink-muted">—</span>
+        )}
+      </td>
     </tr>
+  );
+}
+
+function DeviationsSection({ t, deviations }: { t: T; deviations: DeviationView[] }) {
+  return (
+    <section aria-labelledby="execution-deviations" className="space-y-2">
+      <h2 id="execution-deviations" className="m-0 text-sm font-bold text-ink tabular-nums">
+        {t("deviationsTitle", { count: deviations.length })}
+      </h2>
+      {deviations.length === 0 ? (
+        <p className="m-0 rounded-lg border border-border bg-surface px-4 py-3 text-xs text-ink-muted">
+          {t("deviationsEmpty")}
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
+          <table className="w-full border-collapse text-left text-xs">
+            <thead className="border-b border-border bg-sunken text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+              <tr>
+                <th scope="col" className="px-3 py-2">
+                  {t("deviationColNumber")}
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  {t("deviationColStatus")}
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  {t("deviationColClass")}
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  {t("deviationColStep")}
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  {t("deviationColDescription")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {deviations.map((d) => (
+                <tr key={d.id} className="border-b border-border last:border-b-0">
+                  <td className="px-3 py-2.5 font-mono font-semibold text-ink tabular-nums">
+                    #{d.deviation_number}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <DeviationStatusBadge status={d.status} />
+                  </td>
+                  <td className="px-3 py-2.5 text-ink-muted">
+                    {d.deviation_class ?? t("deviationClassUnset")}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-ink tabular-nums">
+                    {d.requirement ?? "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-ink">{d.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -122,6 +263,7 @@ export function ExecutionViewPanel({
   protocol,
   runId,
   startAction,
+  recordAction = null,
 }: {
   execution: ExecutionView | null;
   protocol: ProtocolView | null;
@@ -129,17 +271,25 @@ export function ExecutionViewPanel({
   startAction:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
+  recordAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
 }) {
   const t = useTranslations("execution");
   const m = useTranslations("matrix");
   const when: WhenT = useTranslations("decisions");
 
+  const [activeRequirement, setActiveRequirement] = useState<string | null>(null);
   const [state, formAction] = useActionState(
     startAction ?? (async () => INITIAL_STATE),
     INITIAL_STATE,
   );
 
   const protocolHref = `/runs/${encodeURIComponent(runId)}/protocol`;
+  const activeRow =
+    execution && activeRequirement
+      ? (execution.rows.find((r) => r.requirement === activeRequirement) ?? null)
+      : null;
 
   return (
     <div className="space-y-4">
@@ -229,6 +379,7 @@ export function ExecutionViewPanel({
               </h2>
               <span className="text-xs text-ink-muted">{t("rowsNote")}</span>
             </div>
+            <p className="m-0 text-xs text-ink-muted">{t("utcNote")}</p>
 
             <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
               <table className="w-full border-collapse text-left text-xs">
@@ -246,16 +397,48 @@ export function ExecutionViewPanel({
                     <th scope="col" className="px-3 py-2">
                       {t("colAcceptance")}
                     </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t("colResult")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {execution.rows.map((r) => (
-                    <ExecutionRow key={r.requirement} t={t} m={m} row={r} runId={runId} />
+                    <ExecutionRow
+                      key={r.requirement}
+                      t={t}
+                      m={m}
+                      when={when}
+                      row={r}
+                      runId={runId}
+                      canRecord={
+                        execution.status === "in_progress" &&
+                        r.kind === "test_step" &&
+                        r.attempts.length === 0 &&
+                        recordAction !== null
+                      }
+                      onRecord={() => setActiveRequirement(r.requirement)}
+                    />
                   ))}
                 </tbody>
               </table>
             </div>
           </section>
+
+          <DeviationsSection t={t} deviations={execution.deviations} />
+
+          {activeRow && recordAction && (
+            <ExecutionResultDrawer
+              key={activeRow.requirement}
+              executionId={execution.id}
+              row={activeRow}
+              open={true}
+              onOpenChange={(open) => {
+                if (!open) setActiveRequirement(null);
+              }}
+              recordAction={recordAction}
+            />
+          )}
         </>
       )}
 

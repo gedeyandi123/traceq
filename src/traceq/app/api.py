@@ -11,11 +11,15 @@ generated from (ADR 0003).
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy import URL, make_url
 
 from traceq.assembly import written
@@ -55,6 +59,27 @@ def create_app(
     )
     app.include_router(assembly_router(runs, db, principal))
     app.include_router(execution_router(db, principal))
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error_handler(
+        _request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        def _sanitize(obj: Any) -> Any:
+            if isinstance(obj, float) and not math.isfinite(obj):
+                return str(obj)
+            if isinstance(obj, dict):
+                d = cast(dict[str, Any], obj)
+                return {k: _sanitize(v) for k, v in d.items()}
+            if isinstance(obj, list | tuple):
+                seq = cast(list[Any] | tuple[Any, ...], obj)
+                return [_sanitize(v) for v in seq]
+            return obj
+
+        return JSONResponse(
+            status_code=422,
+            content={"detail": jsonable_encoder(_sanitize(exc.errors()))},
+        )
+
     return app
 
 

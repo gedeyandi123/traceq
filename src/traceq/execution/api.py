@@ -23,8 +23,19 @@ from traceq.assembly import submission
 from traceq.assembly.submission import FrozenRow, ProtocolCopy
 from traceq.assembly.written import Acceptance
 from traceq.db import transaction
-from traceq.execution import lifecycle
+from traceq.execution import lifecycle, results
 from traceq.execution.lifecycle import EventKind, Status
+from traceq.execution.results import (
+    DeviationCause,
+    DeviationClass,
+    DeviationEventKind,
+    DeviationStatus,
+    InstrumentInput,
+    OutcomeKind,
+    RecordAttemptRequest,
+    ResultValue,
+    Verdict,
+)
 from traceq.identity import Principal
 from traceq.proposals.api import actor_of
 from traceq.runs.schemas import Cite, EvidenceStep
@@ -56,6 +67,72 @@ class ExecutionTestStep(_Model):
     acceptance: Acceptance
 
 
+class AttemptVersionView(_Model):
+    """One immutable version of an attempt's Result."""
+
+    id: int
+    at: datetime
+    version: int
+    outcome_kind: OutcomeKind
+    not_performable_reason: str | None
+    value: ResultValue | None
+    observation: str | None
+    instruments: list[InstrumentInput]
+    no_calibrated_instrument_reason: str | None
+    evidence: list[str]
+    verdict: Verdict
+    version_hash: str
+    reason_for_change: str | None
+    subject: str
+    issuer: str
+    name: str
+
+
+class AttemptView(_Model):
+    """One attempt on a Test Step row, with its versions oldest first."""
+
+    id: int
+    at: datetime
+    attempt_number: int
+    requirement: str
+    subject: str
+    issuer: str
+    name: str
+    versions: list[AttemptVersionView]
+    latest: AttemptVersionView
+
+
+class DeviationEventView(_Model):
+    """One status event on a Deviation."""
+
+    id: int
+    at: datetime
+    event: DeviationEventKind
+    status: DeviationStatus
+    reason: str | None
+    subject: str
+    issuer: str
+    name: str
+
+
+class DeviationView(_Model):
+    """One Deviation on an Execution."""
+
+    id: int
+    at: datetime
+    deviation_number: int
+    requirement: str | None
+    attempt_id: int | None
+    cause: DeviationCause
+    status: DeviationStatus
+    deviation_class: DeviationClass | None
+    description: str
+    subject: str
+    issuer: str
+    name: str
+    events: list[DeviationEventView]
+
+
 class ExecutionRowView(_Model):
     """One row of the Execution, in the order of the Approved Protocol's frozen copy."""
 
@@ -67,6 +144,8 @@ class ExecutionRowView(_Model):
     """For a Vendor Reference row: the vendor's Evidence steps."""
     test_step: ExecutionTestStep | None
     """For a Test Step row: its Test Step from the frozen copy."""
+    attempts: list[AttemptView]
+    """Attempts recorded on this Test Step row, in attempt_number order."""
 
 
 class ExecutionView(_Model):
@@ -81,6 +160,7 @@ class ExecutionView(_Model):
     status: Status
     events: list[ExecutionEvent]
     rows: list[ExecutionRowView]
+    deviations: list[DeviationView]
 
 
 def _event(e: lifecycle.Event) -> ExecutionEvent:
@@ -95,7 +175,73 @@ def _event(e: lifecycle.Event) -> ExecutionEvent:
     )
 
 
-def _row(r: FrozenRow) -> ExecutionRowView:
+def _attempt_version(v: results.AttemptVersion) -> AttemptVersionView:
+    return AttemptVersionView(
+        id=v.id,
+        at=v.at,
+        version=v.version,
+        outcome_kind=v.outcome_kind,
+        not_performable_reason=v.not_performable_reason,
+        value=v.value,
+        observation=v.observation,
+        instruments=list(v.instruments),
+        no_calibrated_instrument_reason=v.no_calibrated_instrument_reason,
+        evidence=list(v.evidence),
+        verdict=v.verdict,
+        version_hash=v.version_hash,
+        reason_for_change=v.reason_for_change,
+        subject=v.actor.subject,
+        issuer=v.actor.issuer,
+        name=v.actor.name,
+    )
+
+
+def _attempt(a: results.Attempt) -> AttemptView:
+    versions = [_attempt_version(v) for v in a.versions]
+    return AttemptView(
+        id=a.id,
+        at=a.at,
+        attempt_number=a.attempt_number,
+        requirement=a.requirement,
+        subject=a.actor.subject,
+        issuer=a.actor.issuer,
+        name=a.actor.name,
+        versions=versions,
+        latest=versions[-1],
+    )
+
+
+def _deviation(d: results.Deviation) -> DeviationView:
+    return DeviationView(
+        id=d.id,
+        at=d.at,
+        deviation_number=d.deviation_number,
+        requirement=d.requirement,
+        attempt_id=d.attempt_id,
+        cause=d.cause,
+        status=d.status,
+        deviation_class=d.deviation_class,
+        description=d.description,
+        subject=d.actor.subject,
+        issuer=d.actor.issuer,
+        name=d.actor.name,
+        events=[
+            DeviationEventView(
+                id=e.id,
+                at=e.at,
+                event=e.event,
+                status=e.status,
+                reason=e.reason,
+                subject=e.actor.subject,
+                issuer=e.actor.issuer,
+                name=e.actor.name,
+            )
+            for e in d.events
+        ],
+    )
+
+
+def _row(r: FrozenRow, attempts: tuple[results.Attempt, ...]) -> ExecutionRowView:
     step = r.test_step
     return ExecutionRowView(
         requirement=r.requirement,
@@ -112,6 +258,7 @@ def _row(r: FrozenRow) -> ExecutionRowView:
             instrument=step.instrument,
             acceptance=step.acceptance,
         ),
+        attempts=[_attempt(a) for a in attempts],
     )
 
 
@@ -136,6 +283,8 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
 
     def view(session: Session, ex: lifecycle.Execution) -> ExecutionView:
         copy = _frozen_copy(session, ex)
+        attempts_by_req = results.attempts_of(session, ex.id)
+        deviations = results.deviations_of(session, ex.id)
         return ExecutionView(
             id=ex.id,
             protocol_id=ex.protocol_id,
@@ -145,7 +294,8 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             submission_hash=ex.submission_hash,
             status=ex.status,
             events=[_event(e) for e in ex.events],
-            rows=[_row(r) for r in copy.rows],
+            rows=[_row(r, attempts_by_req.get(r.requirement, ())) for r in copy.rows],
+            deviations=[_deviation(d) for d in deviations],
         )
 
     @router.post(
@@ -182,5 +332,34 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             if found is None:
                 raise HTTPException(404, f"no Execution was started for Protocol {protocol.id}")
             return view(session, found)
+
+    @router.post(
+        "/executions/{execution_id}/rows/{requirement}/attempts",
+        operation_id="recordAttempt",
+        status_code=201,
+    )
+    def record_attempt(
+        execution_id: int,
+        requirement: str,
+        body: RecordAttemptRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Records the first attempt on a Test Step row of an ``in_progress`` Execution, judged
+        by code, with instruments and automatic Deviations in the same transaction."""
+        if not who.may_execute:
+            raise HTTPException(403, "recording a Result needs the executing role")
+        try:
+            with transaction(database()) as session:
+                results.record_attempt(session, actor_of(who), execution_id, requirement, body)
+                updated = lifecycle.get(session, execution_id)
+                if updated is None:
+                    raise lifecycle.NotFound(f"no Execution {execution_id}")
+                return view(session, updated)
+        except results.InvalidResult as e:
+            raise HTTPException(422, str(e)) from e
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
 
     return router
