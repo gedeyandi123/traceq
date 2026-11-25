@@ -39,6 +39,8 @@ export function RunContextBar({
       : { href: `${base}/protocol`, label: t("toProtocol") };
   } else if (segment === "draft") {
     nextAction = { href: `${base}/protocol`, label: t("toProtocol") };
+  } else if (segment === "rounds") {
+    nextAction = { href: `${base}/protocol`, label: t("toProtocol") };
   } else if (segment === "protocol" && protocolStatus === "approved") {
     nextAction = { href: `${base}/execution`, label: t("toExecution") };
   }

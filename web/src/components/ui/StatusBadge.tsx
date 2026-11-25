@@ -9,13 +9,14 @@ import {
   HelpCircle,
   MapPin,
   Pencil,
+  RotateCcw,
   Send,
   ShieldAlert,
   XCircle,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { CoverageClass } from "@/api/client";
+import type { CoverageClass, RoundStatus } from "@/api/client";
 
 export type CoverageBadgeKey = CoverageClass | "none";
 
@@ -247,6 +248,43 @@ export function DeviationStatusBadge({ status }: { status: DeviationStatusBadgeK
     >
       <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
       <span>{t(status)}</span>
+    </span>
+  );
+}
+
+const ROUND_STYLE: Record<RoundStatus, { badgeClass: string; icon: typeof CheckCircle2 }> = {
+  open: {
+    badgeClass: "bg-info-soft text-info border-info-edge",
+    icon: Clock,
+  },
+  returned_for_revision: {
+    badgeClass: "bg-warn-soft text-warn border-warn-edge",
+    icon: RotateCcw,
+  },
+  ready_for_protocol: {
+    badgeClass: "bg-pass-soft text-pass border-pass-edge",
+    icon: CheckCircle2,
+  },
+};
+
+export function RoundStatusBadge({
+  status,
+  roundNumber,
+}: {
+  status: RoundStatus;
+  roundNumber?: number;
+}) {
+  const t = useTranslations("ui.roundStatuses");
+  const cfg = ROUND_STYLE[status];
+  const Icon = cfg.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap tabular-nums ${cfg.badgeClass}`}
+    >
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span>
+        {roundNumber !== undefined ? `R${roundNumber} · ${t(status)}` : t(status)}
+      </span>
     </span>
   );
 }

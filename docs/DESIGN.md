@@ -49,13 +49,14 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 - **Route Groups (zero double header):**
   - `(home)` for `/` (Runs list) and `/signin`.
   - `(run)` with `web/src/app/(run)/runs/[runId]/layout.tsx` for full-viewport run workspaces without a nested `1440px` outer wrapper.
-- **Deduplicated Server Fetching:** Per-endpoint `React.cache` fetchers (`fetchRun`, `fetchDecisionCounts`, `fetchProtocol`, `fetchExecution`) shared between layout and pages. All mutations call `revalidatePath(\`/runs/\${runId}\`, "layout")` so sidebar counts update immediately.
+- **Deduplicated Server Fetching:** Per-endpoint `React.cache` fetchers (`fetchRun`, `fetchDecisionCounts`, `fetchRounds`, `fetchProtocol`, `fetchExecution`) shared between layout and pages. All mutations call `revalidatePath(\`/runs/\${runId}\`, "layout")` so sidebar counts update immediately.
 - **Persistent Collapsible Left Sidebar:**
   - `240px` expanded on desktop; auto-collapses to a `56px` icon-rail when a right drawer opens at `1366px`; becomes a slide-over drawer at `<1024px` (`390px`).
   - **Alur Kualifikasi** (unnumbered so runs with `review_package == null` omit `Draf Protokol` cleanly without numeric gaps):
     - `Matriks & Triage` (`/runs/[runId]`) — undecided/changed coverage badge (`fetchDecisionCounts`)
     - `Temuan Pra-Tinjauan` (`/runs/[runId]/findings`) — undecided badge
     - `Draf Protokol` (`/runs/[runId]/draft`) — shown only when `run.review_package != null`
+    - `Dokumen & Ronde` (`/runs/[runId]/rounds`) — current round badge (`R1`/`R2` + status)
     - `Protokol IQ/OQ` (`/runs/[runId]/protocol`) — status badge (`Draft` / `Disetujui`)
     - `Eksekusi & Deviasi` (`/runs/[runId]/execution`) — status badge (`Sedang berjalan` / `Selesai`) & open Deviation count ([ADR 0013](adr/0013-execution-results-judged-by-code-deviations-opened-by-code.md))
   - **Audit & Diagnostik:** `Yang Tidak Dimasukkan` (`/left-out`) · `Hasil Evaluasi` (`/eval`).
@@ -72,6 +73,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 | **Matriks (`/runs/[runId]`)** | Compact Scannable Table + Right Slide-Over Drawer (`560–640px`) | 4–5 columns (~56px/row → 8–10 rows above the fold at `1366×768`). URL `?selected=URS-...`, Prev/Next navigation, Required vs Observed side-by-side. |
 | **Temuan (`/findings`)** | Grouped Master-Detail Split-Pane (Opsi B) | Separates *Temuan Pemeriksaan (Aturan Deterministik)* vs *Temuan AI (Saran)* and *Dokumen yang Tidak Ada*, with 1-click triage filters (`Belum diputuskan`, `Aturan`, `AI`) and right inspection/decision workspace. |
 | **Draf (`/draft`)** | Compact Ordered Table + Slide-Over Drawer (Opsi A) | Preserves draft step order in a compact table, opens step inspection/decisions in a right slide-over drawer, and keeps the *"Temuan tentang seluruh dokumen"* section below. |
+| **Dokumen & Ronde (`/rounds`, Step 6)** | Tabbed Workbench + Radix Tabs & Modal | 3 tabs (*Versi Dokumen*, *Ronde Tinjauan & Diff*, *Ekspor Laporan*); cross-round diff summary; Radix Confirmation Modal *"Tutup ronde"* (`returned_for_revision` requires Reason for Change, ADR 0007 notice, `useActionState` + dirty-form guard); auth-forwarding PDF download (`/api/rounds/{roundId}/exports/{exportId}/pdf`). |
 | **Protokol (`/protocol`)** | Compact Table + Slide-Over Drawer + Radix Tabs | Non-sticky submission checklist; destructive *"Tarik protokol"* and permanent *"Setujui protokol"* (showing hash prefix & ADR 0007 notice) inside Radix Confirmation Modals; Radix `Tabs` organizing *Baris protokol*, *Checklist & salinan beku* (`FrozenCopy`, `ApprovalForms`), and *Nomor terlewat & batas*. |
 | **Eksekusi & Deviasi (Step 5b)** | Tabbed Workbench + `FilterBar` + Wide Drawer (`760px`) | Radix `Tabs` (*Baris eksekusi*, *Deviasi*, *Riwayat & salinan*), 1-click `FilterBar` (*Semua*, *Belum dicatat*, *Lulus*, *Gagal*, *Menunggu Saksi*, *Referensi vendor*), compact table + `ExecutionRowDrawer` (`size="wide"`) with `version_hash` prefix, dirty-form guards on all 3 execution drawers, and Confirmation Modals for *"Tutup deviasi"* and *"Selesaikan eksekusi"*. |
 | **Audit (`/left-out`, `/eval`)** | Diagnostic Tables & Summary Cards | Shared tokens and typography; remove redundant heading/column duplication. |
