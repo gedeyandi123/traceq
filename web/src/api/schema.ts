@@ -651,8 +651,7 @@ export interface paths {
         put?: never;
         /**
          * Close Deviation
-         * @description Closes a ``submitted`` Deviation (a recorded status, not an Electronic Signature),
-         *     enforcing 4-way Separation of Duties.
+         * @description Closes a ``submitted`` Deviation with Anti-TOCTOU and 4-way Separation of Duties.
          */
         post: operations["closeDeviation"];
         delete?: never;
@@ -692,8 +691,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm Witness
-         * @description Records a Witness confirmation bound to the latest version's ``version_hash``
-         *     (a recorded status, not an Electronic Signature (ADR 0007 phase 2)).
+         * @description Records a Witness confirmation bound to the latest version's ``version_hash``.
          */
         post: operations["confirmWitness"];
         delete?: never;
@@ -957,6 +955,10 @@ export interface components {
             conclusion_note?: string | null;
             /** Next Requalification Date */
             next_requalification_date?: string | null;
+            /** Expected Revision Number */
+            expected_revision_number: number;
+            /** Expected Execution Copy Hash */
+            expected_execution_copy_hash: string;
         };
         /**
          * AttemptVersionView
@@ -1096,6 +1098,18 @@ export interface components {
             page: number;
             /** Quote */
             quote: string;
+        };
+        /**
+         * CloseDeviationRequest
+         * @description Payload to close a Submitted Deviation with Anti-TOCTOU version/hash checks.
+         */
+        CloseDeviationRequest: {
+            /** Expected Event Id */
+            expected_event_id: number;
+            /** Expected Investigation Version */
+            expected_investigation_version: number;
+            /** Expected Content Hash */
+            expected_content_hash: string;
         };
         /** @enum {string} */
         CloseOutcome: "returned_for_revision" | "ready_for_protocol";
@@ -1248,6 +1262,7 @@ export interface components {
             issuer: string;
             /** Name */
             name: string;
+            electronic_signature?: components["schemas"]["ElectronicSignatureView"] | null;
         };
         /**
          * DeviationInvestigationView
@@ -1314,6 +1329,8 @@ export interface components {
             investigations: components["schemas"]["DeviationInvestigationView"][];
             /** Closure Note */
             closure_note?: string | null;
+            /** Closure Content Hash */
+            closure_content_hash?: string | null;
         };
         /** DocumentVersionView */
         DocumentVersionView: {
@@ -1540,6 +1557,42 @@ export interface components {
             id: string;
             /** Reason */
             reason: string;
+        };
+        /**
+         * ElectronicSignatureView
+         * @description Public API view of an Electronic Signature binding.
+         */
+        ElectronicSignatureView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            record_type: components["schemas"]["RecordType"];
+            signature_meaning: components["schemas"]["SignatureMeaning"];
+            /** Content Hash */
+            content_hash: string;
+            /** Hash Scheme Version */
+            hash_scheme_version: number;
+            /** Signer Subject */
+            signer_subject: string;
+            /** Signer Issuer */
+            signer_issuer: string;
+            /** Signer Name */
+            signer_name: string;
+            /**
+             * Auth Time
+             * Format: date-time
+             */
+            auth_time: string;
+            /** Is Demo */
+            is_demo: boolean;
+            /** Label */
+            label: string;
+            /** Verified */
+            verified: boolean;
         };
         /**
          * EquipmentSummary
@@ -1864,6 +1917,7 @@ export interface components {
             /** Reason */
             reason: string | null;
             actor: components["schemas"]["Author"];
+            electronic_signature?: components["schemas"]["ElectronicSignatureView"] | null;
         };
         /**
          * FrozenDeviationInvestigation
@@ -2105,6 +2159,7 @@ export interface components {
             voided: boolean;
             /** Note */
             note: string;
+            electronic_signature?: components["schemas"]["ElectronicSignatureView"] | null;
         };
         /**
          * GoverningDocument
@@ -2644,6 +2699,7 @@ export interface components {
              * Format: date-time
              */
             at: string;
+            electronic_signature?: components["schemas"]["ElectronicSignatureView"] | null;
         };
         /**
          * ProtocolRowView
@@ -2782,6 +2838,7 @@ export interface components {
              * Format: date-time
              */
             at: string;
+            electronic_signature?: components["schemas"]["ElectronicSignatureView"] | null;
         };
         /**
          * QualificationReportView
@@ -2855,6 +2912,8 @@ export interface components {
              */
             evidence: string[];
         };
+        /** @enum {string} */
+        RecordType: "protocol_submission" | "protocol_approval" | "deviation_closure" | "witness_confirmation" | "qualification_report";
         /** ReportExportView */
         ReportExportView: {
             /** Id */
@@ -2946,6 +3005,10 @@ export interface components {
         ReturnDeviationRequest: {
             /** Reason */
             reason: string;
+            /** Expected Event Id */
+            expected_event_id: number;
+            /** Expected Investigation Version */
+            expected_investigation_version: number;
         };
         /** ReviewRoundEventView */
         ReviewRoundEventView: {
@@ -3136,6 +3199,8 @@ export interface components {
             pipeline_version: string;
             review_package?: components["schemas"]["RunPackage"] | null;
         };
+        /** @enum {string} */
+        SignatureMeaning: "prepared" | "approved" | "witnessed";
         /**
          * SiteRuleCite
          * @description A site rule read from the SOP, with the sentence that sets it.
@@ -3335,6 +3400,7 @@ export interface components {
             voided: boolean;
             /** Note */
             note: string;
+            electronic_signature?: components["schemas"]["ElectronicSignatureView"] | null;
         };
         /**
          * WrittenContent
@@ -4392,7 +4458,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseDeviationRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

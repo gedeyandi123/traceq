@@ -30,10 +30,9 @@ from test_protocol_approval_api import persona_token
 from test_protocol_submission_api import make_ready
 from test_test_step_proposals import add_drafted_run
 
-from traceq.audit import entries
+from traceq.audit import DEMO_SIGNATURE_LABEL, UNSIGNED_STATUS_LABEL, entries
 from traceq.db import engine, transaction
 from traceq.db.database import HERE as DB_HERE
-from traceq.reports import QUALIFICATION_APPROVAL_NOTE
 
 
 @pytest.fixture
@@ -257,7 +256,7 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
         client.post(
             f"/executions/{eid}/qualification-reports",
             headers=approver,
-            json={},
+            json={"expected_revision_number": 1, "expected_execution_copy_hash": "a" * 64},
         ).status_code
         == 409
     )
@@ -276,7 +275,7 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
     assert q_data["execution_id"] == eid
     assert q_data["protocol_id"] == pid
     assert q_data["execution_copy_hash"] == completed["copy_hash"]
-    assert q_data["approval_note"] == QUALIFICATION_APPROVAL_NOTE
+    assert q_data["approval_note"] == UNSIGNED_STATUS_LABEL
     assert q_data["technical_conclusion"] == "qualified"
     assert q_data["latest_export"] is None
 
@@ -286,7 +285,10 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
         client.post(
             f"/executions/{eid}/qualification-reports",
             headers=decider,
-            json={},
+            json={
+                "expected_revision_number": 1,
+                "expected_execution_copy_hash": completed["copy_hash"],
+            },
         ).status_code
         == 403
     )
@@ -297,17 +299,26 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
         client.post(
             f"/executions/{eid}/qualification-reports",
             headers=approver,
-            json={"next_requalification_date": past_date},
+            json={
+                "next_requalification_date": past_date,
+                "expected_revision_number": 1,
+                "expected_execution_copy_hash": completed["copy_hash"],
+            },
         ).status_code
         == 422
     )
 
-    # Approve revision 1 with blank conclusion_note -> normalized to None
+    # Approve revision 1 with blank conclusion_note -> normalized to None (fresh token)
     future_date = (datetime.now(UTC) + timedelta(days=365)).date().isoformat()
     rev1 = client.post(
         f"/executions/{eid}/qualification-reports",
-        headers=approver,
-        json={"conclusion_note": "   ", "next_requalification_date": future_date},
+        headers=persona_token(demo_issuer, "dewi"),
+        json={
+            "conclusion_note": "   ",
+            "next_requalification_date": future_date,
+            "expected_revision_number": 1,
+            "expected_execution_copy_hash": completed["copy_hash"],
+        },
     )
     assert rev1.status_code == 201
     r1 = rev1.json()
@@ -315,7 +326,8 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
     assert exp1["revision_number"] == 1
     assert exp1["conclusion_note"] is None
     assert exp1["next_requalification_date"] == future_date
-    assert exp1["approval_note"] == QUALIFICATION_APPROVAL_NOTE
+    assert exp1["approval_note"] == DEMO_SIGNATURE_LABEL
+    assert exp1["electronic_signature"]["verified"] is True
 
     # Download PDF (zero DB writes, byte-identical on second download)
     pdf1 = client.get(
@@ -347,11 +359,15 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
     for rnd in rounds_resp.json()["rounds"]:
         assert all(e["id"] != exp1["id"] for e in rnd["exports"])
 
-    # Append-only revision 2 allowed
+    # Append-only revision 2 allowed (fresh token per signature)
     rev2 = client.post(
         f"/executions/{eid}/qualification-reports",
-        headers=approver,
-        json={"conclusion_note": "Updated note"},
+        headers=persona_token(demo_issuer, "dewi"),
+        json={
+            "conclusion_note": "Updated note",
+            "expected_revision_number": 2,
+            "expected_execution_copy_hash": completed["copy_hash"],
+        },
     )
     assert rev2.status_code == 201
     assert len(rev2.json()["exports"]) == 2
@@ -368,7 +384,7 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
         assert len(audit_rows) == 1
         assert audit_rows[0].action == "qualification report approved"
         assert isinstance(audit_rows[0].new_value, dict)
-        assert audit_rows[0].new_value["approval_note"] == QUALIFICATION_APPROVAL_NOTE
+        assert audit_rows[0].new_value["approval_note"] == DEMO_SIGNATURE_LABEL
 
     # Equipment Registry: GET /equipment merges disk run + DB state + DB-only equipment
     with transaction(engine(fresh_database.owner)) as session:
@@ -418,6 +434,7 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
 @pytest.mark.db
 def test_witness_blocker_and_retest_persistence_on_execution(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     decider: dict[str, str],
     approver: dict[str, str],
     witness: dict[str, str],
@@ -543,8 +560,18 @@ def test_witness_blocker_and_retest_persistence_on_execution(
         headers=decider,
         json={"investigation": "Replaced sensor", "deviation_class": "minor"},
     )
-    client.post(f"/executions/{eid}/deviations/{dev['id']}/submit", headers=decider)
-    client.post(f"/executions/{eid}/deviations/{dev['id']}/close", headers=approver)
+    sub_dev = client.post(f"/executions/{eid}/deviations/{dev['id']}/submit", headers=decider)
+    d_sub = next(item for item in sub_dev.json()["deviations"] if item["id"] == dev["id"])
+    close_dev = client.post(
+        f"/executions/{eid}/deviations/{dev['id']}/close",
+        headers=persona_token(demo_issuer, "dewi"),
+        json={
+            "expected_event_id": d_sub["events"][-1]["id"],
+            "expected_investigation_version": d_sub["investigations"][-1]["version"],
+            "expected_content_hash": d_sub["closure_content_hash"],
+        },
+    )
+    assert close_dev.status_code == 200
 
     # Still blocked by unconfirmed_witness_rows!
     comp_blocked = client.post(f"/executions/{eid}/complete", headers=decider)

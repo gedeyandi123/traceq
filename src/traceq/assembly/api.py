@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from traceq import audit
 from traceq.assembly import approval, attributes, lifecycle, missed, submission, written
 from traceq.assembly.attributes import Stage
 from traceq.assembly.lifecycle import EventKind, Status
@@ -66,6 +67,7 @@ class ProtocolEvent(_Model):
     name: str
     """The name shown for the person at the time."""
     at: datetime
+    electronic_signature: audit.ElectronicSignatureView | None = None
 
 
 class RowDraft(_Model):
@@ -341,7 +343,11 @@ class DraftEdit(_Model):
     """The Test Step as edited, saved as a version of the written Test Step."""
 
 
-def _event(e: lifecycle.Event) -> ProtocolEvent:
+def _event(
+    e: lifecycle.Event,
+    sig: audit.ElectronicSignature | None = None,
+    expected_hash: str | None = None,
+) -> ProtocolEvent:
     return ProtocolEvent(
         id=e.id,
         event=e.event,
@@ -351,6 +357,7 @@ def _event(e: lifecycle.Event) -> ProtocolEvent:
         issuer=e.actor.issuer,
         name=e.actor.name,
         at=e.at,
+        electronic_signature=audit.signature_view(sig, expected_content_hash=expected_hash),
     )
 
 
@@ -468,7 +475,11 @@ def _item(b: submission.Blocking) -> ChecklistItem:
     )
 
 
-def _submission(x: submission.Submission, p: lifecycle.AssembledProtocol) -> SubmissionView:
+def _submission(
+    x: submission.Submission,
+    p: lifecycle.AssembledProtocol,
+    sigs: dict[int, audit.ElectronicSignature],
+) -> SubmissionView:
     after = (e for e in p.events if e.id > x.event_id and e.event in ("approved", "returned"))
     outcome = next(after, None)
     return SubmissionView(
@@ -476,11 +487,25 @@ def _submission(x: submission.Submission, p: lifecycle.AssembledProtocol) -> Sub
         hash=x.hash,
         at=x.at,
         frozen_copy=x.copy,
-        outcome=None if outcome is None else _event(outcome),
+        outcome=(
+            None
+            if outcome is None
+            else _event(
+                outcome,
+                sigs.get(outcome.id),
+                x.hash if outcome.event == "approved" else None,
+            )
+        ),
     )
 
 
-def create_router(runs: Path, db: Engine | None, principal: Callable[..., Principal]) -> APIRouter:
+def create_router(
+    runs: Path,
+    db: Engine | None,
+    principal: Callable[..., Principal],
+    *,
+    fresh_auth: Callable[[Principal], Principal] | None = None,
+) -> APIRouter:
     """``db``: the database as the application role; none with default settings, when
     ``principal`` refuses every request."""
     router = APIRouter()
@@ -497,14 +522,28 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         draft = p.status == "draft"
         rows = rows_of(session, p) if draft else None
         urs = missed.missed_of(session, p.id, check_of(session, p.run_id)) if draft else None
-        submissions = [_submission(x, p) for x in submission.submissions_of(session, p.id)]
+        raw_subs = submission.submissions_of(session, p.id)
+        sigs = audit.signatures_by_protocol_events(session, [e.id for e in p.events])
+        sub_hashes = {s.event_id: s.hash for s in raw_subs}
+        submissions = [_submission(x, p, sigs) for x in raw_subs]
         frozen = p.status in ("submitted", "approved") and bool(submissions)
+        event_views: list[ProtocolEvent] = []
+        last_sub_hash: str | None = None
+        for e in p.events:
+            if e.event == "submitted":
+                last_sub_hash = sub_hashes.get(e.id)
+                expected = last_sub_hash
+            elif e.event == "approved":
+                expected = last_sub_hash
+            else:
+                expected = None
+            event_views.append(_event(e, sigs.get(e.id), expected))
         return ProtocolView(
             id=p.id,
             equipment=p.equipment,
             run_id=p.run_id,
             status=p.status,
-            events=[_event(e) for e in p.events],
+            events=event_views,
             rows=None if rows is None else [_row(r) for r in rows],
             urs=None if urs is None else [_urs(u) for u in urs],
             checklist=None if rows is None else [_item(b) for b in submission.checklist(rows, urs)],
@@ -660,6 +699,8 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
         Needs the deciding role."""
         if not who.may_decide:
             raise HTTPException(403, "submitting a Protocol needs the deciding role")
+        if fresh_auth is not None:
+            who = fresh_auth(who)
         try:
             with transaction(database()) as session:
                 found = lifecycle.get(session, protocol_id)
@@ -668,11 +709,14 @@ def create_router(runs: Path, db: Engine | None, principal: Callable[..., Princi
                     actor_of(who),
                     protocol_id,
                     None if found is None else check_of(session, found.run_id),
+                    auth_time=who.auth_time,
+                    jti=who.jti,
+                    is_demo=who.is_demo,
                 )
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
-        except lifecycle.Conflict as e:
+        except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
     @router.post("/protocols/{protocol_id}/withdraw", operation_id="withdrawProtocol")
@@ -712,15 +756,24 @@ entry. Needs the approving role.""",
     ) -> ProtocolView:
         if not who.may_approve:
             raise HTTPException(403, "approving a Protocol needs the approving role")
+        if fresh_auth is not None:
+            who = fresh_auth(who)
         try:
             with transaction(database()) as session:
                 done = approval.approve(
-                    session, actor_of(who), protocol_id, body.submission_event_id, body.hash
+                    session,
+                    actor_of(who),
+                    protocol_id,
+                    body.submission_event_id,
+                    body.hash,
+                    auth_time=who.auth_time,
+                    jti=who.jti,
+                    is_demo=who.is_demo,
                 )
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
-        except lifecycle.Conflict as e:
+        except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
     @router.post("/protocols/{protocol_id}/return", operation_id="returnProtocol")

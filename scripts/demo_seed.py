@@ -94,7 +94,7 @@ def _witness_payload(latest_ver: dict[str, Any]) -> dict[str, Any]:
 
 
 def _ensure_approved_protocol(
-    client: Any, api_url: str, run_id: str, ayu: dict[str, str], dewi: dict[str, str]
+    client: Any, api_url: str, issuer_url: str, run_id: str, ayu: dict[str, str]
 ) -> dict[str, Any]:
     imp = client.post(f"{api_url}/runs/{run_id}/import", headers=ayu)
     imp.raise_for_status()
@@ -141,7 +141,10 @@ def _ensure_approved_protocol(
             raise RuntimeError(
                 f"Protocol {protocol_id} has blockers preventing submission: {blockers}"
             )
-        sub = client.post(f"{api_url}/protocols/{protocol_id}/submit", headers=ayu)
+        sub = client.post(
+            f"{api_url}/protocols/{protocol_id}/submit",
+            headers=_token(client, issuer_url, "ayu"),
+        )
         sub.raise_for_status()
         proto = sub.json()
 
@@ -149,7 +152,7 @@ def _ensure_approved_protocol(
         submission = proto["submission"]
         app = client.post(
             f"{api_url}/protocols/{protocol_id}/approve",
-            headers=dewi,
+            headers=_token(client, issuer_url, "dewi"),
             json={
                 "submission_event_id": int(submission["event_id"]),
                 "hash": str(submission["hash"]),
@@ -163,10 +166,10 @@ def _ensure_approved_protocol(
 def _ensure_completed_execution(
     client: Any,
     api_url: str,
+    issuer_url: str,
     run_id: str,
     protocol_id: int,
     ayu: dict[str, str],
-    eko: dict[str, str],
 ) -> dict[str, Any]:
     exec_resp = client.get(f"{api_url}/runs/{run_id}/execution", headers=ayu)
     if exec_resp.status_code == 404:
@@ -207,7 +210,7 @@ def _ensure_completed_execution(
             continue
         wit = client.post(
             f"{api_url}/executions/{execution_id}/rows/{req}/attempts/{latest_attempt['attempt_number']}/witness",
-            headers=eko,
+            headers=_token(client, issuer_url, "eko"),
             json=_witness_payload(latest_ver),
         )
         wit.raise_for_status()
@@ -329,8 +332,7 @@ def main() -> int:
             rounds_summary = _ensure_two_rounds(client, api_url, run_id, args.second_run_id, ayu)
             print(json.dumps({"stage": args.stage, **rounds_summary}))
             return 0
-        dewi = _token(client, issuer_url, "dewi")
-        proto = _ensure_approved_protocol(client, api_url, run_id, ayu, dewi)
+        proto = _ensure_approved_protocol(client, api_url, issuer_url, run_id, ayu)
         summary: dict[str, Any] = {
             "run_id": run_id,
             "protocol_id": proto["id"],
@@ -338,17 +340,30 @@ def main() -> int:
             "stage": args.stage,
         }
         if args.stage in ("completed-execution", "qualification-report"):
-            eko = _token(client, issuer_url, "eko")
             execution = _ensure_completed_execution(
-                client, api_url, run_id, int(proto["id"]), ayu, eko
+                client, api_url, issuer_url, run_id, int(proto["id"]), ayu
             )
             summary["execution_id"] = execution["id"]
             summary["execution_status"] = execution["status"]
             if args.stage == "qualification-report":
+                qual_state = client.get(
+                    f"{api_url}/runs/{run_id}/qualification-report", headers=ayu
+                )
+                qual_state.raise_for_status()
+                qual_data = qual_state.json()
+                next_rev = (
+                    int(qual_data["latest_export"]["revision_number"]) + 1
+                    if qual_data.get("latest_export")
+                    else 1
+                )
                 qual_resp = client.post(
                     f"{api_url}/executions/{execution['id']}/qualification-reports",
-                    headers=dewi,
-                    json={"conclusion_note": "Demo seed: qualification report approved."},
+                    headers=_token(client, issuer_url, "dewi"),
+                    json={
+                        "conclusion_note": "Demo seed: qualification report approved.",
+                        "expected_revision_number": next_rev,
+                        "expected_execution_copy_hash": str(qual_data["execution_copy_hash"]),
+                    },
                 )
                 qual_resp.raise_for_status()
                 qual = qual_resp.json()

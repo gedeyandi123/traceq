@@ -204,6 +204,16 @@ export function QualificationReportWorkbench({
           <form action={formAction} className="space-y-3">
             <input type="hidden" name="run_id" value={runId} />
             <input type="hidden" name="execution_id" value={report.execution_id} />
+            <input
+              type="hidden"
+              name="expected_revision_number"
+              value={(report.latest_export?.revision_number ?? 0) + 1}
+            />
+            <input
+              type="hidden"
+              name="expected_execution_copy_hash"
+              value={report.execution_copy_hash}
+            />
 
             {approveState.error && (
               <Alert tone="fail">

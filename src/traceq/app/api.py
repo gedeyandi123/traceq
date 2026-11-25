@@ -27,7 +27,7 @@ from traceq.assembly.api import create_router as assembly_router
 from traceq.db import engine
 from traceq.execution.api import create_router as execution_router
 from traceq.identity import IdentitySettings, Verifier
-from traceq.identity.http import authenticate
+from traceq.identity.http import authenticate, require_fresh_auth
 from traceq.proposals.api import create_router as proposals_router
 from traceq.registry import create_router as registry_router
 from traceq.rounds import create_router as rounds_router
@@ -57,6 +57,7 @@ def create_app(
     verifier = None if identity is None else Verifier(identity)
     db = None if database is None else engine(make_url(database))
     principal = authenticate(verifier)
+    fresh_auth = require_fresh_auth(verifier)
     app.include_router(
         proposals_router(
             runs,
@@ -66,8 +67,8 @@ def create_app(
             after_import=register_round_import,
         )
     )
-    app.include_router(assembly_router(runs, db, principal))
-    app.include_router(execution_router(db, principal))
+    app.include_router(assembly_router(runs, db, principal, fresh_auth=fresh_auth))
+    app.include_router(execution_router(db, principal, fresh_auth=fresh_auth))
     app.include_router(rounds_router(runs, db, principal))
     app.include_router(registry_router(runs, db, principal))
 

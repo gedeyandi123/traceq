@@ -16,6 +16,7 @@ from traceq.assembly import lifecycle as assembly_lifecycle
 from traceq.assembly.submission import Author
 from traceq.execution import completion, lifecycle
 from traceq.execution.completion import Completion, ExecutionCopy
+from traceq.proposals.keys import digest
 from traceq.reports import (
     QUALIFICATION_APPROVAL_NOTE,
     QUALIFICATION_TEMPLATE_VERSION,
@@ -24,7 +25,9 @@ from traceq.reports import (
     QualificationReportDeviation,
     QualificationReportRow,
     QualificationReportSnapshot,
+    SignatureSnapshotClaim,
     TechnicalConclusion,
+    parse_qualification_snapshot,
     qualification_snapshot_hash,
     render_qualification_pdf,
 )
@@ -236,16 +239,19 @@ def _stage_label(kind: str, stage: str | None) -> str:
     return "IQ/OQ (Belum Dipisah)"
 
 
-def _build_snapshot(
+def _build_substance(
     *,
-    generated_at: datetime,
     comp: Completion,
-    actor: audit.Actor,
     revision_number: int,
     conclusion: TechnicalConclusion,
     conclusion_note: str | None,
     next_requalification_date: date | None,
-) -> QualificationReportSnapshot:
+) -> tuple[
+    QualificationCounts,
+    tuple[QualificationReportRow, ...],
+    tuple[QualificationReportDeviation, ...],
+    dict[str, Any],
+]:
     copy = comp.copy
     counts = compute_counts(copy)
     rows: list[QualificationReportRow] = []
@@ -283,6 +289,45 @@ def _build_snapshot(
         )
         for d in copy.deviations
     )
+    rows_tuple = tuple(rows)
+    payload: dict[str, Any] = {
+        "equipment": copy.equipment,
+        "run_id": copy.run_id,
+        "protocol_id": copy.protocol_id,
+        "execution_id": copy.execution_id,
+        "revision_number": revision_number,
+        "protocol_submission_hash": copy.submission_hash,
+        "execution_copy_hash": comp.copy_hash,
+        "completed_at": copy.completed_at.isoformat(),
+        "completer_name": copy.completer.name,
+        "technical_conclusion": conclusion,
+        "conclusion_note": conclusion_note,
+        "next_requalification_date": (
+            None if next_requalification_date is None else next_requalification_date.isoformat()
+        ),
+        "counts": counts.model_dump(mode="json"),
+        "rows": [r.model_dump(mode="json") for r in rows_tuple],
+        "deviations": [d.model_dump(mode="json") for d in devs],
+    }
+    return counts, rows_tuple, devs, payload
+
+
+def _build_snapshot(
+    *,
+    generated_at: datetime,
+    comp: Completion,
+    actor: audit.Actor,
+    revision_number: int,
+    conclusion: TechnicalConclusion,
+    conclusion_note: str | None,
+    next_requalification_date: date | None,
+    counts: QualificationCounts,
+    rows: tuple[QualificationReportRow, ...],
+    devs: tuple[QualificationReportDeviation, ...],
+    approval_note: str,
+    electronic_signature: SignatureSnapshotClaim | None,
+) -> QualificationReportSnapshot:
+    copy = comp.copy
     return QualificationReportSnapshot(
         generated_at=generated_at,
         equipment=copy.equipment,
@@ -297,13 +342,14 @@ def _build_snapshot(
         approver_name=actor.name,
         approver_subject=actor.subject,
         approver_issuer=actor.issuer,
-        approval_note=QUALIFICATION_APPROVAL_NOTE,
+        approval_note=approval_note,
         technical_conclusion=conclusion,
         conclusion_note=conclusion_note,
         next_requalification_date=next_requalification_date,
         counts=counts,
-        rows=tuple(rows),
+        rows=rows,
         deviations=devs,
+        electronic_signature=electronic_signature,
     )
 
 
@@ -314,6 +360,11 @@ def approve_qualification_report(
     *,
     conclusion_note: str | None = None,
     next_requalification_date: date | None = None,
+    expected_revision_number: int | None = None,
+    expected_execution_copy_hash: str | None = None,
+    auth_time: datetime | None = None,
+    jti: str | None = None,
+    is_demo: bool = False,
 ) -> tuple[Completion, list[QualificationExport]]:
     """Approves a Qualification Report for a completed Execution, creating an immutable export."""
     lifecycle.lock_execution(session, execution_id)
@@ -328,6 +379,11 @@ def approve_qualification_report(
     comp = completion.get_completion(session, execution_id)
     if comp is None:
         raise lifecycle.NotFound(f"no completion record for Execution {execution_id}")
+
+    if expected_execution_copy_hash is not None and comp.copy_hash != expected_execution_copy_hash:
+        raise lifecycle.Conflict(
+            f"Execution {execution_id} copy hash mismatch: reload the Qualification Report"
+        )
 
     check_sod(comp.copy, actor)
     conclusion = compute_conclusion(comp.copy)
@@ -352,6 +408,39 @@ def approve_qualification_report(
 
     existing = exports_of(session, execution_id)
     revision_number = len(existing) + 1
+    if expected_revision_number is not None and revision_number != expected_revision_number:
+        raise lifecycle.Conflict(
+            f"Qualification Report revision changed (expected {expected_revision_number}, "
+            f"current next is {revision_number}): reload and try again"
+        )
+
+    counts, rows, devs, substance_payload = _build_substance(
+        comp=comp,
+        revision_number=revision_number,
+        conclusion=conclusion,
+        conclusion_note=clean_note,
+        next_requalification_date=next_requalification_date,
+    )
+    content_hash = digest(substance_payload)
+    if auth_time is not None and jti is not None:
+        approval_note = audit.DEMO_SIGNATURE_LABEL if is_demo else audit.ELECTRONIC_SIGNATURE_LABEL
+        sig_claim: SignatureSnapshotClaim | None = SignatureSnapshotClaim(
+            record_type="qualification_report",
+            signature_meaning="approved",
+            content_hash=content_hash,
+            hash_scheme_version=1,
+            signer_subject=actor.subject,
+            signer_issuer=actor.issuer,
+            signer_name=actor.name,
+            auth_time=auth_time,
+            signed_at=db_now,
+            is_demo=is_demo,
+            label=approval_note,
+        )
+    else:
+        approval_note = QUALIFICATION_APPROVAL_NOTE
+        sig_claim = None
+
     snapshot = _build_snapshot(
         generated_at=db_now,
         comp=comp,
@@ -360,8 +449,13 @@ def approve_qualification_report(
         conclusion=conclusion,
         conclusion_note=clean_note,
         next_requalification_date=next_requalification_date,
+        counts=counts,
+        rows=rows,
+        devs=devs,
+        approval_note=approval_note,
+        electronic_signature=sig_claim,
     )
-    pdf_bytes = render_qualification_pdf(snapshot)
+    pdf_bytes = render_qualification_pdf(snapshot, template_version=QUALIFICATION_TEMPLATE_VERSION)
     snap_hash = qualification_snapshot_hash(snapshot)
     pdf_sha = hashlib.sha256(pdf_bytes).hexdigest()
 
@@ -387,28 +481,46 @@ def approve_qualification_report(
         .one()
     )
     export = _export_of(inserted)
+    sig_id: int | None = None
+    if auth_time is not None and jti is not None:
+        sig = audit.record_signature(
+            session,
+            actor,
+            record_type="qualification_report",
+            signature_meaning="approved",
+            content_hash=content_hash,
+            auth_time=auth_time,
+            jti=jti,
+            is_demo=is_demo,
+            report_export_id=export.id,
+            content_payload=substance_payload,
+        )
+        sig_id = sig.id
+    new_audit: dict[str, audit.JsonValue] = {
+        "export_id": export.id,
+        "execution_id": execution_id,
+        "revision_number": revision_number,
+        "report_kind": "qualification",
+        "technical_conclusion": conclusion,
+        "conclusion_note": clean_note,
+        "next_requalification_date": (
+            None if next_requalification_date is None else next_requalification_date.isoformat()
+        ),
+        "approval_note": approval_note,
+        "snapshot_hash": snap_hash,
+        "pdf_sha256": pdf_sha,
+        "template_version": QUALIFICATION_TEMPLATE_VERSION,
+        "typst_version": TYPST_VERSION,
+    }
+    if sig_id is not None:
+        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,
         "qualification report approved",
         "report_export",
         str(export.id),
-        new={
-            "export_id": export.id,
-            "execution_id": execution_id,
-            "revision_number": revision_number,
-            "report_kind": "qualification",
-            "technical_conclusion": conclusion,
-            "conclusion_note": clean_note,
-            "next_requalification_date": (
-                None if next_requalification_date is None else next_requalification_date.isoformat()
-            ),
-            "approval_note": QUALIFICATION_APPROVAL_NOTE,
-            "snapshot_hash": snap_hash,
-            "pdf_sha256": pdf_sha,
-            "template_version": QUALIFICATION_TEMPLATE_VERSION,
-            "typst_version": TYPST_VERSION,
-        },
+        new=new_audit,
     )
     return comp, [*existing, export]
 
@@ -419,7 +531,11 @@ def render_stored_qualification_pdf(
     """Re-renders a stored Qualification Report PDF from ``snapshot_json`` without any DB writes."""
     row = (
         session.execute(
-            select(REPORT_EXPORTS.c.snapshot_json, REPORT_EXPORTS.c.pdf_sha256).where(
+            select(
+                REPORT_EXPORTS.c.snapshot_json,
+                REPORT_EXPORTS.c.pdf_sha256,
+                REPORT_EXPORTS.c.template_version,
+            ).where(
                 REPORT_EXPORTS.c.id == export_id,
                 REPORT_EXPORTS.c.execution_id == execution_id,
                 REPORT_EXPORTS.c.report_kind == "qualification",
@@ -432,8 +548,9 @@ def render_stored_qualification_pdf(
         raise lifecycle.NotFound(
             f"no qualification report export {export_id} for Execution {execution_id}"
         )
-    snapshot = QualificationReportSnapshot.model_validate(row["snapshot_json"])
-    pdf_bytes = render_qualification_pdf(snapshot)
+    template_version = str(row["template_version"])
+    snapshot = parse_qualification_snapshot(row["snapshot_json"], template_version)
+    pdf_bytes = render_qualification_pdf(snapshot, template_version=template_version)
     if hashlib.sha256(pdf_bytes).hexdigest() != str(row["pdf_sha256"]):
         raise RuntimeError("Re-rendered qualification PDF SHA-256 does not match stored export")
     return pdf_bytes, snapshot.revision_number

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { api, type InstrumentInput } from "@/api/client";
-import { bearerHeaders } from "@/auth/session";
+import { bearerHeaders, consumeSignatureBearerHeaders } from "@/auth/session";
 
 export type ExecutionError =
   | "conflict"
@@ -354,13 +354,27 @@ export async function closeDeviation(
 ): Promise<ExecutionActionState> {
   const executionId = Number(field(form, "execution_id"));
   const deviationId = Number(field(form, "deviation_id"));
-  if (!Number.isInteger(executionId) || !Number.isInteger(deviationId)) {
+  const expectedEventId = Number(field(form, "expected_event_id"));
+  const expectedInvestigationVersion = Number(field(form, "expected_investigation_version"));
+  const expectedContentHash = field(form, "expected_content_hash");
+  if (
+    !Number.isInteger(executionId) ||
+    !Number.isInteger(deviationId) ||
+    !Number.isInteger(expectedEventId) ||
+    !Number.isInteger(expectedInvestigationVersion) ||
+    !expectedContentHash
+  ) {
     return { ok: false, error: "unprocessable" };
   }
-  const headers = await bearerHeaders();
+  const headers = await consumeSignatureBearerHeaders();
   return postExecutionMutation(() =>
     api.POST("/executions/{execution_id}/deviations/{deviation_id}/close", {
       params: { path: { execution_id: executionId, deviation_id: deviationId } },
+      body: {
+        expected_event_id: expectedEventId,
+        expected_investigation_version: expectedInvestigationVersion,
+        expected_content_hash: expectedContentHash,
+      },
       headers,
     }),
   );
@@ -374,14 +388,26 @@ export async function returnDeviation(
   const executionId = Number(field(form, "execution_id"));
   const deviationId = Number(field(form, "deviation_id"));
   const reason = field(form, "reason");
-  if (!Number.isInteger(executionId) || !Number.isInteger(deviationId) || !reason) {
+  const expectedEventId = Number(field(form, "expected_event_id"));
+  const expectedInvestigationVersion = Number(field(form, "expected_investigation_version"));
+  if (
+    !Number.isInteger(executionId) ||
+    !Number.isInteger(deviationId) ||
+    !reason ||
+    !Number.isInteger(expectedEventId) ||
+    !Number.isInteger(expectedInvestigationVersion)
+  ) {
     return { ok: false, error: "unprocessable" };
   }
   const headers = await bearerHeaders();
   return postExecutionMutation(() =>
     api.POST("/executions/{execution_id}/deviations/{deviation_id}/return", {
       params: { path: { execution_id: executionId, deviation_id: deviationId } },
-      body: { reason },
+      body: {
+        reason,
+        expected_event_id: expectedEventId,
+        expected_investigation_version: expectedInvestigationVersion,
+      },
       headers,
     }),
   );
@@ -406,7 +432,7 @@ export async function confirmWitness(
   ) {
     return { ok: false, error: "unprocessable" };
   }
-  const headers = await bearerHeaders();
+  const headers = await consumeSignatureBearerHeaders();
   return postExecutionMutation(() =>
     api.POST("/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness", {
       params: {

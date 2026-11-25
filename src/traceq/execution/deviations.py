@@ -7,6 +7,9 @@ Deviation status inside the transaction.
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
@@ -26,6 +29,7 @@ from traceq.execution.results import (
     DeviationInvestigation,
     InvalidResult,
 )
+from traceq.proposals.keys import digest
 
 CLOSURE_NOTE = "a recorded status, not an Electronic Signature"
 
@@ -66,10 +70,20 @@ class InvestigationRequest(_Input):
         return stripped
 
 
+class CloseDeviationRequest(_Input):
+    """Payload to close a Submitted Deviation with Anti-TOCTOU version/hash checks."""
+
+    expected_event_id: int
+    expected_investigation_version: int
+    expected_content_hash: str
+
+
 class ReturnDeviationRequest(_Input):
     """Payload to return a Submitted Deviation to Open with a required reason."""
 
     reason: str
+    expected_event_id: int
+    expected_investigation_version: int
 
     @field_validator("reason")
     @classmethod
@@ -78,6 +92,32 @@ class ReturnDeviationRequest(_Input):
         if not stripped:
             raise ValueError("reason must not be blank")
         return stripped
+
+
+def deviation_closure_payload(dev: Deviation) -> dict[str, Any]:
+    """Canonical payload of a Deviation and its latest Investigation bound at closure."""
+    latest_inv = dev.investigations[-1] if dev.investigations else None
+    latest_ev = dev.events[-1]
+    return {
+        "deviation_id": dev.id,
+        "execution_id": dev.execution_id,
+        "deviation_number": dev.deviation_number,
+        "requirement": dev.requirement,
+        "attempt_id": dev.attempt_id,
+        "cause": dev.cause,
+        "description": dev.description,
+        "latest_event_id": latest_ev.id,
+        "investigation_id": None if latest_inv is None else latest_inv.id,
+        "investigation_version": None if latest_inv is None else latest_inv.version,
+        "investigation": None if latest_inv is None else latest_inv.investigation,
+        "deviation_class": None if latest_inv is None else latest_inv.deviation_class,
+        "capa": None if latest_inv is None else latest_inv.capa,
+    }
+
+
+def deviation_closure_hash(dev: Deviation) -> str:
+    """SHA-256 hex digest of ``deviation_closure_payload(dev)``."""
+    return digest(deviation_closure_payload(dev))
 
 
 def _require_in_progress_execution(session: Session, execution_id: int) -> lifecycle.Execution:
@@ -378,15 +418,38 @@ def close_deviation(
     actor: audit.Actor,
     execution_id: int,
     deviation_id: int,
+    req: CloseDeviationRequest,
+    *,
+    auth_time: datetime | None = None,
+    jti: str | None = None,
+    is_demo: bool = False,
 ) -> DeviationEvent:
-    """Closes a ``submitted`` Deviation (recorded status, not an Electronic Signature) after
-    enforcing 4-way Separation of Duties."""
+    """Closes a ``submitted`` Deviation after enforcing Anti-TOCTOU and 4-way SoD."""
     _require_in_progress_execution(session, execution_id)
     dev = _require_deviation(session, execution_id, deviation_id)
     if dev.status != "submitted":
         raise lifecycle.Conflict(
             f"Deviation #{dev.deviation_number} is {dev.status}: only a Submitted Deviation can be"
             " closed"
+        )
+    latest_ev = dev.events[-1]
+    if latest_ev.id != req.expected_event_id:
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} changed since you read it (event {latest_ev.id} != "
+            f"{req.expected_event_id}): reload and try again"
+        )
+    latest_inv = dev.investigations[-1] if dev.investigations else None
+    if latest_inv is None or latest_inv.version != req.expected_investigation_version:
+        actual_ver = None if latest_inv is None else latest_inv.version
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} Investigation changed since you read it "
+            f"(version {actual_ver} != {req.expected_investigation_version}): reload and try again"
+        )
+    closure_payload = deviation_closure_payload(dev)
+    closure_hash = digest(closure_payload)
+    if closure_hash != req.expected_content_hash:
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} content hash mismatch: reload and try again"
         )
     _check_close_sod(session, actor, dev)
 
@@ -407,6 +470,33 @@ def close_deviation(
         .one()
     )
     ev = results.deviation_event_from_row(ev_row)
+    sig_id: int | None = None
+    if auth_time is not None and jti is not None:
+        sig = audit.record_signature(
+            session,
+            actor,
+            record_type="deviation_closure",
+            signature_meaning="approved",
+            content_hash=closure_hash,
+            auth_time=auth_time,
+            jti=jti,
+            is_demo=is_demo,
+            deviation_event_id=ev.id,
+            content_payload=closure_payload,
+        )
+        sig_id = sig.id
+    new_audit: dict[str, audit.JsonValue] = {
+        "execution_id": execution_id,
+        "deviation_id": deviation_id,
+        "deviation_number": dev.deviation_number,
+        "event_id": ev.id,
+        "status": ev.status,
+        "note": audit.ELECTRONIC_SIGNATURE_LABEL
+        if (sig_id is not None and not is_demo)
+        else (audit.DEMO_SIGNATURE_LABEL if sig_id is not None else audit.UNSIGNED_STATUS_LABEL),
+    }
+    if sig_id is not None:
+        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,
@@ -414,14 +504,7 @@ def close_deviation(
         "execution_deviation",
         f"{execution_id}/{dev.deviation_number}",
         old={"status": dev.status},
-        new={
-            "execution_id": execution_id,
-            "deviation_id": deviation_id,
-            "deviation_number": dev.deviation_number,
-            "event_id": ev.id,
-            "status": ev.status,
-            "note": CLOSURE_NOTE,
-        },
+        new=new_audit,
     )
     return ev
 
@@ -440,6 +523,19 @@ def return_deviation(
         raise lifecycle.Conflict(
             f"Deviation #{dev.deviation_number} is {dev.status}: only a Submitted Deviation can be"
             " returned to Open"
+        )
+    latest_ev = dev.events[-1]
+    if latest_ev.id != req.expected_event_id:
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} changed since you read it (event {latest_ev.id} != "
+            f"{req.expected_event_id}): reload and try again"
+        )
+    latest_inv = dev.investigations[-1] if dev.investigations else None
+    if latest_inv is None or latest_inv.version != req.expected_investigation_version:
+        actual_ver = None if latest_inv is None else latest_inv.version
+        raise lifecycle.Conflict(
+            f"Deviation #{dev.deviation_number} Investigation changed since you read it "
+            f"(version {actual_ver} != {req.expected_investigation_version}): reload and try again"
         )
 
     ev_row = (

@@ -124,11 +124,15 @@ def test_ensure_approved_protocol_imports_and_handles_changed_and_null_coverage(
                         "submission": {"event_id": 99, "hash": "h99"},
                     },
                 )
+            if url.endswith("/demo/token"):
+                return _Resp(200, {"access_token": f"tok-{json['username']}"})
             if url.endswith("/approve"):
                 return _Resp(200, {"id": 7, "status": "approved"})
             raise AssertionError(f"unexpected POST {url}")
 
-    proto = ds._ensure_approved_protocol(_FakeClient(), "http://api", "r1", {"a": "1"}, {"d": "2"})
+    proto = ds._ensure_approved_protocol(
+        _FakeClient(), "http://api", "http://issuer", "r1", {"a": "1"}
+    )
     assert proto["status"] == "approved"
     assert ("POST", "http://api/runs/r1/import", None) in calls
     assert any(

@@ -5,6 +5,7 @@ and return to Open, over HTTP with a real Postgres and the demo issuer (ADR 0013
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -20,9 +21,8 @@ from test_protocol_approval_api import persona_token
 from test_protocol_submission_api import R026
 from test_test_step_proposals import add_drafted_run
 
-from traceq.audit import entries
+from traceq.audit import DEMO_SIGNATURE_LABEL, entries
 from traceq.db import engine, transaction
-from traceq.execution.deviations import CLOSURE_NOTE
 from traceq.execution.results import database_utc_date
 from traceq.identity import APPROVING_ROLE, EXECUTING_ROLE
 
@@ -73,6 +73,8 @@ def _mint_roles(issuer: DemoIssuer, subject: str, name: str, roles: list[str]) -
         "sub": subject,
         "aud": issuer.audience,
         "iat": now,
+        "auth_time": int(now.timestamp()),
+        "jti": uuid.uuid4().hex,
         "exp": now + timedelta(minutes=5),
         "name": name,
         "roles": roles,
@@ -304,6 +306,7 @@ def test_investigation_versions_and_submit_guards(
 
 def test_return_to_open_and_close_lifecycle(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     decider: dict[str, str],
     reader: dict[str, str],
     approver: dict[str, str],
@@ -323,12 +326,18 @@ def test_return_to_open_and_close_lifecycle(
     close_url = f"/executions/{eid}/deviations/{dev_id}/close"
 
     # Close / Return when Open -> 409 (and 403 for non-approver)
-    assert client.post(close_url, headers=decider).status_code == 403
-    assert client.post(close_url, headers=reader).status_code == 403
-    assert client.post(ret_url, headers=decider, json={"reason": "x"}).status_code == 403
-    assert client.post(ret_url, headers=reader, json={"reason": "x"}).status_code == 403
-    assert client.post(close_url, headers=approver).status_code == 409
-    assert client.post(ret_url, headers=approver, json={"reason": "x"}).status_code == 409
+    dummy_close = {
+        "expected_event_id": 1,
+        "expected_investigation_version": 1,
+        "expected_content_hash": "a" * 64,
+    }
+    dummy_ret = {"reason": "x", "expected_event_id": 1, "expected_investigation_version": 1}
+    assert client.post(close_url, headers=decider, json=dummy_close).status_code == 403
+    assert client.post(close_url, headers=reader, json=dummy_close).status_code == 403
+    assert client.post(ret_url, headers=decider, json=dummy_ret).status_code == 403
+    assert client.post(ret_url, headers=reader, json=dummy_ret).status_code == 403
+    assert client.post(close_url, headers=approver, json=dummy_close).status_code == 409
+    assert client.post(ret_url, headers=approver, json=dummy_ret).status_code == 409
 
     # Write v1 & submit
     client.post(
@@ -336,14 +345,32 @@ def test_return_to_open_and_close_lifecycle(
         headers=decider,
         json={"investigation": "Paper roll misaligned", "deviation_class": "minor"},
     )
-    client.post(sub_url, headers=decider)
+    sub_r = client.post(sub_url, headers=decider).json()
+    d_sub = sub_r["deviations"][0]
 
     # Return without reason -> 422
-    assert client.post(ret_url, headers=approver, json={"reason": "  "}).status_code == 422
+    assert (
+        client.post(
+            ret_url,
+            headers=approver,
+            json={
+                "reason": "  ",
+                "expected_event_id": d_sub["events"][-1]["id"],
+                "expected_investigation_version": d_sub["investigations"][-1]["version"],
+            },
+        ).status_code
+        == 422
+    )
 
     # Return with reason -> Open
     ret = client.post(
-        ret_url, headers=approver, json={"reason": "Please state batch impact explicitly"}
+        ret_url,
+        headers=approver,
+        json={
+            "reason": "Please state batch impact explicitly",
+            "expected_event_id": d_sub["events"][-1]["id"],
+            "expected_investigation_version": d_sub["investigations"][-1]["version"],
+        },
     )
     assert ret.status_code == 200, ret.text
     d_ret = ret.json()["deviations"][0]
@@ -361,14 +388,23 @@ def test_return_to_open_and_close_lifecycle(
             "reason_for_change": "Clarified batch impact per QA",
         },
     )
-    client.post(sub_url, headers=decider)
+    sub_r2 = client.post(sub_url, headers=decider)
+    d_sub2 = sub_r2.json()["deviations"][0]
 
-    # Approver closes
-    closed = client.post(close_url, headers=approver)
+    # Approver closes (fresh token per signature)
+    closed = client.post(
+        close_url,
+        headers=persona_token(demo_issuer, "dewi"),
+        json={
+            "expected_event_id": d_sub2["events"][-1]["id"],
+            "expected_investigation_version": d_sub2["investigations"][-1]["version"],
+            "expected_content_hash": d_sub2["closure_content_hash"],
+        },
+    )
     assert closed.status_code == 200, closed.text
     d_closed = closed.json()["deviations"][0]
     assert d_closed["status"] == "closed"
-    assert d_closed["closure_note"] == CLOSURE_NOTE
+    assert d_closed["closure_note"] == DEMO_SIGNATURE_LABEL
 
     # Writes on Closed Deviation refused (409)
     assert (
@@ -384,8 +420,30 @@ def test_return_to_open_and_close_lifecycle(
         == 409
     )
     assert client.post(sub_url, headers=decider).status_code == 409
-    assert client.post(close_url, headers=approver).status_code == 409
-    assert client.post(ret_url, headers=approver, json={"reason": "late"}).status_code == 409
+    assert (
+        client.post(
+            close_url,
+            headers=persona_token(demo_issuer, "dewi"),
+            json={
+                "expected_event_id": d_closed["events"][-1]["id"],
+                "expected_investigation_version": d_closed["investigations"][-1]["version"],
+                "expected_content_hash": "a" * 64,
+            },
+        ).status_code
+        == 409
+    )
+    assert (
+        client.post(
+            ret_url,
+            headers=approver,
+            json={
+                "reason": "late",
+                "expected_event_id": d_closed["events"][-1]["id"],
+                "expected_investigation_version": d_closed["investigations"][-1]["version"],
+            },
+        ).status_code
+        == 409
+    )
 
     with transaction(engine(fresh_database.app)) as s:
         actions = [e.action for e in entries(s)]
@@ -393,7 +451,7 @@ def test_return_to_open_and_close_lifecycle(
         closed_entries = [e for e in entries(s) if e.action == "deviation closed"]
         assert len(closed_entries) == 1
         assert isinstance(closed_entries[0].new_value, dict)
-        assert closed_entries[0].new_value["note"] == CLOSURE_NOTE
+        assert closed_entries[0].new_value["note"] == DEMO_SIGNATURE_LABEL
 
 
 # --- 4-Way Separation of Duties -------------------------------------------------------
@@ -422,10 +480,17 @@ def test_close_four_way_separation_of_duties(
         headers=decider,
         json={"investigation": "Speed sensor fault", "deviation_class": "major"},
     )
-    client.post(f"/executions/{eid}/deviations/{dev_step_auto}/submit", headers=decider)
+    sub_1 = client.post(f"/executions/{eid}/deviations/{dev_step_auto}/submit", headers=decider)
+    d1 = next(d for d in sub_1.json()["deviations"] if d["id"] == dev_step_auto)
     # Dual user cannot close because they performed an attempt on R026
     r_sod_performer = client.post(
-        f"/executions/{eid}/deviations/{dev_step_auto}/close", headers=dual
+        f"/executions/{eid}/deviations/{dev_step_auto}/close",
+        headers=dual,
+        json={
+            "expected_event_id": d1["events"][-1]["id"],
+            "expected_investigation_version": d1["investigations"][-1]["version"],
+            "expected_content_hash": d1["closure_content_hash"],
+        },
     )
     assert r_sod_performer.status_code == 409
 
@@ -440,10 +505,17 @@ def test_close_four_way_separation_of_duties(
         headers=decider,
         json={"investigation": "Compressor cycled", "deviation_class": "minor"},
     )
-    client.post(f"/executions/{eid}/deviations/{dev_manual_opener}/submit", headers=decider)
+    sub_2 = client.post(f"/executions/{eid}/deviations/{dev_manual_opener}/submit", headers=decider)
+    d2 = next(d for d in sub_2.json()["deviations"] if d["id"] == dev_manual_opener)
     # Dual user cannot close because they opened this manual Deviation
     r_sod_opener = client.post(
-        f"/executions/{eid}/deviations/{dev_manual_opener}/close", headers=dual
+        f"/executions/{eid}/deviations/{dev_manual_opener}/close",
+        headers=dual,
+        json={
+            "expected_event_id": d2["events"][-1]["id"],
+            "expected_investigation_version": d2["investigations"][-1]["version"],
+            "expected_content_hash": d2["closure_content_hash"],
+        },
     )
     assert r_sod_opener.status_code == 409
 
@@ -467,9 +539,18 @@ def test_close_four_way_separation_of_duties(
             "reason_for_change": "Second check",
         },
     )
-    client.post(f"/executions/{eid}/deviations/{dev_inv_author}/submit", headers=executor_b)
+    sub_3 = client.post(f"/executions/{eid}/deviations/{dev_inv_author}/submit", headers=executor_b)
+    d3 = next(d for d in sub_3.json()["deviations"] if d["id"] == dev_inv_author)
     # Dual user cannot close because they authored v1 of the Investigation
-    r_sod_author = client.post(f"/executions/{eid}/deviations/{dev_inv_author}/close", headers=dual)
+    r_sod_author = client.post(
+        f"/executions/{eid}/deviations/{dev_inv_author}/close",
+        headers=dual,
+        json={
+            "expected_event_id": d3["events"][-1]["id"],
+            "expected_investigation_version": d3["investigations"][-1]["version"],
+            "expected_content_hash": d3["closure_content_hash"],
+        },
+    )
     assert r_sod_author.status_code == 409
 
     # Case 4: Execution-only Deviation opened & investigated by others CAN be closed by Dual user
@@ -484,8 +565,17 @@ def test_close_four_way_separation_of_duties(
         headers=executor_b,
         json={"investigation": "Dehumidifier restored", "deviation_class": "minor"},
     )
-    client.post(f"/executions/{eid}/deviations/{dev_exec_only}/submit", headers=executor_b)
-    r_allowed = client.post(f"/executions/{eid}/deviations/{dev_exec_only}/close", headers=dual)
+    sub_4 = client.post(f"/executions/{eid}/deviations/{dev_exec_only}/submit", headers=executor_b)
+    d4 = next(d for d in sub_4.json()["deviations"] if d["id"] == dev_exec_only)
+    r_allowed = client.post(
+        f"/executions/{eid}/deviations/{dev_exec_only}/close",
+        headers=dual,
+        json={
+            "expected_event_id": d4["events"][-1]["id"],
+            "expected_investigation_version": d4["investigations"][-1]["version"],
+            "expected_content_hash": d4["closure_content_hash"],
+        },
+    )
     assert r_allowed.status_code == 200, r_allowed.text
 
 
@@ -526,6 +616,7 @@ def test_investigation_table_is_append_only(
 
 def test_deviation_mutations_audit_trail_old_value_and_reason(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     decider: dict[str, str],
     executor_b: dict[str, str],
     approver: dict[str, str],
@@ -558,24 +649,34 @@ def test_deviation_mutations_audit_trail_old_value_and_reason(
     )
     assert inv2_r.status_code == 201
 
-    assert (
-        client.post(f"/executions/{eid}/deviations/{dev_id}/submit", headers=executor_b).status_code
-        == 200
-    )
+    sub1 = client.post(f"/executions/{eid}/deviations/{dev_id}/submit", headers=executor_b)
+    assert sub1.status_code == 200
+    d_sub1 = sub1.json()["deviations"][0]
     assert (
         client.post(
             f"/executions/{eid}/deviations/{dev_id}/return",
             headers=approver,
-            json={"reason": "  Lengkapi bukti kalibrasi  "},
+            json={
+                "reason": "  Lengkapi bukti kalibrasi  ",
+                "expected_event_id": d_sub1["events"][-1]["id"],
+                "expected_investigation_version": d_sub1["investigations"][-1]["version"],
+            },
         ).status_code
         == 200
     )
+    sub2 = client.post(f"/executions/{eid}/deviations/{dev_id}/submit", headers=executor_b)
+    assert sub2.status_code == 200
+    d_sub2 = sub2.json()["deviations"][0]
     assert (
-        client.post(f"/executions/{eid}/deviations/{dev_id}/submit", headers=executor_b).status_code
-        == 200
-    )
-    assert (
-        client.post(f"/executions/{eid}/deviations/{dev_id}/close", headers=approver).status_code
+        client.post(
+            f"/executions/{eid}/deviations/{dev_id}/close",
+            headers=persona_token(demo_issuer, "dewi"),
+            json={
+                "expected_event_id": d_sub2["events"][-1]["id"],
+                "expected_investigation_version": d_sub2["investigations"][-1]["version"],
+                "expected_content_hash": d_sub2["closure_content_hash"],
+            },
+        ).status_code
         == 200
     )
 

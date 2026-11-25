@@ -5,6 +5,7 @@ over HTTP with a real Postgres and the demo issuer.
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -24,9 +25,9 @@ from test_protocol_approval_api import persona_token
 from test_protocol_submission_api import R002
 from test_test_step_proposals import add_drafted_run
 
-from traceq.audit import entries
+from traceq.audit import DEMO_SIGNATURE_LABEL, entries
 from traceq.db import engine, transaction
-from traceq.execution.results import ATTEMPT_VERSIONS, WITNESS_NOTE, database_utc_date
+from traceq.execution.results import ATTEMPT_VERSIONS, database_utc_date
 from traceq.identity import EXECUTING_ROLE, WITNESSING_ROLE
 
 
@@ -79,6 +80,8 @@ def _custom_token(
             "sub": subject,
             "aud": demo_issuer.audience,
             "iat": now,
+            "auth_time": int(now.timestamp()),
+            "jti": uuid.uuid4().hex,
             "exp": now + timedelta(minutes=5),
             "name": name,
             "roles": roles,
@@ -143,7 +146,8 @@ def test_eko_confirms_latest_version_and_records_audit_trail(
     assert conf["name"] == "Eko Prasetyo Wijaya"
     assert conf["version_hash"] == latest["version_hash"]
     assert conf["voided"] is False
-    assert conf["note"] == WITNESS_NOTE
+    assert conf["note"] == DEMO_SIGNATURE_LABEL
+    assert conf["electronic_signature"]["verified"] is True
 
     got = client.get(f"/runs/{RUN_ID}/execution", headers=witness)
     assert got.status_code == 200

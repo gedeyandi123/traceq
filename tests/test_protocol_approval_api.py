@@ -10,6 +10,7 @@ on authors are tested with tokens the demo issuer's key signs for people holding
 from __future__ import annotations
 
 import json
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -86,6 +87,8 @@ def both_roles(issuer: DemoIssuer, subject: str, name: str) -> dict[str, str]:
         "sub": subject,
         "aud": issuer.audience,
         "iat": now,
+        "auth_time": int(now.timestamp()),
+        "jti": uuid.uuid4().hex,
         "exp": now + timedelta(minutes=5),
         "name": name,
         "roles": [DECIDING_ROLE, APPROVING_ROLE],
@@ -174,12 +177,11 @@ def test_the_approver_approves_the_submission_they_read(
     last = trail(fresh_database, "protocol")[-1]
     assert (last.action, last.record_id) == ("protocol approved", str(protocol["id"]))
     assert last.old_value == {"status": "submitted"}
-    assert last.new_value == {
-        "status": "approved",
-        "event_id": got["events"][-1]["id"],
-        "submission_event_id": view["submission"]["event_id"],
-        "hash": view["submission"]["hash"],
-    }
+    assert last.new_value["status"] == "approved"
+    assert last.new_value["event_id"] == got["events"][-1]["id"]
+    assert last.new_value["submission_event_id"] == view["submission"]["event_id"]
+    assert last.new_value["hash"] == view["submission"]["hash"]
+    assert isinstance(last.new_value["signature_id"], int)
 
 
 def test_approving_needs_a_token_and_the_approving_role(
@@ -219,6 +221,7 @@ def test_only_a_submitted_protocol_can_be_approved(
 
 def test_a_wrong_hash_or_a_stale_submission_is_refused(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     decider: dict[str, str],
     approver: dict[str, str],
     reader: dict[str, str],
@@ -230,7 +233,7 @@ def test_a_wrong_hash_or_a_stale_submission_is_refused(
     assert "hash" in r.json()["detail"]
     # Returned and resubmitted unchanged: the same hash, a new submission event.
     send_back(client, approver, protocol, "check the instrument")
-    again = read_by(submit(client, decider, protocol))
+    again = read_by(submit(client, bearer(token(demo_issuer, decider=True)), protocol))
     assert again["hash"] == first["hash"]
     assert again["submission_event_id"] != first["submission_event_id"]
     r = client.post(approve_url(protocol), headers=approver, json=first)
@@ -442,6 +445,7 @@ def test_returning_needs_the_approving_role_a_reason_and_submitted_status(
 
 def test_every_copy_stays_readable_after_two_returns(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     decider: dict[str, str],
     approver: dict[str, str],
     reader: dict[str, str],
@@ -450,9 +454,9 @@ def test_every_copy_stays_readable_after_two_returns(
     submitted(client, decider, protocol)
     send_back(client, approver, protocol, "first")
     write(client, decider, protocol, R026, {**STEP, "description": "Changed."})
-    submit(client, decider, protocol)
+    submit(client, bearer(token(demo_issuer, decider=True)), protocol)
     send_back(client, approver, protocol, "second")
-    view = submit(client, decider, protocol)
+    view = submit(client, bearer(token(demo_issuer, decider=True)), protocol)
     got = read(client, reader)
     assert [x["outcome"] and x["outcome"]["reason"] for x in got["submissions"]] == [
         "first",

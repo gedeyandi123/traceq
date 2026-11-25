@@ -8,8 +8,10 @@ issuer, audience and expiry. Which claim holds the roles is a setting, since OID
 from __future__ import annotations
 
 import json
+import math
 import urllib.request
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import jwt
@@ -43,6 +45,8 @@ class IdentitySettings:
     audience: str
     role_claim: str = "roles"
     algorithms: tuple[str, ...] = ("RS256",)
+    max_auth_age_seconds: int = 60
+    clock_skew_leeway_seconds: int = 5
 
 
 @dataclass(frozen=True)
@@ -53,6 +57,13 @@ class Principal:
     issuer: str
     name: str
     roles: frozenset[str]
+    auth_time: datetime | None = None
+    jti: str | None = None
+    amr: frozenset[str] = frozenset()
+
+    @property
+    def is_demo(self) -> bool:
+        return "demo" in self.amr
 
     @property
     def may_decide(self) -> bool:
@@ -140,9 +151,42 @@ class Verifier:
             raise InvalidToken(str(e)) from e
         subject = str(payload["sub"])
         name = payload.get("name") or payload.get("preferred_username") or subject
+        auth_time = _parse_auth_time(payload.get("auth_time"))
+        jti = _parse_jti(payload.get("jti"))
+        amr = _parse_amr(payload.get("amr"))
         return Principal(
             subject=subject,
             issuer=str(payload["iss"]),
             name=str(name),
             roles=_roles(payload, s.role_claim),
+            auth_time=auth_time,
+            jti=jti,
+            amr=amr,
         )
+
+
+def _parse_auth_time(raw: object) -> datetime | None:
+    if raw is None:
+        return None
+    if isinstance(raw, bool) or not isinstance(raw, int | float):
+        raise InvalidToken("auth_time must be a numeric timestamp")
+    if not math.isfinite(raw):
+        raise InvalidToken("auth_time must be a finite numeric timestamp")
+    try:
+        return datetime.fromtimestamp(raw, tz=UTC)
+    except (OverflowError, OSError, ValueError) as e:
+        raise InvalidToken(f"auth_time is out of range: {e}") from e
+
+
+def _parse_jti(raw: object) -> str | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or not raw.strip():
+        raise InvalidToken("jti must be a non-blank string")
+    return raw
+
+
+def _parse_amr(raw: object) -> frozenset[str]:
+    if not isinstance(raw, list):
+        return frozenset()
+    return frozenset(a for a in cast(list[Any], raw) if isinstance(a, str))
