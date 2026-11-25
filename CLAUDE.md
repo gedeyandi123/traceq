@@ -6,7 +6,7 @@ This section applies only when running in Claude Code. Universal protocol, SSOT,
 
 ### Effort & Models
 
-The session runs Opus 5.5 at effort `medium` (its default) for grilling, spec and merging. Subagents are spawned by name (`subagent_type`) from `.claude/agents/`, which fixes their model, effort and tools:
+The session runs Opus at effort `medium` (its default) for grilling, spec and merging. Subagents are spawned by name (`subagent_type`) from `.claude/agents/`, which fixes their model, effort and tools:
 
 | Agent | Use for | Model / effort | Tools |
 |---|---|---|---|
