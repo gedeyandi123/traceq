@@ -181,3 +181,22 @@ def test_the_demo_issuer_runs_on_the_local_machine_only() -> None:
         create_issuer("http://0.0.0.0:9000", audience="traceq")
     with pytest.raises(ValueError, match="local machine"):
         create_issuer("http://issuer.example:9000", audience="traceq")
+
+
+def test_issuer_unavailable_returns_generic_503() -> None:
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    from traceq.identity import IssuerUnavailable
+    from traceq.identity.http import authenticate
+
+    class _DownVerifier:
+        def verify(self, token: str) -> Principal:
+            raise IssuerUnavailable("cannot read http://127.0.0.1:9000/.well-known: [Errno 111]")
+
+    principal = authenticate(_DownVerifier())  # type: ignore[arg-type]
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="any-token")
+    with pytest.raises(HTTPException) as exc:
+        principal(creds)
+    assert exc.value.status_code == 503
+    assert exc.value.detail == "the identity issuer is temporarily unavailable"

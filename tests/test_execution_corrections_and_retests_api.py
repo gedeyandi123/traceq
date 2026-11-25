@@ -769,3 +769,96 @@ def test_retest_refusals_acceptance_and_completion_frozen_copy(
     with transaction(engine(fresh_database.app)) as session:
         audit_actions = [e.action for e in entries(session)]
     assert "attempt retested" in audit_actions
+
+
+def test_correction_and_retest_audit_trail_and_version_hash_rfc(
+    client: TestClient,
+    ayu: dict[str, str],
+    approver: dict[str, str],
+    fresh_database: Databases,
+) -> None:
+    ex = _start_execution(
+        client,
+        ayu,
+        approver,
+        r026_step={
+            "description": "Langkah uji",
+            "method": "Metode",
+            "instrument": None,
+            "acceptance": {"type": "range", "min": 20.0, "max": 70.0, "unit": "rpm"},
+        },
+    )
+    att1 = client.post(
+        _attempt_url(ex["id"], R026),
+        headers=ayu,
+        json={"outcome_kind": "value", "value": {"type": "number", "value": 45.0}},
+    )
+    assert att1.status_code == 201
+    v1 = _row(att1.json(), R026)["attempts"][0]["versions"][0]
+
+    # Two corrections with identical measurement values but different reason_for_change
+    # must produce different version_hash values.
+    corr1 = client.post(
+        _correct_url(ex["id"], R026, 1),
+        headers=ayu,
+        json={
+            "outcome_kind": "value",
+            "value": {"type": "number", "value": 95.0},
+            "reason_for_change": "  Salah baca angka pertama  ",
+        },
+    )
+    assert corr1.status_code == 201
+    v2 = _row(corr1.json(), R026)["attempts"][0]["versions"][1]
+
+    corr2 = client.post(
+        _correct_url(ex["id"], R026, 1),
+        headers=ayu,
+        json={
+            "outcome_kind": "value",
+            "value": {"type": "number", "value": 95.0},
+            "reason_for_change": "Alasan koreksi berbeda",
+        },
+    )
+    assert corr2.status_code == 201
+    v3 = _row(corr2.json(), R026)["attempts"][0]["versions"][2]
+    assert v2["version_hash"] != v3["version_hash"]
+
+    dev_id = corr2.json()["deviations"][0]["id"]
+    retest = client.post(
+        _retest_url(ex["id"], R026),
+        headers=ayu,
+        json={
+            "outcome_kind": "value",
+            "value": {"type": "number", "value": 50.0},
+            "deviation_id": dev_id,
+            "retest_reason": "  Uji ulang setelah penyetelan  ",
+        },
+    )
+    assert retest.status_code == 201
+
+    with transaction(engine(fresh_database.app)) as session:
+        all_entries = entries(session)
+
+    corr_entry = next(
+        e
+        for e in all_entries
+        if e.action == "attempt corrected"
+        and isinstance(e.new_value, dict)
+        and e.new_value.get("version") == 2
+    )
+    assert corr_entry.old_value == {
+        "version_id": v1["id"],
+        "version": 1,
+        "outcome_kind": "value",
+        "verdict": "pass",
+        "version_hash": v1["version_hash"],
+    }
+    assert corr_entry.reason == "Salah baca angka pertama"
+
+    retest_entry = next(e for e in all_entries if e.action == "attempt retested")
+    assert retest_entry.old_value == {
+        "attempt_id": _row(att1.json(), R026)["attempts"][0]["id"],
+        "attempt_number": 1,
+        "verdict": "fail",
+    }
+    assert retest_entry.reason == "Uji ulang setelah penyetelan"

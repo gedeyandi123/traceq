@@ -630,7 +630,11 @@ def _version_hash(
     req: RecordAttemptRequest,
     verdict: Verdict,
     actor: audit.Actor,
+    reason_for_change: str | None = None,
 ) -> str:
+    rfc = reason_for_change.strip() if reason_for_change is not None else None
+    if rfc == "":
+        rfc = None
     payload: dict[str, Any] = {
         "execution_id": execution_id,
         "requirement": requirement,
@@ -650,6 +654,7 @@ def _version_hash(
         ),
         "evidence": list(req.evidence),
         "verdict": verdict,
+        "reason_for_change": rfc,
         "actor": {"subject": actor.subject, "issuer": actor.issuer, "name": actor.name},
     }
     return digest(payload)
@@ -837,6 +842,7 @@ def _insert_attempt_version(
         req=req,
         verdict=verdict,
         actor=actor,
+        reason_for_change=reason_for_change,
     )
     not_perf_reason = (
         req.not_performable_reason.strip() if req.not_performable_reason is not None else None
@@ -1145,8 +1151,9 @@ def correct_attempt(
         .mappings()
         .all()
     )
+    prev = version_rows[-1]
     first_version_utc_date = version_rows[0]["at"].astimezone(UTC).date()
-    next_version = version_rows[-1]["version"] + 1
+    next_version = prev["version"] + 1
 
     verdict = judge(row.test_step.acceptance, req)
     validate_instruments(
@@ -1172,6 +1179,13 @@ def correct_attempt(
         "attempt corrected",
         "execution_attempt",
         f"{execution_id}/{requirement}/{attempt_number}",
+        old={
+            "version_id": prev["id"],
+            "version": prev["version"],
+            "outcome_kind": prev["outcome_kind"],
+            "verdict": prev["verdict"],
+            "version_hash": prev["version_hash"],
+        },
         new={
             "execution_id": execution_id,
             "requirement": requirement,
@@ -1184,6 +1198,7 @@ def correct_attempt(
             "version_hash": ver.version_hash,
             "reason_for_change": req.reason_for_change,
         },
+        reason=req.reason_for_change,
     )
 
     existing_causes = frozenset(d.cause for d in attempt_devs)
@@ -1297,6 +1312,11 @@ def retest_row(
         "attempt retested",
         "execution_attempt",
         f"{execution_id}/{requirement}/{attempt_number}",
+        old={
+            "attempt_id": latest_attempt.id,
+            "attempt_number": latest_attempt.attempt_number,
+            "verdict": latest_attempt.latest.verdict,
+        },
         new={
             "execution_id": execution_id,
             "requirement": requirement,
@@ -1311,6 +1331,7 @@ def retest_row(
             "deviation_number": dev.deviation_number,
             "retest_reason": retest_reason,
         },
+        reason=retest_reason,
     )
 
     opened_deviations = _open_automatic_deviations(
