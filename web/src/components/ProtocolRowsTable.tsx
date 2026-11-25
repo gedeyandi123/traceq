@@ -29,16 +29,16 @@ export function ProtocolRowsTable({
       <table className="w-full border-collapse text-left text-xs">
         <thead>
           <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               {t("requirement")}
             </th>
-            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               {t("coverage")}
             </th>
-            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               {t("content")}
             </th>
-            <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               {t("drafts")}
             </th>
           </tr>

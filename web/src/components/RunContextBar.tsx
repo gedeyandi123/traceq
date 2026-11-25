@@ -1,49 +1,31 @@
 "use client";
 
-import { ArrowRight, ChevronDown, LogOut, Menu, UserRoundCog } from "lucide-react";
+import { ArrowRight, Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { usePathname, useSelectedLayoutSegment } from "next/navigation";
+import { useSelectedLayoutSegment } from "next/navigation";
 
-import type { RunSummary } from "@/api/client";
+import type { ProtocolView, RunSummary } from "@/api/client";
 import type { Session } from "@/auth/session";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/DropdownMenu";
+import { SessionMenu } from "@/components/SessionMenu";
 import { ModeBadge } from "@/components/ui/ui";
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w.charAt(0))
-    .join("")
-    .toUpperCase();
-}
 
 export function RunContextBar({
   run,
+  protocolStatus,
   session,
   signOutAction,
   onOpenMobileNav,
 }: {
   run: RunSummary;
+  protocolStatus?: ProtocolView["status"] | null;
   session: Session | null;
   signOutAction: () => Promise<void>;
   onOpenMobileNav: () => void;
 }) {
   const t = useTranslations("runHeader");
   const runs = useTranslations("runs");
-  const signin = useTranslations("signin");
-  const ui = useTranslations("ui");
   const segment = useSelectedLayoutSegment();
-  const pathname = usePathname();
-  const signInHref = pathname ? `/signin?next=${encodeURIComponent(pathname)}` : "/signin";
 
   const base = `/runs/${encodeURIComponent(run.run_id)}`;
   const pkg = run.review_package;
@@ -57,15 +39,9 @@ export function RunContextBar({
       : { href: `${base}/protocol`, label: t("toProtocol") };
   } else if (segment === "draft") {
     nextAction = { href: `${base}/protocol`, label: t("toProtocol") };
+  } else if (segment === "protocol" && protocolStatus === "approved") {
+    nextAction = { href: `${base}/execution`, label: t("toExecution") };
   }
-
-  const roleLabel = session?.mayDecide
-    ? signin("canDecide")
-    : session?.mayApprove
-      ? signin("canApprove")
-      : session?.mayWitness
-        ? signin("canWitness")
-        : signin("readOnly");
 
   return (
     <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-3 sm:px-5">
@@ -86,7 +62,9 @@ export function RunContextBar({
           <span aria-hidden="true" className="hidden text-ink-muted sm:inline">
             /
           </span>
-          <span className="truncate font-bold text-ink tabular-nums">{run.equipment}</span>
+          <span title={run.equipment} className="truncate font-bold text-ink tabular-nums">
+            {run.equipment}
+          </span>
         </nav>
 
         <ModeBadge>{runs(run.mode)}</ModeBadge>
@@ -102,6 +80,7 @@ export function RunContextBar({
         {nextAction && (
           <Link
             href={nextAction.href}
+            title={nextAction.label}
             className="inline-flex h-8 max-w-[140px] items-center gap-1 rounded-md bg-accent px-2 text-xs font-semibold text-on-accent no-underline transition-colors hover:bg-accent-hover sm:max-w-none sm:gap-1.5 sm:px-3"
           >
             <span className="truncate">{nextAction.label}</span>
@@ -109,58 +88,7 @@ export function RunContextBar({
           </Link>
         )}
 
-        {session ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-ink transition-colors hover:bg-sunken"
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-bold text-accent"
-                >
-                  {initials(session.name)}
-                </span>
-                <span className="hidden max-w-[140px] truncate font-semibold md:inline">
-                  {session.name}
-                </span>
-                <span className="hidden rounded border border-border bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted lg:inline">
-                  {roleLabel}
-                </span>
-                <ChevronDown className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="flex flex-col gap-0.5">
-                <span className="text-xs font-semibold text-ink">{session.name}</span>
-                <span className="text-[11px] font-normal text-ink-muted">{roleLabel}</span>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href={signInHref} className="no-underline">
-                  <UserRoundCog className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{ui("switchPersona")}</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  void signOutAction();
-                }}
-              >
-                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{signin("out")}</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Link
-            href={signInHref}
-            className="inline-flex h-8 items-center rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-ink no-underline transition-colors hover:bg-sunken sm:px-3"
-          >
-            {signin("link")}
-          </Link>
-        )}
+        <SessionMenu session={session} signOutAction={signOutAction} />
       </div>
     </header>
   );

@@ -1,12 +1,12 @@
 "use client";
 
-import { Check, Copy, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import type { FrozenDecision, FrozenRow, SubmissionView } from "@/api/client";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
+import { CopyHashButton } from "./ui/CopyHashButton";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
 import { CoverageStatusBadge } from "./ui/StatusBadge";
 
@@ -141,7 +141,6 @@ export function FrozenCopy({
   const m = useTranslations("matrix");
   const when = useTranslations("decisions");
   const ui = useTranslations("ui");
-  const [copied, setCopied] = useState(false);
   const copy = submission.frozen_copy;
   const missed = (copy.urs ?? []).flatMap((u) =>
     u.missed.map((n) => ({ ...n, doc: u.doc, rev: u.rev })),
@@ -149,16 +148,6 @@ export function FrozenCopy({
   const unquoted = (copy.urs ?? []).flatMap((u) =>
     u.unquoted.map((x) => ({ ...x, doc: u.doc, rev: u.rev })),
   );
-
-  const handleCopyHash = async () => {
-    try {
-      await navigator.clipboard.writeText(submission.hash);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API unavailable
-    }
-  };
 
   return (
     <section aria-labelledby="protocol-copy" className="space-y-4">
@@ -179,18 +168,11 @@ export function FrozenCopy({
             <code data-testid="copy-hash" className="font-mono text-xs break-all text-ink tabular-nums">
               {submission.hash}
             </code>
-            <button
-              type="button"
-              onClick={() => void handleCopyHash()}
-              className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-muted hover:bg-canvas hover:text-ink"
-            >
-              {copied ? (
-                <Check className="h-3 w-3 text-pass" aria-hidden="true" />
-              ) : (
-                <Copy className="h-3 w-3" aria-hidden="true" />
-              )}
-              <span>{ui(copied ? "copied" : "copyHash")}</span>
-            </button>
+            <CopyHashButton
+              value={submission.hash}
+              copyLabel={ui("copyHash")}
+              copiedLabel={ui("copied")}
+            />
           </dd>
           <dt className="font-semibold text-ink-muted">{t("copy.preparer")}</dt>
           <dd className="m-0 text-ink tabular-nums">
@@ -206,16 +188,16 @@ export function FrozenCopy({
         <table className="w-full border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+              <th scope="col" className="px-3 py-2">
                 {t("requirement")}
               </th>
-              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+              <th scope="col" className="px-3 py-2">
                 {t("coverage")}
               </th>
-              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+              <th scope="col" className="px-3 py-2">
                 {t("content")}
               </th>
-              <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+              <th scope="col" className="px-3 py-2">
                 {t("drafts")}
               </th>
             </tr>
@@ -285,7 +267,10 @@ export function FrozenCopy({
           <h3 className="m-0 text-sm font-bold text-ink">{t("unquoted.title")}</h3>
           <ul className="m-0 list-none space-y-1.5 p-0 text-xs">
             {unquoted.map((x, i) => (
-              <li key={i} className="rounded border border-border bg-sunken p-2.5 text-ink-muted tabular-nums">
+              <li
+                key={`${x.doc}/${x.rev}/${x.page}/${i}`}
+                className="rounded border border-border bg-sunken p-2.5 text-ink-muted tabular-nums"
+              >
                 {x.doc} rev {x.rev}, {t("missed.page", { page: x.page })}: {x.text}
               </li>
             ))}

@@ -1,14 +1,12 @@
 "use client";
 
 import {
-  ArrowRight,
   CheckCircle2,
   FileWarning,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 
 import type { Cite, Findings, Proposal } from "@/api/client";
@@ -520,16 +518,16 @@ export function FindingsView({
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
                     <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                      <th scope="col" className="px-3 py-2">
                         {t("document")}
                       </th>
-                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                      <th scope="col" className="px-3 py-2">
                         {t("type")}
                       </th>
-                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                      <th scope="col" className="px-3 py-2">
                         {t("stage")}
                       </th>
-                      <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                      <th scope="col" className="px-3 py-2">
                         {t("required")}
                       </th>
                     </tr>
@@ -554,25 +552,6 @@ export function FindingsView({
           </section>
         </TabsContent>
       </Tabs>
-
-      {/* Handoff Bar */}
-      <nav
-        aria-label={th("handoffTitle")}
-        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
-      >
-        <span className="text-xs font-medium text-ink-muted">{th("handoffTitle")}</span>
-        <Link
-          href={
-            hasReviewPackage
-              ? `/runs/${encodeURIComponent(runId)}/draft`
-              : `/runs/${encodeURIComponent(runId)}/protocol`
-          }
-          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
-        >
-          <span>{hasReviewPackage ? th("toDraft") : th("toProtocol")}</span>
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
-      </nav>
     </div>
   );
 }

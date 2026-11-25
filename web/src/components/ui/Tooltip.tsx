@@ -16,7 +16,7 @@ export function TooltipContent({
     <RadixTooltip.Portal>
       <RadixTooltip.Content
         sideOffset={sideOffset}
-        className={`z-50 max-w-xs rounded-md border border-border bg-ink px-2.5 py-1.5 text-xs text-surface shadow-md ${className ?? ""}`.trim()}
+        className={`z-50 max-w-xs rounded-md border border-transparent bg-ink px-2.5 py-1.5 text-xs text-surface shadow-md ${className ?? ""}`.trim()}
         {...props}
       />
     </RadixTooltip.Portal>

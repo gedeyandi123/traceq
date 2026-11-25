@@ -7,6 +7,7 @@ import { useActionState, useState } from "react";
 import type { ExecutionRowView } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
 import { Drawer } from "./ui/Drawer";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { SubmitButton } from "./ui/SubmitButton";
 import { Button } from "./ui/ui";
 
@@ -71,7 +72,7 @@ export function ManualDeviationDrawer({
             name="requirement"
             value={requirement}
             onChange={(e) => setRequirement(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+            className={`w-full text-xs ${FIELD_BASE_CLASS}`}
           >
             <option value="">{t("deviationLinkExecution")}</option>
             {testStepRows.map((r) => (
@@ -94,7 +95,7 @@ export function ManualDeviationDrawer({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("deviationDescriptionPlaceholder")}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-ink"
+            className={`w-full py-2 text-xs ${FIELD_BASE_CLASS}`}
           />
         </div>
 

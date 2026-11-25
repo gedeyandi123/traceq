@@ -11,6 +11,7 @@ import { SHAPES, type Acceptance } from "@/protocol/form";
 import { AcShapeFields } from "./AcShapeFields";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
 type MatrixT = ReturnType<typeof useTranslations<"matrix">>;
@@ -44,11 +45,9 @@ function wrapLegacyAction(action: Action): InlineAction {
   };
 }
 
-const TEXTAREA_CLASS =
-  "w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none";
+const TEXTAREA_CLASS = `w-full text-xs ${FIELD_BASE_CLASS}`;
 
-const INPUT_CLASS =
-  "w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none";
+const INPUT_CLASS = `w-full text-xs ${FIELD_BASE_CLASS}`;
 
 /** The fields of a Test Step: description, method, instrument, and the Acceptance Criterion
  * as one of four shapes with its values. */

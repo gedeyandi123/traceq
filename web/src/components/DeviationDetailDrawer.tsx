@@ -8,6 +8,7 @@ import type { DeviationView } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
 import { formatWhen } from "./formatWhen";
 import { Drawer } from "./ui/Drawer";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { DeviationStatusBadge } from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
 
@@ -209,7 +210,7 @@ export function DeviationDetailDrawer({
                   rows={3}
                   value={investigationText}
                   onChange={(e) => setInvestigationText(e.target.value)}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 />
               </div>
 
@@ -227,7 +228,7 @@ export function DeviationDetailDrawer({
                   onChange={(e) =>
                     setDeviationClass(e.target.value as "minor" | "major" | "critical")
                   }
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 >
                   {CLASSES.map((c) => (
                     <option key={c} value={c}>
@@ -250,7 +251,7 @@ export function DeviationDetailDrawer({
                   rows={2}
                   value={capa}
                   onChange={(e) => setCapa(e.target.value)}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 />
               </div>
 
@@ -269,7 +270,7 @@ export function DeviationDetailDrawer({
                     required
                     value={reasonForChange}
                     onChange={(e) => setReasonForChange(e.target.value)}
-                    className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                    className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                   />
                 </div>
               )}
@@ -328,7 +329,7 @@ export function DeviationDetailDrawer({
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
                   placeholder={t("deviationReturnReasonPlaceholder")}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 />
                 <SubmitButton variant="soft">
                   <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />

@@ -14,15 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w.charAt(0))
-    .join("")
-    .toUpperCase();
-}
+import { initials, resolveRoleSummary } from "@/lib/persona";
 
 export function SessionMenu({
   session,
@@ -34,9 +26,10 @@ export function SessionMenu({
   const t = useTranslations("signin");
   const ui = useTranslations("ui");
   const pathname = usePathname();
-  const signInHref = pathname && pathname !== "/signin"
-    ? `/signin?next=${encodeURIComponent(pathname)}`
-    : "/signin";
+  const signInHref =
+    pathname && pathname !== "/signin"
+      ? `/signin?next=${encodeURIComponent(pathname)}`
+      : "/signin";
 
   if (session === null) {
     return (
@@ -49,13 +42,7 @@ export function SessionMenu({
     );
   }
 
-  const roleLabel = session.mayDecide
-    ? t("canDecide")
-    : session.mayApprove
-      ? t("canApprove")
-      : session.mayWitness
-        ? t("canWitness")
-        : t("readOnly");
+  const roleLabel = resolveRoleSummary(session, (key) => t(key));
 
   return (
     <DropdownMenu>
@@ -70,7 +57,7 @@ export function SessionMenu({
           >
             {initials(session.name)}
           </span>
-          <span className="hidden max-w-[160px] truncate font-semibold sm:inline">
+          <span title={session.name} className="hidden max-w-[160px] truncate font-semibold sm:inline">
             {session.name}
           </span>
           <span className="hidden rounded border border-border bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted md:inline">

@@ -8,7 +8,7 @@ import { currentSession } from "@/auth/session";
 import { RunShell } from "@/components/RunShell";
 import type { RunSidebarBadges } from "@/components/RunSidebar";
 import { LOCALE } from "@/i18n/request";
-import { fetchDecisionCounts, fetchProtocol, fetchRun } from "@/runs/fetchers";
+import { fetchDecisionCounts, fetchExecution, fetchProtocol, fetchRun } from "@/runs/fetchers";
 
 export default async function RunWorkspaceLayout({
   params,
@@ -28,19 +28,28 @@ export default async function RunWorkspaceLayout({
 
   if (!run) notFound();
 
-  const badges: RunSidebarBadges = counts
-    ? {
-        matrix: counts.coverage.undecided + counts.coverage.changed,
-        findings:
-          counts.check.undecided +
-          counts.check.changed +
-          counts.ai.undecided +
-          counts.ai.changed,
-        draft: counts.draft.undecided + counts.draft.changed,
-      }
-    : {};
-
   const protocolStatus = protocolRes.kind === "ok" ? protocolRes.data.status : null;
+  const executionRes = protocolStatus === "approved" ? await fetchExecution(runId) : null;
+  const executionData = executionRes?.kind === "ok" ? executionRes.data : null;
+  const openDeviations = executionData
+    ? executionData.deviations.filter((d) => d.status !== "closed").length
+    : undefined;
+
+  const badges: RunSidebarBadges = {
+    ...(counts
+      ? {
+          matrix: counts.coverage.undecided + counts.coverage.changed,
+          findings:
+            counts.check.undecided +
+            counts.check.changed +
+            counts.ai.undecided +
+            counts.ai.changed,
+          draft: counts.draft.undecided + counts.draft.changed,
+        }
+      : {}),
+    executionStatus: executionData?.status ?? null,
+    openDeviations,
+  };
 
   return (
     <NextIntlClientProvider locale={LOCALE} messages={allMessages}>
