@@ -8,7 +8,7 @@ import { currentSession } from "@/auth/session";
 import { RunShell } from "@/components/RunShell";
 import type { RunSidebarBadges } from "@/components/RunSidebar";
 import { LOCALE } from "@/i18n/request";
-import { fetchDecisionCounts, fetchExecution, fetchProtocol, fetchRun } from "@/runs/fetchers";
+import { fetchDecisionCounts, fetchExecution, fetchProtocol, fetchRounds, fetchRun } from "@/runs/fetchers";
 
 export default async function RunWorkspaceLayout({
   params,
@@ -18,10 +18,11 @@ export default async function RunWorkspaceLayout({
   children: ReactNode;
 }) {
   const { runId } = await params;
-  const [run, counts, protocolRes, session, allMessages] = await Promise.all([
+  const [run, counts, protocolRes, roundsRes, session, allMessages] = await Promise.all([
     fetchRun(runId),
     fetchDecisionCounts(runId),
     fetchProtocol(runId),
+    fetchRounds(runId),
     currentSession(),
     getMessages(),
   ]);
@@ -29,6 +30,10 @@ export default async function RunWorkspaceLayout({
   if (!run) notFound();
 
   const protocolStatus = protocolRes.kind === "ok" ? protocolRes.data.status : null;
+  const currentRound =
+    roundsRes.kind === "ok"
+      ? (roundsRes.data.rounds.find((r) => r.id === roundsRes.data.current_round_id) ?? null)
+      : null;
   const executionRes = protocolStatus === "approved" ? await fetchExecution(runId) : null;
   const executionData = executionRes?.kind === "ok" ? executionRes.data : null;
   const openDeviations = executionData
@@ -49,6 +54,9 @@ export default async function RunWorkspaceLayout({
       : {}),
     executionStatus: executionData?.status ?? null,
     openDeviations,
+    roundBadge: currentRound
+      ? { roundNumber: currentRound.round_number, status: currentRound.status }
+      : null,
   };
 
   return (

@@ -38,7 +38,12 @@ const session: Session = {
 function renderShell(
   overrides: {
     run?: RunSummary;
-    badges?: { matrix?: number; findings?: number; draft?: number };
+    badges?: {
+      matrix?: number;
+      findings?: number;
+      draft?: number;
+      roundBadge?: { roundNumber: number; status: "open" | "returned_for_revision" | "ready_for_protocol" } | null;
+    };
     protocolStatus?: "draft" | "submitted" | "approved" | "withdrawn" | null;
     session?: Session | null;
   } = {},
@@ -69,6 +74,7 @@ test("renders unnumbered workflow & audit links, omitting Draf protokol when rev
   expect(links.map((a) => a.getAttribute("href"))).toEqual([
     "/runs/r7%20TP%2F201",
     "/runs/r7%20TP%2F201/findings",
+    "/runs/r7%20TP%2F201/rounds",
     "/runs/r7%20TP%2F201/protocol",
     "/runs/r7%20TP%2F201/execution",
     "/runs/r7%20TP%2F201/left-out",
@@ -97,6 +103,20 @@ test("includes Draf protokol and review_package metadata when review_package is 
   expect(draftLink.getAttribute("aria-current")).toBe("page");
   expect(draftLink.textContent).toContain("3");
   expect(screen.getByText("OQ-TP201 rev 0 (TP-201-OQ-draft 0.1.0)")).toBeDefined();
+});
+
+test("renders round badge in sidebar and protocol nextAction on rounds segment", () => {
+  mockSegment = "rounds";
+  renderShell({ badges: { roundBadge: { roundNumber: 2, status: "open" } } });
+
+  const nav = screen.getByRole("navigation", { name: "Layar run" });
+  const roundsLink = within(nav).getByRole("link", { name: /Dokumen & Ronde/ });
+  expect(roundsLink.getAttribute("aria-current")).toBe("page");
+  expect(roundsLink.textContent).toContain("R2 · Terbuka");
+
+  expect(
+    screen.getByRole("link", { name: /Lanjut ke Protokol \(disusun di TraceQ\)/ }).getAttribute("href"),
+  ).toBe("/runs/r7%20TP%2F201/protocol");
 });
 
 test("context bar renders equipment, next-action CTA, and persona dropdown menu", async () => {

@@ -5,6 +5,7 @@ import {
   type DecisionCounts,
   type ExecutionView,
   type ProtocolView,
+  type RunRoundsView,
   type RunSummary,
 } from "@/api/client";
 import { bearerHeaders, currentSession } from "@/auth/session";
@@ -69,6 +70,28 @@ export const fetchExecution = cache(async (runId: string): Promise<ExecutionFetc
   if (session === null) return { kind: "unavailable" };
   try {
     const res = await api.GET("/runs/{run_id}/execution", {
+      params: { path: { run_id: runId } },
+      headers: await bearerHeaders(),
+    });
+    if (res.data) return { kind: "ok", data: res.data };
+    if (res.response.status === 404) return { kind: "not_found" };
+    return { kind: "unavailable" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+});
+
+export type RoundsFetchResult =
+  | { kind: "ok"; data: RunRoundsView }
+  | { kind: "not_found" }
+  | { kind: "unavailable" };
+
+/** Deduplicated per-request fetch for Review Rounds & Document Versions (Step 6). */
+export const fetchRounds = cache(async (runId: string): Promise<RoundsFetchResult> => {
+  const session = await currentSession();
+  if (session === null) return { kind: "unavailable" };
+  try {
+    const res = await api.GET("/runs/{run_id}/rounds", {
       params: { path: { run_id: runId } },
       headers: await bearerHeaders(),
     });
