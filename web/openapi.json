@@ -1105,6 +1105,70 @@
           }
         }
       }
+    },
+    "/executions/{execution_id}/rows/{requirement}/attempts": {
+      "post": {
+        "summary": "Record Attempt",
+        "description": "Records the first attempt on a Test Step row of an ``in_progress`` Execution, judged\nby code, with instruments and automatic Deviations in the same transaction.",
+        "operationId": "recordAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "requirement",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Requirement"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordAttemptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1246,6 +1310,193 @@
         ],
         "title": "Approval",
         "description": "What the Approver read: approval is bound to that submission and its hash."
+      },
+      "AttemptVersionView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "outcome_kind": {
+            "$ref": "#/components/schemas/OutcomeKind"
+          },
+          "not_performable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Performable Reason"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation"
+          },
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentInput"
+            },
+            "type": "array",
+            "title": "Instruments"
+          },
+          "no_calibrated_instrument_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Calibrated Instrument Reason"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/traceq__execution__results__Verdict"
+          },
+          "version_hash": {
+            "type": "string",
+            "title": "Version Hash"
+          },
+          "reason_for_change": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason For Change"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "version",
+          "outcome_kind",
+          "not_performable_reason",
+          "value",
+          "observation",
+          "instruments",
+          "no_calibrated_instrument_reason",
+          "evidence",
+          "verdict",
+          "version_hash",
+          "reason_for_change",
+          "subject",
+          "issuer",
+          "name"
+        ],
+        "title": "AttemptVersionView",
+        "description": "One immutable version of an attempt's Result."
+      },
+      "AttemptView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "title": "Attempt Number"
+          },
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/AttemptVersionView"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "latest": {
+            "$ref": "#/components/schemas/AttemptVersionView"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "attempt_number",
+          "requirement",
+          "subject",
+          "issuer",
+          "name",
+          "versions",
+          "latest"
+        ],
+        "title": "AttemptView",
+        "description": "One attempt on a Test Step row, with its versions oldest first."
       },
       "Author": {
         "properties": {
@@ -1441,7 +1692,7 @@
             "title": "Id"
           },
           "decision": {
-            "$ref": "#/components/schemas/Verdict"
+            "$ref": "#/components/schemas/traceq__proposals__decisions__Verdict"
           },
           "coverage": {
             "anyOf": [
@@ -1621,6 +1872,192 @@
         ],
         "title": "DesignRow",
         "description": "A datasheet or certificate value compared with the URS value."
+      },
+      "DeviationCause": {
+        "type": "string",
+        "enum": [
+          "failed",
+          "no_calibrated_instrument",
+          "manual"
+        ]
+      },
+      "DeviationClass": {
+        "type": "string",
+        "enum": [
+          "minor",
+          "major",
+          "critical"
+        ]
+      },
+      "DeviationEventKind": {
+        "type": "string",
+        "enum": [
+          "opened",
+          "submitted",
+          "returned",
+          "closed"
+        ]
+      },
+      "DeviationEventView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "event": {
+            "$ref": "#/components/schemas/DeviationEventKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeviationStatus"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "event",
+          "status",
+          "reason",
+          "subject",
+          "issuer",
+          "name"
+        ],
+        "title": "DeviationEventView",
+        "description": "One status event on a Deviation."
+      },
+      "DeviationStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "submitted",
+          "closed"
+        ]
+      },
+      "DeviationView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "deviation_number": {
+            "type": "integer",
+            "title": "Deviation Number"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "attempt_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Id"
+          },
+          "cause": {
+            "$ref": "#/components/schemas/DeviationCause"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeviationStatus"
+          },
+          "deviation_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviationClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/DeviationEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "deviation_number",
+          "requirement",
+          "attempt_id",
+          "cause",
+          "status",
+          "deviation_class",
+          "description",
+          "subject",
+          "issuer",
+          "name",
+          "events"
+        ],
+        "title": "DeviationView",
+        "description": "One Deviation on an Execution."
       },
       "DraftAcceptance": {
         "properties": {
@@ -2522,6 +2959,13 @@
                 "type": "null"
               }
             ]
+          },
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/AttemptView"
+            },
+            "type": "array",
+            "title": "Attempts"
           }
         },
         "additionalProperties": false,
@@ -2532,7 +2976,8 @@
           "source",
           "kind",
           "evidence",
-          "test_step"
+          "test_step",
+          "attempts"
         ],
         "title": "ExecutionRowView",
         "description": "One row of the Execution, in the order of the Approved Protocol's frozen copy."
@@ -2624,6 +3069,13 @@
             },
             "type": "array",
             "title": "Rows"
+          },
+          "deviations": {
+            "items": {
+              "$ref": "#/components/schemas/DeviationView"
+            },
+            "type": "array",
+            "title": "Deviations"
           }
         },
         "additionalProperties": false,
@@ -2637,7 +3089,8 @@
           "submission_hash",
           "status",
           "events",
-          "rows"
+          "rows",
+          "deviations"
         ],
         "title": "ExecutionView",
         "description": "An Execution of an Approved Protocol: its status, events, and rows from the frozen copy."
@@ -2733,7 +3186,7 @@
             "title": "Id"
           },
           "decision": {
-            "$ref": "#/components/schemas/Verdict"
+            "$ref": "#/components/schemas/traceq__proposals__decisions__Verdict"
           },
           "coverage": {
             "anyOf": [
@@ -3204,6 +3657,27 @@
         ],
         "title": "ImportedRun",
         "description": "A run imported as Proposals."
+      },
+      "InstrumentInput": {
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "title": "Identifier"
+          },
+          "calibration_due_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Calibration Due Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "identifier",
+          "calibration_due_date"
+        ],
+        "title": "InstrumentInput",
+        "description": "One calibrated instrument used during a Test Step."
       },
       "Kind": {
         "type": "string",
@@ -3701,7 +4175,7 @@
       "NewDecision": {
         "properties": {
           "decision": {
-            "$ref": "#/components/schemas/Verdict"
+            "$ref": "#/components/schemas/Verdict-Input"
           },
           "coverage": {
             "anyOf": [
@@ -3812,6 +4286,27 @@
         ],
         "title": "Number"
       },
+      "NumberResultValue": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "number",
+            "title": "Type",
+            "default": "number"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "NumberResultValue",
+        "description": "Numeric measurement for a ``number`` or ``range`` Acceptance Criterion (no unit)."
+      },
       "OneOf": {
         "properties": {
           "type": {
@@ -3835,6 +4330,39 @@
           "allowed"
         ],
         "title": "OneOf"
+      },
+      "OneOfResultValue": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "one_of",
+            "title": "Type",
+            "default": "one_of"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "not_one_of": {
+            "type": "boolean",
+            "title": "Not One Of",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "OneOfResultValue",
+        "description": "Choice for a ``one_of`` Acceptance Criterion, or ``not_one_of`` with observed text."
+      },
+      "OutcomeKind": {
+        "type": "string",
+        "enum": [
+          "value",
+          "not_performable"
+        ]
       },
       "PrefillOrigin": {
         "type": "string",
@@ -3868,6 +4396,27 @@
         "type": "object",
         "title": "Present",
         "description": "A feature that must exist; ``value`` is set when an observation states it."
+      },
+      "PresentResultValue": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "present",
+            "title": "Type",
+            "default": "present"
+          },
+          "value": {
+            "type": "boolean",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "PresentResultValue",
+        "description": "Observation for a ``present`` Acceptance Criterion."
       },
       "Proposal": {
         "properties": {
@@ -4422,6 +4971,79 @@
         "title": "Range",
         "description": "A required or tested range; either bound may be open."
       },
+      "RecordAttemptRequest": {
+        "properties": {
+          "outcome_kind": {
+            "$ref": "#/components/schemas/OutcomeKind"
+          },
+          "not_performable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Performable Reason"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation"
+          },
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentInput"
+            },
+            "type": "array",
+            "title": "Instruments",
+            "default": []
+          },
+          "no_calibrated_instrument_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Calibrated Instrument Reason"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "outcome_kind"
+        ],
+        "title": "RecordAttemptRequest",
+        "description": "Payload to record the first attempt on a Test Step row."
+      },
       "RequiredDocument": {
         "properties": {
           "doc_id": {
@@ -4462,6 +5084,27 @@
         ],
         "title": "RequiredDocument",
         "description": "A document the VMP requires for the Equipment, with the annex row cited."
+      },
+      "ResultValue": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/NumberResultValue"
+          },
+          {
+            "$ref": "#/components/schemas/OneOfResultValue"
+          },
+          {
+            "$ref": "#/components/schemas/PresentResultValue"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "number": "#/components/schemas/NumberResultValue",
+            "one_of": "#/components/schemas/OneOfResultValue",
+            "present": "#/components/schemas/PresentResultValue"
+          }
+        }
       },
       "Return": {
         "properties": {
@@ -5064,7 +5707,7 @@
         "title": "VendorFactCite",
         "description": "A vendor step's observation or a design value, as printed, with its citation."
       },
-      "Verdict": {
+      "Verdict-Input": {
         "type": "string",
         "enum": [
           "accepted",
@@ -5235,6 +5878,21 @@
         "enum": [
           "in_progress",
           "completed"
+        ]
+      },
+      "traceq__execution__results__Verdict": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "fail"
+        ]
+      },
+      "traceq__proposals__decisions__Verdict": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "rejected",
+          "edited"
         ]
       }
     },

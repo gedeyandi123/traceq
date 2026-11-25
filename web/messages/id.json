@@ -53,6 +53,15 @@
     "executionStatuses": {
       "in_progress": "Sedang berjalan",
       "completed": "Selesai"
+    },
+    "verdicts": {
+      "pass": "Lulus",
+      "fail": "Gagal"
+    },
+    "deviationStatuses": {
+      "open": "Terbuka",
+      "submitted": "Diajukan",
+      "closed": "Ditutup"
     }
   },
   "runHeader": {
@@ -751,12 +760,52 @@
     "noInstrument": "Tidak ada instrumen",
     "evidenceStep": "{doc} rev {rev}, langkah {step}",
     "vendorNoControls": "Referensi vendor — tidak memerlukan tindakan saat eksekusi.",
+    "utcNote": "Semua tanggal dan waktu dicatat dalam zona waktu UTC sesuai jam basis data.",
+    "colResult": "Hasil",
+    "recordResult": "Catat hasil",
+    "recordResultTitle": "Catat hasil — {requirement}",
+    "outcomeKind": "Jenis hasil",
+    "outcomeValue": "Nilai teramati",
+    "outcomeNotPerformable": "Tidak dapat dilaksanakan",
+    "notPerformableReason": "Alasan tidak dapat dilaksanakan",
+    "observedValue": "Nilai teramati",
+    "oneOfNotListed": "Bukan salah satu dari ini",
+    "oneOfObserved": "Nilai yang teramati",
+    "presentChoice": "Status keberadaan",
+    "presentTrue": "Ada (Present)",
+    "presentFalse": "Tidak ada (Absent)",
+    "instrumentsTitle": "Instrumen terkalibrasi",
+    "useCalibratedInstruments": "Gunakan instrumen terkalibrasi",
+    "noCalibratedInstrument": "Tidak ada instrumen terkalibrasi yang berlaku (membuka Deviasi)",
+    "noCalibratedInstrumentReason": "Alasan tanpa instrumen terkalibrasi",
+    "instrumentId": "ID instrumen",
+    "calibrationDueDate": "Kedaluwarsa kalibrasi (UTC)",
+    "addInstrument": "Tambah instrumen",
+    "removeInstrument": "Hapus instrumen",
+    "evidenceTitle": "Referensi bukti",
+    "evidencePlaceholder": "Contoh: PRINT-001 atau Logbook hal. 12",
+    "addEvidence": "Tambah referensi bukti",
+    "removeEvidence": "Hapus referensi bukti",
+    "observation": "Observasi (opsional)",
+    "submitResult": "Simpan hasil",
+    "recordedBy": "Dicatat oleh {name}, {when}",
+    "notPerformableDisplay": "Tidak dapat dilaksanakan: {reason}",
+    "noCalibratedDisplay": "Tanpa instrumen terkalibrasi: {reason}",
+    "deviationsTitle": "Deviasi ({count})",
+    "deviationsEmpty": "Belum ada deviasi pada eksekusi ini.",
+    "deviationColNumber": "No.",
+    "deviationColStatus": "Status",
+    "deviationColClass": "Kelas",
+    "deviationColStep": "Langkah uji",
+    "deviationColDescription": "Deskripsi",
+    "deviationClassUnset": "Belum ditetapkan",
     "errors": {
-      "conflict": "Ditolak API: eksekusi hanya dapat dimulai untuk protokol berstatus Disetujui, dan hanya satu eksekusi per protokol.",
+      "conflict": "Ditolak API: perubahan tidak diizinkan pada status saat ini atau kalibrasi kedaluwarsa.",
       "forbidden": "Ditolak API: identitas ini tidak memiliki peran pelaksana (qualification-executor).",
       "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",
-      "notFound": "Ditolak API: protokol tidak ditemukan.",
-      "failed": "Gagal memulai eksekusi. Coba lagi."
+      "notFound": "Ditolak API: eksekusi atau baris tidak ditemukan.",
+      "unprocessable": "Data hasil tidak lengkap atau tidak sesuai bentuk kriteria penerimaan.",
+      "failed": "Gagal menyimpan. Coba lagi."
     },
     "limitsTitle": "Batas yang diketahui",
     "limits": {

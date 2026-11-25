@@ -493,6 +493,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/executions/{execution_id}/rows/{requirement}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Attempt
+         * @description Records the first attempt on a Test Step row of an ``in_progress`` Execution, judged
+         *     by code, with instruments and automatic Deviations in the same transaction.
+         */
+        post: operations["recordAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -553,6 +574,70 @@ export interface components {
             submission_event_id: number;
             /** Hash */
             hash: string;
+        };
+        /**
+         * AttemptVersionView
+         * @description One immutable version of an attempt's Result.
+         */
+        AttemptVersionView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Version */
+            version: number;
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason: string | null;
+            value: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation: string | null;
+            /** Instruments */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason: string | null;
+            /** Evidence */
+            evidence: string[];
+            verdict: components["schemas"]["traceq__execution__results__Verdict"];
+            /** Version Hash */
+            version_hash: string;
+            /** Reason For Change */
+            reason_for_change: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * AttemptView
+         * @description One attempt on a Test Step row, with its versions oldest first.
+         */
+        AttemptView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Attempt Number */
+            attempt_number: number;
+            /** Requirement */
+            requirement: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /** Versions */
+            versions: components["schemas"]["AttemptVersionView"][];
+            latest: components["schemas"]["AttemptVersionView"];
         };
         /**
          * Author
@@ -636,7 +721,7 @@ export interface components {
         Decision: {
             /** Id */
             id: number;
-            decision: components["schemas"]["Verdict"];
+            decision: components["schemas"]["traceq__proposals__decisions__Verdict"];
             /** Coverage */
             coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -687,6 +772,69 @@ export interface components {
             /** Value */
             value: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
             citation: components["schemas"]["Cite"];
+        };
+        /** @enum {string} */
+        DeviationCause: "failed" | "no_calibrated_instrument" | "manual";
+        /** @enum {string} */
+        DeviationClass: "minor" | "major" | "critical";
+        /** @enum {string} */
+        DeviationEventKind: "opened" | "submitted" | "returned" | "closed";
+        /**
+         * DeviationEventView
+         * @description One status event on a Deviation.
+         */
+        DeviationEventView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            event: components["schemas"]["DeviationEventKind"];
+            status: components["schemas"]["DeviationStatus"];
+            /** Reason */
+            reason: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
+        /** @enum {string} */
+        DeviationStatus: "open" | "submitted" | "closed";
+        /**
+         * DeviationView
+         * @description One Deviation on an Execution.
+         */
+        DeviationView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Deviation Number */
+            deviation_number: number;
+            /** Requirement */
+            requirement: string | null;
+            /** Attempt Id */
+            attempt_id: number | null;
+            cause: components["schemas"]["DeviationCause"];
+            status: components["schemas"]["DeviationStatus"];
+            deviation_class: components["schemas"]["DeviationClass"] | null;
+            /** Description */
+            description: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /** Events */
+            events: components["schemas"]["DeviationEventView"][];
         };
         /**
          * DraftAcceptance
@@ -959,6 +1107,8 @@ export interface components {
             /** Evidence */
             evidence: components["schemas"]["EvidenceStep"][];
             test_step: components["schemas"]["ExecutionTestStep"] | null;
+            /** Attempts */
+            attempts: components["schemas"]["AttemptView"][];
         };
         /**
          * ExecutionTestStep
@@ -1000,6 +1150,8 @@ export interface components {
             events: components["schemas"]["ExecutionEvent"][];
             /** Rows */
             rows: components["schemas"]["ExecutionRowView"][];
+            /** Deviations */
+            deviations: components["schemas"]["DeviationView"][];
         };
         /**
          * Findings
@@ -1039,7 +1191,7 @@ export interface components {
         FrozenDecision: {
             /** Id */
             id: number;
-            decision: components["schemas"]["Verdict"];
+            decision: components["schemas"]["traceq__proposals__decisions__Verdict"];
             /** Coverage */
             coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -1199,6 +1351,19 @@ export interface components {
             proposals: number;
             /** Already Imported */
             already_imported: boolean;
+        };
+        /**
+         * InstrumentInput
+         * @description One calibrated instrument used during a Test Step.
+         */
+        InstrumentInput: {
+            /** Identifier */
+            identifier: string;
+            /**
+             * Calibration Due Date
+             * Format: date
+             */
+            calibration_due_date: string;
         };
         /** @enum {string} */
         Kind: "coverage" | "check" | "ai" | "draft" | "test_step";
@@ -1398,7 +1563,7 @@ export interface components {
          *     ``edited``, and for any decision that replaces an earlier one on the same content.
          */
         NewDecision: {
-            decision: components["schemas"]["Verdict"];
+            decision: components["schemas"]["Verdict-Input"];
             /** Coverage */
             coverage?: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -1435,6 +1600,19 @@ export interface components {
             /** Unit */
             unit: string;
         };
+        /**
+         * NumberResultValue
+         * @description Numeric measurement for a ``number`` or ``range`` Acceptance Criterion (no unit).
+         */
+        NumberResultValue: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "number";
+            /** Value */
+            value: number;
+        };
         /** OneOf */
         OneOf: {
             /**
@@ -1445,6 +1623,26 @@ export interface components {
             /** Allowed */
             allowed: string[];
         };
+        /**
+         * OneOfResultValue
+         * @description Choice for a ``one_of`` Acceptance Criterion, or ``not_one_of`` with observed text.
+         */
+        OneOfResultValue: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "one_of";
+            /** Value */
+            value: string;
+            /**
+             * Not One Of
+             * @default false
+             */
+            not_one_of: boolean;
+        };
+        /** @enum {string} */
+        OutcomeKind: "value" | "not_performable";
         /** @enum {string} */
         PrefillOrigin: "written" | "withdrawn" | "draft";
         /**
@@ -1459,6 +1657,19 @@ export interface components {
             type: "present";
             /** Value */
             value?: boolean | null;
+        };
+        /**
+         * PresentResultValue
+         * @description Observation for a ``present`` Acceptance Criterion.
+         */
+        PresentResultValue: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "present";
+            /** Value */
+            value: boolean;
         };
         /**
          * Proposal
@@ -1630,6 +1841,30 @@ export interface components {
             unit: string;
         };
         /**
+         * RecordAttemptRequest
+         * @description Payload to record the first attempt on a Test Step row.
+         */
+        RecordAttemptRequest: {
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason?: string | null;
+            value?: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation?: string | null;
+            /**
+             * Instruments
+             * @default []
+             */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason?: string | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: string[];
+        };
+        /**
          * RequiredDocument
          * @description A document the VMP requires for the Equipment, with the annex row cited.
          */
@@ -1647,6 +1882,7 @@ export interface components {
             in_corpus: boolean;
             citation: components["schemas"]["Cite"];
         };
+        ResultValue: components["schemas"]["NumberResultValue"] | components["schemas"]["OneOfResultValue"] | components["schemas"]["PresentResultValue"];
         /** Return */
         Return: {
             /** Reason */
@@ -1879,7 +2115,7 @@ export interface components {
             citation: components["schemas"]["Cite"];
         };
         /** @enum {string} */
-        Verdict: "accepted" | "rejected" | "edited";
+        "Verdict-Input": "accepted" | "rejected" | "edited";
         /** Withdrawal */
         Withdrawal: {
             /** Reason */
@@ -1934,6 +2170,10 @@ export interface components {
         traceq__execution__lifecycle__EventKind: "started" | "completed";
         /** @enum {string} */
         traceq__execution__lifecycle__Status: "in_progress" | "completed";
+        /** @enum {string} */
+        traceq__execution__results__Verdict: "pass" | "fail";
+        /** @enum {string} */
+        traceq__proposals__decisions__Verdict: "accepted" | "rejected" | "edited";
     };
     responses: never;
     parameters: never;
@@ -2661,6 +2901,42 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recordAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordAttemptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

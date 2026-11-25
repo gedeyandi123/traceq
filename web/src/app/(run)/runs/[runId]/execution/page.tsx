@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { currentSession } from "@/auth/session";
 import { ExecutionViewPanel } from "@/components/ExecutionView";
 import { EmptyState } from "@/components/ui/ui";
-import { startExecution } from "@/execution/actions";
+import { recordAttempt, startExecution } from "@/execution/actions";
 import { fetchExecution, fetchProtocol, fetchRun } from "@/runs/fetchers";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +77,7 @@ export default async function ExecutionPage({
         protocol={protocolRes.kind === "ok" ? protocolRes.data : null}
         runId={runId}
         startAction={session.mayExecute ? startExecution : null}
+        recordAction={session.mayExecute ? recordAttempt : null}
       />
     </div>
   );
