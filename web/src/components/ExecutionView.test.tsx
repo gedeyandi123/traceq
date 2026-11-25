@@ -729,3 +729,154 @@ test("completion checklist shows blockers, enables complete button only for exec
   expect(screen.queryByRole("button", { name: "Catat hasil" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Buka deviasi manual" })).toBeNull();
 });
+
+test("shows all attempts and versions in order, Koreksi only for attempt Performer, and Uji ulang when failed with Open Deviation", async () => {
+  const user = userEvent.setup();
+  const noop = async () => ({ ok: true });
+  const ex = executionFixture();
+  const stepRow = ex.rows[0]!;
+  stepRow.attempts = [
+    {
+      id: 10,
+      at: "2026-11-24T10:05:00Z",
+      attempt_number: 1,
+      requirement: "URS-TP201-002",
+      subject: "demo-0001",
+      issuer: "http://127.0.0.1:9000",
+      name: "Ayu Kartika Sari",
+      versions: [
+        {
+          id: 101,
+          at: "2026-11-24T10:05:00Z",
+          version: 1,
+          outcome_kind: "value",
+          not_performable_reason: null,
+          value: { type: "number", value: 15 },
+          observation: null,
+          instruments: [{ identifier: "TACH-07", calibration_due_date: "2026-12-31" }],
+          no_calibrated_instrument_reason: null,
+          evidence: [],
+          verdict: "fail",
+          version_hash: "b".repeat(64),
+          reason_for_change: null,
+          subject: "demo-0001",
+          issuer: "http://127.0.0.1:9000",
+          name: "Ayu Kartika Sari",
+          witness_confirmations: [],
+        },
+        {
+          id: 102,
+          at: "2026-11-24T10:08:00Z",
+          version: 2,
+          outcome_kind: "value",
+          not_performable_reason: null,
+          value: { type: "number", value: 18 },
+          observation: null,
+          instruments: [{ identifier: "TACH-07", calibration_due_date: "2026-12-31" }],
+          no_calibrated_instrument_reason: null,
+          evidence: [],
+          verdict: "fail",
+          version_hash: "c".repeat(64),
+          reason_for_change: "Koreksi pembacaan awal",
+          subject: "demo-0001",
+          issuer: "http://127.0.0.1:9000",
+          name: "Ayu Kartika Sari",
+          witness_confirmations: [],
+        },
+      ],
+      latest: {
+        id: 102,
+        at: "2026-11-24T10:08:00Z",
+        version: 2,
+        outcome_kind: "value",
+        not_performable_reason: null,
+        value: { type: "number", value: 18 },
+        observation: null,
+        instruments: [{ identifier: "TACH-07", calibration_due_date: "2026-12-31" }],
+        no_calibrated_instrument_reason: null,
+        evidence: [],
+        verdict: "fail",
+        version_hash: "c".repeat(64),
+        reason_for_change: "Koreksi pembacaan awal",
+        subject: "demo-0001",
+        issuer: "http://127.0.0.1:9000",
+        name: "Ayu Kartika Sari",
+        witness_confirmations: [],
+      },
+    },
+  ];
+  ex.deviations = [
+    {
+      id: 50,
+      at: "2026-11-24T10:05:00Z",
+      deviation_number: 1,
+      requirement: "URS-TP201-002",
+      attempt_id: 10,
+      cause: "failed",
+      status: "open",
+      deviation_class: null,
+      description: "Gagal rentang kecepatan",
+      subject: "demo-0001",
+      issuer: "http://127.0.0.1:9000",
+      name: "Ayu Kartika Sari",
+      events: [],
+      investigations: [],
+      closure_note: null,
+    },
+  ];
+
+  // Signed in as Ayu (attempt's Performer): sees Koreksi and Uji ulang
+  const { unmount } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        currentUser={{ subject: "demo-0001", issuer: "http://127.0.0.1:9000" }}
+        startAction={noop}
+        recordAction={noop}
+        correctAction={noop}
+        retestAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+
+  const row = within(screen.getByTestId("exec-row-URS-TP201-002"));
+  expect(row.getByText("Percobaan #1")).toBeDefined();
+  expect(row.getByText("v1")).toBeDefined();
+  expect(row.getByText("v2")).toBeDefined();
+  expect(row.getByText("Hasil saat ini")).toBeDefined();
+  expect(row.getByText("Koreksi pembacaan awal")).toBeDefined();
+  expect(row.getByRole("button", { name: "Koreksi" })).toBeDefined();
+  expect(row.getByRole("button", { name: "Uji ulang" })).toBeDefined();
+
+  // Opening Koreksi drawer shows Reason for Change field
+  await user.click(row.getByRole("button", { name: "Koreksi" }));
+  expect(screen.getByLabelText("Alasan perubahan")).toBeDefined();
+  await user.keyboard("{Escape}");
+
+  // Opening Uji ulang drawer shows Open Deviation select & reason field
+  await user.click(row.getByRole("button", { name: "Uji ulang" }));
+  expect(screen.getByLabelText("Deviasi terbuka terkait")).toBeDefined();
+  expect(screen.getByLabelText("Alasan uji ulang")).toBeDefined();
+  unmount();
+
+  // Signed in as Bima (different Performer): does NOT see Koreksi, still sees Uji ulang
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        currentUser={{ subject: "demo-0002", issuer: "http://127.0.0.1:9000" }}
+        startAction={noop}
+        recordAction={noop}
+        correctAction={noop}
+        retestAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+  const rowBima = within(screen.getByTestId("exec-row-URS-TP201-002"));
+  expect(rowBima.queryByRole("button", { name: "Koreksi" })).toBeNull();
+  expect(rowBima.getByRole("button", { name: "Uji ulang" })).toBeDefined();
+});

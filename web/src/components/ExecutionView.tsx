@@ -16,6 +16,7 @@ import { useActionState, useState } from "react";
 
 import type {
   AttemptVersionView,
+  AttemptView,
   CompletionBlockers,
   DeviationView,
   ExecutionCopy,
@@ -25,7 +26,7 @@ import type {
 } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
 import { DeviationDetailDrawer } from "./DeviationDetailDrawer";
-import { ExecutionResultDrawer } from "./ExecutionResultDrawer";
+import { ExecutionResultDrawer, type ResultDrawerMode } from "./ExecutionResultDrawer";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
 import { ManualDeviationDrawer } from "./ManualDeviationDrawer";
@@ -144,10 +145,15 @@ function ExecutionRow({
   runId,
   executionId,
   executionInProgress,
+  deviations,
   currentUser,
   canRecord,
+  canCorrect,
+  canRetest,
   witnessAction,
   onRecord,
+  onCorrect,
+  onRetest,
 }: {
   t: T;
   m: MatrixT;
@@ -156,27 +162,24 @@ function ExecutionRow({
   runId: string;
   executionId: number;
   executionInProgress: boolean;
+  deviations: DeviationView[];
   currentUser: { subject: string; issuer: string } | null;
   canRecord: boolean;
+  canCorrect: boolean;
+  canRetest: boolean;
   witnessAction:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
   onRecord: () => void;
+  onCorrect: (attempt: AttemptView) => void;
+  onRetest: (openDeviations: DeviationView[]) => void;
 }) {
   const step = row.test_step;
   const latestAttempt = row.attempts[row.attempts.length - 1];
   const latest = latestAttempt?.latest;
-  const confirmations = latest?.witness_confirmations ?? [];
-  const isPerformer =
-    latest !== undefined &&
-    currentUser !== null &&
-    currentUser.subject === latest.subject &&
-    currentUser.issuer === latest.issuer;
-  const alreadyConfirmed =
-    currentUser !== null &&
-    confirmations.some(
-      (w) => w.subject === currentUser.subject && w.issuer === currentUser.issuer,
-    );
+  const openStepDeviations = deviations.filter(
+    (d) => d.requirement === row.requirement && d.status === "open",
+  );
 
   return (
     <tr data-testid={`exec-row-${row.requirement}`} className="border-b border-border last:border-b-0">
@@ -230,93 +233,216 @@ function ExecutionRow({
         {step ? formatValue(m, step.acceptance) : "—"}
       </td>
 
-      <td className="min-w-[220px] px-3 py-2.5 align-top text-xs">
+      <td className="min-w-[260px] px-3 py-2.5 align-top text-xs">
         {row.kind === "vendor_reference" ? (
           <span className="text-ink-muted">—</span>
-        ) : latest ? (
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <VerdictBadge verdict={latest.verdict} />
-              <span className="font-semibold text-ink tabular-nums">
-                {formatAttemptValue(t, row, latest)}
-              </span>
-            </div>
-            {latest.instruments.length > 0 && (
-              <ul className="m-0 list-disc space-y-0.5 pl-4 text-[11px] text-ink-muted tabular-nums">
-                {latest.instruments.map((inst) => (
-                  <li key={`${inst.identifier}-${inst.calibration_due_date}`}>
-                    {inst.identifier} ({inst.calibration_due_date})
-                  </li>
-                ))}
-              </ul>
-            )}
-            {latest.no_calibrated_instrument_reason && (
-              <p className="m-0 text-[11px] text-warn">
-                {t("noCalibratedDisplay", { reason: latest.no_calibrated_instrument_reason })}
-              </p>
-            )}
-            {latest.evidence.length > 0 && (
-              <div className="text-[11px] text-ink-muted">
-                {t("evidenceTitle")}: {latest.evidence.join(", ")}
-              </div>
-            )}
-            {latest.observation && (
-              <p className="m-0 text-[11px] text-ink-muted">{latest.observation}</p>
-            )}
-            <div className="text-[11px] text-ink-muted tabular-nums">
-              {t("recordedBy", { name: latest.name, when: formatWhen(when, latest.at) })}
-            </div>
+        ) : row.attempts.length > 0 ? (
+          <div className="space-y-3">
+            {row.attempts.map((attempt) => {
+              const isAttemptOwner =
+                currentUser !== null &&
+                currentUser.subject === attempt.subject &&
+                currentUser.issuer === attempt.issuer;
+              const blockedByDeviation = deviations.some(
+                (d) =>
+                  d.attempt_id === attempt.id &&
+                  (d.status === "submitted" || d.status === "closed"),
+              );
+              const isLatestAttempt = latestAttempt?.id === attempt.id;
 
-            <div className="space-y-1 border-t border-border pt-1.5">
-              {confirmations.length > 0 ? (
-                <ul className="m-0 list-none space-y-1 p-0">
-                  {confirmations.map((w) => (
-                    <li key={w.id} className="space-y-0.5 text-[11px]">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                            w.voided
-                              ? "border-warn-edge bg-warn-soft text-warn"
-                              : "border-pass-edge bg-pass-soft text-pass"
-                          }`}
-                        >
-                          <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>
-                            {w.voided ? t("witnessVoidedBadge") : t("witnessConfirmedBadge")}
+              return (
+                <div
+                  key={attempt.id}
+                  data-testid={`attempt-${row.requirement}-${attempt.attempt_number}`}
+                  className="space-y-2 rounded-md border border-border bg-sunken p-2.5"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] font-bold text-ink tabular-nums">
+                      {t("attemptNumber", { number: attempt.attempt_number })}
+                    </span>
+                    {executionInProgress && canCorrect && isAttemptOwner && (
+                      <>
+                        {blockedByDeviation ? (
+                          <span className="text-[11px] text-ink-muted">
+                            {t("correctBlockedByDeviation")}
                           </span>
-                        </span>
-                        <span className="text-ink tabular-nums">
-                          {t("witnessedBy", { name: w.name, when: formatWhen(when, w.at) })}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-ink-muted">{t("witnessNotSignatureNote")}</div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-[11px] text-ink-muted">{t("witnessNotConfirmed")}</div>
-              )}
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="soft"
+                            onClick={() => onCorrect(attempt)}
+                          >
+                            {t("correctAttemptButton")}
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
 
-              {witnessAction !== null && executionInProgress && latestAttempt && (
-                <>
-                  {isPerformer ? (
-                    <p className="m-0 text-[11px] text-ink-muted">{t("witnessPerformerRefused")}</p>
-                  ) : alreadyConfirmed ? (
-                    <p className="m-0 text-[11px] text-ink-muted">{t("witnessAlreadyConfirmed")}</p>
-                  ) : (
-                    <WitnessConfirmForm
-                      t={t}
-                      executionId={executionId}
-                      requirement={row.requirement}
-                      attemptNumber={latestAttempt.attempt_number}
-                      versionNumber={latest.version}
-                      versionHash={latest.version_hash}
-                      witnessAction={witnessAction}
-                    />
-                  )}
-                </>
+                  <div className="space-y-2">
+                    {attempt.versions.map((ver) => {
+                      const isCurrentResult =
+                        isLatestAttempt && ver.id === attempt.latest.id;
+                      const confirmations = ver.witness_confirmations;
+                      const isVersionPerformer =
+                        currentUser !== null &&
+                        currentUser.subject === ver.subject &&
+                        currentUser.issuer === ver.issuer;
+                      const alreadyConfirmed =
+                        currentUser !== null &&
+                        confirmations.some(
+                          (w) =>
+                            w.subject === currentUser.subject &&
+                            w.issuer === currentUser.issuer,
+                        );
+
+                      return (
+                        <div
+                          key={ver.id}
+                          className="space-y-1.5 rounded border border-border bg-surface p-2"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-[11px] font-semibold text-ink-muted tabular-nums">
+                              {t("versionNumber", { version: ver.version })}
+                            </span>
+                            {isCurrentResult && (
+                              <span className="inline-flex rounded border border-border bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-ink">
+                                {t("currentResultBadge")}
+                              </span>
+                            )}
+                            <VerdictBadge verdict={ver.verdict} />
+                            <span className="font-semibold text-ink tabular-nums">
+                              {formatAttemptValue(t, row, ver)}
+                            </span>
+                          </div>
+
+                          {ver.reason_for_change && (
+                            <div className="text-[11px] text-ink">
+                              <span className="font-semibold text-ink-muted">
+                                {t("reasonForChangeLabel")}:{" "}
+                              </span>
+                              <span>{ver.reason_for_change}</span>
+                            </div>
+                          )}
+
+                          {ver.instruments.length > 0 && (
+                            <ul className="m-0 list-disc space-y-0.5 pl-4 text-[11px] text-ink-muted tabular-nums">
+                              {ver.instruments.map((inst) => (
+                                <li key={`${inst.identifier}-${inst.calibration_due_date}`}>
+                                  {inst.identifier} ({inst.calibration_due_date})
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {ver.no_calibrated_instrument_reason && (
+                            <p className="m-0 text-[11px] text-warn">
+                              {t("noCalibratedDisplay", {
+                                reason: ver.no_calibrated_instrument_reason,
+                              })}
+                            </p>
+                          )}
+                          {ver.evidence.length > 0 && (
+                            <div className="text-[11px] text-ink-muted">
+                              {t("evidenceTitle")}: {ver.evidence.join(", ")}
+                            </div>
+                          )}
+                          {ver.observation && (
+                            <p className="m-0 text-[11px] text-ink-muted">{ver.observation}</p>
+                          )}
+                          <div className="text-[11px] text-ink-muted tabular-nums">
+                            {t("recordedBy", { name: ver.name, when: formatWhen(when, ver.at) })}
+                          </div>
+
+                          <div className="space-y-1 border-t border-border pt-1.5">
+                            {confirmations.length > 0 ? (
+                              <ul className="m-0 list-none space-y-1 p-0">
+                                {confirmations.map((w) => (
+                                  <li key={w.id} className="space-y-0.5 text-[11px]">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span
+                                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                          w.voided
+                                            ? "border-warn-edge bg-warn-soft text-warn"
+                                            : "border-pass-edge bg-pass-soft text-pass"
+                                        }`}
+                                      >
+                                        <ShieldCheck
+                                          className="h-3 w-3 shrink-0"
+                                          aria-hidden="true"
+                                        />
+                                        <span>
+                                          {w.voided
+                                            ? t("witnessVoidedBadge")
+                                            : t("witnessConfirmedBadge")}
+                                        </span>
+                                      </span>
+                                      <span className="text-ink tabular-nums">
+                                        {t("witnessedBy", {
+                                          name: w.name,
+                                          when: formatWhen(when, w.at),
+                                        })}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-ink-muted">
+                                      {t("witnessNotSignatureNote")}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              isCurrentResult && (
+                                <div className="text-[11px] text-ink-muted">
+                                  {t("witnessNotConfirmed")}
+                                </div>
+                              )
+                            )}
+
+                            {isCurrentResult && witnessAction !== null && executionInProgress && (
+                              <>
+                                {isVersionPerformer ? (
+                                  <p className="m-0 text-[11px] text-ink-muted">
+                                    {t("witnessPerformerRefused")}
+                                  </p>
+                                ) : alreadyConfirmed ? (
+                                  <p className="m-0 text-[11px] text-ink-muted">
+                                    {t("witnessAlreadyConfirmed")}
+                                  </p>
+                                ) : (
+                                  <WitnessConfirmForm
+                                    t={t}
+                                    executionId={executionId}
+                                    requirement={row.requirement}
+                                    attemptNumber={attempt.attempt_number}
+                                    versionNumber={ver.version}
+                                    versionHash={ver.version_hash}
+                                    witnessAction={witnessAction}
+                                  />
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {executionInProgress &&
+              canRetest &&
+              latest?.verdict === "fail" &&
+              openStepDeviations.length > 0 && (
+                <div>
+                  <Button
+                    type="button"
+                    variant="soft"
+                    onClick={() => onRetest(openStepDeviations)}
+                  >
+                    {t("retestButton")}
+                  </Button>
+                </div>
               )}
-            </div>
           </div>
         ) : canRecord ? (
           <Button type="button" variant="soft" onClick={onRecord}>
@@ -596,6 +722,8 @@ export function ExecutionViewPanel({
   currentUser = null,
   startAction,
   recordAction = null,
+  correctAction = null,
+  retestAction = null,
   witnessAction = null,
   openDeviationAction = null,
   investigateAction = null,
@@ -612,6 +740,12 @@ export function ExecutionViewPanel({
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
   recordAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  correctAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  retestAction?:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
   witnessAction?:
@@ -640,7 +774,10 @@ export function ExecutionViewPanel({
   const m = useTranslations("matrix");
   const when: WhenT = useTranslations("decisions");
 
-  const [activeRequirement, setActiveRequirement] = useState<string | null>(null);
+  const [drawerTarget, setDrawerTarget] = useState<{
+    requirement: string;
+    mode: ResultDrawerMode;
+  } | null>(null);
   const [manualDevOpen, setManualDevOpen] = useState(false);
   const [activeDeviationId, setActiveDeviationId] = useState<number | null>(null);
   const [state, formAction] = useActionState(
@@ -650,8 +787,8 @@ export function ExecutionViewPanel({
 
   const protocolHref = `/runs/${encodeURIComponent(runId)}/protocol`;
   const activeRow =
-    execution && activeRequirement
-      ? (execution.rows.find((r) => r.requirement === activeRequirement) ?? null)
+    execution && drawerTarget
+      ? (execution.rows.find((r) => r.requirement === drawerTarget.requirement) ?? null)
       : null;
   const activeDeviation =
     execution && activeDeviationId !== null
@@ -799,6 +936,7 @@ export function ExecutionViewPanel({
                       runId={runId}
                       executionId={execution.id}
                       executionInProgress={execution.status === "in_progress"}
+                      deviations={execution.deviations}
                       currentUser={currentUser}
                       canRecord={
                         execution.status === "in_progress" &&
@@ -806,8 +944,24 @@ export function ExecutionViewPanel({
                         r.attempts.length === 0 &&
                         recordAction !== null
                       }
+                      canCorrect={correctAction !== null}
+                      canRetest={retestAction !== null}
                       witnessAction={witnessAction}
-                      onRecord={() => setActiveRequirement(r.requirement)}
+                      onRecord={() =>
+                        setDrawerTarget({ requirement: r.requirement, mode: { kind: "record" } })
+                      }
+                      onCorrect={(attempt) =>
+                        setDrawerTarget({
+                          requirement: r.requirement,
+                          mode: { kind: "correct", attempt },
+                        })
+                      }
+                      onRetest={(openDeviations) =>
+                        setDrawerTarget({
+                          requirement: r.requirement,
+                          mode: { kind: "retest", openDeviations },
+                        })
+                      }
                     />
                   ))}
                 </tbody>
@@ -823,18 +977,34 @@ export function ExecutionViewPanel({
             onSelectDeviation={(id) => setActiveDeviationId(id)}
           />
 
-          {activeRow && recordAction && (
-            <ExecutionResultDrawer
-              key={activeRow.requirement}
-              executionId={execution.id}
-              row={activeRow}
-              open={true}
-              onOpenChange={(open) => {
-                if (!open) setActiveRequirement(null);
-              }}
-              recordAction={recordAction}
-            />
-          )}
+          {activeRow &&
+            drawerTarget &&
+            (() => {
+              const action =
+                drawerTarget.mode.kind === "correct"
+                  ? correctAction
+                  : drawerTarget.mode.kind === "retest"
+                    ? retestAction
+                    : recordAction;
+              if (!action) return null;
+              const drawerKey =
+                drawerTarget.mode.kind === "correct"
+                  ? `${activeRow.requirement}-correct-${drawerTarget.mode.attempt.attempt_number}`
+                  : `${activeRow.requirement}-${drawerTarget.mode.kind}`;
+              return (
+                <ExecutionResultDrawer
+                  key={drawerKey}
+                  executionId={execution.id}
+                  row={activeRow}
+                  mode={drawerTarget.mode}
+                  open={true}
+                  onOpenChange={(open) => {
+                    if (!open) setDrawerTarget(null);
+                  }}
+                  recordAction={action}
+                />
+              );
+            })()}
 
           {manualDevOpen && openDeviationAction && (
             <ManualDeviationDrawer

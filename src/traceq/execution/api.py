@@ -35,6 +35,7 @@ from traceq.execution.lifecycle import EventKind, Status
 from traceq.execution.results import (
     WITNESS_NOTE,
     ConfirmWitnessRequest,
+    CorrectAttemptRequest,
     DeviationCause,
     DeviationClass,
     DeviationEventKind,
@@ -43,6 +44,7 @@ from traceq.execution.results import (
     OutcomeKind,
     RecordAttemptRequest,
     ResultValue,
+    RetestRowRequest,
     Verdict,
 )
 from traceq.identity import Principal
@@ -440,6 +442,49 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             raise HTTPException(404, str(e)) from e
         except lifecycle.Conflict as e:
             raise HTTPException(409, str(e)) from e
+
+    @router.post(
+        "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/corrections",
+        operation_id="correctAttempt",
+        status_code=201,
+    )
+    def correct_attempt(
+        execution_id: int,
+        requirement: str,
+        attempt_number: int,
+        body: CorrectAttemptRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Adds a new version to an existing attempt with a required Reason for Change,
+        enforcing Performer ownership and Deviation status lock."""
+        if not who.may_execute:
+            raise HTTPException(403, "correcting a Result needs the executing role")
+        return run_execution_write(
+            execution_id,
+            lambda s: results.correct_attempt(
+                s, actor_of(who), execution_id, requirement, attempt_number, body
+            ),
+        )
+
+    @router.post(
+        "/executions/{execution_id}/rows/{requirement}/retests",
+        operation_id="retestRow",
+        status_code=201,
+    )
+    def retest_row(
+        execution_id: int,
+        requirement: str,
+        body: RetestRowRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Records a new attempt (Retest) on a failed Test Step row, naming an Open Deviation
+        linked to that Test Step."""
+        if not who.may_execute:
+            raise HTTPException(403, "retesting a Test Step needs the executing role")
+        return run_execution_write(
+            execution_id,
+            lambda s: results.retest_row(s, actor_of(who), execution_id, requirement, body),
+        )
 
     def run_execution_write(execution_id: int, fn: Callable[[Session], object]) -> ExecutionView:
         try:
