@@ -7,10 +7,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "openapi": "uv run --project .. python -m traceq.app.api openapi.json && uv run --project .. python -m traceq_eval.screen openapi eval-openapi.json",
+    "openapi": "uv run --no-sync --offline --project .. python -m traceq.app.api openapi.json && uv run --no-sync --offline --project .. python -m traceq_eval.screen openapi eval-openapi.json",
     "generate": "openapi-typescript openapi.json -o src/api/schema.ts && openapi-typescript eval-openapi.json -o src/api/eval-schema.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
+    "lint": "eslint src --max-warnings=0",
     "test": "vitest run"
   },
   "dependencies": {

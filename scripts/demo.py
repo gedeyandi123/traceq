@@ -41,6 +41,7 @@ def main() -> int:
     p.add_argument("--runs", type=Path)
     p.add_argument("--issuer-port", type=int)
     p.add_argument("--api-port", type=int)
+    p.add_argument("--ready-file", type=Path, help="write JSON readiness info once imported")
     p.add_argument("--no-compose", action="store_true", help="Postgres already runs")
     a = p.parse_args()
     given = {
@@ -49,6 +50,7 @@ def main() -> int:
         "api_port": a.api_port,
         "review_package": a.review_package,
         "package_recordings": a.package_recordings,
+        "ready_file": a.ready_file,
     }
     return run_demo(
         DemoSettings(

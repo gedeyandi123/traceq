@@ -40,7 +40,9 @@ from traceq_dataset.world import load
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ingest"
 
-_DB_FIXTURES = frozenset({"postgres_admin", "new_database", "databases", "fresh_database"})
+_DB_FIXTURES = frozenset(
+    {"postgres_admin", "template_database", "new_database", "databases", "fresh_database"}
+)
 _SLOW_FILES = frozenset(
     {
         "test_render.py",
@@ -180,21 +182,36 @@ def postgres_admin() -> Iterator[Connection]:
 
 
 @pytest.fixture(scope="session")
-def new_database(postgres_admin: Connection) -> Iterator[Callable[[], Databases]]:
-    """Creates a database owned by the owner role and migrated from zero."""
+def template_database(postgres_admin: Connection) -> Iterator[str]:
+    """A template database migrated once per session so per-test clones skip Alembic fsyncs."""
+    name = f"traceq_tpl_{uuid4().hex[:12]}"
+    postgres_admin.execute(text(f'CREATE DATABASE "{name}" OWNER {OWNER_ROLE}'))
+    try:
+        tpl_owner = make_url(ADMIN_URL).set(database=name, username=OWNER_ROLE, password=OWNER_ROLE)
+        upgrade(tpl_owner)
+        yield name
+    finally:
+        postgres_admin.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+
+
+@pytest.fixture(scope="session")
+def new_database(
+    postgres_admin: Connection, template_database: str
+) -> Iterator[Callable[[], Databases]]:
+    """Creates a database cloned from ``template_database`` and owned by the owner role."""
     created: list[str] = []
 
     def create() -> Databases:
         name = f"traceq_test_{uuid4().hex[:12]}"
-        postgres_admin.execute(text(f'CREATE DATABASE "{name}" OWNER {OWNER_ROLE}'))
+        postgres_admin.execute(
+            text(f'CREATE DATABASE "{name}" TEMPLATE "{template_database}" OWNER {OWNER_ROLE}')
+        )
         created.append(name)
         server = make_url(ADMIN_URL).set(database=name)
-        dbs = Databases(
+        return Databases(
             owner=server.set(username=OWNER_ROLE, password=OWNER_ROLE),
             app=server.set(username=APP_ROLE, password=APP_ROLE),
         )
-        upgrade(dbs.owner)
-        return dbs
 
     yield create
     for name in created:

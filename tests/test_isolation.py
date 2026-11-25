@@ -118,7 +118,7 @@ def test_prompt_examples_are_invented(equipment: str, prompt: Prompt) -> None:
 NO_LLM = SRC / "traceq" / "runs" / "no_llm.py"
 
 
-@pytest.mark.parametrize("equipment", ["TP-201", "TP-202"])
+@pytest.mark.parametrize("equipment", ["TP-201", "TP-202", "PW-001"])
 def test_no_llm_rules_are_invented(equipment: str) -> None:
     """The No-LLM Baseline's rules hold no Equipment tag, requirement id or requirement text
     of the development or the held-out Equipment (#193)."""
