@@ -32,6 +32,7 @@ dev = [
     "import-linter>=2.16",
     "pyright>=1.1.414",
     "pytest>=8.4",
+    "ruff==0.17.4",
 ]
 
 # Docling's layout and table models run on torch. The slice runs on a laptop CPU (spec #29),

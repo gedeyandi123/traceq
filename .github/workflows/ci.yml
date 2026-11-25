@@ -9,8 +9,46 @@ permissions:
   contents: read
 
 jobs:
-  py-fast:
-    name: py-fast
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      py_db: ${{ steps.filter.outputs.py_db }}
+      py_slow: ${{ steps.filter.outputs.py_slow }}
+      web: ${{ steps.filter.outputs.web }}
+      py_deps: ${{ steps.filter.outputs.py_deps }}
+      web_deps: ${{ steps.filter.outputs.web_deps }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "python=true" >> "$GITHUB_OUTPUT"
+            echo "py_db=true" >> "$GITHUB_OUTPUT"
+            echo "py_slow=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "py_deps=true" >> "$GITHUB_OUTPUT"
+            echo "web_deps=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          match() {
+            echo "$CHANGED" | grep -Eq "$1" && echo "true" || echo "false"
+          }
+          echo "python=$(match '^(src/|tests/|scripts/|pyproject\.toml$|uv\.lock$|\.github/workflows/ci\.yml$|recordings/|world/|answer_key/)')" >> "$GITHUB_OUTPUT"
+          echo "py_db=$(match '^(src/traceq/|tests/|pyproject\.toml$|uv\.lock$|\.github/workflows/ci\.yml$|compose\.yaml$)')" >> "$GITHUB_OUTPUT"
+          echo "py_slow=$(match '^(src/|tests/|pyproject\.toml$|uv\.lock$|\.github/workflows/ci\.yml$|recordings/)')" >> "$GITHUB_OUTPUT"
+          echo "web=$(match '^(web/|src/traceq/app/api\.py$|src/traceq_eval/screen\.py$|\.github/workflows/ci\.yml$)')" >> "$GITHUB_OUTPUT"
+          echo "py_deps=$(match '^(pyproject\.toml$|uv\.lock$)')" >> "$GITHUB_OUTPUT"
+          echo "web_deps=$(match '^web/(package\.json|package-lock\.json)$')" >> "$GITHUB_OUTPUT"
+
+  hygiene:
+    name: hygiene
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -43,6 +81,18 @@ jobs:
           pip install pre-commit==4.7.0
           pre-commit run --all-files --show-diff-on-failure
 
+  py-fast:
+    name: py-fast
+    needs: [changes]
+    if: github.event_name == 'push' || needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.23"
@@ -56,12 +106,15 @@ jobs:
           uv run pytest -m "not slow and not db" -q
 
       - name: python dependency audit
+        if: github.event_name == 'push' || needs.changes.outputs.py_deps == 'true'
         run: |
           uv export --frozen --no-hashes --no-emit-project -o "$RUNNER_TEMP/reqs.txt"
           uv run --no-project --with pip-audit pip-audit --no-deps --disable-pip -r "$RUNNER_TEMP/reqs.txt" --progress-spinner off
 
   py-db:
     name: py-db
+    needs: [changes]
+    if: github.event_name == 'push' || needs.changes.outputs.py_db == 'true'
     runs-on: ubuntu-24.04
     # The database tests connect as the superuser, create the roles and a database of their
     # own; with CI set they fail, not skip, when Postgres is not reachable.
@@ -96,6 +149,8 @@ jobs:
 
   py-slow:
     name: py-slow
+    needs: [changes]
+    if: github.event_name == 'push' || needs.changes.outputs.py_slow == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -116,6 +171,8 @@ jobs:
 
   web:
     name: web
+    needs: [changes]
+    if: github.event_name == 'push' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -147,19 +204,24 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
       - name: npm dependency audit
+        if: github.event_name == 'push' || needs.changes.outputs.web_deps == 'true'
         run: npm audit --omit=dev --audit-level=high
 
   checks:
     name: checks
     runs-on: ubuntu-24.04
-    needs: [py-fast, py-db, py-slow]
+    needs: [hygiene, py-fast, py-db, py-slow, web]
     if: always()
     steps:
-      - name: verify all Python checks passed
+      - name: verify all required checks passed or were skipped
         run: |
-          if [ "${{ needs.py-fast.result }}" != "success" ] || \
-             [ "${{ needs.py-db.result }}" != "success" ] || \
-             [ "${{ needs.py-slow.result }}" != "success" ]; then
-            echo "py-fast=${{ needs.py-fast.result }} py-db=${{ needs.py-db.result }} py-slow=${{ needs.py-slow.result }}"
+          if [ "${{ needs.hygiene.result }}" != "success" ]; then
+            echo "hygiene=${{ needs.hygiene.result }}"
             exit 1
           fi
+          for res in "${{ needs.py-fast.result }}" "${{ needs.py-db.result }}" "${{ needs.py-slow.result }}" "${{ needs.web.result }}"; do
+            if [ "$res" != "success" ] && [ "$res" != "skipped" ]; then
+              echo "hygiene=${{ needs.hygiene.result }} py-fast=${{ needs.py-fast.result }} py-db=${{ needs.py-db.result }} py-slow=${{ needs.py-slow.result }} web=${{ needs.web.result }}"
+              exit 1
+            fi
+          done

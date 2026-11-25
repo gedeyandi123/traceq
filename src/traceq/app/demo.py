@@ -58,6 +58,8 @@ class DemoSettings:
     """A released Review Package directory for this corpus and Equipment."""
     package_recordings: Path | None = None
     """The recordings of the package's draft calls and ingest."""
+    ready_file: Path | None = None
+    """Optional path written with JSON readiness metadata once the demo run is imported."""
 
 
 def _manifest(corpus: Path) -> dict[str, Any]:
@@ -291,10 +293,22 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
         )
         if imported.status_code != 200:
             raise DemoError(f"the import answered {imported.status_code}: {imported.text}")
+        if settings.ready_file is not None:
+            _write_ready_file(
+                settings.ready_file,
+                {"run_id": run_id, "api_url": api_url, "issuer_url": issuer_url},
+            )
     except BaseException:
         _stop(api, issuer)
         raise
     return Demo(issuer=issuer, api=api, run_id=run_id, issuer_url=issuer_url, api_url=api_url)
+
+
+def _write_ready_file(path: Path, payload: dict[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(f"{path.suffix}.tmp")
+    tmp.write_text(json.dumps(payload), encoding="utf-8")
+    tmp.replace(path)
 
 
 def run_demo(settings: DemoSettings) -> int:
@@ -308,7 +322,7 @@ def run_demo(settings: DemoSettings) -> int:
     print(
         f"demo: ready. Postgres 127.0.0.1:5432, issuer {demo.issuer_url}, API"
         f" {demo.api_url} (run {demo.run_id} imported). Start the web UI with"
-        " `cd web && npm run dev`. Ctrl-C stops the issuer and the API.",
+        " `cd web && npm run build && npm start`. Ctrl-C stops the issuer and the API.",
         flush=True,
     )
     try:
@@ -319,4 +333,6 @@ def run_demo(settings: DemoSettings) -> int:
     except KeyboardInterrupt:
         return 0
     finally:
+        if settings.ready_file is not None:
+            settings.ready_file.unlink(missing_ok=True)
         demo.stop()

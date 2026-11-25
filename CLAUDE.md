@@ -20,7 +20,7 @@ The session's own effort changes only by the owner typing `/effort`. Say "switch
 
 - **Exploration subagent (step 2):** `explorer` for codebase lookups (save notes in session scratchpad, never in the repo). External docs go through `research` or `claude-api` in the main session.
 - **Implementer subagents (step 4):** `implementer`, at most **two at a time** (respect 16 GB RAM limit in `AGENTS.md`). Delegation message holds only pointers: ticket number, spec issue, integration branch, and commit co-author line.
-- **Merger subagent (step 5):** none. Main session merges ticket PRs into the integration branch (`gh pr merge <n> --squash`), then comments and closes the ticket.
+- **Merger subagent (step 5):** none. Main session merges ticket PRs into the integration branch (`gh pr merge <n> --squash`) without prematurely closing tickets; the final integration PR into `main` closes the spec and all child tickets via `Closes #<n>` one per line.
 - **Integration PR (steps 3 and 8):** draft PR into `main` closing the spec issue, listing every ticket; owner merges it.
 - **Standalone / ticket chain:** standalone uses `<prefix>/<n>-<slug>` into `main`; dependent tickets share `feat/<topic>` or `fix/<topic>`.
 - **Cleanup (step 9):** `git worktree prune` and delete leftover `worktree-agent-*` and ticket branches.

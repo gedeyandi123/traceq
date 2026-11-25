@@ -289,3 +289,43 @@ def test_the_demo_loads_the_review_package_draft_at_start(
     finally:
         demo.stop()
     assert sorted(p.stat().st_mtime_ns for p in PACKAGE_RUN.rglob("*")) == before
+
+
+def test_run_demo_prints_production_start_command_and_cleans_ready_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from traceq.app.demo import Demo, _write_ready_file
+
+    ready = tmp_path / "demo-ready.json"
+    _write_ready_file(
+        ready,
+        {
+            "run_id": "r1",
+            "api_url": "http://127.0.0.1:8000",
+            "issuer_url": "http://127.0.0.1:9000",
+        },
+    )
+    assert json.loads(ready.read_text(encoding="utf-8"))["run_id"] == "r1"
+
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait()
+    fake_demo = Demo(
+        issuer=proc,
+        api=proc,
+        run_id="r1",
+        issuer_url="http://127.0.0.1:9000",
+        api_url="http://127.0.0.1:8000",
+    )
+    monkeypatch.setattr("traceq.app.demo.bring_up", lambda _s, log=None: fake_demo)
+    monkeypatch.setattr(fake_demo, "stop", lambda: None)
+
+    settings = DemoSettings(
+        corpus=tmp_path,
+        equipment="TP-201",
+        recordings=R10,
+        ready_file=ready,
+    )
+    assert run_demo(settings) == 1
+    out = capsys.readouterr().out
+    assert "npm run build && npm start" in out
+    assert not ready.exists()

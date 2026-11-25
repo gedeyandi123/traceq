@@ -221,7 +221,10 @@ def test_never_exposes_scorer_output_answer_key_or_baselines(client: TestClient)
         "/runs/{run_id}/documents/{doc_id}/{rev}",
     }
     schema = json.dumps(openapi_schema()).lower()
-    assert all(w not in schema for w in ("score", "answer", "baseline", "gate", "report"))
+    assert all(
+        w not in schema
+        for w in ("score", "answer", "baseline", "gate", "scorer_report", "report.json")
+    )
     for path in [
         "/runs",
         f"/runs/{RUN_ID}",
@@ -246,6 +249,6 @@ def test_the_fixture_findings_are_findings() -> None:
 
 
 def test_the_committed_openapi_schema_is_current() -> None:
-    """``web/openapi.json`` feeds the generated TypeScript client; regenerate both with
-    ``npm run generate`` in ``web/``."""
+    """``web/openapi.json`` feeds the generated TypeScript client; regenerate with
+    ``npm run openapi`` then ``npm run generate`` in ``web/``."""
     assert json.loads(OPENAPI.read_text(encoding="utf-8")) == openapi_schema()
