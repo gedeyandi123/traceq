@@ -700,6 +700,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Rounds
+         * @description Review rounds for the run's Equipment, and diff vs the previous round.
+         */
+        get: operations["getRunRounds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rounds/{round_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Review Round
+         * @description Closes an open review round. Needs the deciding role.
+         */
+        post: operations["closeReviewRound"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rounds/{round_id}/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export Pre Review Report
+         * @description Generates and stores an immutable Pre-Review Report PDF export.
+         */
+        post: operations["exportPreReviewReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rounds/{round_id}/exports/{export_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Pre Review Report Pdf
+         * @description Re-renders and returns the stored Pre-Review Report PDF without DB writes.
+         */
+        get: operations["downloadPreReviewReportPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -895,6 +975,14 @@ export interface components {
             page: number;
             /** Quote */
             quote: string;
+        };
+        /** @enum {string} */
+        CloseOutcome: "returned_for_revision" | "ready_for_protocol";
+        /** CloseRoundRequest */
+        CloseRoundRequest: {
+            outcome: components["schemas"]["CloseOutcome"];
+            /** Reason */
+            reason?: string | null;
         };
         /**
          * Completeness
@@ -1104,6 +1192,30 @@ export interface components {
             investigations: components["schemas"]["DeviationInvestigationView"][];
             /** Closure Note */
             closure_note?: string | null;
+        };
+        /** DocumentVersionView */
+        DocumentVersionView: {
+            /** Id */
+            id: number;
+            /** Equipment */
+            equipment: string;
+            /** Doc Id */
+            doc_id: string;
+            /** Rev */
+            rev: number;
+            /** Doc Type */
+            doc_type: string | null;
+            /** Source */
+            source: string;
+            /** Sha256 */
+            sha256: string;
+            /** First Seen Run Id */
+            first_seen_run_id: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         };
         /**
          * DraftAcceptance
@@ -2393,6 +2505,34 @@ export interface components {
              */
             evidence: string[];
         };
+        /** ReportExportView */
+        ReportExportView: {
+            /** Id */
+            id: number;
+            /** Round Id */
+            round_id: number;
+            /** Report Kind */
+            report_kind: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /** Snapshot Hash */
+            snapshot_hash: string;
+            /** Pdf Sha256 */
+            pdf_sha256: string;
+            /** Template Version */
+            template_version: string;
+            /** Typst Version */
+            typst_version: string;
+        };
         /**
          * RequiredDocument
          * @description A document the VMP requires for the Equipment, with the annex row cited.
@@ -2457,6 +2597,83 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** ReviewRoundEventView */
+        ReviewRoundEventView: {
+            /** Id */
+            id: number;
+            /** Round Id */
+            round_id: number;
+            event: components["schemas"]["RoundEventKind"];
+            /** Reason */
+            reason: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
+        /** ReviewRoundView */
+        ReviewRoundView: {
+            /** Id */
+            id: number;
+            /** Equipment */
+            equipment: string;
+            /** Round Number */
+            round_number: number;
+            /** Run Id */
+            run_id: string;
+            /** Previous Round Id */
+            previous_round_id: number | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            status: components["schemas"]["RoundStatus"];
+            /** Documents */
+            documents: components["schemas"]["DocumentVersionView"][];
+            /** Events */
+            events: components["schemas"]["ReviewRoundEventView"][];
+            /** Exports */
+            exports: components["schemas"]["ReportExportView"][];
+        };
+        /** RoundDiffView */
+        RoundDiffView: {
+            /** Previous Round Number */
+            previous_round_number: number;
+            /** Previous Run Id */
+            previous_run_id: string;
+            /** Documents Added */
+            documents_added: string[];
+            /** Documents Revised */
+            documents_revised: string[];
+            /** Documents Unchanged */
+            documents_unchanged: string[];
+            /** Documents Removed */
+            documents_removed: string[];
+            /** Findings Resolved */
+            findings_resolved: number;
+            /** Findings Persisted */
+            findings_persisted: number;
+            /** Findings New */
+            findings_new: number;
+            /** Decisions Carried Forward */
+            decisions_carried_forward: number;
+            /** Decisions Changed */
+            decisions_changed: number;
+            /** Decisions Undecided */
+            decisions_undecided: number;
+        };
+        /** @enum {string} */
+        RoundEventKind: "opened" | "returned_for_revision" | "ready_for_protocol";
+        /** @enum {string} */
+        RoundStatus: "open" | "returned_for_revision" | "ready_for_protocol";
         /**
          * RowDraft
          * @description A drafted Test Step of the row's requirement, as the run drafted it, and the Proposal it
@@ -2530,6 +2747,16 @@ export interface components {
             doc_id: string;
             /** Rev */
             rev: number;
+        };
+        /** RunRoundsView */
+        RunRoundsView: {
+            /** Equipment */
+            equipment: string;
+            /** Current Round Id */
+            current_round_id: number;
+            /** Rounds */
+            rounds: components["schemas"]["ReviewRoundView"][];
+            diff: components["schemas"]["RoundDiffView"] | null;
         };
         /**
          * RunSummary
@@ -3860,6 +4087,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getRunRounds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRoundsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    closeReviewRound: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                round_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseRoundRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewRoundView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exportPreReviewReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                round_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportExportView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    downloadPreReviewReportPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                round_id: number;
+                export_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "application/pdf": unknown;
                 };
             };
             /** @description Validation Error */

@@ -3,6 +3,7 @@
 Usage:
     uv run python scripts/demo_seed.py --stage approved-protocol [--ready-file FILE]
     uv run python scripts/demo_seed.py --stage completed-execution [--ready-file FILE]
+    uv run python scripts/demo_seed.py --stage two-rounds [--ready-file FILE] [--second-run-id ID]
 """
 
 from __future__ import annotations
@@ -33,14 +34,21 @@ def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str
         meta = json.loads(Path(args.ready_file).read_text(encoding="utf-8"))
         api_url = args.api_url or str(meta["api_url"])
         issuer_url = args.issuer_url or str(meta["issuer_url"])
-        run_id = run_id or str(meta["run_id"])
+        if not getattr(args, "review_package", False):
+            run_id = run_id or str(meta["run_id"])
     if run_id is None:
         runs = client.get(f"{api_url}/runs")
         runs.raise_for_status()
         items = runs.json()
         if not items:
             raise RuntimeError("No runs found on API; start scripts/demo.py first.")
-        run_id = str(items[0]["run_id"])
+        if getattr(args, "review_package", False):
+            rp_item = next((i for i in items if i.get("review_package") is not None), None)
+            if rp_item is None:
+                raise RuntimeError("No Review Package run found on API.")
+            run_id = str(rp_item["run_id"])
+        else:
+            run_id = str(items[0]["run_id"])
     return api_url.rstrip("/"), issuer_url.rstrip("/"), run_id
 
 
@@ -97,7 +105,7 @@ def _ensure_approved_protocol(
             continue
         url = f"{api_url}/runs/{run_id}/proposals/{p['id']}/decisions"
         r = client.post(url, headers=ayu, json={"decision": "accepted"})
-        if r.status_code == 409 and p.get("kind") == "coverage":
+        if r.status_code in (409, 422) and p.get("kind") == "coverage":
             r = client.post(
                 url,
                 headers=ayu,
@@ -211,22 +219,115 @@ def _ensure_completed_execution(
     return execution
 
 
+def _decide_proposals(client: Any, api_url: str, run_id: str, ayu: dict[str, str]) -> None:
+    imp = client.post(f"{api_url}/runs/{run_id}/import", headers=ayu)
+    imp.raise_for_status()
+    proposals_resp = client.get(f"{api_url}/runs/{run_id}/proposals", headers=ayu)
+    proposals_resp.raise_for_status()
+    for p in proposals_resp.json():
+        if p["state"] not in ("undecided", "changed"):
+            continue
+        url = f"{api_url}/runs/{run_id}/proposals/{p['id']}/decisions"
+        r = client.post(url, headers=ayu, json={"decision": "accepted"})
+        if r.status_code in (409, 422) and p.get("kind") == "coverage":
+            r = client.post(
+                url,
+                headers=ayu,
+                json={
+                    "decision": "edited",
+                    "coverage": "gap",
+                    "reason": "Demo seed: no proposed coverage class",
+                },
+            )
+        elif r.status_code == 409 and p.get("kind") == "test_step":
+            r = client.post(
+                url,
+                headers=ayu,
+                json={
+                    "decision": "rejected",
+                    "reason": "Demo seed: requirement already has an active Test Step",
+                },
+            )
+        if r.status_code not in (200, 201):
+            raise RuntimeError(f"Decision failed on proposal {p['id']}: {r.status_code} {r.text}")
+
+
+def _ensure_two_rounds(
+    client: Any,
+    api_url: str,
+    first_run_id: str,
+    second_run_id: str | None,
+    ayu: dict[str, str],
+) -> dict[str, Any]:
+    if second_run_id is None:
+        runs = client.get(f"{api_url}/runs")
+        runs.raise_for_status()
+        items = [str(i["run_id"]) for i in runs.json() if str(i["run_id"]) != first_run_id]
+        if not items:
+            raise RuntimeError(
+                "Need a second run on API for --stage two-rounds (or pass --second-run-id)."
+            )
+        second_run_id = items[0]
+
+    _decide_proposals(client, api_url, first_run_id, ayu)
+    r1_view = client.get(f"{api_url}/runs/{first_run_id}/rounds", headers=ayu)
+    r1_view.raise_for_status()
+    r1_id = int(r1_view.json()["current_round_id"])
+
+    exp1 = client.post(f"{api_url}/rounds/{r1_id}/exports", headers=ayu)
+    exp1.raise_for_status()
+
+    r1_current = next(r for r in r1_view.json()["rounds"] if int(r["id"]) == r1_id)
+    if r1_current["status"] == "open":
+        close1 = client.post(
+            f"{api_url}/rounds/{r1_id}/close",
+            headers=ayu,
+            json={
+                "outcome": "returned_for_revision",
+                "reason": "Demo seed: returned for revision before second round.",
+            },
+        )
+        close1.raise_for_status()
+
+    _decide_proposals(client, api_url, second_run_id, ayu)
+    r2_view = client.get(f"{api_url}/runs/{second_run_id}/rounds", headers=ayu)
+    r2_view.raise_for_status()
+    r2_id = int(r2_view.json()["current_round_id"])
+    exp2 = client.post(f"{api_url}/rounds/{r2_id}/exports", headers=ayu)
+    exp2.raise_for_status()
+
+    return {
+        "round_1_id": r1_id,
+        "round_1_run_id": first_run_id,
+        "round_1_export_id": exp1.json()["id"],
+        "round_2_id": r2_id,
+        "round_2_run_id": second_run_id,
+        "round_2_export_id": exp2.json()["id"],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument(
         "--stage",
-        choices=("approved-protocol", "completed-execution"),
+        choices=("approved-protocol", "completed-execution", "two-rounds"),
         required=True,
     )
     parser.add_argument("--ready-file", type=Path)
     parser.add_argument("--api-url")
     parser.add_argument("--issuer-url")
     parser.add_argument("--run-id")
+    parser.add_argument("--second-run-id")
+    parser.add_argument("--review-package", action="store_true")
     args = parser.parse_args()
 
     with httpx.Client(timeout=30) as client:
         api_url, issuer_url, run_id = _resolve_target(args, client)
         ayu = _token(client, issuer_url, "ayu")
+        if args.stage == "two-rounds":
+            rounds_summary = _ensure_two_rounds(client, api_url, run_id, args.second_run_id, ayu)
+            print(json.dumps({"stage": args.stage, **rounds_summary}))
+            return 0
         dewi = _token(client, issuer_url, "dewi")
         proto = _ensure_approved_protocol(client, api_url, run_id, ayu, dewi)
         summary: dict[str, Any] = {

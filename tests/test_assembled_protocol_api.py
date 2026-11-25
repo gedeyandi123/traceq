@@ -121,10 +121,10 @@ def test_a_started_protocol_is_in_draft_status_with_its_audit_trail_entry(
     assert read(client, decider) == got
     with transaction(engine(fresh_database.app)) as s:
         trail = entries(s)
-    assert [(e.action, e.record_type, e.record_id) for e in trail][1:] == [
+    assert [(e.action, e.record_type, e.record_id) for e in trail][2:] == [
         ("protocol started", "protocol", str(got["id"]))
     ]
-    assert trail[1].new_value == {
+    assert trail[-1].new_value == {
         "protocol_id": got["id"],
         "equipment": "TP-201",
         "run_id": RUN_ID,

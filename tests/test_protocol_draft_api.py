@@ -296,6 +296,7 @@ def test_a_draft_finding_is_accepted_without_a_reason_or_rejected_with_one(
         trail = entries(s)
     assert [(e.action, e.record_type) for e in trail] == [
         ("run imported", "run"),
+        ("review round opened", "review_round"),
         ("decision recorded", "proposal"),
         ("decision recorded", "proposal"),
     ]

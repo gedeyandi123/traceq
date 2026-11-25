@@ -106,9 +106,9 @@ def test_ensure_approved_protocol_imports_and_handles_changed_and_null_coverage(
             if url.endswith("/proposals/1/decisions"):
                 return _Resp(201, {"id": 10})
             if url.endswith("/proposals/2/decisions"):
-                # Simulate coverage row with proposed_class=None refusing "accepted" with 409
+                # Simulate coverage row with proposed_class=None refusing "accepted" with 422
                 if json.get("decision") == "accepted":
-                    return _Resp(409, {"detail": "no proposed class"})
+                    return _Resp(422, {"detail": "no proposed class"})
                 return _Resp(201, {"id": 11})
             if url.endswith("/protocol"):
                 return _Resp(
