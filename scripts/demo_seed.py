@@ -3,6 +3,7 @@
 Usage:
     uv run python scripts/demo_seed.py --stage approved-protocol [--ready-file FILE]
     uv run python scripts/demo_seed.py --stage completed-execution [--ready-file FILE]
+    uv run python scripts/demo_seed.py --stage qualification-report [--ready-file FILE]
     uv run python scripts/demo_seed.py --stage two-rounds [--ready-file FILE] [--second-run-id ID]
 """
 
@@ -82,7 +83,7 @@ def _instrument_payload(req: str) -> dict[str, str]:
 
 def _needs_witness(latest_ver: dict[str, Any]) -> bool:
     confirmations = latest_ver.get("witness_confirmations") or []
-    return not any(c.get("status") == "active" for c in confirmations)
+    return not any(not c.get("voided") for c in confirmations)
 
 
 def _witness_payload(latest_ver: dict[str, Any]) -> dict[str, Any]:
@@ -310,7 +311,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument(
         "--stage",
-        choices=("approved-protocol", "completed-execution", "two-rounds"),
+        choices=("approved-protocol", "completed-execution", "qualification-report", "two-rounds"),
         required=True,
     )
     parser.add_argument("--ready-file", type=Path)
@@ -336,13 +337,24 @@ def main() -> int:
             "protocol_status": proto["status"],
             "stage": args.stage,
         }
-        if args.stage == "completed-execution":
+        if args.stage in ("completed-execution", "qualification-report"):
             eko = _token(client, issuer_url, "eko")
             execution = _ensure_completed_execution(
                 client, api_url, run_id, int(proto["id"]), ayu, eko
             )
             summary["execution_id"] = execution["id"]
             summary["execution_status"] = execution["status"]
+            if args.stage == "qualification-report":
+                qual_resp = client.post(
+                    f"{api_url}/executions/{execution['id']}/qualification-reports",
+                    headers=dewi,
+                    json={"conclusion_note": "Demo seed: qualification report approved."},
+                )
+                qual_resp.raise_for_status()
+                qual = qual_resp.json()
+                latest_exp = qual.get("latest_export") or {}
+                summary["qualification_report_export_id"] = latest_exp.get("id")
+                summary["technical_conclusion"] = qual.get("technical_conclusion")
         print(json.dumps(summary))
     return 0
 

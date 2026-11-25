@@ -218,6 +218,8 @@ ATTEMPTS = Table(
     Column("execution_id", BigInteger),
     Column("requirement", Text),
     Column("attempt_number", Integer),
+    Column("retest_deviation_id", BigInteger),
+    Column("retest_reason", Text),
     Column("subject", Text),
     Column("issuer", Text),
     Column("name", Text),
@@ -343,6 +345,8 @@ class Attempt:
     attempt_number: int
     actor: audit.Actor
     versions: tuple[AttemptVersion, ...]
+    retest_deviation_id: int | None = None
+    retest_reason: str | None = None
 
     @property
     def latest(self) -> AttemptVersion:
@@ -734,6 +738,8 @@ def attempts_of(session: Session, execution_id: int) -> dict[str, tuple[Attempt,
             attempt_number=am["attempt_number"],
             actor=audit.actor_of_row(am),
             versions=tuple(versions_by_attempt.get(am["id"], ())),
+            retest_deviation_id=am["retest_deviation_id"],
+            retest_reason=am["retest_reason"],
         )
         by_req.setdefault(attempt.requirement, []).append(attempt)
     return {req: tuple(items) for req, items in by_req.items()}
@@ -1089,6 +1095,8 @@ def record_attempt(
         attempt_number=attempt_number,
         actor=audit.actor_of_row(attempt_row),
         versions=(ver,),
+        retest_deviation_id=attempt_row["retest_deviation_id"],
+        retest_reason=attempt_row["retest_reason"],
     )
     return attempt, opened_deviations
 
@@ -1276,6 +1284,7 @@ def retest_row(
 
     attempt_number = latest_attempt.attempt_number + 1
     version_number = 1
+    retest_reason = req.effective_reason()
     attempt_row = (
         session.execute(
             insert(ATTEMPTS)
@@ -1283,6 +1292,8 @@ def retest_row(
                 execution_id=execution_id,
                 requirement=requirement,
                 attempt_number=attempt_number,
+                retest_deviation_id=dev.id,
+                retest_reason=retest_reason,
                 subject=actor.subject,
                 issuer=actor.issuer,
                 name=actor.name,
@@ -1305,7 +1316,6 @@ def retest_row(
         reason_for_change=None,
     )
 
-    retest_reason = req.effective_reason()
     audit.append(
         session,
         actor,
@@ -1352,6 +1362,8 @@ def retest_row(
         attempt_number=attempt_number,
         actor=audit.actor_of_row(attempt_row),
         versions=(ver,),
+        retest_deviation_id=attempt_row["retest_deviation_id"],
+        retest_reason=attempt_row["retest_reason"],
     )
     return attempt, opened_deviations
 

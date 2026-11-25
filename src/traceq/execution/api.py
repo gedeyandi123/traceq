@@ -10,20 +10,21 @@ per-application dependency (``principal``), a local name, at definition time.
 """
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from traceq.assembly import lifecycle as assembly_lifecycle
 from traceq.assembly import submission
+from traceq.assembly.attributes import Stage
 from traceq.assembly.submission import FrozenRow, ProtocolCopy
 from traceq.assembly.written import Acceptance
 from traceq.db import transaction
-from traceq.execution import completion, deviations, lifecycle, results
+from traceq.execution import completion, deviations, lifecycle, reports, results
 from traceq.execution.completion import CompletionBlockers, ExecutionCopy, compute_blockers
 from traceq.execution.deviations import (
     CLOSURE_NOTE,
@@ -49,6 +50,7 @@ from traceq.execution.results import (
 )
 from traceq.identity import Principal
 from traceq.proposals.api import actor_of
+from traceq.reports import QUALIFICATION_APPROVAL_NOTE, QualificationCounts, TechnicalConclusion
 from traceq.runs.schemas import Cite, EvidenceStep
 
 
@@ -76,6 +78,8 @@ class ExecutionTestStep(_Model):
     method: str
     instrument: str | None
     acceptance: Acceptance
+    stage: Stage | None = None
+    witness_required: bool = False
 
 
 class WitnessConfirmationView(_Model):
@@ -126,6 +130,8 @@ class AttemptView(_Model):
     name: str
     versions: list[AttemptVersionView]
     latest: AttemptVersionView
+    retest_deviation_id: int | None = None
+    retest_reason: str | None = None
 
 
 class DeviationEventView(_Model):
@@ -209,6 +215,48 @@ class ExecutionView(_Model):
     copy_hash: str | None = None
 
 
+class ApproveQualificationReportRequest(_Model):
+    """Payload to approve a Qualification Report for a completed Execution."""
+
+    conclusion_note: str | None = None
+    next_requalification_date: date | None = None
+
+
+class QualificationExportView(_Model):
+    """One immutable Qualification Report export."""
+
+    id: int
+    revision_number: int
+    technical_conclusion: TechnicalConclusion
+    conclusion_note: str | None
+    next_requalification_date: date | None
+    approval_note: str
+    snapshot_hash: str
+    pdf_sha256: str
+    template_version: str
+    typst_version: str
+    subject: str
+    issuer: str
+    name: str
+    at: datetime
+
+
+class QualificationReportView(_Model):
+    """Qualification Report state for a completed Execution."""
+
+    execution_id: int
+    protocol_id: int
+    equipment: str
+    run_id: str
+    execution_copy_hash: str
+    completed_at: datetime
+    technical_conclusion: TechnicalConclusion
+    counts: QualificationCounts
+    approval_note: str
+    latest_export: QualificationExportView | None = None
+    exports: list[QualificationExportView] = []
+
+
 def _event(e: lifecycle.Event) -> ExecutionEvent:
     return ExecutionEvent(
         id=e.id,
@@ -268,6 +316,8 @@ def _attempt(a: results.Attempt) -> AttemptView:
         name=a.actor.name,
         versions=versions,
         latest=versions[-1],
+        retest_deviation_id=a.retest_deviation_id,
+        retest_reason=a.retest_reason,
     )
 
 
@@ -333,6 +383,8 @@ def _row(r: FrozenRow, attempts: tuple[results.Attempt, ...]) -> ExecutionRowVie
             method=step.method,
             instrument=step.instrument,
             acceptance=step.acceptance,
+            stage=step.stage,
+            witness_required=step.witness_required,
         ),
         attempts=[_attempt(a) for a in attempts],
     )
@@ -634,6 +686,120 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
         return run_execution_write(
             execution_id,
             lambda s: completion.complete_execution(s, actor_of(who), execution_id),
+        )
+
+    def _qual_export_view(exp: reports.QualificationExport) -> QualificationExportView:
+        return QualificationExportView(
+            id=exp.id,
+            revision_number=exp.revision_number,
+            technical_conclusion=exp.technical_conclusion,
+            conclusion_note=exp.conclusion_note,
+            next_requalification_date=exp.next_requalification_date,
+            approval_note=exp.approval_note,
+            snapshot_hash=exp.snapshot_hash,
+            pdf_sha256=exp.pdf_sha256,
+            template_version=exp.template_version,
+            typst_version=exp.typst_version,
+            subject=exp.actor.subject,
+            issuer=exp.actor.issuer,
+            name=exp.actor.name,
+            at=exp.at,
+        )
+
+    def _qual_report_view(
+        comp: completion.Completion, exports: list[reports.QualificationExport]
+    ) -> QualificationReportView:
+        export_views = [_qual_export_view(e) for e in exports]
+        return QualificationReportView(
+            execution_id=comp.execution_id,
+            protocol_id=comp.copy.protocol_id,
+            equipment=comp.copy.equipment,
+            run_id=comp.copy.run_id,
+            execution_copy_hash=comp.copy_hash,
+            completed_at=comp.copy.completed_at,
+            technical_conclusion=reports.compute_conclusion(comp.copy),
+            counts=reports.compute_counts(comp.copy),
+            approval_note=QUALIFICATION_APPROVAL_NOTE,
+            latest_export=export_views[-1] if export_views else None,
+            exports=export_views,
+        )
+
+    @router.get(
+        "/runs/{run_id}/qualification-report",
+        operation_id="getQualificationReport",
+    )
+    def get_qualification_report(
+        run_id: str,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> QualificationReportView:
+        """Reads the Qualification Report state of a run's completed Execution. 404 if no
+        Execution exists or it is not completed. Open to any signed-in role."""
+        try:
+            with transaction(database()) as session:
+                _ex, comp, exports = reports.get_completed_for_run(session, run_id)
+                return _qual_report_view(comp, exports)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+
+    @router.post(
+        "/executions/{execution_id}/qualification-reports",
+        operation_id="approveQualificationReport",
+        status_code=201,
+    )
+    def approve_qualification_report(
+        execution_id: int,
+        body: ApproveQualificationReportRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> QualificationReportView:
+        """Approves and exports a Qualification Report PDF for a completed Execution. Needs the
+        approving role and enforces Separation of Duties against Performers, Completer,
+        Investigation authors, manual Deviation openers, Deviation submitters, and Witnesses."""
+        if not who.may_approve:
+            raise HTTPException(403, "approving a Qualification Report needs the approving role")
+        try:
+            with transaction(database()) as session:
+                comp, exports = reports.approve_qualification_report(
+                    session,
+                    actor_of(who),
+                    execution_id,
+                    conclusion_note=body.conclusion_note,
+                    next_requalification_date=body.next_requalification_date,
+                )
+                return _qual_report_view(comp, exports)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+        except reports.Refused as e:
+            raise HTTPException(422, str(e)) from e
+
+    @router.get(
+        "/executions/{execution_id}/qualification-reports/{export_id}/pdf",
+        operation_id="downloadQualificationReportPdf",
+        response_class=Response,
+        responses={200: {"content": {"application/pdf": {}}}},
+    )
+    def download_qualification_report_pdf(
+        execution_id: int,
+        export_id: int,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> Response:
+        """Re-renders and downloads a stored Qualification Report PDF (zero DB writes)."""
+        try:
+            with transaction(database()) as session:
+                pdf_bytes, rev = reports.render_stored_qualification_pdf(
+                    session, execution_id, export_id
+                )
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": (
+                    f'inline; filename="qualification-report-{execution_id}-rev{rev}.pdf"'
+                )
+            },
         )
 
     return router

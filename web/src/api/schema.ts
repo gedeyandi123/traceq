@@ -450,6 +450,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/protocols/{protocol_id}/rows/{requirement}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Row Attributes
+         * @description Sets ``stage`` (``IQ``, ``OQ``, or ``null``) and ``witness_required`` on a Test Step
+         *     row of a Protocol in Draft status, appending a new version and an Audit Trail entry.
+         *     Refused (409) unless the Protocol is in Draft status and the row is a ``test_step`` row.
+         *     Needs the deciding role.
+         */
+        put: operations["setRowAttributes"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/protocols/{protocol_id}/execution": {
         parameters: {
             query?: never;
@@ -700,6 +723,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/qualification-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Qualification Report
+         * @description Reads the Qualification Report state of a run's completed Execution. 404 if no
+         *     Execution exists or it is not completed. Open to any signed-in role.
+         */
+        get: operations["getQualificationReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/qualification-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Qualification Report
+         * @description Approves and exports a Qualification Report PDF for a completed Execution. Needs the
+         *     approving role and enforces Separation of Duties against Performers, Completer,
+         *     Investigation authors, manual Deviation openers, Deviation submitters, and Witnesses.
+         */
+        post: operations["approveQualificationReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/qualification-reports/{export_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Qualification Report Pdf
+         * @description Re-renders and downloads a stored Qualification Report PDF (zero DB writes).
+         */
+        get: operations["downloadQualificationReportPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/rounds": {
         parameters: {
             query?: never;
@@ -780,6 +866,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Equipment
+         * @description Lists every Equipment known from disk runs or database records, with latest round,
+         *     protocol, execution, and qualification report summaries.
+         */
+        get: operations["listEquipment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -840,6 +947,16 @@ export interface components {
             submission_event_id: number;
             /** Hash */
             hash: string;
+        };
+        /**
+         * ApproveQualificationReportRequest
+         * @description Payload to approve a Qualification Report for a completed Execution.
+         */
+        ApproveQualificationReportRequest: {
+            /** Conclusion Note */
+            conclusion_note?: string | null;
+            /** Next Requalification Date */
+            next_requalification_date?: string | null;
         };
         /**
          * AttemptVersionView
@@ -909,6 +1026,10 @@ export interface components {
             /** Versions */
             versions: components["schemas"]["AttemptVersionView"][];
             latest: components["schemas"]["AttemptVersionView"];
+            /** Retest Deviation Id */
+            retest_deviation_id?: number | null;
+            /** Retest Reason */
+            retest_reason?: string | null;
         };
         /**
          * Author
@@ -1002,6 +1123,7 @@ export interface components {
             blocked: boolean;
             rows_without_result: components["schemas"]["RowsWithoutResultBlocker"];
             open_deviations: components["schemas"]["OpenDeviationsBlocker"];
+            unconfirmed_witness_rows: components["schemas"]["UnconfirmedWitnessBlocker"];
         };
         /**
          * ConfirmWitnessRequest
@@ -1420,6 +1542,21 @@ export interface components {
             reason: string;
         };
         /**
+         * EquipmentSummary
+         * @description One Equipment's merged disk + DB lifecycle summary.
+         */
+        EquipmentSummary: {
+            /** Equipment */
+            equipment: string;
+            /** Run Count */
+            run_count: number;
+            latest_run?: components["schemas"]["RunSummary"] | null;
+            latest_round?: components["schemas"]["LatestRoundSummary"] | null;
+            latest_protocol?: components["schemas"]["LatestProtocolSummary"] | null;
+            latest_execution?: components["schemas"]["LatestExecutionSummary"] | null;
+            latest_qualification_report?: components["schemas"]["LatestQualificationReportSummary"] | null;
+        };
+        /**
          * EvidenceStep
          * @description A vendor FAT/SAT step linked to a requirement, with its verdict.
          */
@@ -1538,6 +1675,12 @@ export interface components {
             /** Instrument */
             instrument: string | null;
             acceptance: components["schemas"]["Acceptance"];
+            stage?: components["schemas"]["Stage"] | null;
+            /**
+             * Witness Required
+             * @default false
+             */
+            witness_required: boolean;
         };
         /**
          * ExecutionView
@@ -1604,6 +1747,10 @@ export interface components {
             recorded_at: string;
             /** Versions */
             versions: components["schemas"]["FrozenAttemptVersion"][];
+            /** Retest Deviation Id */
+            retest_deviation_id?: number | null;
+            /** Retest Reason */
+            retest_reason?: string | null;
         };
         /**
          * FrozenAttemptVersion
@@ -1808,6 +1955,12 @@ export interface components {
             /** Instrument */
             instrument: string | null;
             acceptance: components["schemas"]["Acceptance"];
+            stage?: components["schemas"]["Stage"] | null;
+            /**
+             * Witness Required
+             * @default false
+             */
+            witness_required: boolean;
         };
         /** FrozenMissed */
         FrozenMissed: {
@@ -1839,6 +1992,31 @@ export interface components {
             drafts: components["schemas"]["FrozenDraft"][];
             /** Written */
             written: components["schemas"]["FrozenVersion"][];
+            /**
+             * Step Attributes
+             * @default []
+             */
+            step_attributes: components["schemas"]["FrozenStepAttribute"][];
+        };
+        /**
+         * FrozenStepAttribute
+         * @description One version of a Test Step row's attributes (stage and witness_required).
+         */
+        FrozenStepAttribute: {
+            /** Version */
+            version: number;
+            stage?: components["schemas"]["Stage"] | null;
+            /**
+             * Witness Required
+             * @default false
+             */
+            witness_required: boolean;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         };
         /**
          * FrozenTestStep
@@ -1862,6 +2040,12 @@ export interface components {
             /** Instrument */
             instrument: string | null;
             acceptance: components["schemas"]["Acceptance"];
+            stage?: components["schemas"]["Stage"] | null;
+            /**
+             * Witness Required
+             * @default false
+             */
+            witness_required: boolean;
         };
         /** FrozenUrs */
         FrozenUrs: {
@@ -2000,6 +2184,72 @@ export interface components {
             changed: number;
             /** Decided Not Proposed */
             decided_not_proposed: number;
+        };
+        /** LatestExecutionSummary */
+        LatestExecutionSummary: {
+            /** Id */
+            id: number;
+            /** Protocol Id */
+            protocol_id: number;
+            /** Run Id */
+            run_id: string;
+            status: components["schemas"]["traceq__execution__lifecycle__Status"];
+            /** Open Deviations */
+            open_deviations: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** LatestProtocolSummary */
+        LatestProtocolSummary: {
+            /** Id */
+            id: number;
+            /** Run Id */
+            run_id: string;
+            status: components["schemas"]["traceq__assembly__lifecycle__Status"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** LatestQualificationReportSummary */
+        LatestQualificationReportSummary: {
+            /** Id */
+            id: number;
+            /** Execution Id */
+            execution_id: number;
+            /** Run Id */
+            run_id: string;
+            /** Revision Number */
+            revision_number: number;
+            technical_conclusion: components["schemas"]["TechnicalConclusion"];
+            /** Next Requalification Date */
+            next_requalification_date: string | null;
+            /** Pdf Sha256 */
+            pdf_sha256: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** LatestRoundSummary */
+        LatestRoundSummary: {
+            /** Id */
+            id: number;
+            /** Round Number */
+            round_number: number;
+            /** Run Id */
+            run_id: string;
+            status: components["schemas"]["RoundStatus"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         };
         /**
          * Limit
@@ -2419,6 +2669,12 @@ export interface components {
             prefill: components["schemas"]["RowPrefill"] | null;
             /** Blockers */
             blockers: components["schemas"]["Blocker"][];
+            stage?: components["schemas"]["Stage"] | null;
+            /**
+             * Witness Required
+             * @default false
+             */
+            witness_required: boolean;
         };
         /**
          * ProtocolUrs
@@ -2463,6 +2719,100 @@ export interface components {
             submission: components["schemas"]["SubmissionView"] | null;
             /** Submissions */
             submissions: components["schemas"]["SubmissionView"][];
+        };
+        /** QualificationCounts */
+        QualificationCounts: {
+            /** Iq Total */
+            iq_total: number;
+            /** Iq Passed */
+            iq_passed: number;
+            /** Iq Failed */
+            iq_failed: number;
+            /** Oq Total */
+            oq_total: number;
+            /** Oq Passed */
+            oq_passed: number;
+            /** Oq Failed */
+            oq_failed: number;
+            /** Unsplit Total */
+            unsplit_total: number;
+            /** Unsplit Passed */
+            unsplit_passed: number;
+            /** Unsplit Failed */
+            unsplit_failed: number;
+            /** Vendor Reference Count */
+            vendor_reference_count: number;
+            /** Total Rows */
+            total_rows: number;
+            /** Total Deviations */
+            total_deviations: number;
+        };
+        /**
+         * QualificationExportView
+         * @description One immutable Qualification Report export.
+         */
+        QualificationExportView: {
+            /** Id */
+            id: number;
+            /** Revision Number */
+            revision_number: number;
+            technical_conclusion: components["schemas"]["TechnicalConclusion"];
+            /** Conclusion Note */
+            conclusion_note: string | null;
+            /** Next Requalification Date */
+            next_requalification_date: string | null;
+            /** Approval Note */
+            approval_note: string;
+            /** Snapshot Hash */
+            snapshot_hash: string;
+            /** Pdf Sha256 */
+            pdf_sha256: string;
+            /** Template Version */
+            template_version: string;
+            /** Typst Version */
+            typst_version: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * QualificationReportView
+         * @description Qualification Report state for a completed Execution.
+         */
+        QualificationReportView: {
+            /** Execution Id */
+            execution_id: number;
+            /** Protocol Id */
+            protocol_id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            /** Execution Copy Hash */
+            execution_copy_hash: string;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            technical_conclusion: components["schemas"]["TechnicalConclusion"];
+            counts: components["schemas"]["QualificationCounts"];
+            /** Approval Note */
+            approval_note: string;
+            latest_export?: components["schemas"]["QualificationExportView"] | null;
+            /**
+             * Exports
+             * @default []
+             */
+            exports: components["schemas"]["QualificationExportView"][];
         };
         /**
          * Range
@@ -2723,6 +3073,12 @@ export interface components {
             acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
             /** Acceptance Flag */
             acceptance_flag: string | null;
+            stage?: components["schemas"]["Stage"] | null;
+            /**
+             * Witness Required
+             * @default false
+             */
+            witness_required: boolean;
         };
         /**
          * RowsWithoutResultBlocker
@@ -2803,7 +3159,21 @@ export interface components {
             rev: number;
         };
         /** @enum {string} */
+        Stage: "IQ" | "OQ";
+        /** @enum {string} */
         State: "decided" | "changed" | "undecided";
+        /**
+         * StepAttributesUpdate
+         * @description Step attributes for a Test Step row in a Draft Protocol.
+         */
+        StepAttributesUpdate: {
+            stage?: components["schemas"]["Stage"] | null;
+            /**
+             * Witness Required
+             * @default false
+             */
+            witness_required: boolean;
+        };
         /**
          * SubmissionView
          * @description A submission of the Protocol: the frozen copy it stored and that copy's hash.
@@ -2821,6 +3191,8 @@ export interface components {
             frozen_copy: components["schemas"]["ProtocolCopy"];
             outcome: components["schemas"]["ProtocolEvent"] | null;
         };
+        /** @enum {string} */
+        TechnicalConclusion: "qualified" | "qualified_with_deviations" | "not_qualified";
         /** Text */
         Text: {
             /**
@@ -2849,6 +3221,16 @@ export interface components {
             tolerance_unit: string;
             /** Unit */
             unit: string;
+        };
+        /**
+         * UnconfirmedWitnessBlocker
+         * @description Test Step rows requiring Witness whose latest attempt lacks an active Witness.
+         */
+        UnconfirmedWitnessBlocker: {
+            /** Count */
+            count: number;
+            /** Requirements */
+            requirements: string[];
         };
         /**
          * UnquotedText
@@ -3690,6 +4072,42 @@ export interface operations {
             };
         };
     };
+    setRowAttributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+                requirement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepAttributesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     startExecution: {
         parameters: {
             query?: never;
@@ -4100,6 +4518,104 @@ export interface operations {
             };
         };
     };
+    getQualificationReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualificationReportView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approveQualificationReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveQualificationReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualificationReportView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    downloadQualificationReportPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                export_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getRunRounds: {
         parameters: {
             query?: never;
@@ -4226,6 +4742,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listEquipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentSummary"][];
                 };
             };
         };

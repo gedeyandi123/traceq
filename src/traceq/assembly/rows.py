@@ -27,7 +27,8 @@ from typing import Any, Literal, TypeGuard
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from traceq.assembly import written
+from traceq.assembly import attributes, written
+from traceq.assembly.attributes import Stage, StepAttribute
 from traceq.assembly.lifecycle import AssembledProtocol
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.proposals.decisions import Decision, Standing, standings
@@ -91,6 +92,7 @@ class ProtocolRow:
     """For a Test Step row: the written Test Step in force, if any."""
     prefill: Prefill | None
     blockers: tuple[Blocker, ...]
+    step_attributes: tuple[StepAttribute, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -112,6 +114,8 @@ class RowStep:
     instrument: str | None
     acceptance: Value | None
     acceptance_flag: str | None
+    stage: Stage | None = None
+    witness_required: bool = False
 
 
 def _edited(r: ProtocolRow, v: WrittenVersion) -> Decision | None:
@@ -130,6 +134,7 @@ def _edited(r: ProtocolRow, v: WrittenVersion) -> Decision | None:
 
 def step_of(r: ProtocolRow) -> RowStep | None:
     """The row's one Test Step: the written one in force, else the accepted draft."""
+    stage, witness_required = attributes.current(r.step_attributes)
     v = r.written_step
     if v is not None:
         c = v.content
@@ -145,6 +150,8 @@ def step_of(r: ProtocolRow) -> RowStep | None:
             instrument=c.instrument,
             acceptance=c.acceptance,
             acceptance_flag=None,
+            stage=stage,
+            witness_required=witness_required,
         )
     if r.test_step is None:
         return None
@@ -159,6 +166,8 @@ def step_of(r: ProtocolRow) -> RowStep | None:
         instrument=d.instrument,
         acceptance=d.acceptance,
         acceptance_flag=d.acceptance_flag,
+        stage=stage,
+        witness_required=witness_required,
     )
 
 
@@ -212,6 +221,7 @@ def rows_of(session: Session, protocol: AssembledProtocol) -> list[ProtocolRow]:
     """The rows of a Protocol in Draft status, from its run, in requirement order."""
     run_id = protocol.run_id
     versions = written.versions_of(session, protocol.id)
+    attrs = attributes.attributes_of(session, protocol.id)
     carried = written.carried_over(session, protocol)
     stood = standings(session, run_id) or []
     proposed: dict[int, dict[str, Any]] = {
@@ -261,6 +271,7 @@ def rows_of(session: Session, protocol: AssembledProtocol) -> list[ProtocolRow]:
                 written_step=step,
                 prefill=_prefill(in_force, carried.get(s.requirement), mine),
                 blockers=blockers,
+                step_attributes=attrs.get(s.requirement, ()) if kind == "test_step" else (),
             )
         )
     return out
