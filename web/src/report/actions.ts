@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { api, type QualificationReportView } from "@/api/client";
+import { isReauthRequiredResponse } from "@/auth/oidc";
 import { consumeSignatureBearerHeaders } from "@/auth/session";
 
 export type ReportError =
   | "conflict"
   | "forbidden"
   | "unauthorized"
+  | "reauth_required"
   | "notFound"
   | "unprocessable"
   | "failed";
@@ -93,7 +95,9 @@ export async function approveQualificationReport(
         },
       },
     );
-    failed = errorFromStatus(response.status);
+    failed = isReauthRequiredResponse(response)
+      ? "reauth_required"
+      : errorFromStatus(response.status);
     detail = extractDetail(error);
     report = data;
   } catch {

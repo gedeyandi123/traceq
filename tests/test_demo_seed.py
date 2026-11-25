@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from traceq.execution.results import ConfirmWitnessRequest, InstrumentInput, RecordAttemptRequest
 
@@ -139,3 +142,48 @@ def test_ensure_approved_protocol_imports_and_handles_changed_and_null_coverage(
         m == "POST" and u.endswith("/proposals/2/decisions") and b.get("decision") == "edited"
         for m, u, b in calls
     )
+
+
+def test_resolve_target_reads_idp_from_ready_file_and_uses_pkce_in_keycloak_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import argparse
+
+    ds = _load_demo_seed()
+    ready = tmp_path / "ready.json"
+    ready.write_text(
+        json.dumps(
+            {
+                "run_id": "run-kc-1",
+                "api_url": "http://127.0.0.1:8000/",
+                "issuer_url": "http://127.0.0.1:8080/realms/traceq/",
+                "idp": "keycloak",
+                "role_claim": "realm_access.roles",
+            }
+        ),
+        encoding="utf-8",
+    )
+    args = argparse.Namespace(
+        ready_file=ready,
+        api_url=None,
+        issuer_url=None,
+        idp=None,
+        run_id=None,
+        review_package=False,
+    )
+    api_url, issuer_url, run_id, idp = ds._resolve_target(args, None)
+    assert api_url == "http://127.0.0.1:8000"
+    assert issuer_url == "http://127.0.0.1:8080/realms/traceq"
+    assert run_id == "run-kc-1"
+    assert idp == "keycloak"
+
+    called: list[tuple[str, str]] = []
+
+    def _fake_pkce(issuer: str, username: str) -> str:
+        called.append((issuer, username))
+        return f"pkce-{username}"
+
+    monkeypatch.setattr(ds, "keycloak_pkce_token", _fake_pkce)
+    headers = ds._token(None, issuer_url, "dewi", idp="keycloak")
+    assert headers == {"Authorization": "Bearer pkce-dewi"}
+    assert called == [("http://127.0.0.1:8080/realms/traceq", "dewi")]

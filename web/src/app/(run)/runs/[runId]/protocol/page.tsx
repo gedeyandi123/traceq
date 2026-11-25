@@ -33,6 +33,7 @@ const PROTOCOL_ERRORS: readonly ProtocolError[] = [
   "invalid",
   "forbidden",
   "unauthorized",
+  "reauth_required",
   "failed",
 ];
 

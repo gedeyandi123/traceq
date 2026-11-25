@@ -9,8 +9,18 @@ import {
   WITNESSING_ROLE,
 } from "@/decisions/vocabulary";
 
-/** The httpOnly cookie holding the demo token. Only the Next.js server reads it. */
-export const TOKEN_COOKIE = "traceq_token";
+import {
+  cookieOptions,
+  decodeJwtPayload,
+  ID_TOKEN_COOKIE,
+  isOidcMode,
+  isTokenExpired,
+  OIDC_TX_COOKIE,
+  REAUTH_TOKEN_COOKIE,
+  TOKEN_COOKIE,
+} from "./oidc";
+
+export { TOKEN_COOKIE };
 
 export type Persona = { username: string; name: string; roles: string[] };
 
@@ -21,6 +31,7 @@ export type Session = {
   name: string;
   subject: string;
   issuer: string;
+  username?: string;
   mayDecide: boolean;
   mayApprove: boolean;
   mayExecute: boolean;
@@ -29,11 +40,13 @@ export type Session = {
 
 /** The claim holding the roles, a dotted path for a nested claim; the same setting as the
  * API's `--role-claim`. */
-const ROLE_CLAIM = process.env.TRACEQ_ROLE_CLAIM ?? "roles";
+function roleClaimPath(): string {
+  return process.env.TRACEQ_ROLE_CLAIM ?? "roles";
+}
 
 function roles(payload: unknown): unknown {
   let at: unknown = payload;
-  for (const part of ROLE_CLAIM.split(".")) {
+  for (const part of roleClaimPath().split(".")) {
     at = typeof at === "object" && at !== null ? (at as Record<string, unknown>)[part] : undefined;
   }
   return at;
@@ -64,20 +77,21 @@ export async function signIn(username: string): Promise<boolean> {
       access_token: string;
       expires_in: number;
     };
-    (await cookies()).set(TOKEN_COOKIE, access_token, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: expires_in,
-    });
+    (await cookies()).set(TOKEN_COOKIE, access_token, cookieOptions({ maxAge: expires_in }));
     return true;
   } catch {
     return false;
   }
 }
 
-export async function signOut(): Promise<void> {
-  (await cookies()).delete(TOKEN_COOKIE);
+export async function signOut(): Promise<string | undefined> {
+  const store = await cookies();
+  const idToken = store.get(ID_TOKEN_COOKIE)?.value;
+  store.delete(TOKEN_COOKIE);
+  store.delete(ID_TOKEN_COOKIE);
+  store.delete(OIDC_TX_COOKIE);
+  store.delete(REAUTH_TOKEN_COOKIE);
+  return idToken;
 }
 
 /** The bearer header for a call to the API, from the cookie. Server side only. */
@@ -86,15 +100,31 @@ export async function bearerHeaders(): Promise<Record<string, string>> {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
-/** Mints a fresh demo token (fresh ``auth_time`` and ``jti``) for a signing action using
- * ``preferred_username`` from ``traceq_token``, falling back to ``bearerHeaders()``. */
+/** Returns a fresh-auth bearer header for signing actions.
+ * In OIDC mode: consumes the single-use `traceq_reauth_token` cookie if present, else falls
+ * back to `traceq_token` (so recently signed-in users succeed within `max_age` and stale
+ * sessions trigger RFC 9470 `reauth_required`).
+ * In demo mode: mints a fresh single-use `/demo/token` using `preferred_username`. */
 export async function consumeSignatureBearerHeaders(): Promise<Record<string, string>> {
-  const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+  const store = await cookies();
+  if (isOidcMode()) {
+    const reauthToken = store.get(REAUTH_TOKEN_COOKIE)?.value;
+    if (reauthToken) {
+      store.delete(REAUTH_TOKEN_COOKIE);
+      return { authorization: `Bearer ${reauthToken}` };
+    }
+    const token = store.get(TOKEN_COOKIE)?.value;
+    return token ? { authorization: `Bearer ${token}` } : {};
+  }
+
+  const token = store.get(TOKEN_COOKIE)?.value;
   if (!token) return {};
   try {
-    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString());
+    const payload = decodeJwtPayload(token);
     const username =
-      typeof payload.preferred_username === "string" ? payload.preferred_username : null;
+      payload && typeof payload.preferred_username === "string"
+        ? payload.preferred_username
+        : null;
     if (!username) return { authorization: `Bearer ${token}` };
     const r = await fetch(`${ISSUER_URL}/demo/token`, {
       method: "POST",
@@ -110,26 +140,24 @@ export async function consumeSignatureBearerHeaders(): Promise<Record<string, st
   }
 }
 
-/** Who is signed in, for display. The payload is read, not trusted: the API verifies the
- * token on every call. */
+/** Who is signed in, for display. Checks `exp` when present. The payload is read, not trusted:
+ * the API verifies the token on every call. */
 export async function currentSession(): Promise<Session | null> {
   const token = (await cookies()).get(TOKEN_COOKIE)?.value;
   if (!token) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString());
-    if (typeof payload.name !== "string") return null;
-    const held = roles(payload);
-    const has = (role: string) => Array.isArray(held) && held.includes(role);
-    return {
-      name: payload.name,
-      subject: typeof payload.sub === "string" ? payload.sub : "",
-      issuer: typeof payload.iss === "string" ? payload.iss : "",
-      mayDecide: has(DECIDING_ROLE),
-      mayApprove: has(APPROVING_ROLE),
-      mayExecute: has(EXECUTING_ROLE),
-      mayWitness: has(WITNESSING_ROLE),
-    };
-  } catch {
-    return null;
-  }
+  const payload = decodeJwtPayload(token);
+  if (!payload || isTokenExpired(payload) || typeof payload.name !== "string") return null;
+  const held = roles(payload);
+  const has = (role: string) => Array.isArray(held) && held.includes(role);
+  return {
+    name: payload.name,
+    subject: typeof payload.sub === "string" ? payload.sub : "",
+    issuer: typeof payload.iss === "string" ? payload.iss : "",
+    username:
+      typeof payload.preferred_username === "string" ? payload.preferred_username : undefined,
+    mayDecide: has(DECIDING_ROLE),
+    mayApprove: has(APPROVING_ROLE),
+    mayExecute: has(EXECUTING_ROLE),
+    mayWitness: has(WITNESSING_ROLE),
+  };
 }

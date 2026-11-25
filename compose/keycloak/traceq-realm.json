@@ -1,0 +1,169 @@
+{
+  "realm": "traceq",
+  "enabled": true,
+  "displayName": "TraceQ Reference IdP",
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 3600,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "qualification-decider",
+        "description": "Decides matrix proposals and assembles protocols"
+      },
+      {
+        "name": "qualification-approver",
+        "description": "Approves or returns protocols, closes deviations, approves qualification reports"
+      },
+      {
+        "name": "qualification-executor",
+        "description": "Executes approved protocols and records test step attempts"
+      },
+      {
+        "name": "qualification-witness",
+        "description": "Confirms execution results as a witness"
+      }
+    ]
+  },
+  "users": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "username": "ayu",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ayu Kartika",
+      "lastName": "Sari",
+      "email": "ayu@traceq.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["qualification-decider", "qualification-executor"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "username": "bima",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Bima Arya",
+      "lastName": "Nugraha",
+      "email": "bima@traceq.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["qualification-decider", "qualification-executor"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "username": "citra",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Citra Maharani",
+      "lastName": "Putri",
+      "email": "citra@traceq.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": []
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "username": "dewi",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Dewi Anggraini",
+      "lastName": "Lestari",
+      "email": "dewi@traceq.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["qualification-approver"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "username": "eko",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Eko Prasetyo",
+      "lastName": "Wijaya",
+      "email": "eko@traceq.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["qualification-witness"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "traceq-web",
+      "name": "TraceQ Web UI",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://127.0.0.1:3000/api/auth/callback",
+        "http://localhost:3000/api/auth/callback"
+      ],
+      "webOrigins": [
+        "http://127.0.0.1:3000",
+        "http://localhost:3000"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://127.0.0.1:3000/*##http://localhost:3000/*"
+      },
+      "defaultClientScopes": ["basic", "profile", "email", "roles", "web-origins"],
+      "protocolMappers": [
+        {
+          "name": "traceq-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "traceq",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "auth-time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "claim.name": "auth_time",
+            "jsonType.label": "long",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}
