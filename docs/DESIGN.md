@@ -48,7 +48,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 - **Route Groups (zero double header):**
   - `(home)` for `/` (Runs list) and `/signin`.
   - `(run)` with `web/src/app/(run)/runs/[runId]/layout.tsx` for full-viewport run workspaces without a nested `1440px` outer wrapper.
-- **Deduplicated Server Fetching:** Per-endpoint `React.cache` fetchers (`fetchRun`, `fetchDecisionCounts`, `fetchProtocol`) shared between layout and pages. All mutations call `revalidatePath(\`/runs/\${runId}\`, "layout")` so sidebar counts update immediately.
+- **Deduplicated Server Fetching:** Per-endpoint `React.cache` fetchers (`fetchRun`, `fetchDecisionCounts`, `fetchProtocol`, `fetchExecution`) shared between layout and pages. All mutations call `revalidatePath(\`/runs/\${runId}\`, "layout")` so sidebar counts update immediately.
 - **Persistent Collapsible Left Sidebar:**
   - `240px` expanded on desktop; auto-collapses to a `56px` icon-rail when a right drawer opens at `1366px`; becomes a slide-over drawer at `<1024px` (`390px`).
   - **Alur Kualifikasi** (unnumbered so runs with `review_package == null` omit `Draf Protokol` cleanly without numeric gaps):
@@ -56,7 +56,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
     - `Temuan Pra-Tinjauan` (`/runs/[runId]/findings`) — undecided badge
     - `Draf Protokol` (`/runs/[runId]/draft`) — shown only when `run.review_package != null`
     - `Protokol IQ/OQ` (`/runs/[runId]/protocol`) — status badge (`Draft` / `Disetujui`)
-    - `Eksekusi & Deviasi` — reserved Step 5b slot ([ADR 0013](adr/0013-execution-results-judged-by-code-deviations-opened-by-code.md))
+    - `Eksekusi & Deviasi` (`/runs/[runId]/execution`) — status badge (`Sedang berjalan` / `Selesai`) & open Deviation count ([ADR 0013](adr/0013-execution-results-judged-by-code-deviations-opened-by-code.md))
   - **Audit & Diagnostik:** `Yang Tidak Dimasukkan` (`/left-out`) · `Hasil Evaluasi` (`/eval`).
 - **Compact Sticky Context Bar (`48px`):** Equipment/run identity (`TP-201`), signed-in persona Radix `DropdownMenu` (displaying persona name + role badge, with actions *"Ganti persona"* → `/signin` and *"Keluar"*), and one primary next-action CTA (using a thin client `useSelectedLayoutSegment()` wrapper).
 
