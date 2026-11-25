@@ -65,7 +65,13 @@ EXECUTION_ROUTES = {
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/return"),
     ("post", "/executions/{execution_id}/complete"),
 }
-DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES
+ROUNDS_ROUTES = {
+    ("get", "/runs/{run_id}/rounds"),
+    ("post", "/rounds/{round_id}/close"),
+    ("post", "/rounds/{round_id}/exports"),
+    ("get", "/rounds/{round_id}/exports/{export_id}/pdf"),
+}
+DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES | ROUNDS_ROUTES
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 
@@ -152,6 +158,8 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
             execution_id=1,
             deviation_id=1,
             attempt_number=1,
+            round_id=1,
+            export_id=1,
             requirement="URS-TP201-002",
         )
         assert client.request(method, url).status_code == 401
@@ -190,6 +198,8 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
                 execution_id=1,
                 deviation_id=1,
                 attempt_number=1,
+                round_id=1,
+                export_id=1,
                 requirement="URS-TP201-002",
             ),
         )
@@ -270,7 +280,8 @@ def test_import_loads_every_coverage_row_and_finding_and_says_where_each_stands(
     with transaction(engine(fresh_database.app)) as s:
         trail = entries(s)
     assert [(e.action, e.record_type, e.record_id, e.actor.name) for e in trail] == [
-        ("run imported", "run", RUN_ID, "Ayu Kartika Sari")
+        ("run imported", "run", RUN_ID, "Ayu Kartika Sari"),
+        ("review round opened", "review_round", "1", "Ayu Kartika Sari"),
     ]
     assert trail[0].actor.subject == "demo-0001"
     provenance = trail[0].new_value
@@ -307,7 +318,7 @@ def test_re_import_changes_nothing(
     assert again["proposals"] == 6
     assert proposals(client, decider) == before
     with transaction(engine(fresh_database.app)) as s:
-        assert len(entries(s)) == 1
+        assert len(entries(s)) == 2
 
 
 def test_an_unknown_run_is_not_found(client: TestClient, decider: dict[str, str]) -> None:
@@ -554,7 +565,7 @@ def test_a_missing_reason_for_change_is_refused(
     assert refused(client, decider, p, **body) == 422
     assert place(proposals(client, decider), kind, where)["state"] == "undecided"
     with transaction(engine(fresh_database.app)) as s:
-        assert [e.action for e in entries(s)] == ["run imported"]
+        assert [e.action for e in entries(s)] == ["run imported", "review round opened"]
 
 
 def test_a_replacing_decision_needs_a_reason_and_keeps_the_earlier_one(
@@ -673,9 +684,9 @@ def test_a_changed_coverage_row_names_the_class_decided_earlier(
         ("check", 1): ("undecided", None),
         ("ai", 0): ("changed", None),
     }
-    # Reading it writes nothing: only the import of the second run joined the Audit Trail.
+    # Reading it writes nothing: only the import + round open of the second run joined Audit Trail.
     with transaction(engine(fresh_database.app)) as s:
-        assert len(entries(s)) == trail + 1
+        assert len(entries(s)) == trail + 2
     # Once decided again, the row no longer names an earlier class.
     again = now[("coverage", "URS-TP201-002")]
     decide(client, decider, again, OTHER_RUN, decision="accepted")

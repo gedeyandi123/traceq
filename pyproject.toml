@@ -101,14 +101,14 @@ root_packages = ["traceq", "traceq_dataset", "traceq_eval"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "TraceQ modules are layered: app > execution > assembly > proposals > audit, identity > db > runs > review, protocols > traceability > documents, ai"
+name = "TraceQ modules are layered: app > execution > assembly, rounds > proposals > reports, audit, identity > db > runs > review, protocols > traceability > documents, ai"
 type = "layers"
 layers = [
     "traceq.app",
     "traceq.execution",
-    "traceq.assembly",
+    "traceq.assembly | traceq.rounds",
     "traceq.proposals",
-    "traceq.audit | traceq.identity",
+    "traceq.reports | traceq.audit | traceq.identity",
     "traceq.db",
     "traceq.runs",
     "traceq.review | traceq.protocols",
@@ -117,7 +117,7 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The pipeline and the harness import neither app, execution, the assembled Protocol, proposals, identity, the database modules nor a database library"
+name = "The pipeline and the harness import neither app, execution, the assembled Protocol, rounds, proposals, reports, identity, the database modules nor a database library"
 type = "forbidden"
 source_modules = [
     "traceq.runs",
@@ -133,7 +133,9 @@ forbidden_modules = [
     "traceq.app",
     "traceq.execution",
     "traceq.assembly",
+    "traceq.rounds",
     "traceq.proposals",
+    "traceq.reports",
     "traceq.audit",
     "traceq.identity",
     "traceq.db",

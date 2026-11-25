@@ -1715,6 +1715,204 @@
           }
         }
       }
+    },
+    "/runs/{run_id}/rounds": {
+      "get": {
+        "summary": "Get Run Rounds",
+        "description": "Review rounds for the run's Equipment, and diff vs the previous round.",
+        "operationId": "getRunRounds",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRoundsView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rounds/{round_id}/close": {
+      "post": {
+        "summary": "Close Review Round",
+        "description": "Closes an open review round. Needs the deciding role.",
+        "operationId": "closeReviewRound",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "round_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Round Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseRoundRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewRoundView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rounds/{round_id}/exports": {
+      "post": {
+        "summary": "Export Pre Review Report",
+        "description": "Generates and stores an immutable Pre-Review Report PDF export.",
+        "operationId": "exportPreReviewReport",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "round_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Round Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExportView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rounds/{round_id}/exports/{export_id}/pdf": {
+      "get": {
+        "summary": "Download Pre Review Report Pdf",
+        "description": "Re-renders and returns the stored Pre-Review Report PDF without DB writes.",
+        "operationId": "downloadPreReviewReportPdf",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "round_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Round Id"
+            }
+          },
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2220,6 +2418,37 @@
         ],
         "title": "Cite",
         "description": "Where a claim comes from: document, revision, page and the verbatim quote."
+      },
+      "CloseOutcome": {
+        "type": "string",
+        "enum": [
+          "returned_for_revision",
+          "ready_for_protocol"
+        ]
+      },
+      "CloseRoundRequest": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/CloseOutcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "outcome"
+        ],
+        "title": "CloseRoundRequest"
       },
       "Completeness": {
         "properties": {
@@ -2827,6 +3056,68 @@
         ],
         "title": "DeviationView",
         "description": "One Deviation on an Execution."
+      },
+      "DocumentVersionView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "doc_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Type"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "first_seen_run_id": {
+            "type": "string",
+            "title": "First Seen Run Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "equipment",
+          "doc_id",
+          "rev",
+          "doc_type",
+          "source",
+          "sha256",
+          "first_seen_run_id",
+          "at"
+        ],
+        "title": "DocumentVersionView"
       },
       "DraftAcceptance": {
         "properties": {
@@ -6534,6 +6825,71 @@
         "title": "RecordAttemptRequest",
         "description": "Payload to record the first attempt on a Test Step row."
       },
+      "ReportExportView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "round_id": {
+            "type": "integer",
+            "title": "Round Id"
+          },
+          "report_kind": {
+            "type": "string",
+            "title": "Report Kind"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "snapshot_hash": {
+            "type": "string",
+            "title": "Snapshot Hash"
+          },
+          "pdf_sha256": {
+            "type": "string",
+            "title": "Pdf Sha256"
+          },
+          "template_version": {
+            "type": "string",
+            "title": "Template Version"
+          },
+          "typst_version": {
+            "type": "string",
+            "title": "Typst Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "round_id",
+          "report_kind",
+          "at",
+          "subject",
+          "issuer",
+          "name",
+          "snapshot_hash",
+          "pdf_sha256",
+          "template_version",
+          "typst_version"
+        ],
+        "title": "ReportExportView"
+      },
       "RequiredDocument": {
         "properties": {
           "doc_id": {
@@ -6743,6 +7099,234 @@
         ],
         "title": "ReturnDeviationRequest",
         "description": "Payload to return a Submitted Deviation to Open with a required reason."
+      },
+      "ReviewRoundEventView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "round_id": {
+            "type": "integer",
+            "title": "Round Id"
+          },
+          "event": {
+            "$ref": "#/components/schemas/RoundEventKind"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "round_id",
+          "event",
+          "reason",
+          "at",
+          "subject",
+          "issuer",
+          "name"
+        ],
+        "title": "ReviewRoundEventView"
+      },
+      "ReviewRoundView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "round_number": {
+            "type": "integer",
+            "title": "Round Number"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "previous_round_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Round Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RoundStatus"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentVersionView"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewRoundEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "exports": {
+            "items": {
+              "$ref": "#/components/schemas/ReportExportView"
+            },
+            "type": "array",
+            "title": "Exports"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "equipment",
+          "round_number",
+          "run_id",
+          "previous_round_id",
+          "at",
+          "status",
+          "documents",
+          "events",
+          "exports"
+        ],
+        "title": "ReviewRoundView"
+      },
+      "RoundDiffView": {
+        "properties": {
+          "previous_round_number": {
+            "type": "integer",
+            "title": "Previous Round Number"
+          },
+          "previous_run_id": {
+            "type": "string",
+            "title": "Previous Run Id"
+          },
+          "documents_added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Documents Added"
+          },
+          "documents_revised": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Documents Revised"
+          },
+          "documents_unchanged": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Documents Unchanged"
+          },
+          "documents_removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Documents Removed"
+          },
+          "findings_resolved": {
+            "type": "integer",
+            "title": "Findings Resolved"
+          },
+          "findings_persisted": {
+            "type": "integer",
+            "title": "Findings Persisted"
+          },
+          "findings_new": {
+            "type": "integer",
+            "title": "Findings New"
+          },
+          "decisions_carried_forward": {
+            "type": "integer",
+            "title": "Decisions Carried Forward"
+          },
+          "decisions_changed": {
+            "type": "integer",
+            "title": "Decisions Changed"
+          },
+          "decisions_undecided": {
+            "type": "integer",
+            "title": "Decisions Undecided"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "previous_round_number",
+          "previous_run_id",
+          "documents_added",
+          "documents_revised",
+          "documents_unchanged",
+          "documents_removed",
+          "findings_resolved",
+          "findings_persisted",
+          "findings_new",
+          "decisions_carried_forward",
+          "decisions_changed",
+          "decisions_undecided"
+        ],
+        "title": "RoundDiffView"
+      },
+      "RoundEventKind": {
+        "type": "string",
+        "enum": [
+          "opened",
+          "returned_for_revision",
+          "ready_for_protocol"
+        ]
+      },
+      "RoundStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "returned_for_revision",
+          "ready_for_protocol"
+        ]
       },
       "RowDraft": {
         "properties": {
@@ -6984,6 +7568,44 @@
         ],
         "title": "RunPackage",
         "description": "The Review Package a run reviews and the Protocol Draft it read."
+      },
+      "RunRoundsView": {
+        "properties": {
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "current_round_id": {
+            "type": "integer",
+            "title": "Current Round Id"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewRoundView"
+            },
+            "type": "array",
+            "title": "Rounds"
+          },
+          "diff": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoundDiffView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "equipment",
+          "current_round_id",
+          "rounds",
+          "diff"
+        ],
+        "title": "RunRoundsView"
       },
       "RunSummary": {
         "properties": {

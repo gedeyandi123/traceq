@@ -29,6 +29,8 @@ from traceq.execution.api import create_router as execution_router
 from traceq.identity import IdentitySettings, Verifier
 from traceq.identity.http import authenticate
 from traceq.proposals.api import create_router as proposals_router
+from traceq.rounds import create_router as rounds_router
+from traceq.rounds import register_import as register_round_import
 from traceq.runs.api import create_router as runs_router
 
 
@@ -55,10 +57,17 @@ def create_app(
     db = None if database is None else engine(make_url(database))
     principal = authenticate(verifier)
     app.include_router(
-        proposals_router(runs, db, principal, before_accepting=written.guard_accepting)
+        proposals_router(
+            runs,
+            db,
+            principal,
+            before_accepting=written.guard_accepting,
+            after_import=register_round_import,
+        )
     )
     app.include_router(assembly_router(runs, db, principal))
     app.include_router(execution_router(db, principal))
+    app.include_router(rounds_router(runs, db, principal))
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error_handler(
