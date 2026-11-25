@@ -259,4 +259,26 @@ Layar **Laporan Kualifikasi** (`/runs/<id>/report`, di bilah sisi setelah Ekseku
 | K54 | Pratinjau & penerbitan Laporan Kualifikasi (PDF) | Setelah Eksekusi selesai: klik CTA **Buka Laporan Kualifikasi** → masuk sebagai `dewi` (`qualification-approver`) → isi catatan kesimpulan & tanggal rekualifikasi berikutnya → klik **Terbitkan Laporan Kualifikasi (PDF)** → klik **Unduh PDF** | Kesimpulan teknis, hitungan IQ/OQ, dan catatan ADR 0007 tampil; revisi baru (`Rev 1`) muncul di **Riwayat Ekspor** dengan `snapshot_hash`, `pdf_sha256`, dan tautan unduh `/api/executions/{executionId}/qualification-reports/{exportId}/pdf` mengembalikan `application/pdf`; bila kesimpulan `not_qualified`, tanggal rekualifikasi tidak ditampilkan | |
 | K55 | Daftar Equipment (`/equipment`) | Buka `/equipment` saat belum masuk, lalu masuk dan muat ulang `/equipment` | Saat belum masuk: tampil `Alert` masuk + tautan `/signin`. Setelah masuk: tabel menampilkan peralatan, ronde terakhir, protokol, eksekusi (+ deviasi terbuka), kesimpulan Laporan Kualifikasi dengan tautan langsung ke masing-masing `run_id`, dan tanggal rekualifikasi (atau `"Belum dijadwalkan"`) | |
 
+## 15. Keycloak 26 OIDC & Tanda Tangan Elektronik (tahap 8, spec #333 / #317)
+
+Mode penyedia identitas OIDC menggunakan Keycloak 26 (`quay.io/keycloak/keycloak:26.8.2`, profil `keycloak` di `compose.yaml`) dengan realm `traceq` (`compose/keycloak/traceq-realm.json`). Untuk menyalakan demo dengan Keycloak:
+
+```sh
+uv run python scripts/demo.py dist/t0-2026-06-01 --recordings recordings/haiku-r10 --idp keycloak
+```
+
+Pada terminal terpisah untuk UI web (`web/`):
+
+```sh
+TRACEQ_OIDC_CLIENT_ID=traceq-web TRACEQ_ISSUER_URL=http://127.0.0.1:8080/realms/traceq TRACEQ_ROLE_CLAIM=realm_access.roles TRACEQ_PUBLIC_URL=http://127.0.0.1:3000 npm run dev
+```
+
+Akun demo Keycloak (kata sandi seluruhnya `demo`): `ayu` & `bima` (`qualification-decider`, `qualification-executor`), `dewi` (`qualification-approver`), `eko` (`qualification-witness`), dan `citra` (hanya baca).
+
+| ID | Kasus | Langkah | Hasil yang diharapkan | Hasil |
+|---|---|---|---|---|
+| K56 | Masuk OIDC PKCE & pemisahan tugas | Buka `/signin` → klik **Masuk dengan Keycloak** → masuk sebagai `ayu` (`demo`). Coba setujui protokol yang disiapkan `ayu` | `/signin` hanya menampilkan tombol Keycloak; `ayu` dapat mengajukan protokol (`prepared`) lewat `ElectronicSignatureDialog` setelah re-auth, tetapi persetujuan oleh `ayu` tetap ditolak `409` (SoD) | |
+| K57 | Autentikasi ulang 60 detik & `SignatureBadge` pada 5 aksi penandatanganan | Masuk sebagai `dewi` (`demo`) → buka `/runs/<id>/report`, isi `conclusion_note` & tanggal rekualifikasi → klik **Terbitkan Laporan Kualifikasi (PDF)** → klik **Autentikasi Ulang dengan Keycloak** | Redirect ke `/api/auth/reauth` (`prompt=login&max_age=0&login_hint`), setelah memasukkan kata sandi `demo`, dialog terbuka kembali otomatis dengan `conclusion_note` & tanggal tetap terisi (`sessionStorage`), hitungan mundur 60 detik tampil dari `auth_time`, dan konfirmasi 1-klik menerbitkan laporan dengan `SignatureBadge` berlabel *Electronic Signature — designed for 21 CFR Part 11, CPOB Annex 7, and draft EU GMP Annex 11 (2025), not validated (ADR 0007)* | |
+| K58 | Penutupan & pembekuan sumber daya | Setelah verifikasi: `Ctrl-C` pada `demo.py`, hentikan server web, dan jalankan `docker compose --profile keycloak stop keycloak` | Proses web/API berhenti dan kontainer Keycloak berhenti untuk membebaskan RAM | |
+
 Kolom "Hasil" diisi oleh sesi utama setelah kasus dijalankan di browser pada stack yang dibangun dari cabang integrasi.

@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { currentSession } from "@/auth/session";
+import { currentSession, signingAuthState } from "@/auth/session";
 import { AssembledProtocolView, type ProtocolError } from "@/components/AssembledProtocolView";
 import { EmptyState } from "@/components/ui/ui";
 import { decisionError, loadDecisions } from "@/decisions/load";
@@ -54,21 +54,27 @@ export default async function ProtocolPage({
     error?: string | string[];
     protocolError?: string | string[];
     selected?: string | string[];
+    reauth_target?: string | string[];
   }>;
 }) {
   const { runId } = await params;
   const query = await searchParams;
   const t = await getTranslations("protocol");
   const signin = await getTranslations("signin");
-  const [run, decisions, session, protocolRes] = await Promise.all([
+  const [run, decisions, session, signingAuth, protocolRes] = await Promise.all([
     fetchRun(runId),
     loadDecisions(runId),
     currentSession(),
+    signingAuthState(),
     fetchProtocol(runId),
   ]);
   decisions.error = decisionError(query.error);
   if (!run) notFound();
   const selected = typeof query.selected === "string" && query.selected.trim() !== "" ? query.selected : null;
+  const reauthTarget =
+    typeof query.reauth_target === "string" && query.reauth_target.trim() !== ""
+      ? query.reauth_target
+      : null;
   const signInHref = `/signin?next=${encodeURIComponent(`/runs/${encodeURIComponent(runId)}/protocol`)}`;
   const heading = (
     <div>
@@ -137,6 +143,8 @@ export default async function ProtocolPage({
             : null
         }
         approval={session?.mayApprove ? { approve: approveProtocol, return: returnProtocol } : null}
+        signingAuth={signingAuth}
+        initialReauthTarget={reauthTarget}
         error={PROTOCOL_ERRORS.find((e) => e === query.protocolError)}
         initialSelected={selected}
       />

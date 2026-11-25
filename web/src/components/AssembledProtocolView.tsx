@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { ProtocolView } from "@/api/client";
+import type { SigningAuthState } from "@/auth/session";
 import type { ProtocolFormActionState } from "@/protocol/actions";
 import type { DecisionView } from "./Decisions";
 import { DecisionNoticeBanner } from "./FindingDecisionPanel";
@@ -100,6 +101,8 @@ export function AssembledProtocolView({
   decisions,
   controls,
   approval = null,
+  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  initialReauthTarget = null,
   error,
   initialSelected = null,
 }: {
@@ -108,6 +111,8 @@ export function AssembledProtocolView({
   decisions: DecisionView;
   controls: ProtocolControls;
   approval?: ApprovalControls;
+  signingAuth?: SigningAuthState;
+  initialReauthTarget?: string | null;
   error?: ProtocolError;
   initialSelected?: string | null;
 }) {
@@ -277,6 +282,8 @@ export function AssembledProtocolView({
             runId={runId}
             controls={controls}
             approval={approval}
+            signingAuth={signingAuth}
+            initialReauthTarget={initialReauthTarget}
           />
 
           {rows !== null && (
@@ -288,6 +295,8 @@ export function AssembledProtocolView({
                   runId={runId}
                   protocolId={protocol.id}
                   controls={controls}
+                  signingAuth={signingAuth}
+                  initialReauthTarget={initialReauthTarget}
                   onNavigateToRow={navigateToRow}
                   onNavigateToMissed={navigateToMissed}
                 />

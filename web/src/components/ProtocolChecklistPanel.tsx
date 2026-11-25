@@ -5,9 +5,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import type { ChecklistItem } from "@/api/client";
+import type { SigningAuthState } from "@/auth/session";
 import type { ProtocolControls } from "./AssembledProtocolView";
-import { Modal } from "./ui/Modal";
-import { SubmitButton } from "./ui/SubmitButton";
+import { ElectronicSignatureDialog } from "./ElectronicSignatureDialog";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
 
@@ -21,6 +21,8 @@ export function ProtocolChecklistPanel({
   runId,
   protocolId,
   controls,
+  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  initialReauthTarget = null,
   onNavigateToRow,
   onNavigateToMissed,
 }: {
@@ -29,12 +31,16 @@ export function ProtocolChecklistPanel({
   runId: string;
   protocolId: number;
   controls: ProtocolControls;
+  signingAuth?: SigningAuthState;
+  initialReauthTarget?: string | null;
   onNavigateToRow?: (requirement: string) => void;
   onNavigateToMissed?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [submitOpen, setSubmitOpen] = useState(false);
   const blocked = items.some((i) => i.count > 0);
+  const [submitOpen, setSubmitOpen] = useState(
+    () => initialReauthTarget === "protocol_submission" && !blocked && controls !== null,
+  );
 
   return (
     <section
@@ -82,26 +88,21 @@ export function ProtocolChecklistPanel({
               >
                 {t("submit")}
               </button>
-              <Modal
+              <ElectronicSignatureDialog
                 open={submitOpen}
                 onOpenChange={setSubmitOpen}
-                size="sm"
                 title={t("submitModalTitle")}
-                description={t("submitModalDesc")}
+                targetSummary={t("submitModalDesc")}
+                signatureMeaning="prepared"
+                signingAuth={signingAuth}
+                reauthNextUrl={`/runs/${encodeURIComponent(runId)}/protocol?reauth_target=protocol_submission`}
+                action={controls.submit}
+                confirmLabel={t("submit")}
+                cancelLabel={t("cancel")}
               >
-                <form action={controls.submit} className="flex justify-end gap-2">
-                  <input type="hidden" name="run_id" value={runId} />
-                  <input type="hidden" name="protocol_id" value={protocolId} />
-                  <button
-                    type="button"
-                    onClick={() => setSubmitOpen(false)}
-                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
-                  >
-                    {t("cancel")}
-                  </button>
-                  <SubmitButton variant="primary">{t("submit")}</SubmitButton>
-                </form>
-              </Modal>
+                <input type="hidden" name="run_id" value={runId} />
+                <input type="hidden" name="protocol_id" value={protocolId} />
+              </ElectronicSignatureDialog>
             </>
           )}
         </div>
