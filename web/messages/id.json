@@ -1173,5 +1173,33 @@
     "runCount": "{count} run",
     "openDeviations": "{count} deviasi terbuka",
     "unscheduled": "Belum dijadwalkan"
+  },
+  "signature": {
+    "meaningLabel": "Makna Tanda Tangan",
+    "meanings": {
+      "prepared": "Disiapkan (prepared)",
+      "approved": "Disetujui (approved)",
+      "witnessed": "Disaksikan (witnessed)"
+    },
+    "targetLabel": "Rekaman Target",
+    "contentHashLabel": "Hash Konten",
+    "verified": "Terverifikasi",
+    "unverified": "Belum Terverifikasi",
+    "voided": "Dibatalkan",
+    "demoBadge": "Tanda Tangan Demo",
+    "electronicBadge": "Tanda Tangan Elektronik",
+    "recordedStatusBadge": "Status Tercatat",
+    "recordedStatusLabel": "Status tercatat, bukan Tanda Tangan Elektronik (pra-Langkah 8)",
+    "demoHonestNote": "Demo signature — demo identity without password re-authentication, not an Electronic Signature.",
+    "oidcHonestNote": "Electronic Signature — designed for 21 CFR Part 11, CPOB Annex 7, and draft EU GMP Annex 11 (2025), not validated (ADR 0007).",
+    "reauthPrompt": "Autentikasi ulang kata sandi diperlukan melalui Keycloak sebelum menandatangani.",
+    "reauthButton": "Autentikasi Ulang dengan Keycloak",
+    "reauthVerified": "Autentikasi ulang terverifikasi · {seconds} detik tersisa",
+    "reauthExpired": "Jendela autentikasi ulang (60 detik) telah berakhir. Silakan autentikasi ulang lagi.",
+    "reauthRequiredError": "Autentikasi ulang diperlukan: sesi tanda tangan Anda kedaluwarsa atau belum diautentikasi ulang dalam 60 detik terakhir.",
+    "unauthorizedError": "Sesi tidak sah (401). Silakan masuk kembali.",
+    "confirmButton": "Konfirmasi & Tandatangani",
+    "demoConfirmHint": "Mode Demo: konfirmasi ini mencetak token demo sekali pakai untuk identitas aktif.",
+    "oidcConfirmHint": "Klik tombol di bawah untuk mengonfirmasi tanda tangan elektronik Anda secara eksplisit."
   }
 }

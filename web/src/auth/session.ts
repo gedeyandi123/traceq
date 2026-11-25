@@ -38,6 +38,13 @@ export type Session = {
   mayWitness: boolean;
 };
 
+/** Server-derived OIDC / re-authentication state passed to client signing dialogs. */
+export type SigningAuthState = {
+  oidcMode: boolean;
+  /** Epoch seconds (`auth_time`) from the single-use `traceq_reauth_token` cookie if present and unexpired. */
+  reauthAuthTime: number | null;
+};
+
 /** The claim holding the roles, a dotted path for a nested claim; the same setting as the
  * API's `--role-claim`. */
 function roleClaimPath(): string {
@@ -160,4 +167,21 @@ export async function currentSession(): Promise<Session | null> {
     mayExecute: has(EXECUTING_ROLE),
     mayWitness: has(WITNESSING_ROLE),
   };
+}
+
+/** Reads OIDC mode and any valid `traceq_reauth_token` `auth_time` for `ElectronicSignatureDialog`. */
+export async function signingAuthState(): Promise<SigningAuthState> {
+  const oidcMode = isOidcMode();
+  if (!oidcMode) {
+    return { oidcMode: false, reauthAuthTime: null };
+  }
+  const reauthToken = (await cookies()).get(REAUTH_TOKEN_COOKIE)?.value;
+  if (!reauthToken) {
+    return { oidcMode: true, reauthAuthTime: null };
+  }
+  const payload = decodeJwtPayload(reauthToken);
+  if (!payload || isTokenExpired(payload) || typeof payload.auth_time !== "number") {
+    return { oidcMode: true, reauthAuthTime: null };
+  }
+  return { oidcMode: true, reauthAuthTime: payload.auth_time };
 }

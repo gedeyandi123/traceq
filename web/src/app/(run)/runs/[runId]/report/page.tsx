@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { currentSession } from "@/auth/session";
+import { currentSession, signingAuthState } from "@/auth/session";
 import { QualificationReportWorkbench } from "@/components/QualificationReportWorkbench";
 import { EmptyState } from "@/components/ui/ui";
 import { approveQualificationReport } from "@/report/actions";
@@ -18,16 +18,24 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Qualification Report & Immutable PDF Exports (Step 7). */
 export default async function QualificationReportPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ runId: string }>;
+  searchParams: Promise<{ reauth_target?: string | string[] }>;
 }) {
   const { runId } = await params;
+  const query = await searchParams;
+  const reauthTarget =
+    typeof query.reauth_target === "string" && query.reauth_target.trim() !== ""
+      ? query.reauth_target
+      : null;
   const t = await getTranslations("report");
   const signin = await getTranslations("signin");
 
-  const [run, session, reportRes, executionRes] = await Promise.all([
+  const [run, session, signingAuth, reportRes, executionRes] = await Promise.all([
     fetchRun(runId),
     currentSession(),
+    signingAuthState(),
     fetchQualificationReport(runId),
     fetchExecution(runId),
   ]);
@@ -94,6 +102,8 @@ export default async function QualificationReportPage({
         report={reportRes.data}
         execution={executionRes.kind === "ok" ? executionRes.data : null}
         session={session}
+        signingAuth={signingAuth}
+        initialReauthTarget={reauthTarget}
         approveAction={approveQualificationReport}
       />
     </div>

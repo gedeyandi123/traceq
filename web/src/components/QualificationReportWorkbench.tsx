@@ -11,11 +11,13 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import type { ExecutionView, QualificationReportView } from "@/api/client";
-import type { Session } from "@/auth/session";
+import type { Session, SigningAuthState } from "@/auth/session";
+import { ElectronicSignatureDialog } from "@/components/ElectronicSignatureDialog";
 import { formatWhen } from "@/components/formatWhen";
+import { SignatureBadge } from "@/components/SignatureBadge";
 import { Alert } from "@/components/ui/Alert";
 import { CopyHashButton } from "@/components/ui/CopyHashButton";
 import { FIELD_BASE_CLASS, FieldTextarea } from "@/components/ui/FormControls";
@@ -25,8 +27,7 @@ import {
   TechnicalConclusionBadge,
   VerdictBadge,
 } from "@/components/ui/StatusBadge";
-import { SubmitButton } from "@/components/ui/SubmitButton";
-import { EmptyState, SectionHeading } from "@/components/ui/ui";
+import { EmptyState, SectionHeading, Button } from "@/components/ui/ui";
 import type { ApproveReportActionState, ReportError } from "@/report/actions";
 
 export type ApproveReportAction = (
@@ -50,12 +51,16 @@ export function QualificationReportWorkbench({
   report,
   execution,
   session,
+  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  initialReauthTarget = null,
   approveAction,
 }: {
   runId: string;
   report: QualificationReportView;
   execution: ExecutionView | null;
   session: Session | null;
+  signingAuth?: SigningAuthState;
+  initialReauthTarget?: string | null;
   approveAction: ApproveReportAction;
 }) {
   const t = useTranslations("report");
@@ -63,8 +68,61 @@ export function QualificationReportWorkbench({
   const when = useTranslations("decisions");
   const ui = useTranslations("ui");
 
-  const [conclusionNote, setConclusionNote] = useState("");
-  const [nextDate, setNextDate] = useState("");
+  const storageKey = `traceq:reauth:report:${runId}`;
+  const canApprove = Boolean(session?.mayApprove);
+
+  const readSavedDraft = () => {
+    if (typeof window === "undefined") {
+      return { conclusionNote: "", nextDate: "" };
+    }
+    try {
+      const saved = window.sessionStorage.getItem(storageKey);
+      if (!saved) return { conclusionNote: "", nextDate: "" };
+      const parsed = JSON.parse(saved) as {
+        conclusion_note?: unknown;
+        next_requalification_date?: unknown;
+      };
+      return {
+        conclusionNote: typeof parsed.conclusion_note === "string" ? parsed.conclusion_note : "",
+        nextDate:
+          typeof parsed.next_requalification_date === "string"
+            ? parsed.next_requalification_date
+            : "",
+      };
+    } catch {
+      return { conclusionNote: "", nextDate: "" };
+    }
+  };
+
+  const [conclusionNote, setConclusionNote] = useState(() => readSavedDraft().conclusionNote);
+  const [nextDate, setNextDate] = useState(() => readSavedDraft().nextDate);
+  const [signDialogOpen, setSignDialogOpen] = useState(
+    () => canApprove && initialReauthTarget === "qualification_report",
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.removeItem(storageKey);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [storageKey]);
+
+  const saveFormBeforeReauth = () => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          conclusion_note: conclusionNote,
+          next_requalification_date: nextDate,
+        }),
+      );
+    } catch {
+      // Ignore storage quota errors.
+    }
+  };
 
   const [approveState, formAction] = useActionState(
     async (prev: ApproveReportActionState, fd: FormData) => {
@@ -72,6 +130,7 @@ export function QualificationReportWorkbench({
       if (next.ok && next.submittedAt) {
         setConclusionNote("");
         setNextDate("");
+        setSignDialogOpen(false);
       } else if (!next.ok && next.error) {
         if (next.conclusionNote !== undefined) setConclusionNote(next.conclusionNote);
         if (next.nextRequalificationDate !== undefined) setNextDate(next.nextRequalificationDate);
@@ -81,7 +140,6 @@ export function QualificationReportWorkbench({
     { ok: false },
   );
 
-  const canApprove = Boolean(session?.mayApprove);
   const isNotQualified = report.technical_conclusion === "not_qualified";
   const counts = report.counts;
 
@@ -276,11 +334,46 @@ export function QualificationReportWorkbench({
             )}
 
             <div className="flex flex-wrap items-center gap-2">
-              <SubmitButton variant="primary">
+              <Button type="button" variant="primary" onClick={() => setSignDialogOpen(true)}>
                 <FileCheck2 className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{t("issueButton")}</span>
-              </SubmitButton>
+              </Button>
             </div>
+
+            <ElectronicSignatureDialog
+              open={signDialogOpen}
+              onOpenChange={setSignDialogOpen}
+              title={t("issueButton")}
+              targetSummary={`${t("issueTitle")} · ${t("latestRevision", { rev: (report.latest_export?.revision_number ?? 0) + 1 })}`}
+              signatureMeaning="approved"
+              contentHash={report.execution_copy_hash}
+              signingAuth={signingAuth}
+              reauthNextUrl={`/runs/${encodeURIComponent(runId)}/report?reauth_target=qualification_report`}
+              onBeforeReauth={saveFormBeforeReauth}
+              action={formAction}
+              confirmLabel={t("issueButton")}
+              error={
+                approveState.error
+                  ? errorMessage(t, approveState.error, approveState.detail)
+                  : null
+              }
+              isReauthError={approveState.error === "reauth_required"}
+            >
+              <input type="hidden" name="run_id" value={runId} />
+              <input type="hidden" name="execution_id" value={report.execution_id} />
+              <input
+                type="hidden"
+                name="expected_revision_number"
+                value={(report.latest_export?.revision_number ?? 0) + 1}
+              />
+              <input
+                type="hidden"
+                name="expected_execution_copy_hash"
+                value={report.execution_copy_hash}
+              />
+              <input type="hidden" name="conclusion_note" value={conclusionNote} />
+              <input type="hidden" name="next_requalification_date" value={nextDate} />
+            </ElectronicSignatureDialog>
           </form>
         )}
       </section>
@@ -337,6 +430,9 @@ export function QualificationReportWorkbench({
                       <div className="font-medium">{exp.name}</div>
                       <div className="text-[11px] text-ink-muted tabular-nums">
                         {formatWhen(when, exp.at)}
+                      </div>
+                      <div className="mt-1.5">
+                        <SignatureBadge signature={exp.electronic_signature} compact />
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-ink-muted tabular-nums">
