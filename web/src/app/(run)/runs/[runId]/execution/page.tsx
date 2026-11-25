@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/ui";
 import {
   addDeviationInvestigation,
   closeDeviation,
+  completeExecution,
   confirmWitness,
   openManualDeviation,
   recordAttempt,
@@ -94,6 +95,7 @@ export default async function ExecutionPage({
         submitDeviationAction={session.mayExecute ? submitDeviation : null}
         closeDeviationAction={session.mayApprove ? closeDeviation : null}
         returnDeviationAction={session.mayApprove ? returnDeviation : null}
+        completeAction={session.mayExecute ? completeExecution : null}
       />
     </div>
   );

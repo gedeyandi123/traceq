@@ -2,8 +2,11 @@
 
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
+  CheckCircle2,
   History as HistoryIcon,
+  Lock,
   PlayCircle,
   ShieldCheck,
 } from "lucide-react";
@@ -13,7 +16,9 @@ import { useActionState, useState } from "react";
 
 import type {
   AttemptVersionView,
+  CompletionBlockers,
   DeviationView,
+  ExecutionCopy,
   ExecutionRowView,
   ExecutionView,
   ProtocolView,
@@ -410,6 +415,180 @@ function DeviationsSection({
   );
 }
 
+function CompletionChecklistPanel({
+  t,
+  executionId,
+  blockers,
+  completeAction,
+}: {
+  t: T;
+  executionId: number;
+  blockers: CompletionBlockers;
+  completeAction:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+}) {
+  const [state, formAction] = useActionState(
+    completeAction ?? (async () => INITIAL_STATE),
+    INITIAL_STATE,
+  );
+
+  return (
+    <section
+      aria-labelledby="execution-completion-checklist"
+      className="space-y-3 rounded-lg border border-border bg-surface p-4 shadow-xs"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-2">
+          {blockers.blocked ? (
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-pass" aria-hidden="true" />
+          )}
+          <div>
+            <h2 id="execution-completion-checklist" className="m-0 text-sm font-bold text-ink">
+              {t("completion.title")}
+            </h2>
+            <p className="m-0 text-xs text-ink-muted">
+              {blockers.blocked ? t("completion.blockedNote") : t("completion.ready")}
+            </p>
+          </div>
+        </div>
+
+        {completeAction !== null && (
+          <form action={formAction}>
+            <input type="hidden" name="execution_id" value={executionId} />
+            <SubmitButton variant="primary" disabled={blockers.blocked}>
+              {t("completion.completeButton")}
+            </SubmitButton>
+          </form>
+        )}
+      </div>
+
+      {!state.ok && state.error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-fail-edge bg-fail-soft px-3 py-2 text-xs text-fail"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{state.detail ?? t(`errors.${state.error}`)}</span>
+        </div>
+      )}
+
+      <ul className="m-0 list-none space-y-2 border-t border-border p-0 pt-3 text-xs">
+        <li className="space-y-1">
+          <div className="flex items-center gap-2 font-semibold text-ink tabular-nums">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                blockers.rows_without_result.count > 0 ? "bg-warn" : "bg-pass"
+              }`}
+              aria-hidden="true"
+            />
+            <span>
+              {t("completion.rowsWithoutResult", {
+                count: blockers.rows_without_result.count,
+              })}
+            </span>
+          </div>
+          {blockers.rows_without_result.count === 0 ? (
+            <p className="m-0 pl-4 text-ink-muted">{t("completion.rowsWithoutResultNone")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 pl-4">
+              {blockers.rows_without_result.requirements.map((req) => (
+                <span
+                  key={req}
+                  className="rounded border border-warn-edge bg-warn-soft px-2 py-0.5 font-mono text-[11px] font-semibold text-warn tabular-nums"
+                >
+                  {req}
+                </span>
+              ))}
+            </div>
+          )}
+        </li>
+
+        <li className="space-y-1">
+          <div className="flex items-center gap-2 font-semibold text-ink tabular-nums">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                blockers.open_deviations.count > 0 ? "bg-warn" : "bg-pass"
+              }`}
+              aria-hidden="true"
+            />
+            <span>
+              {t("completion.openDeviations", {
+                count: blockers.open_deviations.count,
+              })}
+            </span>
+          </div>
+          {blockers.open_deviations.count === 0 ? (
+            <p className="m-0 pl-4 text-ink-muted">{t("completion.openDeviationsNone")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 pl-4">
+              {blockers.open_deviations.items.map((d) => (
+                <span
+                  key={d.deviation_number}
+                  className="rounded border border-warn-edge bg-warn-soft px-2 py-0.5 font-mono text-[11px] font-semibold text-warn tabular-nums"
+                >
+                  {t("completion.deviationItem", {
+                    number: d.deviation_number,
+                    status: t(`completion.deviationStatuses.${d.status}`),
+                  })}
+                </span>
+              ))}
+            </div>
+          )}
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+function ExecutionFrozenCopyPanel({
+  t,
+  when,
+  frozenCopy,
+  copyHash,
+}: {
+  t: T;
+  when: WhenT;
+  frozenCopy: ExecutionCopy;
+  copyHash: string;
+}) {
+  return (
+    <section
+      aria-labelledby="execution-frozen-copy"
+      className="space-y-2.5 rounded-lg border border-pass-edge bg-pass-soft p-4 text-xs text-ink"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 shrink-0 text-pass" aria-hidden="true" />
+          <h2 id="execution-frozen-copy" className="m-0 text-sm font-bold text-ink">
+            {t("completion.frozenTitle")}
+          </h2>
+        </div>
+        <span className="text-ink-muted tabular-nums">
+          {t("completion.frozenSummary", {
+            rows: frozenCopy.rows.length,
+            deviations: frozenCopy.deviations.length,
+          })}
+        </span>
+      </div>
+      <p className="m-0 text-ink tabular-nums">
+        {t("completion.frozenBy", {
+          name: frozenCopy.completer.name,
+          when: formatWhen(when, frozenCopy.completed_at),
+        })}
+      </p>
+      <div className="space-y-1 rounded border border-border bg-surface px-3 py-2">
+        <div className="text-[11px] font-semibold text-ink-muted">
+          {t("completion.frozenHashLabel")}
+        </div>
+        <code className="block font-mono text-xs break-all text-ink tabular-nums">{copyHash}</code>
+      </div>
+    </section>
+  );
+}
+
 export function ExecutionViewPanel({
   execution,
   protocol,
@@ -423,6 +602,7 @@ export function ExecutionViewPanel({
   submitDeviationAction = null,
   closeDeviationAction = null,
   returnDeviationAction = null,
+  completeAction = null,
 }: {
   execution: ExecutionView | null;
   protocol: ProtocolView | null;
@@ -450,6 +630,9 @@ export function ExecutionViewPanel({
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
   returnDeviationAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  completeAction?:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
 }) {
@@ -555,6 +738,25 @@ export function ExecutionViewPanel({
               </ol>
             </div>
           </section>
+
+          {execution.status === "in_progress" ? (
+            <CompletionChecklistPanel
+              t={t}
+              executionId={execution.id}
+              blockers={execution.completion_blockers}
+              completeAction={completeAction}
+            />
+          ) : (
+            execution.frozen_copy &&
+            execution.copy_hash && (
+              <ExecutionFrozenCopyPanel
+                t={t}
+                when={when}
+                frozenCopy={execution.frozen_copy}
+                copyHash={execution.copy_hash}
+              />
+            )
+          )}
 
           <section aria-labelledby="execution-rows" className="space-y-2">
             <div className="flex flex-wrap items-baseline justify-between gap-2">

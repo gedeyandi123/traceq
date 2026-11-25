@@ -1533,6 +1533,51 @@
           }
         }
       }
+    },
+    "/executions/{execution_id}/complete": {
+      "post": {
+        "summary": "Complete Execution",
+        "description": "Completes an ``in_progress`` Execution once every Test Step row has a Result and every\nDeviation is Closed, freezing its copy and SHA-256 hash.",
+        "operationId": "completeExecution",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2056,6 +2101,29 @@
         ],
         "title": "Completeness",
         "description": "The URS completeness check of a run: printed numbers that did not become a\nrequirement, and URS text no kept requirement quotes."
+      },
+      "CompletionBlockers": {
+        "properties": {
+          "blocked": {
+            "type": "boolean",
+            "title": "Blocked"
+          },
+          "rows_without_result": {
+            "$ref": "#/components/schemas/RowsWithoutResultBlocker"
+          },
+          "open_deviations": {
+            "$ref": "#/components/schemas/OpenDeviationsBlocker"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "blocked",
+          "rows_without_result",
+          "open_deviations"
+        ],
+        "title": "CompletionBlockers",
+        "description": "Blocking checklist computed for every Execution view."
       },
       "ConfirmWitnessRequest": {
         "properties": {
@@ -3364,6 +3432,77 @@
         "title": "EvidenceStep",
         "description": "A vendor FAT/SAT step linked to a requirement, with its verdict."
       },
+      "ExecutionCopy": {
+        "properties": {
+          "execution_id": {
+            "type": "integer",
+            "title": "Execution Id"
+          },
+          "protocol_id": {
+            "type": "integer",
+            "title": "Protocol Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "submission_event_id": {
+            "type": "integer",
+            "title": "Submission Event Id"
+          },
+          "submission_hash": {
+            "type": "string",
+            "title": "Submission Hash"
+          },
+          "completed_event_id": {
+            "type": "integer",
+            "title": "Completed Event Id"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          },
+          "completer": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenExecutionRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "deviations": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDeviation"
+            },
+            "type": "array",
+            "title": "Deviations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "execution_id",
+          "protocol_id",
+          "equipment",
+          "run_id",
+          "submission_event_id",
+          "submission_hash",
+          "completed_event_id",
+          "completed_at",
+          "completer",
+          "rows",
+          "deviations"
+        ],
+        "title": "ExecutionCopy",
+        "description": "The canonical frozen copy of a completed Execution (ADR 0013, spec #275)."
+      },
       "ExecutionEvent": {
         "properties": {
           "id": {
@@ -3562,6 +3701,30 @@
             },
             "type": "array",
             "title": "Deviations"
+          },
+          "completion_blockers": {
+            "$ref": "#/components/schemas/CompletionBlockers"
+          },
+          "frozen_copy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionCopy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "copy_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copy Hash"
           }
         },
         "additionalProperties": false,
@@ -3576,7 +3739,8 @@
           "status",
           "events",
           "rows",
-          "deviations"
+          "deviations",
+          "completion_blockers"
         ],
         "title": "ExecutionView",
         "description": "An Execution of an Approved Protocol: its status, events, and rows from the frozen copy."
@@ -3638,6 +3802,170 @@
         ],
         "title": "Findings",
         "description": "The Pre-review of a run: Check Findings and AI Findings kept apart, and the\ndocuments the VMP requires that the corpus lacks."
+      },
+      "FrozenAttempt": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "title": "Attempt Number"
+          },
+          "performer": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenAttemptVersion"
+            },
+            "type": "array",
+            "title": "Versions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "attempt_number",
+          "performer",
+          "recorded_at",
+          "versions"
+        ],
+        "title": "FrozenAttempt",
+        "description": "One attempt on a Test Step row, with its versions oldest first."
+      },
+      "FrozenAttemptVersion": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "outcome_kind": {
+            "$ref": "#/components/schemas/OutcomeKind"
+          },
+          "not_performable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Performable Reason"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation"
+          },
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentInput"
+            },
+            "type": "array",
+            "title": "Instruments"
+          },
+          "no_calibrated_instrument_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Calibrated Instrument Reason"
+          },
+          "evidence_references": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence References"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/traceq__execution__results__Verdict"
+          },
+          "version_hash": {
+            "type": "string",
+            "title": "Version Hash"
+          },
+          "performer": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "reason_for_change": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason For Change"
+          },
+          "witness_confirmations": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenWitnessConfirmation"
+            },
+            "type": "array",
+            "title": "Witness Confirmations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "outcome_kind",
+          "not_performable_reason",
+          "value",
+          "observation",
+          "instruments",
+          "no_calibrated_instrument_reason",
+          "evidence_references",
+          "verdict",
+          "version_hash",
+          "performer",
+          "recorded_at",
+          "reason_for_change",
+          "witness_confirmations"
+        ],
+        "title": "FrozenAttemptVersion",
+        "description": "One immutable version of an attempt's Result."
       },
       "FrozenCoverage": {
         "properties": {
@@ -3725,6 +4053,208 @@
         "title": "FrozenDecision",
         "description": "A Proposal Decision in force when the Protocol was submitted, and who made it."
       },
+      "FrozenDeviation": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "deviation_number": {
+            "type": "integer",
+            "title": "Deviation Number"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "deviation_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviationClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "attempt_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Id"
+          },
+          "cause": {
+            "$ref": "#/components/schemas/DeviationCause"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeviationStatus"
+          },
+          "opener": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Opened At"
+          },
+          "investigations": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDeviationInvestigation"
+            },
+            "type": "array",
+            "title": "Investigations"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDeviationEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "deviation_number",
+          "description",
+          "deviation_class",
+          "requirement",
+          "attempt_id",
+          "cause",
+          "status",
+          "opener",
+          "opened_at",
+          "investigations",
+          "events"
+        ],
+        "title": "FrozenDeviation",
+        "description": "One Deviation of the completed Execution, in deviation_number order."
+      },
+      "FrozenDeviationEvent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "event": {
+            "$ref": "#/components/schemas/DeviationEventKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeviationStatus"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/Author"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "event",
+          "status",
+          "reason",
+          "actor"
+        ],
+        "title": "FrozenDeviationEvent",
+        "description": "One status event on a Deviation."
+      },
+      "FrozenDeviationInvestigation": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "investigation": {
+            "type": "string",
+            "title": "Investigation"
+          },
+          "deviation_class": {
+            "$ref": "#/components/schemas/DeviationClass"
+          },
+          "capa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa"
+          },
+          "reason_for_change": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason For Change"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/Author"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "version",
+          "investigation",
+          "deviation_class",
+          "capa",
+          "reason_for_change",
+          "actor"
+        ],
+        "title": "FrozenDeviationInvestigation",
+        "description": "One immutable version of a Deviation's Investigation."
+      },
       "FrozenDisposition": {
         "properties": {
           "version": {
@@ -3789,6 +4319,111 @@
         ],
         "title": "FrozenDraft",
         "description": "A drafted Test Step of the row and the decision in force on it; ``null`` for an\nundecided draft of a Vendor Reference, which needs none."
+      },
+      "FrozenExecutionRow": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Cite"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "vendor_reference",
+              "test_step"
+            ],
+            "title": "Kind"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceStep"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrozenExecutionTestStep"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenAttempt"
+            },
+            "type": "array",
+            "title": "Attempts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement",
+          "text",
+          "source",
+          "kind",
+          "evidence",
+          "test_step",
+          "attempts"
+        ],
+        "title": "FrozenExecutionRow",
+        "description": "One row of the completed Execution, in Protocol order."
+      },
+      "FrozenExecutionTestStep": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "accepted_draft",
+              "written"
+            ],
+            "title": "Origin"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/Acceptance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "origin",
+          "description",
+          "method",
+          "instrument",
+          "acceptance"
+        ],
+        "title": "FrozenExecutionTestStep",
+        "description": "The Test Step of a Test Step row from the Approved Protocol's frozen copy."
       },
       "FrozenMissed": {
         "properties": {
@@ -4080,6 +4715,51 @@
         ],
         "title": "FrozenVersion",
         "description": "A version of the row's written Test Step: a removal, or its full content."
+      },
+      "FrozenWitnessConfirmation": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "version_id": {
+            "type": "integer",
+            "title": "Version Id"
+          },
+          "version_hash": {
+            "type": "string",
+            "title": "Version Hash"
+          },
+          "witness": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "voided": {
+            "type": "boolean",
+            "title": "Voided"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "recorded_at",
+          "version_id",
+          "version_hash",
+          "witness",
+          "voided",
+          "note"
+        ],
+        "title": "FrozenWitnessConfirmation",
+        "description": "One Witness confirmation bound to an attempt version's hash."
       },
       "GoverningDocument": {
         "properties": {
@@ -4883,6 +5563,48 @@
         ],
         "title": "OneOfResultValue",
         "description": "Choice for a ``one_of`` Acceptance Criterion, or ``not_one_of`` with observed text."
+      },
+      "OpenDeviationBlockerItem": {
+        "properties": {
+          "deviation_number": {
+            "type": "integer",
+            "title": "Deviation Number"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeviationStatus"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "deviation_number",
+          "status"
+        ],
+        "title": "OpenDeviationBlockerItem",
+        "description": "One Deviation that is not yet Closed (``open`` or ``submitted``)."
+      },
+      "OpenDeviationsBlocker": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OpenDeviationBlockerItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "count",
+          "items"
+        ],
+        "title": "OpenDeviationsBlocker",
+        "description": "Deviations that are not yet Closed."
       },
       "OpenManualDeviationRequest": {
         "properties": {
@@ -5875,6 +6597,29 @@
         ],
         "title": "RowTestStep",
         "description": "The one Test Step of a Test Step row."
+      },
+      "RowsWithoutResultBlocker": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requirements"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "count",
+          "requirements"
+        ],
+        "title": "RowsWithoutResultBlocker",
+        "description": "Test Step rows that still have no recorded Result (attempts empty)."
       },
       "RunPackage": {
         "properties": {

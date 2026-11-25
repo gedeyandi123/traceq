@@ -61,6 +61,7 @@ EXECUTION_ROUTES = {
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/submit"),
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/close"),
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/return"),
+    ("post", "/executions/{execution_id}/complete"),
 }
 DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES
 
