@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { Cite, DraftFindingView, DraftTestStep, ProtocolDraftView as Draft } from "@/api/client";
@@ -9,7 +9,7 @@ import { FindingDecisionPanel } from "@/components/FindingDecisionPanel";
 import { DirtyGuardBanner } from "@/components/ui/DirtyGuardBanner";
 import { Drawer } from "@/components/ui/Drawer";
 import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 
 type T = ReturnType<typeof useTranslations<"draft">>;
 type VendorDoc = Draft["vendor_documents"][number];
@@ -59,23 +59,21 @@ export function DraftCite({ cite }: { cite: Cite }) {
   const c = useTranslations("common");
   const t = useTranslations("draft");
   return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            title={cite.quote}
-            className="inline-block cursor-help rounded text-left text-[11px] text-ink-muted underline decoration-dotted underline-offset-2 tabular-nums hover:text-ink"
-          >
-            {c("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs space-y-1">
-          {cite.quote && <p className="m-0 font-normal">&ldquo;{cite.quote}&rdquo;</p>}
-          <p className="m-0 text-[10px] opacity-80">{t("citeTooltipNote")}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          title={cite.quote}
+          className="inline-block cursor-help rounded text-left text-[11px] text-ink-muted underline decoration-dotted underline-offset-2 tabular-nums hover:text-ink"
+        >
+          {c("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs space-y-1">
+        {cite.quote && <p className="m-0 font-normal">&ldquo;{cite.quote}&rdquo;</p>}
+        <p className="m-0 text-[10px] opacity-80">{t("citeTooltipNote")}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -325,13 +323,18 @@ export function DraftStepDrawer({
                     </span>
                     {tr.compared ? (
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
                           tr.deviates
                             ? "border-fail-edge bg-fail-soft text-fail"
                             : "border-pass-edge bg-pass-soft text-pass"
                         }`}
                       >
-                        {t(tr.deviates ? "deviates" : "within")}
+                        {tr.deviates ? (
+                          <XCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        ) : (
+                          <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        )}
+                        <span>{t(tr.deviates ? "deviates" : "within")}</span>
                       </span>
                     ) : (
                       tr.not_compared && (
@@ -364,7 +367,7 @@ export function DraftStepDrawer({
 
         {/* Comparators */}
         {step.acceptance !== null && (
-          <section className="space-y-2.5 rounded-lg border border-border bg-surface p-3.5">
+          <section className="space-y-2.5 border-t border-border pt-4">
             <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
               {t("comparators")}
             </h3>
@@ -373,19 +376,19 @@ export function DraftStepDrawer({
         )}
 
         {/* Step findings & decisions */}
-        <section className="space-y-3">
+        <section className="space-y-3 border-t border-border pt-4">
           <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
             {t("findings")}
           </h3>
           {findings.length === 0 ? (
-            <p className="m-0 rounded-lg border border-border bg-surface p-3 text-xs text-ink-muted">
+            <p className="m-0 rounded-md bg-sunken p-3 text-xs text-ink-muted">
               {t("noFinding")}
             </p>
           ) : (
             findings.map((f, i) => (
               <div
                 key={`${f.finding.requirement}/${i}`}
-                className="space-y-3 rounded-lg border border-fail-edge bg-surface p-3.5"
+                className="space-y-3 rounded-md border-l-2 border-fail bg-sunken/60 p-3"
               >
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-fail">
@@ -407,6 +410,7 @@ export function DraftStepDrawer({
                     runId={runId}
                     screen="draft"
                     access={decisions.access}
+                    embedded
                     onDirtyChange={onDirtyChange}
                   />
                 )}

@@ -6,7 +6,9 @@ import { useActionState, useState } from "react";
 
 import type { ExecutionRowView } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
+import { DirtyGuardBanner } from "./ui/DirtyGuardBanner";
 import { Drawer } from "./ui/Drawer";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { SubmitButton } from "./ui/SubmitButton";
 import { Button } from "./ui/ui";
 
@@ -34,23 +36,49 @@ export function ManualDeviationDrawer({
   const t = useTranslations("execution");
   const [requirement, setRequirement] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  const [dirtyPrompt, setDirtyPrompt] = useState(false);
+  const isDirty = requirement !== "" || description.trim() !== "";
 
   const [state, formAction] = useActionState(async (prev: ExecutionActionState, fd: FormData) => {
     const res = await openAction(prev, fd);
     if (res.ok) {
       setRequirement("");
       setDescription("");
+      setDirtyPrompt(false);
       onOpenChange(false);
     }
     return res;
   }, INITIAL_STATE);
 
   const testStepRows = rows.filter((r) => r.kind === "test_step");
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && isDirty) {
+      setDirtyPrompt(true);
+      return;
+    }
+    setDirtyPrompt(false);
+    onOpenChange(nextOpen);
+  };
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} title={t("openManualDeviationTitle")}>
+    <Drawer open={open} onOpenChange={handleOpenChange} title={t("openManualDeviationTitle")}>
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="execution_id" value={executionId} />
+
+        {dirtyPrompt && (
+          <DirtyGuardBanner
+            message={t("dirtyWarning")}
+            discardLabel={t("discardChanges")}
+            keepLabel={t("keepEditing")}
+            onDiscard={() => {
+              setRequirement("");
+              setDescription("");
+              setDirtyPrompt(false);
+              onOpenChange(false);
+            }}
+            onKeep={() => setDirtyPrompt(false)}
+          />
+        )}
 
         {!state.ok && state.error && (
           <div
@@ -71,14 +99,18 @@ export function ManualDeviationDrawer({
             name="requirement"
             value={requirement}
             onChange={(e) => setRequirement(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+            className={`w-full text-xs ${FIELD_BASE_CLASS}`}
           >
             <option value="">{t("deviationLinkExecution")}</option>
-            {testStepRows.map((r) => (
-              <option key={r.requirement} value={r.requirement}>
-                {r.requirement} — {r.test_step?.description ?? r.text}
-              </option>
-            ))}
+            {testStepRows.map((r) => {
+              const raw = `${r.requirement} — ${r.test_step?.description ?? r.text}`;
+              const label = raw.length > 80 ? `${raw.slice(0, 79)}…` : raw;
+              return (
+                <option key={r.requirement} value={r.requirement} title={raw}>
+                  {label}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -94,12 +126,12 @@ export function ManualDeviationDrawer({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("deviationDescriptionPlaceholder")}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-ink"
+            className={`w-full py-2 text-xs ${FIELD_BASE_CLASS}`}
           />
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="quiet" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="quiet" onClick={() => handleOpenChange(false)}>
             {t("cancel")}
           </Button>
           <SubmitButton variant="primary">{t("deviationSubmitOpen")}</SubmitButton>

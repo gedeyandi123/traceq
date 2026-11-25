@@ -121,12 +121,9 @@ test("when Protocol is Approved and no Execution exists, executor sees start but
   expect(screen.getByText(/tidak memiliki peran pelaksana/)).toBeDefined();
 });
 
-test("renders started Execution with status, history, frozen rows in order, and known limits", () => {
+test("renders started Execution with status, history, frozen rows in order, and known limits", async () => {
+  const user = userEvent.setup();
   renderExecution(executionFixture(), approved, false);
-
-  expect(screen.getByRole("heading", { name: "Status eksekusi 12" })).toBeDefined();
-  expect(screen.getByText("Sedang berjalan")).toBeDefined();
-  expect(screen.getByText(/Dimulai oleh Ayu Kartika Sari/)).toBeDefined();
 
   const stepRow = within(screen.getByTestId("exec-row-URS-TP201-002"));
   expect(stepRow.getByText("Langkah uji")).toBeDefined();
@@ -144,6 +141,11 @@ test("renders started Execution with status, history, frozen rows in order, and 
   expect(screen.getByText(/IQ dan OQ digabung dalam satu eksekusi/)).toBeDefined();
   expect(screen.getByText(/zona waktu UTC/)).toBeDefined();
   expect(screen.queryByRole("button", { name: "Catat hasil" })).toBeNull();
+
+  await user.click(screen.getByRole("tab", { name: /Riwayat & salinan/ }));
+  expect(screen.getByRole("heading", { name: "Status eksekusi 12" })).toBeDefined();
+  expect(screen.getByText("Sedang berjalan")).toBeDefined();
+  expect(screen.getByText(/Dimulai oleh Ayu Kartika Sari/)).toBeDefined();
 });
 
 test("executor sees Catat hasil button and opens Result form for range, one_of, present, and not_performable", async () => {
@@ -201,6 +203,7 @@ test("executor sees Catat hasil button and opens Result form for range, one_of, 
   await user.click(within(oneOfDialog).getByLabelText("Bukan salah satu dari ini"));
   expect(within(oneOfDialog).getByLabelText("Nilai yang teramati")).toBeDefined();
   await user.click(within(oneOfDialog).getByRole("button", { name: "Tutup panel" }));
+  await user.click(within(oneOfDialog).getByRole("button", { name: "Buang perubahan" }));
 
   // Present row: has Ada / Tidak ada and "Tidak dapat dilaksanakan" option
   const presentRow = within(screen.getByTestId("exec-row-URS-TP201-030"));
@@ -212,7 +215,8 @@ test("executor sees Catat hasil button and opens Result form for range, one_of, 
   expect(within(presentDialog).getByLabelText("Alasan tidak dapat dilaksanakan")).toBeDefined();
 });
 
-test("displays recorded attempt verdict, performer, UTC timestamp, and Deviations list", () => {
+test("displays recorded attempt verdict, performer, UTC timestamp, and Deviations list", async () => {
+  const user = userEvent.setup();
   const ex = executionFixture();
   ex.rows[0] = {
     ...ex.rows[0]!,
@@ -304,9 +308,14 @@ test("displays recorded attempt verdict, performer, UTC timestamp, and Deviation
   const row = within(screen.getByTestId("exec-row-URS-TP201-002"));
   expect(row.getByText("Gagal")).toBeDefined();
   expect(row.getByText("99 rpm")).toBeDefined();
-  expect(row.getByText(/Dicatat oleh Ayu Kartika Sari/)).toBeDefined();
   expect(row.queryByRole("button", { name: "Catat hasil" })).toBeNull();
 
+  await user.click(row.getByRole("button", { name: "URS-TP201-002" }));
+  const rowDialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(rowDialog).getByText(/Dicatat oleh Ayu Kartika Sari/)).toBeDefined();
+  await user.click(within(rowDialog).getByRole("button", { name: "Tutup panel" }));
+
+  await user.click(screen.getByRole("tab", { name: /Deviasi/ }));
   expect(screen.getByRole("heading", { name: "Deviasi (1)" })).toBeDefined();
   expect(screen.getByText("#1")).toBeDefined();
   expect(screen.getByText("Terbuka")).toBeDefined();
@@ -430,6 +439,7 @@ test("executor sees manual deviation button and can open investigation form; app
     </NextIntlClientProvider>,
   );
 
+  await user.click(screen.getByRole("tab", { name: /Deviasi/ }));
   expect(screen.getByRole("button", { name: "Buka deviasi manual" })).toBeDefined();
   await user.click(screen.getByRole("button", { name: "#1" }));
   expect((await screen.findAllByText("Kompresor berhenti sesaat.")).length).toBeGreaterThanOrEqual(
@@ -453,6 +463,7 @@ test("executor sees manual deviation button and can open investigation form; app
     </NextIntlClientProvider>,
   );
 
+  await user.click(screen.getByRole("tab", { name: /Deviasi/ }));
   expect(screen.queryByRole("button", { name: "Buka deviasi manual" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "#2" }));
   expect(await screen.findByText("Sensor terlepas.")).toBeDefined();
@@ -469,6 +480,7 @@ test("executor sees manual deviation button and can open investigation form; app
       <ExecutionViewPanel execution={ex} protocol={approved} runId={RUN_ID} startAction={null} />
     </NextIntlClientProvider>,
   );
+  await user.click(screen.getByRole("tab", { name: /Deviasi/ }));
   expect(screen.queryByRole("button", { name: "Buka deviasi manual" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "#2" }));
   expect(await screen.findByText("Sensor terlepas.")).toBeDefined();
@@ -476,7 +488,8 @@ test("executor sees manual deviation button and can open investigation form; app
   expect(screen.queryByRole("button", { name: "Simpan investigasi" })).toBeNull();
 });
 
-test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and performer", () => {
+test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and performer", async () => {
+  const user = userEvent.setup();
   const ex = executionFixture();
   const baseVersion = {
     id: 1,
@@ -529,8 +542,13 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
       />
     </NextIntlClientProvider>,
   );
+  await user.click(
+    within(screen.getByTestId("exec-row-URS-TP201-002")).getByRole("button", {
+      name: "URS-TP201-002",
+    }),
+  );
   expect(
-    screen.getByText("Belum dikonfirmasi Saksi (tidak ada langkah uji yang mewajibkan Saksi)."),
+    await screen.findByText("Belum dikonfirmasi Saksi (tidak ada langkah uji yang mewajibkan Saksi)."),
   ).toBeDefined();
   expect(screen.getByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeDefined();
   unmountEko();
@@ -548,6 +566,12 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
       />
     </NextIntlClientProvider>,
   );
+  await user.click(
+    within(screen.getByTestId("exec-row-URS-TP201-002")).getByRole("button", {
+      name: "URS-TP201-002",
+    }),
+  );
+  await screen.findByRole("dialog", { name: "URS-TP201-002" });
   expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
   unmountNonWitness();
 
@@ -564,6 +588,12 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
       />
     </NextIntlClientProvider>,
   );
+  await user.click(
+    within(screen.getByTestId("exec-row-URS-TP201-002")).getByRole("button", {
+      name: "URS-TP201-002",
+    }),
+  );
+  await screen.findByRole("dialog", { name: "URS-TP201-002" });
   expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
   expect(screen.getByText("Pelaksana hasil ini tidak dapat menjadi Saksi.")).toBeDefined();
   unmountPerformer();
@@ -607,11 +637,16 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
       />
     </NextIntlClientProvider>,
   );
-  expect(screen.getByText("Dibatalkan oleh versi baru")).toBeDefined();
+  await user.click(
+    within(screen.getByTestId("exec-row-URS-TP201-002")).getByRole("button", {
+      name: "URS-TP201-002",
+    }),
+  );
+  expect(await screen.findByText("Dibatalkan oleh versi baru")).toBeDefined();
   expect(screen.getByText(/Disaksikan oleh Eko Prasetyo Wijaya/)).toBeDefined();
   expect(
-    screen.getByText("Status tercatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2)."),
-  ).toBeDefined();
+    screen.getAllByText("Status tercatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2).").length,
+  ).toBeGreaterThanOrEqual(1);
   expect(screen.getByText("Anda sudah mengonfirmasi versi ini.")).toBeDefined();
   expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
 });
@@ -841,22 +876,27 @@ test("shows all attempts and versions in order, Koreksi only for attempt Perform
     </NextIntlClientProvider>,
   );
 
-  const row = within(screen.getByTestId("exec-row-URS-TP201-002"));
-  expect(row.getByText("Percobaan #1")).toBeDefined();
-  expect(row.getByText("v1")).toBeDefined();
-  expect(row.getByText("v2")).toBeDefined();
-  expect(row.getByText("Hasil saat ini")).toBeDefined();
-  expect(row.getByText("Koreksi pembacaan awal")).toBeDefined();
-  expect(row.getByRole("button", { name: "Koreksi" })).toBeDefined();
-  expect(row.getByRole("button", { name: "Uji ulang" })).toBeDefined();
+  await user.click(
+    within(screen.getByTestId("exec-row-URS-TP201-002")).getByRole("button", {
+      name: "URS-TP201-002",
+    }),
+  );
+  const rowDialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(rowDialog).getByText("Percobaan #1")).toBeDefined();
+  expect(within(rowDialog).getByText("v1")).toBeDefined();
+  expect(within(rowDialog).getByText("v2")).toBeDefined();
+  expect(within(rowDialog).getByText("Hasil saat ini")).toBeDefined();
+  expect(within(rowDialog).getByText("Koreksi pembacaan awal")).toBeDefined();
+  expect(within(rowDialog).getByRole("button", { name: "Koreksi" })).toBeDefined();
+  expect(within(rowDialog).getByRole("button", { name: "Uji ulang" })).toBeDefined();
 
   // Opening Koreksi drawer shows Reason for Change field
-  await user.click(row.getByRole("button", { name: "Koreksi" }));
+  await user.click(within(rowDialog).getByRole("button", { name: "Koreksi" }));
   expect(screen.getByLabelText("Alasan perubahan")).toBeDefined();
   await user.keyboard("{Escape}");
 
   // Opening Uji ulang drawer shows Open Deviation select & reason field
-  await user.click(row.getByRole("button", { name: "Uji ulang" }));
+  await user.click(within(rowDialog).getByRole("button", { name: "Uji ulang" }));
   expect(screen.getByLabelText("Deviasi terbuka terkait")).toBeDefined();
   expect(screen.getByLabelText("Alasan uji ulang")).toBeDefined();
   unmount();
@@ -876,7 +916,12 @@ test("shows all attempts and versions in order, Koreksi only for attempt Perform
       />
     </NextIntlClientProvider>,
   );
-  const rowBima = within(screen.getByTestId("exec-row-URS-TP201-002"));
-  expect(rowBima.queryByRole("button", { name: "Koreksi" })).toBeNull();
-  expect(rowBima.getByRole("button", { name: "Uji ulang" })).toBeDefined();
+  await user.click(
+    within(screen.getByTestId("exec-row-URS-TP201-002")).getByRole("button", {
+      name: "URS-TP201-002",
+    }),
+  );
+  const rowBimaDialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
+  expect(within(rowBimaDialog).queryByRole("button", { name: "Koreksi" })).toBeNull();
+  expect(within(rowBimaDialog).getByRole("button", { name: "Uji ulang" })).toBeDefined();
 });

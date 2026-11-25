@@ -2,19 +2,15 @@ import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { Persona } from "@/auth/session";
-import { APPROVING_ROLE, DECIDING_ROLE, WITNESSING_ROLE } from "@/decisions/vocabulary";
+import {
+  APPROVING_ROLE,
+  DECIDING_ROLE,
+  EXECUTING_ROLE,
+  WITNESSING_ROLE,
+} from "@/decisions/vocabulary";
+import { initials, resolveRoleKey } from "@/lib/persona";
 
 import { Button, EmptyState } from "./ui/ui";
-
-/** The first letters of a persona's first two names, for the card's avatar. */
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w.charAt(0))
-    .join("")
-    .toUpperCase();
-}
 
 /** The sign-in screen: the demo personas as cards, each with its role as a label and labelled
  * as demo identities (ADR 0005). No password. The action runs on the Next.js server; the token
@@ -30,7 +26,7 @@ export function SignInView({
 }) {
   const t = useTranslations("signin");
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto max-w-4xl space-y-5">
       <div>
         <h1 className="m-0 text-xl font-bold tracking-tight text-ink">{t("title")}</h1>
         <p className="mt-1 mb-0 text-sm text-ink-muted">{t("lead")}</p>
@@ -44,33 +40,25 @@ export function SignInView({
       {personas === null && <EmptyState title={t("unavailable")} />}
       {personas?.length === 0 && <EmptyState title={t("empty")} />}
 
-      <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
+      <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {personas?.map((p) => {
-          const decides = p.roles.includes(DECIDING_ROLE);
-          const approves = p.roles.includes(APPROVING_ROLE);
-          const witnesses = p.roles.includes(WITNESSING_ROLE);
-          const label = decides
-            ? "canDecide"
-            : approves
-              ? "canApprove"
-              : witnesses
-                ? "canWitness"
-                : "readOnly";
-          const hasAuthority = decides || approves || witnesses;
-          const avatarStyle = decides
+          const flags = {
+            mayDecide: p.roles.includes(DECIDING_ROLE),
+            mayApprove: p.roles.includes(APPROVING_ROLE),
+            mayExecute: p.roles.includes(EXECUTING_ROLE),
+            mayWitness: p.roles.includes(WITNESSING_ROLE),
+          };
+          const label = resolveRoleKey(flags);
+          const avatarStyle = flags.mayDecide
             ? "border-accent/30 bg-accent-soft text-accent"
-            : approves
+            : flags.mayApprove
               ? "border-info-edge bg-info-soft text-info"
-              : witnesses
-                ? "border-pass-edge bg-pass-soft text-pass"
-                : "border-border bg-sunken text-ink-muted";
-          const badgeStyle = decides
-            ? "border-accent/25 bg-accent-soft text-accent"
-            : approves
-              ? "border-info-edge bg-info-soft text-info"
-              : witnesses
-                ? "border-pass-edge bg-pass-soft text-pass"
-                : "border-border bg-sunken text-ink-muted";
+              : flags.mayExecute
+                ? "border-warn-edge bg-warn-soft text-warn"
+                : flags.mayWitness
+                  ? "border-pass-edge bg-pass-soft text-pass"
+                  : "border-border bg-sunken text-ink-muted";
+          const badgeStyle = avatarStyle;
           return (
             <li
               key={p.username}
@@ -88,7 +76,9 @@ export function SignInView({
                       {initials(p.name)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-ink">{p.name}</div>
+                      <div title={p.name} className="truncate text-sm font-bold text-ink">
+                        {p.name}
+                      </div>
                       <div className="mt-1">
                         <span className="sr-only">{t("role")}: </span>
                         <span
@@ -104,11 +94,7 @@ export function SignInView({
                   </p>
                 </div>
 
-                <Button
-                  type="submit"
-                  variant={hasAuthority ? "primary" : "soft"}
-                  className="w-full justify-center"
-                >
+                <Button type="submit" variant="soft" className="w-full justify-center">
                   {t("as", { name: p.name })}
                 </Button>
               </form>

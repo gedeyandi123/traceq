@@ -18,10 +18,10 @@ import { useSelectedLayoutSegment } from "next/navigation";
 import { Dialog } from "radix-ui";
 import { useEffect, useState } from "react";
 
-import type { ProtocolView, RunSummary } from "@/api/client";
+import type { ExecutionView, ProtocolView, RunSummary } from "@/api/client";
 import { BrandMark } from "@/components/BrandMark";
-import { ProtocolStatusBadge } from "@/components/ui/StatusBadge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { ExecutionStatusBadge, ProtocolStatusBadge } from "@/components/ui/StatusBadge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 
 export type RunNavKey = "matrix" | "findings" | "draft" | "protocol" | "execution" | "leftOut" | "eval";
 
@@ -29,6 +29,8 @@ export type RunSidebarBadges = {
   matrix?: number;
   findings?: number;
   draft?: number;
+  executionStatus?: ExecutionView["status"] | null;
+  openDeviations?: number;
 };
 
 const SEGMENT_TO_KEY: Record<string, RunNavKey> = {
@@ -47,6 +49,8 @@ type NavItem = {
   icon: typeof Table2;
   badge?: number;
   protocolStatus?: ProtocolView["status"] | null;
+  executionStatus?: ExecutionView["status"] | null;
+  openDeviations?: number;
 };
 
 function SidebarNavList({
@@ -100,6 +104,8 @@ function SidebarNavList({
       href: `${base}/execution`,
       label: t("executionDeviation"),
       icon: PlayCircle,
+      executionStatus: badges?.executionStatus,
+      openDeviations: badges?.openDeviations,
     },
   ];
 
@@ -148,6 +154,16 @@ function SidebarNavList({
         {!collapsed && item.protocolStatus && (
           <ProtocolStatusBadge status={item.protocolStatus} />
         )}
+        {!collapsed && item.executionStatus && (
+          <ExecutionStatusBadge status={item.executionStatus} />
+        )}
+        {!collapsed && item.openDeviations !== undefined && item.openDeviations > 0 && (
+          <span
+            className="inline-flex min-w-5 items-center justify-center rounded-full bg-warn-soft px-1.5 py-0.5 text-[11px] font-semibold text-warn tabular-nums"
+          >
+            {item.openDeviations}
+          </span>
+        )}
       </Link>
     );
 
@@ -165,27 +181,25 @@ function SidebarNavList({
   };
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <nav aria-label={t("tabs")} className="flex flex-1 flex-col gap-5 overflow-y-auto px-2.5 py-3">
-        <div className="flex flex-col gap-1">
-          {!collapsed && (
-            <div className="px-2.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              {t("alurKualifikasi")}
-            </div>
-          )}
-          {workflowItems.map(renderLink)}
-        </div>
+    <nav aria-label={t("tabs")} className="flex flex-1 flex-col gap-5 overflow-y-auto px-2.5 py-3">
+      <div className="flex flex-col gap-1">
+        {!collapsed && (
+          <div className="px-2.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+            {t("alurKualifikasi")}
+          </div>
+        )}
+        {workflowItems.map(renderLink)}
+      </div>
 
-        <div className="flex flex-col gap-1 border-t border-border pt-3">
-          {!collapsed && (
-            <div className="px-2.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              {t("auditDiagnostik")}
-            </div>
-          )}
-          {auditItems.map(renderLink)}
-        </div>
-      </nav>
-    </TooltipProvider>
+      <div className="flex flex-col gap-1 border-t border-border pt-3">
+        {!collapsed && (
+          <div className="px-2.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+            {t("auditDiagnostik")}
+          </div>
+        )}
+        {auditItems.map(renderLink)}
+      </div>
+    </nav>
   );
 }
 
@@ -273,7 +287,7 @@ export function RunSidebar({
       <Dialog.Root open={mobileOpen} onOpenChange={onMobileOpenChange}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-ink/25 backdrop-blur-[1px] lg:hidden" />
-          <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-border bg-canvas text-ink shadow-2xl outline-none lg:hidden">
+          <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-border bg-surface text-ink shadow-2xl outline-none lg:hidden">
             <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
               <Dialog.Title className="m-0 flex items-center gap-2 text-sm font-bold text-ink">
                 <BrandMark />

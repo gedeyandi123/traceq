@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowRight, ChevronDown, FileWarning, RotateCcw } from "lucide-react";
+import { ChevronDown, FileWarning, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CoverageClass, Matrix, Proposal } from "@/api/client";
 import type { DecisionView } from "@/components/Decisions";
@@ -12,6 +11,7 @@ import { MatrixDrawer } from "@/components/MatrixDrawer";
 import { formatValue, RequiredObservedUnit } from "@/components/RequiredObservedUnit";
 import { useRunShell } from "@/components/RunShellContext";
 import { FilterBar, type FilterPillOption } from "@/components/ui/FilterBar";
+import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
 
 export { formatValue };
 import {
@@ -76,8 +76,9 @@ export function MatrixTable({
 }) {
   const t = useTranslations("matrix");
   const td = useTranslations("decisions");
-  const th = useTranslations("runHeader");
+  const ui = useTranslations("ui");
   const { setDrawerOpen } = useRunShell();
+  const lastSelectedIdRef = useRef<string | null>(initialSelected);
 
   const [activeCoverage, setActiveCoverage] = useState<CoverageBadgeKey | undefined>(
     filter?.coverage,
@@ -86,6 +87,9 @@ export function MatrixTable({
     decisions.proposals !== undefined ? filter?.status : undefined,
   );
   const [selectedId, setSelectedId] = useState<string | null>(initialSelected);
+  useEffect(() => {
+    if (selectedId !== null) lastSelectedIdRef.current = selectedId;
+  }, [selectedId]);
   const [legendOpen, setLegendOpen] = useState(false);
 
   // Dirty-form guard state
@@ -237,7 +241,7 @@ export function MatrixTable({
   const returnQuery = qs.toString() || undefined;
 
   type BlockerFilterId = "all" | "conflict" | "gap" | "undecided";
-  const activeBlockerId: BlockerFilterId =
+  const activeBlockerId: BlockerFilterId | null =
     !isFiltered
       ? "all"
       : activeCoverage === "conflict" && activeStatus === undefined
@@ -246,7 +250,7 @@ export function MatrixTable({
           ? "gap"
           : activeStatus === "undecided" && activeCoverage === undefined
             ? "undecided"
-            : "all";
+            : null;
 
   const blockerOptions: FilterPillOption<BlockerFilterId>[] = [
     { id: "all", label: t("filterBlockers.all"), count: matrix.requirements.length },
@@ -362,7 +366,7 @@ export function MatrixTable({
         </dl>
       )}
 
-      {/* 1-click blocker filter pills + secondary select filters */}
+      {/* 1-click blocker filter pills + status select */}
       <FilterBar
         ariaLabel={t("filterCoverage")}
         options={blockerOptions}
@@ -370,22 +374,6 @@ export function MatrixTable({
         onSelect={handleBlockerSelect}
         trailing={
           <>
-            <select
-              aria-label={t("filterCoverage")}
-              value={activeCoverage ?? ""}
-              onChange={(e) => {
-                const val = e.target.value as CoverageBadgeKey | "";
-                applyFilters(val === "" ? undefined : val, activeStatus);
-              }}
-              className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-ink"
-            >
-              <option value="">{t("filterAll")}</option>
-              {RISK.map((k) => (
-                <option key={k} value={k}>
-                  {t(`classes.${k}`)}
-                </option>
-              ))}
-            </select>
             {decided && (
               <select
                 aria-label={t("filterStatus")}
@@ -394,7 +382,7 @@ export function MatrixTable({
                   const val = e.target.value as Proposal["state"] | "";
                   applyFilters(activeCoverage, val === "" ? undefined : val);
                 }}
-                className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-ink"
+                className={`h-8 py-0 text-xs ${FIELD_BASE_CLASS}`}
               >
                 <option value="">{t("filterAll")}</option>
                 {STATES.map((st) => (
@@ -428,24 +416,31 @@ export function MatrixTable({
 
       {/* Opsi A 4-column compact table */}
       {filteredRows.length === 0 && isFiltered ? (
-        <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-ink-muted">
-          {t("filterEmpty")}
+        <div className="space-y-2 rounded-lg border border-border bg-surface p-8 text-center text-xs text-ink-muted">
+          <p className="m-0">{t("filterEmpty")}</p>
+          <button
+            type="button"
+            onClick={() => applyFilters(undefined, undefined)}
+            className="cursor-pointer font-semibold text-accent hover:underline"
+          >
+            {ui("resetFilter")}
+          </button>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="w-full min-w-[640px] border-collapse text-left text-xs leading-5">
             <thead>
               <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-                <th scope="col" className="sticky top-0 z-10 w-[33%] bg-sunken/95 px-3 py-2">
+                <th scope="col" className="w-[33%] px-3 py-2">
                   {t("requirement")}
                 </th>
-                <th scope="col" className="sticky top-0 z-10 w-[35%] bg-sunken/95 px-3 py-2">
+                <th scope="col" className="w-[35%] px-3 py-2">
                   {t("disyaratkan")} / {t("teramati")}
                 </th>
-                <th scope="col" className="sticky top-0 z-10 w-[16%] bg-sunken/95 px-3 py-2">
+                <th scope="col" className="w-[16%] px-3 py-2">
                   {t("coverage")}
                 </th>
-                <th scope="col" className="sticky top-0 z-10 w-[16%] bg-sunken/95 px-3 py-2">
+                <th scope="col" className="w-[16%] px-3 py-2">
                   {td("column")}
                 </th>
               </tr>
@@ -517,7 +512,7 @@ export function MatrixTable({
                       {badgeState !== undefined ? (
                         <DecisionStateBadge state={badgeState} />
                       ) : (
-                        <span className="text-xs text-ink-muted">{t("drawer.readOnlyCell")}</span>
+                        <span className="text-xs text-ink-muted">—</span>
                       )}
                     </td>
                   </tr>
@@ -545,30 +540,6 @@ export function MatrixTable({
         </section>
       )}
 
-      {/* Handoff bar */}
-      <nav
-        aria-label={th("handoffTitle")}
-        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3"
-      >
-        <span className="text-xs font-semibold text-ink-muted">{th("handoffTitle")}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`${base}/findings`}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-canvas px-3 py-1.5 text-xs font-semibold text-ink no-underline hover:bg-sunken"
-          >
-            <span>{th("toFindings")}</span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </Link>
-          <Link
-            href={`${base}/protocol`}
-            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
-          >
-            <span>{th("toProtocol")}</span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-      </nav>
-
       {/* Slide-over drawer */}
       <MatrixDrawer
         row={selectedRow}
@@ -581,6 +552,15 @@ export function MatrixTable({
         totalRows={filteredRows.length}
         dirtyPrompt={pendingTargetId !== undefined}
         onClose={() => requestSelection(null)}
+        onCloseAutoFocus={(event) => {
+          const targetId = lastSelectedIdRef.current;
+          if (!targetId) return;
+          const btn = document.getElementById(targetId)?.querySelector("button");
+          if (btn instanceof HTMLElement) {
+            event.preventDefault();
+            btn.focus();
+          }
+        }}
         onPrev={() => {
           if (selectedIndex > 0) {
             const prev = filteredRows[selectedIndex - 1];

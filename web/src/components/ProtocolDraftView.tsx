@@ -1,8 +1,7 @@
 "use client";
 
-import { ArrowRight, FileText } from "lucide-react";
+import { CheckCircle2, FileText, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type {
@@ -24,18 +23,11 @@ import {
 } from "@/components/FindingDecisionPanel";
 import { useRunShell } from "@/components/RunShellContext";
 import { FilterBar } from "@/components/ui/FilterBar";
+import { TooltipProvider } from "@/components/ui/Tooltip";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
+import { isTypingTarget } from "@/lib/keyboard";
 
 export { formatPrinted };
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.closest(
-      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
-    ) !== null
-  );
-}
 
 type DraftFilter = "all" | "withFindings" | "notCompared" | "notRead";
 type VendorDoc = Draft["vendor_documents"][number];
@@ -100,7 +92,7 @@ export function ProtocolDraftView({
   initialSelected?: string | null;
 }) {
   const t = useTranslations("draft");
-  const th = useTranslations("runHeader");
+  const ui = useTranslations("ui");
   const { setDrawerOpen } = useRunShell();
 
   const draftDoc = draft.document.doc_id;
@@ -242,7 +234,8 @@ export function ProtocolDraftView({
   ];
 
   return (
-    <div className="space-y-4">
+    <TooltipProvider delayDuration={150}>
+      <div className="space-y-4">
       <div className="rounded-lg border border-border bg-surface px-4 py-3 text-xs">
         <div className="flex items-center gap-2 font-semibold text-ink tabular-nums">
           <FileText className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -302,27 +295,36 @@ export function ProtocolDraftView({
             {t("noSteps")}
           </div>
         ) : filteredSteps.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
-            {t("noMatches")}
+          <div className="space-y-2 rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
+            <p className="m-0">{t("noMatches")}</p>
+            {activeFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setActiveFilter("all")}
+                className="cursor-pointer font-semibold text-accent hover:underline"
+              >
+                {ui("resetFilter")}
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border bg-surface">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                  <th scope="col" className="px-3 py-2">
                     {t("step")}
                   </th>
-                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                  <th scope="col" className="px-3 py-2">
                     {t("ac")}
                   </th>
-                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                  <th scope="col" className="px-3 py-2">
                     {t("urs")}
                   </th>
-                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                  <th scope="col" className="px-3 py-2">
                     {t("comparators")}
                   </th>
-                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                  <th scope="col" className="px-3 py-2">
                     {t("findings")}
                   </th>
                 </tr>
@@ -347,7 +349,7 @@ export function ProtocolDraftView({
                           type="button"
                           onClick={() => requestSelection(st.id)}
                           aria-expanded={isSelected}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 font-mono text-xs font-bold text-accent tabular-nums hover:border-accent hover:bg-accent-soft"
+                          className="cursor-pointer font-mono text-xs font-semibold text-accent tabular-nums underline decoration-accent/40 underline-offset-2 hover:text-accent-hover hover:decoration-accent"
                         >
                           {st.id}
                         </button>
@@ -382,13 +384,18 @@ export function ProtocolDraftView({
                                   )}
                                   {tr.compared ? (
                                     <span
-                                      className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
                                         tr.deviates
                                           ? "border-fail-edge bg-fail-soft text-fail"
                                           : "border-pass-edge bg-pass-soft text-pass"
                                       }`}
                                     >
-                                      {t(tr.deviates ? "deviates" : "within")}
+                                      {tr.deviates ? (
+                                        <XCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                      ) : (
+                                        <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                      )}
+                                      <span>{t(tr.deviates ? "deviates" : "within")}</span>
                                     </span>
                                   ) : (
                                     tr.not_compared && (
@@ -463,10 +470,10 @@ export function ProtocolDraftView({
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                  <th scope="col" className="px-3 py-2">
                     {t("requirement")}
                   </th>
-                  <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-3 py-2">
+                  <th scope="col" className="px-3 py-2">
                     {t("findings")}
                   </th>
                 </tr>
@@ -512,21 +519,6 @@ export function ProtocolDraftView({
         )}
       </section>
 
-      {/* Handoff Bar */}
-      <nav
-        aria-label={th("handoffTitle")}
-        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
-      >
-        <span className="text-xs font-medium text-ink-muted">{th("handoffTitle")}</span>
-        <Link
-          href={`/runs/${encodeURIComponent(runId)}/protocol`}
-          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
-        >
-          <span>{th("toProtocol")}</span>
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
-      </nav>
-
       {/* Slide-Over Step Inspection & Decision Drawer */}
       <DraftStepDrawer
         step={selectedStep}
@@ -558,6 +550,7 @@ export function ProtocolDraftView({
         }}
         onCancelProceed={() => setPendingStepId(undefined)}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

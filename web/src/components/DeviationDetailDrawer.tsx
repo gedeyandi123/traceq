@@ -7,9 +7,13 @@ import { useActionState, useState } from "react";
 import type { DeviationView } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
 import { formatWhen } from "./formatWhen";
+import { DirtyGuardBanner } from "./ui/DirtyGuardBanner";
 import { Drawer } from "./ui/Drawer";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
+import { Modal } from "./ui/Modal";
 import { DeviationStatusBadge } from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
+import { Button } from "./ui/ui";
 
 type Action = (
   prevState: ExecutionActionState,
@@ -44,6 +48,7 @@ export function DeviationDetailDrawer({
   returnAction: Action | null;
 }) {
   const t = useTranslations("execution");
+  const tp = useTranslations("protocol");
   const when = useTranslations("decisions");
 
   const latestInv = deviation.investigations[deviation.investigations.length - 1];
@@ -54,11 +59,22 @@ export function DeviationDetailDrawer({
   const [capa, setCapa] = useState(latestInv?.capa ?? "");
   const [reasonForChange, setReasonForChange] = useState("");
   const [returnReason, setReturnReason] = useState("");
+  const [dirtyPrompt, setDirtyPrompt] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [lastActionState, setLastActionState] = useState<ExecutionActionState | null>(null);
 
-  const [invState, invFormAction] = useActionState(
+  const isDirty =
+    investigationText !== (latestInv?.investigation ?? "") ||
+    deviationClass !== (latestInv?.deviation_class ?? "minor") ||
+    capa !== (latestInv?.capa ?? "") ||
+    reasonForChange.trim() !== "" ||
+    returnReason.trim() !== "";
+
+  const [, invFormAction] = useActionState(
     async (prev: ExecutionActionState, fd: FormData) => {
       if (!investigateAction) return prev;
       const res = await investigateAction(prev, fd);
+      setLastActionState(res);
       if (res.ok) {
         setReasonForChange("");
       }
@@ -67,18 +83,30 @@ export function DeviationDetailDrawer({
     INITIAL_STATE,
   );
 
-  const [subState, subFormAction] = useActionState(
-    submitAction ?? (async () => INITIAL_STATE),
+  const [, subFormAction] = useActionState(
+    async (prev: ExecutionActionState, fd: FormData) => {
+      if (!submitAction) return prev;
+      const res = await submitAction(prev, fd);
+      setLastActionState(res);
+      return res;
+    },
     INITIAL_STATE,
   );
-  const [closeState, closeFormAction] = useActionState(
-    closeAction ?? (async () => INITIAL_STATE),
+  const [, closeFormAction] = useActionState(
+    async (prev: ExecutionActionState, fd: FormData) => {
+      if (!closeAction) return prev;
+      const res = await closeAction(prev, fd);
+      setLastActionState(res);
+      if (res.ok) setCloseConfirmOpen(false);
+      return res;
+    },
     INITIAL_STATE,
   );
-  const [retState, retFormAction] = useActionState(
+  const [, retFormAction] = useActionState(
     async (prev: ExecutionActionState, fd: FormData) => {
       if (!returnAction) return prev;
       const res = await returnAction(prev, fd);
+      setLastActionState(res);
       if (res.ok) {
         setReturnReason("");
       }
@@ -87,7 +115,7 @@ export function DeviationDetailDrawer({
     INITIAL_STATE,
   );
 
-  const activeError = [invState, subState, closeState, retState].find((s) => !s.ok && s.error);
+  const activeError = lastActionState && !lastActionState.ok ? lastActionState : null;
   const canInvestigate =
     executionInProgress && deviation.status === "open" && investigateAction !== null;
   const canSubmit =
@@ -97,15 +125,36 @@ export function DeviationDetailDrawer({
     submitAction !== null;
   const canApprove = executionInProgress && deviation.status === "submitted";
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && isDirty) {
+      setDirtyPrompt(true);
+      return;
+    }
+    setDirtyPrompt(false);
+    onOpenChange(nextOpen);
+  };
+
   return (
     <Drawer
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={t("deviationDetailTitle", { number: deviation.deviation_number })}
       description={deviation.requirement ?? t("deviationLinkExecution")}
       headerExtra={<DeviationStatusBadge status={deviation.status} />}
     >
       <div className="space-y-5 text-xs">
+        {dirtyPrompt && (
+          <DirtyGuardBanner
+            message={t("dirtyWarning")}
+            discardLabel={t("discardChanges")}
+            keepLabel={t("keepEditing")}
+            onDiscard={() => {
+              setDirtyPrompt(false);
+              onOpenChange(false);
+            }}
+            onKeep={() => setDirtyPrompt(false)}
+          />
+        )}
         {activeError && activeError.error && (
           <div
             role="alert"
@@ -209,7 +258,7 @@ export function DeviationDetailDrawer({
                   rows={3}
                   value={investigationText}
                   onChange={(e) => setInvestigationText(e.target.value)}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 />
               </div>
 
@@ -227,7 +276,7 @@ export function DeviationDetailDrawer({
                   onChange={(e) =>
                     setDeviationClass(e.target.value as "minor" | "major" | "critical")
                   }
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 >
                   {CLASSES.map((c) => (
                     <option key={c} value={c}>
@@ -250,7 +299,7 @@ export function DeviationDetailDrawer({
                   rows={2}
                   value={capa}
                   onChange={(e) => setCapa(e.target.value)}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 />
               </div>
 
@@ -269,7 +318,7 @@ export function DeviationDetailDrawer({
                     required
                     value={reasonForChange}
                     onChange={(e) => setReasonForChange(e.target.value)}
-                    className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                    className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                   />
                 </div>
               )}
@@ -300,14 +349,40 @@ export function DeviationDetailDrawer({
             </div>
 
             {closeAction !== null && (
-              <form action={closeFormAction}>
-                <input type="hidden" name="execution_id" value={executionId} />
-                <input type="hidden" name="deviation_id" value={deviation.id} />
-                <SubmitButton variant="primary">
+              <>
+                <Button type="button" variant="primary" onClick={() => setCloseConfirmOpen(true)}>
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{t("deviationCloseButton")}</span>
-                </SubmitButton>
-              </form>
+                </Button>
+                <Modal
+                  open={closeConfirmOpen}
+                  onOpenChange={setCloseConfirmOpen}
+                  size="sm"
+                  title={t("deviationCloseButton")}
+                  description={t("deviationClosureNote")}
+                >
+                  <form action={closeFormAction} className="space-y-3">
+                    <input type="hidden" name="execution_id" value={executionId} />
+                    <input type="hidden" name="deviation_id" value={deviation.id} />
+                    <p className="m-0 text-xs text-ink">
+                      {t("deviationDetailTitle", { number: deviation.deviation_number })}
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCloseConfirmOpen(false)}
+                        className="cursor-pointer rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
+                      >
+                        {tp("cancel")}
+                      </button>
+                      <SubmitButton variant="primary">
+                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>{t("deviationCloseButton")}</span>
+                      </SubmitButton>
+                    </div>
+                  </form>
+                </Modal>
+              </>
             )}
 
             {returnAction !== null && (
@@ -328,7 +403,7 @@ export function DeviationDetailDrawer({
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
                   placeholder={t("deviationReturnReasonPlaceholder")}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-ink"
+                  className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 />
                 <SubmitButton variant="soft">
                   <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />

@@ -1,7 +1,7 @@
 // The Protocol page (spec #247, ADR 0012, ADR 0014): Sticky Submission Readiness Bar,
 // Radix Tabs, Opsi A compact table + 640px Slide-Over Drawer, Confirmation Modals,
 // FrozenCopy + ApprovalForms (Dewi), MissedNumbers, and ADR 0012 Limits.
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -462,10 +462,12 @@ test("the approving role approves the submission shown, bound to its event id an
   const user = userEvent.setup();
   renderForApprover(submitted);
   expect(screen.getByText(/bukan Tanda Tangan Elektronik \(ADR 0007 fase 2\)/)).toBeDefined();
-  const approve = screen.getByRole("button", { name: "Setujui protokol" });
-  const form = approve.closest("form") as HTMLFormElement;
+  await user.click(screen.getByRole("button", { name: "Setujui protokol" }));
+  const approveModal = within(await screen.findByRole("dialog", { name: "Setujui protokol" }));
+  const form = approveModal.getByRole("button", { name: "Setujui protokol" }).closest("form") as HTMLFormElement;
   expect((form.elements.namedItem("submission_event_id") as HTMLInputElement).value).toBe("12");
   expect((form.elements.namedItem("hash") as HTMLInputElement).value).toBe("a".repeat(64));
+  await user.click(approveModal.getByRole("button", { name: "Batal" }));
 
   await user.click(screen.getByRole("button", { name: "Kembalikan ke Draft" }));
   const modal = within(await screen.findByRole("dialog", { name: "Kembalikan protokol ke Draft?" }));
@@ -573,7 +575,9 @@ test("protocol useActionState forms preserve typed inputs when inline action ret
   await user.type(reasonInput, "Alasan koreksi yang harus tetap ada");
   await user.click(within(writeDialog).getByRole("button", { name: "Simpan suntingan" }));
 
-  expect(await within(writeDialog).findAllByRole("alert")).toHaveLength(2);
+  await waitFor(() => {
+    expect(within(writeDialog).getAllByRole("alert")).toHaveLength(2);
+  });
   expect((within(writeDialog).getByLabelText("Alasan perubahan") as HTMLTextAreaElement).value).toBe(
     "Alasan koreksi yang harus tetap ada",
   );

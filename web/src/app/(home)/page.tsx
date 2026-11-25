@@ -1,4 +1,4 @@
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/api/client";
 import { currentSession } from "@/auth/session";
 import { formatWhen } from "@/components/formatWhen";
+import { Alert } from "@/components/ui/Alert";
 import { EmptyState, ModeBadge } from "@/components/ui/ui";
 
 export const dynamic = "force-dynamic";
@@ -33,18 +34,17 @@ export default async function RunsPage() {
       </div>
 
       {session === null && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-info-edge bg-info-soft px-4 py-3 text-xs text-info">
-          <div className="flex items-start gap-2">
-            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <p className="m-0">{t("signedOutBanner")}</p>
+        <Alert tone="info">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="m-0 text-info">{t("signedOutBanner")}</p>
+            <Link
+              href="/signin"
+              className="inline-flex shrink-0 items-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
+            >
+              {signin("link")}
+            </Link>
           </div>
-          <Link
-            href="/signin"
-            className="inline-flex shrink-0 items-center rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline hover:bg-accent-hover"
-          >
-            {signin("link")}
-          </Link>
-        </div>
+        </Alert>
       )}
 
       {data === undefined && <EmptyState title={t("unavailableTitle")}>{t("unavailable")}</EmptyState>}
@@ -55,19 +55,19 @@ export default async function RunsPage() {
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
+                <th scope="col" className="px-4 py-2.5">
                   {t("equipment")}
                 </th>
-                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
+                <th scope="col" className="px-4 py-2.5">
                   {t("mode")}
                 </th>
-                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
+                <th scope="col" className="px-4 py-2.5">
                   {t("model")}
                 </th>
-                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
+                <th scope="col" className="px-4 py-2.5">
                   {t("created")}
                 </th>
-                <th scope="col" className="sticky top-0 z-10 bg-sunken/95 px-4 py-2.5">
+                <th scope="col" className="px-4 py-2.5">
                   {t("run")}
                 </th>
               </tr>

@@ -26,6 +26,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 | `--color-surface` | `#ffffff` | Primary cards, data tables, drawers, modals (`1px solid #d8e0e8`) |
 | `--color-sunken` | `#edf1f5` | Evidence blocks, verbatim PDF quotes, audit metadata |
 | `--color-border` | `#d8e0e8` | Hairline dividers and card/table borders |
+| `--color-input-border` | `#7a899c` | WCAG 1.4.11 (≥ 3:1) borders on form inputs, selects, and textareas (`FormControls.tsx`) |
 | `--color-ink` | `#0f172a` | Primary text and headings |
 | `--color-ink-muted` | `#475569` | Secondary labels, timestamps, metadata |
 
@@ -58,7 +59,8 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
     - `Protokol IQ/OQ` (`/runs/[runId]/protocol`) — status badge (`Draft` / `Disetujui`)
     - `Eksekusi & Deviasi` (`/runs/[runId]/execution`) — status badge (`Sedang berjalan` / `Selesai`) & open Deviation count ([ADR 0013](adr/0013-execution-results-judged-by-code-deviations-opened-by-code.md))
   - **Audit & Diagnostik:** `Yang Tidak Dimasukkan` (`/left-out`) · `Hasil Evaluasi` (`/eval`).
-- **Compact Sticky Context Bar (`48px`):** Equipment/run identity (`TP-201`), signed-in persona Radix `DropdownMenu` (displaying persona name + role badge, with actions *"Ganti persona"* → `/signin` and *"Keluar"*), and one primary next-action CTA (using a thin client `useSelectedLayoutSegment()` wrapper).
+- **Compact Sticky Context Bar (`48px`):** Equipment/run identity (`TP-201`), signed-in persona `SessionMenu` (`lib/persona.ts`, supporting `EXECUTING_ROLE` alongside deciding/approving/witnessing/read-only), and one primary next-action CTA (including *"Buka Eksekusi & Deviasi"* when `protocolStatus === "approved"`).
+- **Shared Primitives & A11y:** `FormControls` (`FieldInput`/`FieldTextarea`/`FieldSelect` without `focus:outline-none`), `CopyHashButton` (`aria-live="polite"`), `Alert`, `RouteErrorView`, `Drawer` (`size="md" | "wide"` up to `760px` with `onCloseAutoFocus` focus restoration), `useTriageKeyboardNav` (`J`/`K`), lazy-mounted `PdfCitationModal`, and `@media (prefers-reduced-motion: reduce)` support.
 
 ---
 
@@ -70,8 +72,8 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 | **Matriks (`/runs/[runId]`)** | Compact Scannable Table + Right Slide-Over Drawer (`560–640px`) | 4–5 columns (~56px/row → 8–10 rows above the fold at `1366×768`). URL `?selected=URS-...`, Prev/Next navigation, Required vs Observed side-by-side. |
 | **Temuan (`/findings`)** | Grouped Master-Detail Split-Pane (Opsi B) | Separates *Temuan Pemeriksaan (Aturan Deterministik)* vs *Temuan AI (Saran)* and *Dokumen yang Tidak Ada*, with 1-click triage filters (`Belum diputuskan`, `Aturan`, `AI`) and right inspection/decision workspace. |
 | **Draf (`/draft`)** | Compact Ordered Table + Slide-Over Drawer (Opsi A) | Preserves draft step order in a compact table, opens step inspection/decisions in a right slide-over drawer, and keeps the *"Temuan tentang seluruh dokumen"* section below. |
-| **Protokol (`/protocol`)** | Compact Table + Slide-Over Drawer + Radix Tabs | Compact status header; destructive *"Tarik protokol"* inside a Radix Confirmation Dialog; Radix `Tabs` organizing *Baris Protokol*, *Checklist & Salinan Beku* (`FrozenCopy`, `ApprovalForms` for approver role e.g. Dewi), and *Nomor Terlewat & Batas* (`MissedNumbers`, ADR 0012 *"Batas yang diketahui"*). |
-| **Eksekusi & Deviasi (Step 5b)** | Full-Width Execution Workbench + Wide Sheet (`720px+`) | Locked non-editable AC unit suffix; ALCOA server timestamps; multi-attempt history, versioned corrections + Reason for Change, multi-instrument calibration validation, hash-bound Witness badge, and 4-way SoD Deviation Investigation/CAPA/Closure. |
+| **Protokol (`/protocol`)** | Compact Table + Slide-Over Drawer + Radix Tabs | Non-sticky submission checklist; destructive *"Tarik protokol"* and permanent *"Setujui protokol"* (showing hash prefix & ADR 0007 notice) inside Radix Confirmation Modals; Radix `Tabs` organizing *Baris protokol*, *Checklist & salinan beku* (`FrozenCopy`, `ApprovalForms`), and *Nomor terlewat & batas*. |
+| **Eksekusi & Deviasi (Step 5b)** | Tabbed Workbench + `FilterBar` + Wide Drawer (`760px`) | Radix `Tabs` (*Baris eksekusi*, *Deviasi*, *Riwayat & salinan*), 1-click `FilterBar` (*Semua*, *Belum dicatat*, *Lulus*, *Gagal*, *Menunggu Saksi*, *Referensi vendor*), compact table + `ExecutionRowDrawer` (`size="wide"`) with `version_hash` prefix, dirty-form guards on all 3 execution drawers, and Confirmation Modals for *"Tutup deviasi"* and *"Selesaikan eksekusi"*. |
 | **Audit (`/left-out`, `/eval`)** | Diagnostic Tables & Summary Cards | Shared tokens and typography; remove redundant heading/column duplication. |
 | **System States (`loading.tsx`, `error.tsx`, `not-found.tsx`)** | Shared Semantic Recovery Screens | Loading skeletons, localised error boundaries with retry, and localised not-found recovery screens included in redesign scope using shared semantic tokens. |
 

@@ -8,14 +8,15 @@ import { useState } from "react";
 import type { ProtocolEvent, ProtocolView } from "@/api/client";
 import type { ApprovalControls, ProtocolControls } from "./AssembledProtocolView";
 import { formatWhen } from "./formatWhen";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { Modal } from "./ui/Modal";
 import { ProtocolStatusBadge } from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
+import { Button } from "./ui/ui";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
 
-const TEXTAREA_CLASS =
-  "w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none";
+const TEXTAREA_CLASS = `w-full text-xs ${FIELD_BASE_CLASS}`;
 
 export function StartForm({
   t,
@@ -87,6 +88,7 @@ function ApprovalForms({
   runId: string;
   approval: ApprovalControls;
 }) {
+  const [approveOpen, setApproveOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const shown = protocol.submission;
   if (protocol.status !== "submitted" || approval === null || shown === null) return null;
@@ -95,13 +97,9 @@ function ApprovalForms({
     <div className="space-y-3 rounded-lg border border-info-edge bg-info-soft p-3.5 text-xs text-ink">
       <p className="m-0 leading-relaxed">{t("approval.note")}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <form action={approval.approve}>
-          <input type="hidden" name="run_id" value={runId} />
-          <input type="hidden" name="protocol_id" value={protocol.id} />
-          <input type="hidden" name="submission_event_id" value={shown.event_id} />
-          <input type="hidden" name="hash" value={shown.hash} />
-          <SubmitButton variant="primary">{t("approval.approve")}</SubmitButton>
-        </form>
+        <Button type="button" variant="primary" onClick={() => setApproveOpen(true)}>
+          {t("approval.approve")}
+        </Button>
         <button
           type="button"
           onClick={() => setReturnOpen(true)}
@@ -110,6 +108,37 @@ function ApprovalForms({
           {t("approval.return")}
         </button>
       </div>
+
+      <Modal
+        open={approveOpen}
+        onOpenChange={setApproveOpen}
+        size="sm"
+        title={t("approval.approve")}
+        description={t("approval.note")}
+      >
+        <form action={approval.approve} className="space-y-3">
+          <input type="hidden" name="run_id" value={runId} />
+          <input type="hidden" name="protocol_id" value={protocol.id} />
+          <input type="hidden" name="submission_event_id" value={shown.event_id} />
+          <input type="hidden" name="hash" value={shown.hash} />
+          <div className="rounded-md border border-border bg-sunken px-3 py-2 text-xs">
+            <div className="font-semibold text-ink-muted">{t("copy.hash")}</div>
+            <code className="mt-0.5 block font-mono text-xs text-ink tabular-nums">
+              {shown.hash.slice(0, 16)}…
+            </code>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setApproveOpen(false)}
+              className="cursor-pointer rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
+            >
+              {t("cancel")}
+            </button>
+            <SubmitButton variant="primary">{t("approval.approve")}</SubmitButton>
+          </div>
+        </form>
+      </Modal>
 
       <Modal
         open={returnOpen}
@@ -238,7 +267,7 @@ export function ProtocolStatusPanel({
           </div>
           <Link
             href={`/runs/${encodeURIComponent(runId)}/execution`}
-            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent no-underline transition-colors hover:bg-accent-hover"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-accent no-underline hover:text-accent-hover hover:underline"
           >
             <span>{t("toExecution")}</span>
             <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

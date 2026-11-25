@@ -7,6 +7,7 @@ import { useActionState, useState } from "react";
 import type { MissedNumberView, ProtocolUrs } from "@/api/client";
 import type { ProtocolFormActionState } from "@/protocol/actions";
 import { formatWhen } from "./formatWhen";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
@@ -18,8 +19,7 @@ type InlineAction = (
 
 const KINDS = ["not_a_requirement", "not_tested_here"] as const;
 
-const INPUT_CLASS =
-  "w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none";
+const INPUT_CLASS = `w-full text-xs ${FIELD_BASE_CLASS}`;
 
 function wrapLegacyAction(action: Action): InlineAction {
   return async (_prev, formData) => {

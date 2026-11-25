@@ -7,6 +7,7 @@ import { useActionState, useState } from "react";
 import type { Decision, DecisionCounts, Proposal } from "@/api/client";
 import type { DecisionAccess, DecisionScreen, DecisionView } from "@/components/Decisions";
 import { formatWhen } from "@/components/formatWhen";
+import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
 import type { DecideActionState } from "@/decisions/actions";
 
@@ -243,7 +244,7 @@ function FindingDecisionForm({
       onChange={(e) => handleReasonChange(e.target.value)}
       aria-label={td("reason")}
       placeholder={td("reason")}
-      className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
+      className={`w-full text-xs ${FIELD_BASE_CLASS}`}
     />
   );
 
@@ -374,6 +375,7 @@ export function FindingDecisionPanel({
   access,
   anchor,
   headingLevel = "h4",
+  embedded = false,
   onDirtyChange,
 }: {
   proposal: Proposal | undefined;
@@ -382,6 +384,7 @@ export function FindingDecisionPanel({
   access: DecisionAccess;
   anchor?: string;
   headingLevel?: "h3" | "h4";
+  embedded?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const td = useTranslations("decisions");
@@ -393,7 +396,13 @@ export function FindingDecisionPanel({
   const Heading = headingLevel;
 
   return (
-    <section className="space-y-3 rounded-lg border border-border bg-surface p-3.5">
+    <section
+      className={
+        embedded
+          ? "space-y-3 border-t border-border pt-4"
+          : "space-y-3 rounded-lg border border-border bg-surface p-3.5"
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Heading className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
           {td("column")}
