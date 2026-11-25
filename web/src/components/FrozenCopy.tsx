@@ -64,7 +64,7 @@ function Row({
           </ul>
         )}
         {step && (
-          <div className="mt-1.5 space-y-1 rounded border border-border bg-sunken p-2 text-[11px]">
+          <div className="mt-1.5 space-y-1 border-l-2 border-border-strong bg-sunken/60 p-2 text-[11px]">
             <div className="font-semibold text-ink">
               {step.origin === "written"
                 ? t(step.proposal_id === null ? "writtenStep" : "editedStep", {
@@ -110,7 +110,7 @@ function Row({
         ) : (
           <div className="space-y-2">
             {row.drafts.map((d) => (
-              <div key={d.proposal_id} className="rounded border border-border bg-sunken p-2 text-[11px]">
+              <div key={d.proposal_id} className="border-l-2 border-border-strong bg-sunken/60 p-2 text-[11px]">
                 <div className="font-mono font-semibold text-ink">{d.draft_id}</div>
                 {d.decision ? (
                   <By t={t} when={when} d={d.decision} />

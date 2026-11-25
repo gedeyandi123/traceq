@@ -68,13 +68,15 @@ export function ProtocolRowsTable({
                     <button
                       type="button"
                       onClick={() => onSelect(r.requirement)}
-                      className="cursor-pointer font-mono text-xs font-semibold text-accent hover:underline tabular-nums"
+                      className="cursor-pointer font-mono text-xs font-semibold text-accent tabular-nums underline decoration-accent/40 underline-offset-2 hover:text-accent-hover hover:decoration-accent"
                     >
                       {r.requirement}
                     </button>
                     <PdfCitationButton runId={runId} cite={r.source} compact />
                   </div>
-                  <div className="mt-1 line-clamp-2 text-xs text-ink-muted">{r.text}</div>
+                  <div title={r.text} className="mt-1 line-clamp-2 text-xs text-ink-muted">
+                    {r.text}
+                  </div>
                 </th>
 
                 <td className="px-3 py-2.5 align-top whitespace-nowrap">
@@ -109,7 +111,10 @@ export function ProtocolRowsTable({
                   )}
                   {step && (
                     <div className="mt-0.5 space-y-0.5">
-                      <div className="line-clamp-1 text-[11px] text-ink-muted">
+                      <div
+                        title={`${step.origin === "written" ? t(step.proposal_id === null ? "writtenStep" : "editedStep", { version: step.version ?? 1 }) : t("fromDraft")} · ${step.acceptance ? formatValue(m, step.acceptance) : t("acToSet", { flag: step.acceptance_flag ?? "" })}`}
+                        className="line-clamp-1 text-[11px] text-ink-muted"
+                      >
                         {step.origin === "written"
                           ? t(step.proposal_id === null ? "writtenStep" : "editedStep", {
                               version: step.version ?? 1,

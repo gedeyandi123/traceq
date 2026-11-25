@@ -367,7 +367,7 @@ export function DraftStepDrawer({
 
         {/* Comparators */}
         {step.acceptance !== null && (
-          <section className="space-y-2.5 rounded-lg border border-border bg-surface p-3.5">
+          <section className="space-y-2.5 border-t border-border pt-4">
             <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
               {t("comparators")}
             </h3>
@@ -376,19 +376,19 @@ export function DraftStepDrawer({
         )}
 
         {/* Step findings & decisions */}
-        <section className="space-y-3">
+        <section className="space-y-3 border-t border-border pt-4">
           <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
             {t("findings")}
           </h3>
           {findings.length === 0 ? (
-            <p className="m-0 rounded-lg border border-border bg-surface p-3 text-xs text-ink-muted">
+            <p className="m-0 rounded-md bg-sunken p-3 text-xs text-ink-muted">
               {t("noFinding")}
             </p>
           ) : (
             findings.map((f, i) => (
               <div
                 key={`${f.finding.requirement}/${i}`}
-                className="space-y-3 rounded-lg border border-fail-edge bg-surface p-3.5"
+                className="space-y-3 rounded-md border-l-2 border-fail bg-sunken/60 p-3"
               >
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-fail">
@@ -410,6 +410,7 @@ export function DraftStepDrawer({
                     runId={runId}
                     screen="draft"
                     access={decisions.access}
+                    embedded
                     onDirtyChange={onDirtyChange}
                   />
                 )}

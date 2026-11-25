@@ -349,6 +349,7 @@ export function MatrixDrawer({
   onDirtyChange,
   onDiscardAndProceed,
   onCancelProceed,
+  onCloseAutoFocus,
 }: {
   row: MatrixRow | null;
   proposal: Proposal | undefined;
@@ -365,6 +366,7 @@ export function MatrixDrawer({
   onDirtyChange: (dirty: boolean) => void;
   onDiscardAndProceed: () => void;
   onCancelProceed: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const tm = useTranslations("matrix");
   const td = useTranslations("decisions");
@@ -389,6 +391,7 @@ export function MatrixDrawer({
       onOpenChange={(nextOpen) => {
         if (!nextOpen) onClose();
       }}
+      onCloseAutoFocus={onCloseAutoFocus}
       title={row.id}
       headerExtra={
         <div className="flex items-center gap-1">

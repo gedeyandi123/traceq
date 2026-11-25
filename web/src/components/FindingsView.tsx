@@ -21,6 +21,7 @@ import { DirtyGuardBanner } from "@/components/ui/DirtyGuardBanner";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
+import { useTriageKeyboardNav } from "@/lib/keyboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 
 type TriageFilter = "all" | "undecided" | "rule" | "ai";
@@ -75,7 +76,7 @@ export function FindingsView({
 }) {
   const t = useTranslations("findings");
   const td = useTranslations("decisions");
-  const th = useTranslations("runHeader");
+  const ui = useTranslations("ui");
   const detailRef = useRef<HTMLElement>(null);
 
   const decided = decisions.proposals !== undefined;
@@ -147,9 +148,18 @@ export function FindingsView({
       window.innerWidth < 1024 &&
       typeof detailRef.current?.scrollIntoView === "function"
     ) {
-      detailRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const reduced =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      detailRef.current.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "nearest" });
     }
   };
+
+  useTriageKeyboardNav({
+    items: filteredItems.map((i) => i.key),
+    selectedId: effectiveSelected?.key ?? null,
+    onSelect: requestSelect,
+  });
 
   const requestFilter = (filter: TriageFilter) => {
     if (filter === activeFilter) return;
@@ -224,8 +234,17 @@ export function FindingsView({
           />
 
           {filteredItems.length === 0 ? (
-            <div className="rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
-              {t("workspace.noMatches")}
+            <div className="space-y-2 rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
+              <p className="m-0">{t("workspace.noMatches")}</p>
+              {activeFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => requestFilter("all")}
+                  className="cursor-pointer font-semibold text-accent hover:underline"
+                >
+                  {ui("resetFilter")}
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(300px,380px)_1fr]">
@@ -353,7 +372,7 @@ export function FindingsView({
                                     {citedDocs}
                                   </div>
                                 )}
-                                <p className="m-0 line-clamp-1 text-[11px] text-ink-muted">
+                                <p title={item.finding.detail} className="m-0 line-clamp-1 text-[11px] text-ink-muted">
                                   {item.finding.detail}
                                 </p>
                               </button>
@@ -370,7 +389,7 @@ export function FindingsView({
               <section
                 ref={detailRef}
                 aria-label={t("detail")}
-                className="rounded-lg border border-border bg-surface p-4"
+                className="rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto"
               >
                 {pendingAction && (
                   <DirtyGuardBanner
@@ -431,6 +450,7 @@ export function FindingsView({
                         runId={runId}
                         screen="findings"
                         access={decisions.access}
+                        embedded
                         onDirtyChange={setIsFormDirty}
                       />
                     )}
@@ -478,6 +498,7 @@ export function FindingsView({
                         runId={runId}
                         screen="findings"
                         access={decisions.access}
+                        embedded
                         onDirtyChange={setIsFormDirty}
                       />
                     )}

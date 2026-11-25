@@ -375,6 +375,7 @@ export function FindingDecisionPanel({
   access,
   anchor,
   headingLevel = "h4",
+  embedded = false,
   onDirtyChange,
 }: {
   proposal: Proposal | undefined;
@@ -383,6 +384,7 @@ export function FindingDecisionPanel({
   access: DecisionAccess;
   anchor?: string;
   headingLevel?: "h3" | "h4";
+  embedded?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const td = useTranslations("decisions");
@@ -394,7 +396,13 @@ export function FindingDecisionPanel({
   const Heading = headingLevel;
 
   return (
-    <section className="space-y-3 rounded-lg border border-border bg-surface p-3.5">
+    <section
+      className={
+        embedded
+          ? "space-y-3 border-t border-border pt-4"
+          : "space-y-3 rounded-lg border border-border bg-surface p-3.5"
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Heading className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
           {td("column")}
