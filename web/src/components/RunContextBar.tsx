@@ -62,12 +62,14 @@ export function RunContextBar({
           <span aria-hidden="true" className="hidden text-ink-muted sm:inline">
             /
           </span>
-          <span title={run.equipment} className="truncate font-bold text-ink tabular-nums">
+          <span title={run.equipment} className="shrink-0 font-bold text-ink tabular-nums">
             {run.equipment}
           </span>
         </nav>
 
-        <ModeBadge>{runs(run.mode)}</ModeBadge>
+        <span className="hidden sm:inline-flex">
+          <ModeBadge>{runs(run.mode)}</ModeBadge>
+        </span>
 
         {pkg && (
           <span className="hidden items-center gap-1 rounded border border-border bg-sunken px-2 py-0.5 text-[11px] font-medium text-ink-muted tabular-nums xl:inline-flex">

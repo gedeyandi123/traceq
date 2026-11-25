@@ -428,7 +428,7 @@ export function MatrixTable({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
-          <table className="w-full border-collapse text-left text-xs leading-5">
+          <table className="w-full min-w-[640px] border-collapse text-left text-xs leading-5">
             <thead>
               <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
                 <th scope="col" className="w-[33%] px-3 py-2">
