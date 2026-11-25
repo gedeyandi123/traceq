@@ -27,9 +27,12 @@ const run: RunSummary = {
 
 const session: Session = {
   name: "Ayu Kartika Sari",
+  subject: "demo-0001",
+  issuer: "http://127.0.0.1:9000",
   mayDecide: true,
   mayApprove: false,
   mayExecute: true,
+  mayWitness: false,
 };
 
 function renderShell(

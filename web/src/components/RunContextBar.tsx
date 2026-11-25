@@ -63,7 +63,9 @@ export function RunContextBar({
     ? signin("canDecide")
     : session?.mayApprove
       ? signin("canApprove")
-      : signin("readOnly");
+      : session?.mayWitness
+        ? signin("canWitness")
+        : signin("readOnly");
 
   return (
     <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-3 sm:px-5">

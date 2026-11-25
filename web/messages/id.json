@@ -111,10 +111,12 @@
     "lead": "Pilih siapa yang memakai aplikasi. Perannya menentukan apakah keputusan dapat dibuat.",
     "role": "Peran",
     "canApprove": "Dapat menyetujui",
+    "canWitness": "Dapat menyaksikan",
     "empty": "Belum ada persona demo yang tersedia.",
     "roleDesc": {
       "canDecide": "Dapat memutuskan matriks, temuan, draf, menyusun dan mengajukan protokol, serta memulai eksekusi.",
       "canApprove": "Dapat meninjau salinan beku, menyetujui, atau mengembalikan protokol.",
+      "canWitness": "Dapat mengonfirmasi hasil eksekusi sebagai Saksi (status tercatat, bukan Tanda Tangan Elektronik).",
       "readOnly": "Hanya dapat membaca seluruh layar tanpa mengubah keputusan atau protokol."
     }
   },
@@ -789,6 +791,14 @@
     "observation": "Observasi (opsional)",
     "submitResult": "Simpan hasil",
     "recordedBy": "Dicatat oleh {name}, {when}",
+    "witnessConfirmButton": "Konfirmasi sebagai Saksi",
+    "witnessConfirmedBadge": "Dikonfirmasi Saksi",
+    "witnessVoidedBadge": "Dibatalkan oleh versi baru",
+    "witnessedBy": "Disaksikan oleh {name}, {when}",
+    "witnessNotConfirmed": "Belum dikonfirmasi Saksi (tidak ada langkah uji yang mewajibkan Saksi).",
+    "witnessNotSignatureNote": "Status tercatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2).",
+    "witnessPerformerRefused": "Pelaksana hasil ini tidak dapat menjadi Saksi.",
+    "witnessAlreadyConfirmed": "Anda sudah mengonfirmasi versi ini.",
     "notPerformableDisplay": "Tidak dapat dilaksanakan: {reason}",
     "noCalibratedDisplay": "Tanpa instrumen terkalibrasi: {reason}",
     "deviationsTitle": "Deviasi ({count})",

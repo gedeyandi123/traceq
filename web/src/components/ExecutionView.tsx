@@ -1,6 +1,12 @@
 "use client";
 
-import { AlertCircle, ArrowRight, History as HistoryIcon, PlayCircle } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  History as HistoryIcon,
+  PlayCircle,
+  ShieldCheck,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useActionState, useState } from "react";
@@ -80,13 +86,62 @@ function formatAttemptValue(t: T, row: ExecutionRowView, latest: AttemptVersionV
   return v.value ? t("presentTrue") : t("presentFalse");
 }
 
+function WitnessConfirmForm({
+  t,
+  executionId,
+  requirement,
+  attemptNumber,
+  versionNumber,
+  versionHash,
+  witnessAction,
+}: {
+  t: T;
+  executionId: number;
+  requirement: string;
+  attemptNumber: number;
+  versionNumber: number;
+  versionHash: string;
+  witnessAction: (
+    prevState: ExecutionActionState,
+    formData: FormData,
+  ) => Promise<ExecutionActionState>;
+}) {
+  const [state, formAction] = useActionState(witnessAction, INITIAL_STATE);
+  return (
+    <form action={formAction} className="space-y-1.5 pt-1">
+      <input type="hidden" name="execution_id" value={executionId} />
+      <input type="hidden" name="requirement" value={requirement} />
+      <input type="hidden" name="attempt_number" value={attemptNumber} />
+      <input type="hidden" name="version_number" value={versionNumber} />
+      <input type="hidden" name="version_hash" value={versionHash} />
+      {!state.ok && state.error && (
+        <div
+          role="alert"
+          className="flex items-start gap-1.5 rounded border border-fail-edge bg-fail-soft px-2 py-1 text-[11px] text-fail"
+        >
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{state.detail ?? t(`errors.${state.error}`)}</span>
+        </div>
+      )}
+      <SubmitButton variant="soft">
+        <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+        <span>{t("witnessConfirmButton")}</span>
+      </SubmitButton>
+    </form>
+  );
+}
+
 function ExecutionRow({
   t,
   m,
   when,
   row,
   runId,
+  executionId,
+  executionInProgress,
+  currentUser,
   canRecord,
+  witnessAction,
   onRecord,
 }: {
   t: T;
@@ -94,12 +149,29 @@ function ExecutionRow({
   when: WhenT;
   row: ExecutionRowView;
   runId: string;
+  executionId: number;
+  executionInProgress: boolean;
+  currentUser: { subject: string; issuer: string } | null;
   canRecord: boolean;
+  witnessAction:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
   onRecord: () => void;
 }) {
   const step = row.test_step;
   const latestAttempt = row.attempts[row.attempts.length - 1];
   const latest = latestAttempt?.latest;
+  const confirmations = latest?.witness_confirmations ?? [];
+  const isPerformer =
+    latest !== undefined &&
+    currentUser !== null &&
+    currentUser.subject === latest.subject &&
+    currentUser.issuer === latest.issuer;
+  const alreadyConfirmed =
+    currentUser !== null &&
+    confirmations.some(
+      (w) => w.subject === currentUser.subject && w.issuer === currentUser.issuer,
+    );
 
   return (
     <tr data-testid={`exec-row-${row.requirement}`} className="border-b border-border last:border-b-0">
@@ -188,6 +260,57 @@ function ExecutionRow({
             )}
             <div className="text-[11px] text-ink-muted tabular-nums">
               {t("recordedBy", { name: latest.name, when: formatWhen(when, latest.at) })}
+            </div>
+
+            <div className="space-y-1 border-t border-border pt-1.5">
+              {confirmations.length > 0 ? (
+                <ul className="m-0 list-none space-y-1 p-0">
+                  {confirmations.map((w) => (
+                    <li key={w.id} className="space-y-0.5 text-[11px]">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                            w.voided
+                              ? "border-warn-edge bg-warn-soft text-warn"
+                              : "border-pass-edge bg-pass-soft text-pass"
+                          }`}
+                        >
+                          <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          <span>
+                            {w.voided ? t("witnessVoidedBadge") : t("witnessConfirmedBadge")}
+                          </span>
+                        </span>
+                        <span className="text-ink tabular-nums">
+                          {t("witnessedBy", { name: w.name, when: formatWhen(when, w.at) })}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-ink-muted">{t("witnessNotSignatureNote")}</div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-[11px] text-ink-muted">{t("witnessNotConfirmed")}</div>
+              )}
+
+              {witnessAction !== null && executionInProgress && latestAttempt && (
+                <>
+                  {isPerformer ? (
+                    <p className="m-0 text-[11px] text-ink-muted">{t("witnessPerformerRefused")}</p>
+                  ) : alreadyConfirmed ? (
+                    <p className="m-0 text-[11px] text-ink-muted">{t("witnessAlreadyConfirmed")}</p>
+                  ) : (
+                    <WitnessConfirmForm
+                      t={t}
+                      executionId={executionId}
+                      requirement={row.requirement}
+                      attemptNumber={latestAttempt.attempt_number}
+                      versionNumber={latest.version}
+                      versionHash={latest.version_hash}
+                      witnessAction={witnessAction}
+                    />
+                  )}
+                </>
+              )}
             </div>
           </div>
         ) : canRecord ? (
@@ -291,8 +414,10 @@ export function ExecutionViewPanel({
   execution,
   protocol,
   runId,
+  currentUser = null,
   startAction,
   recordAction = null,
+  witnessAction = null,
   openDeviationAction = null,
   investigateAction = null,
   submitDeviationAction = null,
@@ -302,10 +427,14 @@ export function ExecutionViewPanel({
   execution: ExecutionView | null;
   protocol: ProtocolView | null;
   runId: string;
+  currentUser?: { subject: string; issuer: string } | null;
   startAction:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
   recordAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  witnessAction?:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
   openDeviationAction?:
@@ -466,12 +595,16 @@ export function ExecutionViewPanel({
                       when={when}
                       row={r}
                       runId={runId}
+                      executionId={execution.id}
+                      executionInProgress={execution.status === "in_progress"}
+                      currentUser={currentUser}
                       canRecord={
                         execution.status === "in_progress" &&
                         r.kind === "test_step" &&
                         r.attempts.length === 0 &&
                         recordAction !== null
                       }
+                      witnessAction={witnessAction}
                       onRecord={() => setActiveRequirement(r.requirement)}
                     />
                   ))}

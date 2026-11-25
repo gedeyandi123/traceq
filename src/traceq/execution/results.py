@@ -52,6 +52,8 @@ DEVIATION_STATUS_AFTER: dict[DeviationEventKind, DeviationStatus] = {
     "closed": "closed",
 }
 
+WITNESS_NOTE = "a recorded status, not an Electronic Signature (ADR 0007 phase 2)"
+
 
 class InvalidResult(ValueError):
     """The Result payload is malformed or does not match the Acceptance Criterion (422)."""
@@ -155,6 +157,21 @@ class RecordAttemptRequest(_Input):
         return self
 
 
+class ConfirmWitnessRequest(_Input):
+    """Payload to confirm an attempt's latest version as a Witness."""
+
+    version_number: int = Field(ge=1)
+    version_hash: str
+
+    @field_validator("version_hash")
+    @classmethod
+    def _non_blank_hash(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("version_hash must not be blank")
+        return stripped
+
+
 _META = MetaData()
 ATTEMPTS = Table(
     "execution_attempts",
@@ -231,6 +248,29 @@ DEVIATION_INVESTIGATIONS = Table(
     Column("issuer", Text),
     Column("name", Text),
 )
+WITNESS_CONFIRMATIONS = Table(
+    "execution_witness_confirmations",
+    _META,
+    Column("id", BigInteger, primary_key=True),
+    Column("at", DateTime(timezone=True)),
+    Column("version_id", BigInteger),
+    Column("version_hash", Text),
+    Column("witness_subject", Text),
+    Column("witness_issuer", Text),
+    Column("witness_name", Text),
+)
+
+
+@dataclass(frozen=True)
+class WitnessConfirmation:
+    """One Witness confirmation bound to an attempt version's hash."""
+
+    id: int
+    at: datetime
+    version_id: int
+    version_hash: str
+    actor: audit.Actor
+    voided: bool
 
 
 @dataclass(frozen=True)
@@ -252,6 +292,7 @@ class AttemptVersion:
     version_hash: str
     reason_for_change: str | None
     actor: audit.Actor
+    witness_confirmations: tuple[WitnessConfirmation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -340,7 +381,25 @@ def _parse_value(raw: dict[str, Any] | None) -> ResultValue | None:
     raise ValueError(f"unknown stored result value type: {kind!r}")
 
 
-def _version_from_row(m: RowMapping) -> AttemptVersion:
+def _witness_from_row(m: RowMapping, *, voided: bool) -> WitnessConfirmation:
+    return WitnessConfirmation(
+        id=m["id"],
+        at=m["at"],
+        version_id=m["version_id"],
+        version_hash=m["version_hash"],
+        actor=audit.Actor(
+            subject=m["witness_subject"],
+            issuer=m["witness_issuer"],
+            name=m["witness_name"],
+        ),
+        voided=voided,
+    )
+
+
+def _version_from_row(
+    m: RowMapping,
+    witness_confirmations: tuple[WitnessConfirmation, ...] = (),
+) -> AttemptVersion:
     return AttemptVersion(
         id=m["id"],
         at=m["at"],
@@ -357,6 +416,7 @@ def _version_from_row(m: RowMapping) -> AttemptVersion:
         version_hash=m["version_hash"],
         reason_for_change=m["reason_for_change"],
         actor=audit.actor_of_row(m),
+        witness_confirmations=witness_confirmations,
     )
 
 
@@ -579,8 +639,7 @@ def attempts_of(session: Session, execution_id: int) -> dict[str, tuple[Attempt,
     if not attempt_rows:
         return {}
     attempt_ids = [r["id"] for r in attempt_rows]
-    versions_by_attempt: dict[int, list[AttemptVersion]] = {}
-    for vm in (
+    version_rows = (
         session.execute(
             select(ATTEMPT_VERSIONS)
             .where(ATTEMPT_VERSIONS.c.attempt_id.in_(attempt_ids))
@@ -588,8 +647,38 @@ def attempts_of(session: Session, execution_id: int) -> dict[str, tuple[Attempt,
         )
         .mappings()
         .all()
-    ):
-        versions_by_attempt.setdefault(vm["attempt_id"], []).append(_version_from_row(vm))
+    )
+    version_ids = [vm["id"] for vm in version_rows]
+    witness_rows_by_version: dict[int, list[RowMapping]] = {}
+    if version_ids:
+        for wm in (
+            session.execute(
+                select(WITNESS_CONFIRMATIONS)
+                .where(WITNESS_CONFIRMATIONS.c.version_id.in_(version_ids))
+                .order_by(WITNESS_CONFIRMATIONS.c.id)
+            )
+            .mappings()
+            .all()
+        ):
+            witness_rows_by_version.setdefault(wm["version_id"], []).append(wm)
+
+    raw_versions_by_attempt: dict[int, list[RowMapping]] = {}
+    for vm in version_rows:
+        raw_versions_by_attempt.setdefault(vm["attempt_id"], []).append(vm)
+
+    versions_by_attempt: dict[int, list[AttemptVersion]] = {}
+    for aid, vms in raw_versions_by_attempt.items():
+        latest_ver_num = vms[-1]["version"]
+        versions_by_attempt[aid] = [
+            _version_from_row(
+                vm,
+                witness_confirmations=tuple(
+                    _witness_from_row(wm, voided=vm["version"] < latest_ver_num)
+                    for wm in witness_rows_by_version.get(vm["id"], ())
+                ),
+            )
+            for vm in vms
+        ]
 
     by_req: dict[str, list[Attempt]] = {}
     for am in attempt_rows:
@@ -883,3 +972,120 @@ def record_attempt(
         versions=(ver,),
     )
     return attempt, tuple(opened_deviations)
+
+
+def confirm_witness(
+    session: Session,
+    actor: audit.Actor,
+    execution_id: int,
+    requirement: str,
+    attempt_number: int,
+    req: ConfirmWitnessRequest,
+) -> WitnessConfirmation:
+    """Records a Witness confirmation bound to the latest version's ``version_hash`` of an
+    attempt while the Execution is ``in_progress``.
+
+    Refuses (409) when the Execution is not ``in_progress``, when ``version_number`` or
+    ``version_hash`` does not match the attempt's latest version, when the Witness is the
+    Performer of that version (same ``subject`` and ``issuer``), or when the same Witness has
+    already confirmed that version.
+    """
+    lifecycle.lock_execution(session, execution_id)
+    ex = lifecycle.get(session, execution_id)
+    if ex is None:
+        raise lifecycle.NotFound(f"no Execution {execution_id}")
+    if ex.status != "in_progress":
+        raise lifecycle.Conflict(
+            f"Execution {execution_id} is {ex.status}: Witness confirmations are recorded only "
+            "while In progress"
+        )
+
+    copy = frozen_copy(session, ex)
+    row = next((r for r in copy.rows if r.requirement == requirement), None)
+    if row is None:
+        raise lifecycle.NotFound(f"no row {requirement} in Execution {execution_id}")
+    if row.kind != "test_step" or row.test_step is None:
+        raise lifecycle.Conflict(f"row {requirement} is a Vendor Reference, not a Test Step")
+
+    attempt_row = (
+        session.execute(
+            select(ATTEMPTS).where(
+                ATTEMPTS.c.execution_id == execution_id,
+                ATTEMPTS.c.requirement == requirement,
+                ATTEMPTS.c.attempt_number == attempt_number,
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if attempt_row is None:
+        raise lifecycle.NotFound(
+            f"no attempt {attempt_number} for row {requirement} in Execution {execution_id}"
+        )
+
+    version_rows = (
+        session.execute(
+            select(ATTEMPT_VERSIONS)
+            .where(ATTEMPT_VERSIONS.c.attempt_id == attempt_row["id"])
+            .order_by(ATTEMPT_VERSIONS.c.version)
+        )
+        .mappings()
+        .all()
+    )
+    latest = _version_from_row(version_rows[-1])
+
+    if req.version_number != latest.version:
+        raise lifecycle.Conflict(
+            f"version {req.version_number} is stale: latest version of attempt {attempt_number} "
+            f"is {latest.version}"
+        )
+    if req.version_hash != latest.version_hash:
+        raise lifecycle.Conflict("version_hash does not match the latest version's hash")
+    if (actor.subject, actor.issuer) == (latest.actor.subject, latest.actor.issuer):
+        raise lifecycle.Conflict("the Witness cannot be the Performer of this Result version")
+
+    existing = session.execute(
+        select(WITNESS_CONFIRMATIONS.c.id).where(
+            WITNESS_CONFIRMATIONS.c.version_id == latest.id,
+            WITNESS_CONFIRMATIONS.c.witness_subject == actor.subject,
+            WITNESS_CONFIRMATIONS.c.witness_issuer == actor.issuer,
+        )
+    ).first()
+    if existing is not None:
+        raise lifecycle.Conflict("this Witness has already confirmed this version")
+
+    inserted = (
+        session.execute(
+            insert(WITNESS_CONFIRMATIONS)
+            .values(
+                version_id=latest.id,
+                version_hash=latest.version_hash,
+                witness_subject=actor.subject,
+                witness_issuer=actor.issuer,
+                witness_name=actor.name,
+            )
+            .returning(*WITNESS_CONFIRMATIONS.c)
+        )
+        .mappings()
+        .one()
+    )
+    confirmation = _witness_from_row(inserted, voided=False)
+
+    audit.append(
+        session,
+        actor,
+        "witness confirmed",
+        "execution_attempt_version",
+        f"{execution_id}/{requirement}/{attempt_number}/v{latest.version}",
+        new={
+            "execution_id": execution_id,
+            "requirement": requirement,
+            "attempt_number": attempt_number,
+            "version_id": latest.id,
+            "version": latest.version,
+            "version_hash": latest.version_hash,
+            "confirmation_id": confirmation.id,
+            "note": WITNESS_NOTE,
+        },
+    )
+    return confirmation

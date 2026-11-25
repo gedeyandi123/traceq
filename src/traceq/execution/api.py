@@ -32,6 +32,8 @@ from traceq.execution.deviations import (
 )
 from traceq.execution.lifecycle import EventKind, Status
 from traceq.execution.results import (
+    WITNESS_NOTE,
+    ConfirmWitnessRequest,
     DeviationCause,
     DeviationClass,
     DeviationEventKind,
@@ -73,6 +75,20 @@ class ExecutionTestStep(_Model):
     acceptance: Acceptance
 
 
+class WitnessConfirmationView(_Model):
+    """One Witness confirmation bound to an attempt version's hash."""
+
+    id: int
+    at: datetime
+    version_id: int
+    version_hash: str
+    subject: str
+    issuer: str
+    name: str
+    voided: bool
+    note: str
+
+
 class AttemptVersionView(_Model):
     """One immutable version of an attempt's Result."""
 
@@ -92,6 +108,7 @@ class AttemptVersionView(_Model):
     subject: str
     issuer: str
     name: str
+    witness_confirmations: list[WitnessConfirmationView] = []
 
 
 class AttemptView(_Model):
@@ -216,6 +233,20 @@ def _attempt_version(v: results.AttemptVersion) -> AttemptVersionView:
         subject=v.actor.subject,
         issuer=v.actor.issuer,
         name=v.actor.name,
+        witness_confirmations=[
+            WitnessConfirmationView(
+                id=w.id,
+                at=w.at,
+                version_id=w.version_id,
+                version_hash=w.version_hash,
+                subject=w.actor.subject,
+                issuer=w.actor.issuer,
+                name=w.actor.name,
+                voided=w.voided,
+                note=WITNESS_NOTE,
+            )
+            for w in v.witness_confirmations
+        ],
     )
 
 
@@ -508,6 +539,29 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             execution_id,
             lambda s: deviations.return_deviation(
                 s, actor_of(who), execution_id, deviation_id, body
+            ),
+        )
+
+    @router.post(
+        "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness",
+        operation_id="confirmWitness",
+        status_code=201,
+    )
+    def confirm_witness(
+        execution_id: int,
+        requirement: str,
+        attempt_number: int,
+        body: ConfirmWitnessRequest,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Records a Witness confirmation bound to the latest version's ``version_hash``
+        (a recorded status, not an Electronic Signature (ADR 0007 phase 2))."""
+        if not who.may_witness:
+            raise HTTPException(403, "confirming a Result as Witness needs the witnessing role")
+        return run_execution_write(
+            execution_id,
+            lambda s: results.confirm_witness(
+                s, actor_of(who), execution_id, requirement, attempt_number, body
             ),
         )
 

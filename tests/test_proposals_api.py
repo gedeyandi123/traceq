@@ -55,6 +55,7 @@ EXECUTION_ROUTES = {
     ("post", "/protocols/{protocol_id}/execution"),
     ("get", "/runs/{run_id}/execution"),
     ("post", "/executions/{execution_id}/rows/{requirement}/attempts"),
+    ("post", "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness"),
     ("post", "/executions/{execution_id}/deviations"),
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/investigations"),
     ("post", "/executions/{execution_id}/deviations/{deviation_id}/submit"),
@@ -147,6 +148,7 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
             protocol_id=1,
             execution_id=1,
             deviation_id=1,
+            attempt_number=1,
             requirement="URS-TP201-002",
         )
         assert client.request(method, url).status_code == 401
@@ -184,6 +186,7 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
                 protocol_id=1,
                 execution_id=1,
                 deviation_id=1,
+                attempt_number=1,
                 requirement="URS-TP201-002",
             ),
         )

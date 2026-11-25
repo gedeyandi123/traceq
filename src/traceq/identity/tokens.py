@@ -21,6 +21,8 @@ DECIDING_ROLE = "qualification-decider"
 APPROVING_ROLE = "qualification-approver"
 # The role that executes an Approved Protocol (ADR 0013, spec #270).
 EXECUTING_ROLE = "qualification-executor"
+# The role that confirms an Execution Result as a Witness (ADR 0013, spec #270, #274).
+WITNESSING_ROLE = "qualification-witness"
 
 
 class InvalidToken(Exception):
@@ -63,6 +65,10 @@ class Principal:
     @property
     def may_execute(self) -> bool:
         return EXECUTING_ROLE in self.roles
+
+    @property
+    def may_witness(self) -> bool:
+        return WITNESSING_ROLE in self.roles
 
 
 def _get_json(url: str) -> dict[str, Any]:

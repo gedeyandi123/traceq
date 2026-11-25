@@ -236,6 +236,7 @@ test("displays recorded attempt verdict, performer, UTC timestamp, and Deviation
             subject: "demo-0001",
             issuer: "http://127.0.0.1:9000",
             name: "Ayu Kartika Sari",
+            witness_confirmations: [],
           },
         ],
         latest: {
@@ -255,6 +256,7 @@ test("displays recorded attempt verdict, performer, UTC timestamp, and Deviation
           subject: "demo-0001",
           issuer: "http://127.0.0.1:9000",
           name: "Ayu Kartika Sari",
+          witness_confirmations: [],
         },
       },
     ],
@@ -465,4 +467,144 @@ test("executor sees manual deviation button and can open investigation form; app
   expect(await screen.findByText("Sensor terlepas.")).toBeDefined();
   expect(screen.queryByRole("button", { name: "Tutup deviasi" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Simpan investigasi" })).toBeNull();
+});
+
+test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and performer", () => {
+  const ex = executionFixture();
+  const baseVersion = {
+    id: 1,
+    at: "2026-11-24T10:05:00Z",
+    version: 1,
+    outcome_kind: "value" as const,
+    not_performable_reason: null,
+    value: { type: "number" as const, value: 40 },
+    observation: null,
+    instruments: [{ identifier: "TACH-07", calibration_due_date: "2027-05-01" }],
+    no_calibrated_instrument_reason: null,
+    evidence: [],
+    verdict: "pass" as const,
+    version_hash: "c".repeat(64),
+    reason_for_change: null,
+    subject: "demo-0001",
+    issuer: "http://127.0.0.1:9000",
+    name: "Ayu Kartika Sari",
+    witness_confirmations: [],
+  };
+  ex.rows[0] = {
+    ...ex.rows[0]!,
+    attempts: [
+      {
+        id: 10,
+        at: "2026-11-24T10:05:00Z",
+        attempt_number: 1,
+        requirement: "URS-TP201-002",
+        subject: "demo-0001",
+        issuer: "http://127.0.0.1:9000",
+        name: "Ayu Kartika Sari",
+        versions: [baseVersion],
+        latest: baseVersion,
+      },
+    ],
+  };
+
+  const noop = async () => ({ ok: true });
+
+  // 1. Witness (Eko) sees unconfirmed status + confirm button
+  const { unmount: unmountEko } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        currentUser={{ subject: "demo-0005", issuer: "http://127.0.0.1:9000" }}
+        startAction={null}
+        witnessAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(
+    screen.getByText("Belum dikonfirmasi Saksi (tidak ada langkah uji yang mewajibkan Saksi)."),
+  ).toBeDefined();
+  expect(screen.getByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeDefined();
+  unmountEko();
+
+  // 2. Non-witness (Ayu / Citra / Dewi) sees no confirm button
+  const { unmount: unmountNonWitness } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        currentUser={{ subject: "demo-0001", issuer: "http://127.0.0.1:9000" }}
+        startAction={null}
+        witnessAction={null}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
+  unmountNonWitness();
+
+  // 3. Performer holding witness role cannot confirm their own Result
+  const { unmount: unmountPerformer } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        currentUser={{ subject: "demo-0001", issuer: "http://127.0.0.1:9000" }}
+        startAction={null}
+        witnessAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
+  expect(screen.getByText("Pelaksana hasil ini tidak dapat menjadi Saksi.")).toBeDefined();
+  unmountPerformer();
+
+  // 4. Confirmed + voided badges and ADR 0007 note render when confirmations exist
+  const confirmedVersion = {
+    ...baseVersion,
+    witness_confirmations: [
+      {
+        id: 1,
+        at: "2026-11-24T10:10:00Z",
+        version_id: 1,
+        version_hash: "c".repeat(64),
+        subject: "demo-0005",
+        issuer: "http://127.0.0.1:9000",
+        name: "Eko Prasetyo Wijaya",
+        voided: true,
+        note: "a recorded status, not an Electronic Signature (ADR 0007 phase 2)",
+      },
+    ],
+  };
+  ex.rows[0] = {
+    ...ex.rows[0]!,
+    attempts: [
+      {
+        ...ex.rows[0]!.attempts[0]!,
+        versions: [confirmedVersion],
+        latest: confirmedVersion,
+      },
+    ],
+  };
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        currentUser={{ subject: "demo-0005", issuer: "http://127.0.0.1:9000" }}
+        startAction={null}
+        witnessAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("Dibatalkan oleh versi baru")).toBeDefined();
+  expect(screen.getByText(/Disaksikan oleh Eko Prasetyo Wijaya/)).toBeDefined();
+  expect(
+    screen.getByText("Status tercatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2)."),
+  ).toBeDefined();
+  expect(screen.getByText("Anda sudah mengonfirmasi versi ini.")).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
 });

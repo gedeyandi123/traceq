@@ -37,6 +37,7 @@ export type ExecutionEvent = components["schemas"]["ExecutionEvent"];
 export type ExecutionTestStep = components["schemas"]["ExecutionTestStep"];
 export type AttemptView = components["schemas"]["AttemptView"];
 export type AttemptVersionView = components["schemas"]["AttemptVersionView"];
+export type WitnessConfirmationView = components["schemas"]["WitnessConfirmationView"];
 export type DeviationView = components["schemas"]["DeviationView"];
 export type DeviationEventView = components["schemas"]["DeviationEventView"];
 export type DeviationInvestigationView = components["schemas"]["DeviationInvestigationView"];
