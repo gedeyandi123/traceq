@@ -23,6 +23,7 @@
     "downloadSpreadsheet": "Unduh lembar kerja",
     "copyHash": "Salin hash",
     "copied": "Disalin",
+    "resetFilter": "Atur ulang filter",
     "undecidedCount": "{count} belum diputuskan",
     "nonPdfNotice": "Berkas ini bukan PDF dan tidak dapat dipratinjau langsung di dalam modal.",
     "mobilePdfNotice": "Pratinjau PDF inline tersedia di layar desktop. Buka dokumen di tab baru untuk membacanya.",
@@ -729,8 +730,30 @@
     "toExecution": "Buka Eksekusi & Deviasi"
   },
   "execution": {
-    "title": "Eksekusi & Deviasi",
+    "title": "Eksekusi & deviasi",
     "intro": "Eksekusi protokol yang sudah disetujui, membaca salinan beku yang disetujui: satu baris per baris salinan beku, sesuai urutannya.",
+    "tabs": {
+      "rows": "Baris eksekusi",
+      "deviations": "Deviasi",
+      "history": "Riwayat & salinan"
+    },
+    "filters": {
+      "all": "Semua",
+      "unrecorded": "Belum dicatat",
+      "pass": "Lulus",
+      "fail": "Gagal",
+      "awaitingWitness": "Menunggu Saksi",
+      "vendorRef": "Referensi vendor",
+      "noMatches": "Tidak ada baris eksekusi yang cocok dengan filter ini."
+    },
+    "readOnlyBanner": "Mode baca-saja: identitas Anda hanya dapat membaca eksekusi ini tanpa mencatat hasil atau mengubah deviasi.",
+    "inspectRow": "Buka detail",
+    "moreBlockers": "+{count} lainnya",
+    "completeModalDesc": "Membekukan salinan eksekusi secara permanen (status tercatat, bukan Tanda Tangan Elektronik — ADR 0007). Tindakan ini tidak dapat dibatalkan.",
+    "cancel": "Batal",
+    "dirtyWarning": "Anda memiliki perubahan yang belum disimpan. Buang perubahan?",
+    "discardChanges": "Buang perubahan",
+    "keepEditing": "Lanjutkan menyunting",
     "signedOut": "Masuk untuk membaca atau memulai eksekusi",
     "signedOutBody": "Eksekusi protokol memerlukan token. Masuk sebagai salah satu identitas demo untuk membacanya.",
     "unavailable": "Eksekusi tidak dapat dimuat",

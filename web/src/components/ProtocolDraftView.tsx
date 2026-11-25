@@ -25,17 +25,9 @@ import { useRunShell } from "@/components/RunShellContext";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
+import { isTypingTarget } from "@/lib/keyboard";
 
 export { formatPrinted };
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.closest(
-      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
-    ) !== null
-  );
-}
 
 type DraftFilter = "all" | "withFindings" | "notCompared" | "notRead";
 type VendorDoc = Draft["vendor_documents"][number];
@@ -100,7 +92,7 @@ export function ProtocolDraftView({
   initialSelected?: string | null;
 }) {
   const t = useTranslations("draft");
-  const th = useTranslations("runHeader");
+  const ui = useTranslations("ui");
   const { setDrawerOpen } = useRunShell();
 
   const draftDoc = draft.document.doc_id;
@@ -303,8 +295,17 @@ export function ProtocolDraftView({
             {t("noSteps")}
           </div>
         ) : filteredSteps.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
-            {t("noMatches")}
+          <div className="space-y-2 rounded-lg border border-border bg-surface p-6 text-center text-xs text-ink-muted">
+            <p className="m-0">{t("noMatches")}</p>
+            {activeFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setActiveFilter("all")}
+                className="cursor-pointer font-semibold text-accent hover:underline"
+              >
+                {ui("resetFilter")}
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border bg-surface">
@@ -348,7 +349,7 @@ export function ProtocolDraftView({
                           type="button"
                           onClick={() => requestSelection(st.id)}
                           aria-expanded={isSelected}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-surface px-2 py-1 font-mono text-xs font-bold text-accent tabular-nums hover:border-accent hover:bg-accent-soft"
+                          className="cursor-pointer font-mono text-xs font-semibold text-accent tabular-nums underline decoration-accent/40 underline-offset-2 hover:text-accent-hover hover:decoration-accent"
                         >
                           {st.id}
                         </button>

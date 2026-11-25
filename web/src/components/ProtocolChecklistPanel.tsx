@@ -13,7 +13,7 @@ type T = ReturnType<typeof useTranslations<"protocol">>;
 
 const MAX_INLINE_BLOCKERS = 4;
 
-/** Sticky Submission Readiness Bar: shows the five checklist checks with their counts and
+/** Submission Readiness Bar: shows the five checklist checks with their counts and
  * deep-links to the rows or missed numbers concerned, plus the submit control with confirmation modal. */
 export function ProtocolChecklistPanel({
   t,
@@ -39,7 +39,7 @@ export function ProtocolChecklistPanel({
   return (
     <section
       aria-labelledby="protocol-checklist"
-      className="z-20 space-y-2.5 rounded-lg border border-border bg-surface/95 px-4 py-3 shadow-sm backdrop-blur-[2px] lg:sticky lg:top-12"
+      className="space-y-2.5 rounded-lg border border-border bg-surface px-4 py-3 shadow-xs"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">

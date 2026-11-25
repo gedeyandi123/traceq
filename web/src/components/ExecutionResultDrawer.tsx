@@ -7,6 +7,7 @@ import { useActionState, useState } from "react";
 import type { AttemptView, DeviationView, ExecutionRowView } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
 import { formatValue } from "./MatrixTable";
+import { DirtyGuardBanner } from "./ui/DirtyGuardBanner";
 import { Drawer } from "./ui/Drawer";
 import { SubmitButton } from "./ui/SubmitButton";
 import { Button } from "./ui/ui";
@@ -105,10 +106,14 @@ export function ExecutionResultDrawer({
     mode.kind === "retest" && mode.openDeviations[0] ? String(mode.openDeviations[0].id) : "",
   );
   const [nextKey, setNextKey] = useState(200);
+  const [isDirty, setIsDirty] = useState(false);
+  const [dirtyPrompt, setDirtyPrompt] = useState(false);
 
   const [state, formAction] = useActionState(async (prev: ExecutionActionState, fd: FormData) => {
     const res = await recordAction(prev, fd);
     if (res.ok) {
+      setIsDirty(false);
+      setDirtyPrompt(false);
       onOpenChange(false);
     }
     return res;
@@ -153,14 +158,40 @@ export function ExecutionResultDrawer({
         ? t("submitRetest")
         : t("submitResult");
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && isDirty) {
+      setDirtyPrompt(true);
+      return;
+    }
+    setDirtyPrompt(false);
+    onOpenChange(nextOpen);
+  };
+
   return (
     <Drawer
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={drawerTitle}
       description={step.description}
     >
-      <form action={formAction} className="space-y-4">
+      <form
+        action={formAction}
+        onChangeCapture={() => setIsDirty(true)}
+        className="space-y-4"
+      >
+        {dirtyPrompt && (
+          <DirtyGuardBanner
+            message={t("dirtyWarning")}
+            discardLabel={t("discardChanges")}
+            keepLabel={t("keepEditing")}
+            onDiscard={() => {
+              setIsDirty(false);
+              setDirtyPrompt(false);
+              onOpenChange(false);
+            }}
+            onKeep={() => setDirtyPrompt(false)}
+          />
+        )}
         <input type="hidden" name="execution_id" value={executionId} />
         <input type="hidden" name="requirement" value={row.requirement} />
         <input type="hidden" name="acceptance_type" value={ac.type} />

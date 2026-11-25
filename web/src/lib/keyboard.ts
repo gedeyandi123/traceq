@@ -4,9 +4,11 @@ import { useEffect } from "react";
 
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-  return target.isContentEditable;
+  return (
+    target.closest(
+      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
+    ) !== null
+  );
 }
 
 export function useTriageKeyboardNav<T extends string>({

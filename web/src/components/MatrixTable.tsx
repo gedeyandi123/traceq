@@ -2,7 +2,7 @@
 
 import { ChevronDown, FileWarning, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CoverageClass, Matrix, Proposal } from "@/api/client";
 import type { DecisionView } from "@/components/Decisions";
@@ -76,8 +76,9 @@ export function MatrixTable({
 }) {
   const t = useTranslations("matrix");
   const td = useTranslations("decisions");
-  const th = useTranslations("runHeader");
+  const ui = useTranslations("ui");
   const { setDrawerOpen } = useRunShell();
+  const lastSelectedIdRef = useRef<string | null>(initialSelected);
 
   const [activeCoverage, setActiveCoverage] = useState<CoverageBadgeKey | undefined>(
     filter?.coverage,
@@ -86,6 +87,9 @@ export function MatrixTable({
     decisions.proposals !== undefined ? filter?.status : undefined,
   );
   const [selectedId, setSelectedId] = useState<string | null>(initialSelected);
+  useEffect(() => {
+    if (selectedId !== null) lastSelectedIdRef.current = selectedId;
+  }, [selectedId]);
   const [legendOpen, setLegendOpen] = useState(false);
 
   // Dirty-form guard state
@@ -362,7 +366,7 @@ export function MatrixTable({
         </dl>
       )}
 
-      {/* 1-click blocker filter pills + secondary select filters */}
+      {/* 1-click blocker filter pills + status select */}
       <FilterBar
         ariaLabel={t("filterCoverage")}
         options={blockerOptions}
@@ -370,22 +374,6 @@ export function MatrixTable({
         onSelect={handleBlockerSelect}
         trailing={
           <>
-            <select
-              aria-label={t("filterCoverage")}
-              value={activeCoverage ?? ""}
-              onChange={(e) => {
-                const val = e.target.value as CoverageBadgeKey | "";
-                applyFilters(val === "" ? undefined : val, activeStatus);
-              }}
-              className={`h-8 py-0 text-xs ${FIELD_BASE_CLASS}`}
-            >
-              <option value="">{t("filterAll")}</option>
-              {RISK.map((k) => (
-                <option key={k} value={k}>
-                  {t(`classes.${k}`)}
-                </option>
-              ))}
-            </select>
             {decided && (
               <select
                 aria-label={t("filterStatus")}
@@ -428,12 +416,19 @@ export function MatrixTable({
 
       {/* Opsi A 4-column compact table */}
       {filteredRows.length === 0 && isFiltered ? (
-        <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-ink-muted">
-          {t("filterEmpty")}
+        <div className="space-y-2 rounded-lg border border-border bg-surface p-8 text-center text-xs text-ink-muted">
+          <p className="m-0">{t("filterEmpty")}</p>
+          <button
+            type="button"
+            onClick={() => applyFilters(undefined, undefined)}
+            className="cursor-pointer font-semibold text-accent hover:underline"
+          >
+            {ui("resetFilter")}
+          </button>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="w-full border-collapse text-left text-xs leading-5">
             <thead>
               <tr className="border-b border-border bg-sunken/70 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
                 <th scope="col" className="w-[33%] px-3 py-2">
@@ -557,6 +552,15 @@ export function MatrixTable({
         totalRows={filteredRows.length}
         dirtyPrompt={pendingTargetId !== undefined}
         onClose={() => requestSelection(null)}
+        onCloseAutoFocus={(event) => {
+          const targetId = lastSelectedIdRef.current;
+          if (!targetId) return;
+          const btn = document.getElementById(targetId)?.querySelector("button");
+          if (btn instanceof HTMLElement) {
+            event.preventDefault();
+            btn.focus();
+          }
+        }}
         onPrev={() => {
           if (selectedIndex > 0) {
             const prev = filteredRows[selectedIndex - 1];
