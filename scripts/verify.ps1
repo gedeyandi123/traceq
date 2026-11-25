@@ -76,6 +76,25 @@ try {
             Invoke-PythonTool "lint-imports" @("--no-cache")
         }
 
+        Invoke-Step "Local socketpair preflight (2s timeout)" {
+            $VenvPython = Join-Path $VenvScripts "python.exe"
+            $PyExe = if (Test-Path $VenvPython) { $VenvPython } else { "python" }
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = $PyExe
+            $psi.Arguments = "-c `"import socket; a, b = socket.socketpair(); a.close(); b.close()`""
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardError = $true
+            $proc = [System.Diagnostics.Process]::Start($psi)
+            if (-not $proc.WaitForExit(2000)) {
+                try { $proc.Kill() } catch {}
+                throw "Local loopback socketpair() is blocked/hung (Windows sandbox). Re-run scripts/verify.ps1 -Scope python with BypassSandbox: true."
+            }
+            if ($proc.ExitCode -ne 0) {
+                $err = $proc.StandardError.ReadToEnd().Trim()
+                throw "Local loopback socketpair() preflight failed ($($proc.ExitCode)): $err. Re-run scripts/verify.ps1 -Scope python with BypassSandbox: true."
+            }
+        }
+
         if ($Mode -eq "fast") {
             Invoke-Step "Fast Python test suite (not slow and not db)" {
                 if ($TestPath.Count -gt 0) {
