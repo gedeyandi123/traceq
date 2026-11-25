@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/ui";
 import {
   addDeviationInvestigation,
   closeDeviation,
+  confirmWitness,
   openManualDeviation,
   recordAttempt,
   returnDeviation,
@@ -84,8 +85,10 @@ export default async function ExecutionPage({
         execution={executionRes.kind === "ok" ? executionRes.data : null}
         protocol={protocolRes.kind === "ok" ? protocolRes.data : null}
         runId={runId}
+        currentUser={{ subject: session.subject, issuer: session.issuer }}
         startAction={session.mayExecute ? startExecution : null}
         recordAction={session.mayExecute ? recordAttempt : null}
+        witnessAction={session.mayWitness ? confirmWitness : null}
         openDeviationAction={session.mayExecute ? openManualDeviation : null}
         investigateAction={session.mayExecute ? addDeviationInvestigation : null}
         submitDeviationAction={session.mayExecute ? submitDeviation : null}

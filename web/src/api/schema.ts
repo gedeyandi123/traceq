@@ -616,6 +616,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Witness
+         * @description Records a Witness confirmation bound to the latest version's ``version_hash``
+         *     (a recorded status, not an Electronic Signature (ADR 0007 phase 2)).
+         */
+        post: operations["confirmWitness"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -714,6 +735,11 @@ export interface components {
             issuer: string;
             /** Name */
             name: string;
+            /**
+             * Witness Confirmations
+             * @default []
+             */
+            witness_confirmations: components["schemas"]["WitnessConfirmationView"][];
         };
         /**
          * AttemptView
@@ -815,6 +841,16 @@ export interface components {
         Completeness: {
             /** Urs */
             urs: components["schemas"]["UrsCompleteness"][];
+        };
+        /**
+         * ConfirmWitnessRequest
+         * @description Payload to confirm an attempt's latest version as a Witness.
+         */
+        ConfirmWitnessRequest: {
+            /** Version Number */
+            version_number: number;
+            /** Version Hash */
+            version_hash: string;
         };
         /**
          * Decision
@@ -2287,6 +2323,33 @@ export interface components {
             reason: string;
         };
         /**
+         * WitnessConfirmationView
+         * @description One Witness confirmation bound to an attempt version's hash.
+         */
+        WitnessConfirmationView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Version Id */
+            version_id: number;
+            /** Version Hash */
+            version_hash: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /** Voided */
+            voided: boolean;
+            /** Note */
+            note: string;
+        };
+        /**
          * WrittenContent
          * @description The content of a Test Step a human writes or edits.
          */
@@ -3273,6 +3336,43 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirmWitness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+                attempt_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmWitnessRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -328,3 +328,38 @@ export async function returnDeviation(
     }),
   );
 }
+
+/** Records a Witness confirmation bound to the latest version's hash (ADR 0013, spec #274). */
+export async function confirmWitness(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const requirement = field(form, "requirement");
+  const attemptNumber = Number(field(form, "attempt_number"));
+  const versionNumber = Number(field(form, "version_number"));
+  const versionHash = field(form, "version_hash");
+  if (
+    !Number.isInteger(executionId) ||
+    !requirement ||
+    !Number.isInteger(attemptNumber) ||
+    !Number.isInteger(versionNumber) ||
+    !versionHash
+  ) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness", {
+      params: {
+        path: {
+          execution_id: executionId,
+          requirement,
+          attempt_number: attemptNumber,
+        },
+      },
+      body: { version_number: versionNumber, version_hash: versionHash },
+      headers,
+    }),
+  );
+}

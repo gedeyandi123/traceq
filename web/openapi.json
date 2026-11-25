@@ -1460,6 +1460,79 @@
           }
         }
       }
+    },
+    "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness": {
+      "post": {
+        "summary": "Confirm Witness",
+        "description": "Records a Witness confirmation bound to the latest version's ``version_hash``\n(a recorded status, not an Electronic Signature (ADR 0007 phase 2)).",
+        "operationId": "confirmWitness",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "requirement",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Requirement"
+            }
+          },
+          {
+            "name": "attempt_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Attempt Number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmWitnessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1706,6 +1779,14 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "witness_confirmations": {
+            "items": {
+              "$ref": "#/components/schemas/WitnessConfirmationView"
+            },
+            "type": "array",
+            "title": "Witness Confirmations",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -1975,6 +2056,27 @@
         ],
         "title": "Completeness",
         "description": "The URS completeness check of a run: printed numbers that did not become a\nrequirement, and URS text no kept requirement quotes."
+      },
+      "ConfirmWitnessRequest": {
+        "properties": {
+          "version_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version Number"
+          },
+          "version_hash": {
+            "type": "string",
+            "title": "Version Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version_number",
+          "version_hash"
+        ],
+        "title": "ConfirmWitnessRequest",
+        "description": "Payload to confirm an attempt's latest version as a Witness."
       },
       "Decision": {
         "properties": {
@@ -6194,6 +6296,62 @@
           "reason"
         ],
         "title": "Withdrawal"
+      },
+      "WitnessConfirmationView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "version_id": {
+            "type": "integer",
+            "title": "Version Id"
+          },
+          "version_hash": {
+            "type": "string",
+            "title": "Version Hash"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "voided": {
+            "type": "boolean",
+            "title": "Voided"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "version_id",
+          "version_hash",
+          "subject",
+          "issuer",
+          "name",
+          "voided",
+          "note"
+        ],
+        "title": "WitnessConfirmationView",
+        "description": "One Witness confirmation bound to an attempt version's hash."
       },
       "WrittenContent": {
         "properties": {

@@ -14,6 +14,7 @@ test("lists each demo persona as a demo identity, with no password field", () =>
           { username: "citra", name: "Citra Maharani Putri", roles: [] },
           { username: "budi", name: "Budi Santoso", roles: ["auditor"] },
           { username: "dewi", name: "Dewi Anggraini Lestari", roles: ["qualification-approver"] },
+          { username: "eko", name: "Eko Prasetyo Wijaya", roles: ["qualification-witness"] },
         ]}
         action={() => {}}
       />
@@ -26,6 +27,8 @@ test("lists each demo persona as a demo identity, with no password field", () =>
   expect(screen.getByText("Dapat memutuskan")).toBeDefined();
   expect(screen.getByRole("button", { name: "Masuk sebagai Dewi Anggraini Lestari" })).toBeDefined();
   expect(screen.getByText("Dapat menyetujui")).toBeDefined();
+  expect(screen.getByRole("button", { name: "Masuk sebagai Eko Prasetyo Wijaya" })).toBeDefined();
+  expect(screen.getByText("Dapat menyaksikan")).toBeDefined();
   // Only the deciding role decides: another role reads, as no role does.
   expect(screen.getAllByText("Hanya membaca")).toHaveLength(2);
   expect(document.querySelector("input[type=password]")).toBeNull();

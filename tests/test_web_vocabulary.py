@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import get_args
 
-from traceq.identity import APPROVING_ROLE, DECIDING_ROLE, EXECUTING_ROLE
+from traceq.identity import APPROVING_ROLE, DECIDING_ROLE, EXECUTING_ROLE, WITNESSING_ROLE
 from traceq.traceability.coverage import CoverageClass
 
 VOCABULARY = Path(__file__).parents[1] / "web" / "src" / "decisions" / "vocabulary.ts"
@@ -33,6 +33,11 @@ def test_the_web_names_the_approving_role_as_the_api_does() -> None:
 def test_the_web_names_the_executing_role_as_the_api_does() -> None:
     found = re.findall(r'export const EXECUTING_ROLE = "([^"]+)";', _source())
     assert found == [EXECUTING_ROLE]
+
+
+def test_the_web_names_the_witnessing_role_as_the_api_does() -> None:
+    found = re.findall(r'export const WITNESSING_ROLE = "([^"]+)";', _source())
+    assert found == [WITNESSING_ROLE]
 
 
 def test_the_web_lists_the_coverage_classes_as_the_api_does() -> None:

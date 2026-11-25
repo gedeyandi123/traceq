@@ -2,7 +2,12 @@
 import { cookies } from "next/headers";
 
 import { ISSUER_URL } from "@/api/url";
-import { APPROVING_ROLE, DECIDING_ROLE, EXECUTING_ROLE } from "@/decisions/vocabulary";
+import {
+  APPROVING_ROLE,
+  DECIDING_ROLE,
+  EXECUTING_ROLE,
+  WITNESSING_ROLE,
+} from "@/decisions/vocabulary";
 
 /** The httpOnly cookie holding the demo token. Only the Next.js server reads it. */
 export const TOKEN_COOKIE = "traceq_token";
@@ -10,9 +15,17 @@ export const TOKEN_COOKIE = "traceq_token";
 export type Persona = { username: string; name: string; roles: string[] };
 
 /** ``mayDecide``: the token names the deciding role; ``mayApprove``: the approving role;
- * ``mayExecute``: the executing role. Read for display only: the API checks the role again on
- * every call. */
-export type Session = { name: string; mayDecide: boolean; mayApprove: boolean; mayExecute: boolean };
+ * ``mayExecute``: the executing role; ``mayWitness``: the witnessing role. Read for display only:
+ * the API checks the role again on every call. */
+export type Session = {
+  name: string;
+  subject: string;
+  issuer: string;
+  mayDecide: boolean;
+  mayApprove: boolean;
+  mayExecute: boolean;
+  mayWitness: boolean;
+};
 
 /** The claim holding the roles, a dotted path for a nested claim; the same setting as the
  * API's `--role-claim`. */
@@ -85,9 +98,12 @@ export async function currentSession(): Promise<Session | null> {
     const has = (role: string) => Array.isArray(held) && held.includes(role);
     return {
       name: payload.name,
+      subject: typeof payload.sub === "string" ? payload.sub : "",
+      issuer: typeof payload.iss === "string" ? payload.iss : "",
       mayDecide: has(DECIDING_ROLE),
       mayApprove: has(APPROVING_ROLE),
       mayExecute: has(EXECUTING_ROLE),
+      mayWitness: has(WITNESSING_ROLE),
     };
   } catch {
     return null;
