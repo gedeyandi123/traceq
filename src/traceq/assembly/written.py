@@ -346,6 +346,11 @@ def guard_accepting(session: Session, run_id: str, proposal_id: int) -> None:
     equipment = cast(str, held.equipment)
     requirement = cast(str, held.requirement)
     lifecycle.lock_requirement(session, equipment, requirement)
+    if [p for p in _accepted_drafts(session, run_id, requirement) if p != proposal_id]:
+        raise decisions.Conflict(
+            f"another drafted Test Step of {requirement} is accepted: reject it, or replace"
+            " that decision, first, so the row holds one Test Step"
+        )
     for p in lifecycle.of_equipment(session, equipment):
         if p.status in lifecycle.OPEN and current(versions_of(session, p.id).get(requirement, ())):
             raise decisions.Conflict(

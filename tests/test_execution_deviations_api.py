@@ -522,3 +522,83 @@ def test_investigation_table_is_append_only(
         s.execute(text("DELETE FROM execution_deviation_investigations"))
     with transaction(engine(fresh_database.owner)) as s, pytest.raises(DBAPIError):
         s.execute(text("TRUNCATE execution_deviation_investigations"))
+
+
+def test_deviation_mutations_audit_trail_old_value_and_reason(
+    client: TestClient,
+    decider: dict[str, str],
+    executor_b: dict[str, str],
+    approver: dict[str, str],
+    fresh_database: Databases,
+) -> None:
+    ex = _start_execution(client, decider, approver)
+    eid = ex["id"]
+    dev_id = client.post(
+        f"/executions/{eid}/deviations",
+        headers=decider,
+        json={"description": "Audit trail test"},
+    ).json()["deviations"][0]["id"]
+
+    inv1_r = client.post(
+        f"/executions/{eid}/deviations/{dev_id}/investigations",
+        headers=executor_b,
+        json={"investigation": "Root cause v1", "deviation_class": "minor"},
+    )
+    assert inv1_r.status_code == 201
+    inv1 = inv1_r.json()["deviations"][0]["investigations"][0]
+
+    inv2_r = client.post(
+        f"/executions/{eid}/deviations/{dev_id}/investigations",
+        headers=executor_b,
+        json={
+            "investigation": "Root cause v2",
+            "deviation_class": "major",
+            "reason_for_change": "  Klarifikasi akar masalah  ",
+        },
+    )
+    assert inv2_r.status_code == 201
+
+    assert (
+        client.post(f"/executions/{eid}/deviations/{dev_id}/submit", headers=executor_b).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/executions/{eid}/deviations/{dev_id}/return",
+            headers=approver,
+            json={"reason": "  Lengkapi bukti kalibrasi  "},
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(f"/executions/{eid}/deviations/{dev_id}/submit", headers=executor_b).status_code
+        == 200
+    )
+    assert (
+        client.post(f"/executions/{eid}/deviations/{dev_id}/close", headers=approver).status_code
+        == 200
+    )
+
+    with transaction(engine(fresh_database.app)) as session:
+        all_entries = entries(session)
+
+    inv_entries = [e for e in all_entries if e.action == "deviation investigation recorded"]
+    assert len(inv_entries) == 2
+    assert inv_entries[0].old_value is None
+    assert inv_entries[0].reason is None
+    assert inv_entries[1].old_value == {
+        "investigation_id": inv1["id"],
+        "version": 1,
+        "deviation_class": "minor",
+    }
+    assert inv_entries[1].reason == "Klarifikasi akar masalah"
+
+    sub_entries = [e for e in all_entries if e.action == "deviation submitted"]
+    assert sub_entries[-1].old_value == {"status": "open"}
+
+    ret_entry = next(e for e in all_entries if e.action == "deviation returned")
+    assert ret_entry.old_value == {"status": "submitted"}
+    assert ret_entry.reason == "Lengkapi bukti kalibrasi"
+
+    close_entry = next(e for e in all_entries if e.action == "deviation closed")
+    assert close_entry.old_value == {"status": "submitted"}

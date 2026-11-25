@@ -50,8 +50,8 @@ def _passing_value(acceptance: dict[str, Any]) -> dict[str, Any]:
         target = acceptance.get("value")
         return {"type": "number", "value": float(target) if target is not None else 1.0}
     if kind == "range":
-        lo = acceptance.get("low")
-        hi = acceptance.get("high")
+        lo = acceptance.get("min")
+        hi = acceptance.get("max")
         if lo is not None and hi is not None:
             val = (float(lo) + float(hi)) / 2.0
         elif lo is not None:
@@ -62,28 +62,62 @@ def _passing_value(acceptance: dict[str, Any]) -> dict[str, Any]:
             val = 1.0
         return {"type": "number", "value": val}
     if kind == "one_of":
-        choices = acceptance.get("values") or []
+        choices = acceptance.get("allowed") or []
         val = str(choices[0]) if choices else "ok"
         return {"type": "one_of", "value": val, "not_one_of": False}
     return {"type": "present", "value": True}
 
 
+def _instrument_payload(req: str) -> dict[str, str]:
+    return {"identifier": f"CAL-{req}", "calibration_due_date": "2099-12-31"}
+
+
+def _needs_witness(latest_ver: dict[str, Any]) -> bool:
+    confirmations = latest_ver.get("witness_confirmations") or []
+    return not any(c.get("status") == "active" for c in confirmations)
+
+
+def _witness_payload(latest_ver: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "version_number": int(latest_ver["version"]),
+        "version_hash": str(latest_ver["version_hash"]),
+    }
+
+
 def _ensure_approved_protocol(
-    client: httpx.Client, api_url: str, run_id: str, ayu: dict[str, str], dewi: dict[str, str]
+    client: Any, api_url: str, run_id: str, ayu: dict[str, str], dewi: dict[str, str]
 ) -> dict[str, Any]:
+    imp = client.post(f"{api_url}/runs/{run_id}/import", headers=ayu)
+    imp.raise_for_status()
+
     proposals_resp = client.get(f"{api_url}/runs/{run_id}/proposals", headers=ayu)
     proposals_resp.raise_for_status()
     for p in proposals_resp.json():
-        if p["state"] == "undecided":
+        if p["state"] not in ("undecided", "changed"):
+            continue
+        url = f"{api_url}/runs/{run_id}/proposals/{p['id']}/decisions"
+        r = client.post(url, headers=ayu, json={"decision": "accepted"})
+        if r.status_code == 409 and p.get("kind") == "coverage":
             r = client.post(
-                f"{api_url}/runs/{run_id}/proposals/{p['id']}/decisions",
+                url,
                 headers=ayu,
-                json={"decision": "accepted"},
+                json={
+                    "decision": "edited",
+                    "coverage": "gap",
+                    "reason": "Demo seed: no proposed coverage class",
+                },
             )
-            if r.status_code not in (200, 201):
-                raise RuntimeError(
-                    f"Decision failed on proposal {p['id']}: {r.status_code} {r.text}"
-                )
+        elif r.status_code == 409 and p.get("kind") == "test_step":
+            r = client.post(
+                url,
+                headers=ayu,
+                json={
+                    "decision": "rejected",
+                    "reason": "Demo seed: requirement already has an active Test Step",
+                },
+            )
+        if r.status_code not in (200, 201):
+            raise RuntimeError(f"Decision failed on proposal {p['id']}: {r.status_code} {r.text}")
 
     proto_resp = client.get(f"{api_url}/runs/{run_id}/protocol", headers=ayu)
     if proto_resp.status_code == 404:
@@ -93,6 +127,11 @@ def _ensure_approved_protocol(
     protocol_id = int(proto["id"])
 
     if proto["status"] == "draft":
+        blockers = proto.get("blockers") or []
+        if blockers:
+            raise RuntimeError(
+                f"Protocol {protocol_id} has blockers preventing submission: {blockers}"
+            )
         sub = client.post(f"{api_url}/protocols/{protocol_id}/submit", headers=ayu)
         sub.raise_for_status()
         proto = sub.json()
@@ -113,7 +152,7 @@ def _ensure_approved_protocol(
 
 
 def _ensure_completed_execution(
-    client: httpx.Client,
+    client: Any,
     api_url: str,
     run_id: str,
     protocol_id: int,
@@ -140,13 +179,7 @@ def _ensure_completed_execution(
             "evidence": ["demo-seed"],
         }
         if test_step.get("instrument"):
-            payload["instruments"] = [
-                {
-                    "instrument_id": f"CAL-{req}",
-                    "calibrated_until": "2099-12-31",
-                    "serial": f"SN-{req}",
-                }
-            ]
+            payload["instruments"] = [_instrument_payload(req)]
         att = client.post(
             f"{api_url}/executions/{execution_id}/rows/{req}/attempts",
             headers=ayu,
@@ -160,16 +193,13 @@ def _ensure_completed_execution(
             continue
         req = str(row["requirement"])
         latest_attempt = row["attempts"][-1]
-        if latest_attempt.get("witness") is not None:
-            continue
         latest_ver = latest_attempt["versions"][-1]
+        if not _needs_witness(latest_ver):
+            continue
         wit = client.post(
             f"{api_url}/executions/{execution_id}/rows/{req}/attempts/{latest_attempt['attempt_number']}/witness",
             headers=eko,
-            json={
-                "version_number": int(latest_ver["version_number"]),
-                "version_hash": str(latest_ver["version_hash"]),
-            },
+            json=_witness_payload(latest_ver),
         )
         wit.raise_for_status()
         execution = wit.json()

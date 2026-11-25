@@ -576,3 +576,31 @@ def test_written_test_steps_are_append_only(
     with pytest.raises(DBAPIError, match="append-only"), engine(fresh_database.owner).begin() as c:
         c.execute(text(statement))
     assert rows(read(client, decider))[R026]["test_step"]["method"] == STEP["method"]
+
+
+def test_accepting_a_second_draft_on_the_same_requirement_is_refused(
+    tmp_path: Path, demo_issuer: DemoIssuer, fresh_database: Databases
+) -> None:
+    from test_test_step_proposals import _step
+
+    path = tmp_path / "runs_two_drafts"
+    path.mkdir()
+    add_drafted_run(
+        path,
+        edit=lambda d: d["test_steps"].append(
+            _step(R002, "partial", id="TS-URS-TP201-002-ALT", description="Alternative draft.")
+        ),
+    )
+    c = TestClient(configured(path, demo_issuer, fresh_database))
+    h = bearer(token(demo_issuer, decider=True))
+    import_run(c, h)
+    ps = [p for p in proposals(c, h) if p["kind"] == "test_step" and p["requirement"] == R002]
+    assert len(ps) == 2
+    decide(c, h, ps[0], decision="accepted")
+    r2 = c.post(
+        f"/runs/{RUN_ID}/proposals/{ps[1]['id']}/decisions",
+        headers=h,
+        json={"decision": "accepted"},
+    )
+    assert r2.status_code == 409
+    assert "another drafted Test Step" in r2.json()["detail"]
