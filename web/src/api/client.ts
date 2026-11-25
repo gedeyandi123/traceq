@@ -31,6 +31,19 @@ export type ChecklistItem = components["schemas"]["ChecklistItem"];
 export type SubmissionView = components["schemas"]["SubmissionView"];
 export type FrozenRow = components["schemas"]["FrozenRow"];
 export type FrozenDecision = components["schemas"]["FrozenDecision"];
+export type ExecutionView = components["schemas"]["ExecutionView"];
+export type ExecutionRowView = components["schemas"]["ExecutionRowView"];
+export type ExecutionEvent = components["schemas"]["ExecutionEvent"];
+export type ExecutionTestStep = components["schemas"]["ExecutionTestStep"];
+export type AttemptView = components["schemas"]["AttemptView"];
+export type AttemptVersionView = components["schemas"]["AttemptVersionView"];
+export type WitnessConfirmationView = components["schemas"]["WitnessConfirmationView"];
+export type DeviationView = components["schemas"]["DeviationView"];
+export type DeviationEventView = components["schemas"]["DeviationEventView"];
+export type DeviationInvestigationView = components["schemas"]["DeviationInvestigationView"];
+export type CompletionBlockers = components["schemas"]["CompletionBlockers"];
+export type ExecutionCopy = components["schemas"]["ExecutionCopy"];
+export type InstrumentInput = components["schemas"]["InstrumentInput"];
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */

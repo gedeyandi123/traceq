@@ -17,7 +17,14 @@ from conftest import DemoIssuer
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
 from traceq.app.api import create_app
-from traceq.identity import DECIDING_ROLE, IdentitySettings, InvalidToken, Principal, Verifier
+from traceq.identity import (
+    DECIDING_ROLE,
+    WITNESSING_ROLE,
+    IdentitySettings,
+    InvalidToken,
+    Principal,
+    Verifier,
+)
 from traceq.identity.issuer import create_issuer, new_signing_key
 
 
@@ -143,6 +150,18 @@ def test_personas_hold_two_deciders_and_one_reader(demo_issuer: DemoIssuer) -> N
     assert len(deciders) >= 2
     assert len(personas) - len(deciders) >= 1
     assert len({p["subject"] for p in personas}) == len(personas)
+
+
+def test_personas_include_witness_only_eko(demo_issuer: DemoIssuer, verifier: Verifier) -> None:
+    personas = httpx.get(f"{demo_issuer.url}/demo/personas").json()
+    eko = next((p for p in personas if p["username"] == "eko"), None)
+    assert eko is not None
+    assert eko["roles"] == [WITNESSING_ROLE]
+    principal = verifier.verify(_token(demo_issuer, "eko"))
+    assert principal.may_witness is True
+    assert principal.may_execute is False
+    assert principal.may_decide is False
+    assert principal.may_approve is False
 
 
 def test_an_unknown_persona_gets_no_token(demo_issuer: DemoIssuer) -> None:

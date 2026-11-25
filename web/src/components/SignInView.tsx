@@ -2,7 +2,7 @@ import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { Persona } from "@/auth/session";
-import { APPROVING_ROLE, DECIDING_ROLE } from "@/decisions/vocabulary";
+import { APPROVING_ROLE, DECIDING_ROLE, WITNESSING_ROLE } from "@/decisions/vocabulary";
 
 import { Button, EmptyState } from "./ui/ui";
 
@@ -48,18 +48,29 @@ export function SignInView({
         {personas?.map((p) => {
           const decides = p.roles.includes(DECIDING_ROLE);
           const approves = p.roles.includes(APPROVING_ROLE);
-          const label = decides ? "canDecide" : approves ? "canApprove" : "readOnly";
-          const hasAuthority = decides || approves;
+          const witnesses = p.roles.includes(WITNESSING_ROLE);
+          const label = decides
+            ? "canDecide"
+            : approves
+              ? "canApprove"
+              : witnesses
+                ? "canWitness"
+                : "readOnly";
+          const hasAuthority = decides || approves || witnesses;
           const avatarStyle = decides
             ? "border-accent/30 bg-accent-soft text-accent"
             : approves
               ? "border-info-edge bg-info-soft text-info"
-              : "border-border bg-sunken text-ink-muted";
+              : witnesses
+                ? "border-pass-edge bg-pass-soft text-pass"
+                : "border-border bg-sunken text-ink-muted";
           const badgeStyle = decides
             ? "border-accent/25 bg-accent-soft text-accent"
             : approves
               ? "border-info-edge bg-info-soft text-info"
-              : "border-border bg-sunken text-ink-muted";
+              : witnesses
+                ? "border-pass-edge bg-pass-soft text-pass"
+                : "border-border bg-sunken text-ink-muted";
           return (
             <li
               key={p.username}

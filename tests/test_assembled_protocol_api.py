@@ -437,7 +437,7 @@ REFUSING = (
     "TRUNCATE assembled_protocols CASCADE",
     "UPDATE protocol_events SET reason = 'rewritten'",
     "DELETE FROM protocol_events",
-    "TRUNCATE protocol_events",
+    "TRUNCATE protocol_events CASCADE",
 )
 
 

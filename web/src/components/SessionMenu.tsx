@@ -53,7 +53,9 @@ export function SessionMenu({
     ? t("canDecide")
     : session.mayApprove
       ? t("canApprove")
-      : t("readOnly");
+      : session.mayWitness
+        ? t("canWitness")
+        : t("readOnly");
 
   return (
     <DropdownMenu>

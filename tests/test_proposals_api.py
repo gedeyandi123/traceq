@@ -51,7 +51,21 @@ PROTOCOL_ROUTES = {
     ("post", "/protocols/{protocol_id}/approve"),
     ("post", "/protocols/{protocol_id}/return"),
 }
-DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES
+EXECUTION_ROUTES = {
+    ("post", "/protocols/{protocol_id}/execution"),
+    ("get", "/runs/{run_id}/execution"),
+    ("post", "/executions/{execution_id}/rows/{requirement}/attempts"),
+    ("post", "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/corrections"),
+    ("post", "/executions/{execution_id}/rows/{requirement}/retests"),
+    ("post", "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness"),
+    ("post", "/executions/{execution_id}/deviations"),
+    ("post", "/executions/{execution_id}/deviations/{deviation_id}/investigations"),
+    ("post", "/executions/{execution_id}/deviations/{deviation_id}/submit"),
+    ("post", "/executions/{execution_id}/deviations/{deviation_id}/close"),
+    ("post", "/executions/{execution_id}/deviations/{deviation_id}/return"),
+    ("post", "/executions/{execution_id}/complete"),
+}
+DATABASE_ROUTES = DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 
@@ -131,7 +145,15 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
     client = TestClient(create_app(runs))
     good = bearer(token(demo_issuer, decider=True))
     for method, path in DATABASE_ROUTES:
-        url = path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1, requirement="URS-TP201-002")
+        url = path.format(
+            run_id=RUN_ID,
+            proposal_id=1,
+            protocol_id=1,
+            execution_id=1,
+            deviation_id=1,
+            attempt_number=1,
+            requirement="URS-TP201-002",
+        )
         assert client.request(method, url).status_code == 401
         assert client.request(method, url, headers=good).status_code == 401
     # The run-folder routes still work.
@@ -161,7 +183,15 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
     for method, path in database:
         r = client.request(
             method,
-            path.format(run_id=RUN_ID, proposal_id=1, protocol_id=1, requirement="URS-TP201-002"),
+            path.format(
+                run_id=RUN_ID,
+                proposal_id=1,
+                protocol_id=1,
+                execution_id=1,
+                deviation_id=1,
+                attempt_number=1,
+                requirement="URS-TP201-002",
+            ),
         )
         assert r.status_code == 401, (method, path)
         assert r.headers["www-authenticate"] == "Bearer"

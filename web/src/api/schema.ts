@@ -450,6 +450,256 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/protocols/{protocol_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Execution
+         * @description Starts the Execution of an Approved Protocol in ``in_progress`` status, with its Audit
+         *     Trail entry. Refused (409) unless the Protocol is Approved, and for a second Execution
+         *     of the same Protocol. Needs the executing role.
+         */
+        post: operations["startExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Execution
+         * @description Reads the Execution of the run's Protocol: its status, events and rows from the
+         *     Approved Protocol's frozen copy. Any signed-in role may read it.
+         */
+        get: operations["getExecution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/rows/{requirement}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Attempt
+         * @description Records the first attempt on a Test Step row of an ``in_progress`` Execution, judged
+         *     by code, with instruments and automatic Deviations in the same transaction.
+         */
+        post: operations["recordAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct Attempt
+         * @description Adds a new version to an existing attempt with a required Reason for Change,
+         *     enforcing Performer ownership and Deviation status lock.
+         */
+        post: operations["correctAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/rows/{requirement}/retests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retest Row
+         * @description Records a new attempt (Retest) on a failed Test Step row, naming an Open Deviation
+         *     linked to that Test Step.
+         */
+        post: operations["retestRow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open Manual Deviation
+         * @description Opens a manual Deviation on an ``in_progress`` Execution, linked to one Test Step row
+         *     or to the Execution.
+         */
+        post: operations["openManualDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/investigations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Deviation Investigation
+         * @description Records an immutable Investigation version on an ``open`` Deviation.
+         */
+        post: operations["addDeviationInvestigation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Deviation
+         * @description Submits an ``open`` Deviation once an Investigation with a class is recorded.
+         */
+        post: operations["submitDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Deviation
+         * @description Closes a ``submitted`` Deviation (a recorded status, not an Electronic Signature),
+         *     enforcing 4-way Separation of Duties.
+         */
+        post: operations["closeDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/deviations/{deviation_id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Deviation
+         * @description Returns a ``submitted`` Deviation to ``open`` with a required reason.
+         */
+        post: operations["returnDeviation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Witness
+         * @description Records a Witness confirmation bound to the latest version's ``version_hash``
+         *     (a recorded status, not an Electronic Signature (ADR 0007 phase 2)).
+         */
+        post: operations["confirmWitness"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{execution_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Execution
+         * @description Completes an ``in_progress`` Execution once every Test Step row has a Result and every
+         *     Deviation is Closed, freezing its copy and SHA-256 hash.
+         */
+        post: operations["completeExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -510,6 +760,75 @@ export interface components {
             submission_event_id: number;
             /** Hash */
             hash: string;
+        };
+        /**
+         * AttemptVersionView
+         * @description One immutable version of an attempt's Result.
+         */
+        AttemptVersionView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Version */
+            version: number;
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason: string | null;
+            value: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation: string | null;
+            /** Instruments */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason: string | null;
+            /** Evidence */
+            evidence: string[];
+            verdict: components["schemas"]["traceq__execution__results__Verdict"];
+            /** Version Hash */
+            version_hash: string;
+            /** Reason For Change */
+            reason_for_change: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * Witness Confirmations
+             * @default []
+             */
+            witness_confirmations: components["schemas"]["WitnessConfirmationView"][];
+        };
+        /**
+         * AttemptView
+         * @description One attempt on a Test Step row, with its versions oldest first.
+         */
+        AttemptView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Attempt Number */
+            attempt_number: number;
+            /** Requirement */
+            requirement: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /** Versions */
+            versions: components["schemas"]["AttemptVersionView"][];
+            latest: components["schemas"]["AttemptVersionView"];
         };
         /**
          * Author
@@ -587,13 +906,59 @@ export interface components {
             urs: components["schemas"]["UrsCompleteness"][];
         };
         /**
+         * CompletionBlockers
+         * @description Blocking checklist computed for every Execution view.
+         */
+        CompletionBlockers: {
+            /** Blocked */
+            blocked: boolean;
+            rows_without_result: components["schemas"]["RowsWithoutResultBlocker"];
+            open_deviations: components["schemas"]["OpenDeviationsBlocker"];
+        };
+        /**
+         * ConfirmWitnessRequest
+         * @description Payload to confirm an attempt's latest version as a Witness.
+         */
+        ConfirmWitnessRequest: {
+            /** Version Number */
+            version_number: number;
+            /** Version Hash */
+            version_hash: string;
+        };
+        /**
+         * CorrectAttemptRequest
+         * @description Payload to add a new version to an existing attempt, with a required Reason for Change.
+         */
+        CorrectAttemptRequest: {
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason?: string | null;
+            value?: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation?: string | null;
+            /**
+             * Instruments
+             * @default []
+             */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason?: string | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: string[];
+            /** Reason For Change */
+            reason_for_change: string;
+        };
+        /**
          * Decision
          * @description A recorded Proposal Decision: what, who, when and why.
          */
         Decision: {
             /** Id */
             id: number;
-            decision: components["schemas"]["Verdict"];
+            decision: components["schemas"]["traceq__proposals__decisions__Verdict"];
             /** Coverage */
             coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -644,6 +1009,101 @@ export interface components {
             /** Value */
             value: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
             citation: components["schemas"]["Cite"];
+        };
+        /** @enum {string} */
+        DeviationCause: "failed" | "no_calibrated_instrument" | "manual";
+        /** @enum {string} */
+        DeviationClass: "minor" | "major" | "critical";
+        /** @enum {string} */
+        DeviationEventKind: "opened" | "submitted" | "returned" | "closed";
+        /**
+         * DeviationEventView
+         * @description One status event on a Deviation.
+         */
+        DeviationEventView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            event: components["schemas"]["DeviationEventKind"];
+            status: components["schemas"]["DeviationStatus"];
+            /** Reason */
+            reason: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * DeviationInvestigationView
+         * @description One immutable version of a Deviation's Investigation.
+         */
+        DeviationInvestigationView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Version */
+            version: number;
+            /** Investigation */
+            investigation: string;
+            deviation_class: components["schemas"]["DeviationClass"];
+            /** Capa */
+            capa: string | null;
+            /** Reason For Change */
+            reason_for_change: string | null;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+        };
+        /** @enum {string} */
+        DeviationStatus: "open" | "submitted" | "closed";
+        /**
+         * DeviationView
+         * @description One Deviation on an Execution.
+         */
+        DeviationView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Deviation Number */
+            deviation_number: number;
+            /** Requirement */
+            requirement: string | null;
+            /** Attempt Id */
+            attempt_id: number | null;
+            cause: components["schemas"]["DeviationCause"];
+            status: components["schemas"]["DeviationStatus"];
+            deviation_class: components["schemas"]["DeviationClass"] | null;
+            /** Description */
+            description: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /** Events */
+            events: components["schemas"]["DeviationEventView"][];
+            /** Investigations */
+            investigations: components["schemas"]["DeviationInvestigationView"][];
+            /** Closure Note */
+            closure_note?: string | null;
         };
         /**
          * DraftAcceptance
@@ -847,8 +1307,6 @@ export interface components {
             /** Reason */
             reason: string;
         };
-        /** @enum {string} */
-        EventKind: "started" | "submitted" | "approved" | "returned" | "withdrawn";
         /**
          * EvidenceStep
          * @description A vendor FAT/SAT step linked to a requirement, with its verdict.
@@ -880,6 +1338,125 @@ export interface components {
             citation: components["schemas"]["Cite"];
         };
         /**
+         * ExecutionCopy
+         * @description The canonical frozen copy of a completed Execution (ADR 0013, spec #275).
+         */
+        ExecutionCopy: {
+            /** Execution Id */
+            execution_id: number;
+            /** Protocol Id */
+            protocol_id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            /** Submission Event Id */
+            submission_event_id: number;
+            /** Submission Hash */
+            submission_hash: string;
+            /** Completed Event Id */
+            completed_event_id: number;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            completer: components["schemas"]["Author"];
+            /** Rows */
+            rows: components["schemas"]["FrozenExecutionRow"][];
+            /** Deviations */
+            deviations: components["schemas"]["FrozenDeviation"][];
+        };
+        /**
+         * ExecutionEvent
+         * @description A status change of an Execution: what, who and when.
+         */
+        ExecutionEvent: {
+            /** Id */
+            id: number;
+            event: components["schemas"]["traceq__execution__lifecycle__EventKind"];
+            status: components["schemas"]["traceq__execution__lifecycle__Status"];
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * ExecutionRowView
+         * @description One row of the Execution, in the order of the Approved Protocol's frozen copy.
+         */
+        ExecutionRowView: {
+            /** Requirement */
+            requirement: string;
+            /** Text */
+            text: string;
+            source: components["schemas"]["Cite"];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vendor_reference" | "test_step";
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceStep"][];
+            test_step: components["schemas"]["ExecutionTestStep"] | null;
+            /** Attempts */
+            attempts: components["schemas"]["AttemptView"][];
+        };
+        /**
+         * ExecutionTestStep
+         * @description The Test Step of a Test Step row, from the Approved Protocol's frozen copy.
+         */
+        ExecutionTestStep: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "accepted_draft" | "written";
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            acceptance: components["schemas"]["Acceptance"];
+        };
+        /**
+         * ExecutionView
+         * @description An Execution of an Approved Protocol: its status, events, and rows from the frozen copy.
+         */
+        ExecutionView: {
+            /** Id */
+            id: number;
+            /** Protocol Id */
+            protocol_id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            /** Submission Event Id */
+            submission_event_id: number;
+            /** Submission Hash */
+            submission_hash: string;
+            status: components["schemas"]["traceq__execution__lifecycle__Status"];
+            /** Events */
+            events: components["schemas"]["ExecutionEvent"][];
+            /** Rows */
+            rows: components["schemas"]["ExecutionRowView"][];
+            /** Deviations */
+            deviations: components["schemas"]["DeviationView"][];
+            completion_blockers: components["schemas"]["CompletionBlockers"];
+            frozen_copy?: components["schemas"]["ExecutionCopy"] | null;
+            /** Copy Hash */
+            copy_hash?: string | null;
+        };
+        /**
          * Findings
          * @description The Pre-review of a run: Check Findings and AI Findings kept apart, and the
          *     documents the VMP requires that the corpus lacks.
@@ -897,6 +1474,59 @@ export interface components {
             site_rules: components["schemas"]["SiteRuleCite"][];
             /** Governing Documents */
             governing_documents: components["schemas"]["GoverningDocument"][];
+        };
+        /**
+         * FrozenAttempt
+         * @description One attempt on a Test Step row, with its versions oldest first.
+         */
+        FrozenAttempt: {
+            /** Id */
+            id: number;
+            /** Attempt Number */
+            attempt_number: number;
+            performer: components["schemas"]["Author"];
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            /** Versions */
+            versions: components["schemas"]["FrozenAttemptVersion"][];
+        };
+        /**
+         * FrozenAttemptVersion
+         * @description One immutable version of an attempt's Result.
+         */
+        FrozenAttemptVersion: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: number;
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason: string | null;
+            value: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation: string | null;
+            /** Instruments */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason: string | null;
+            /** Evidence References */
+            evidence_references: string[];
+            verdict: components["schemas"]["traceq__execution__results__Verdict"];
+            /** Version Hash */
+            version_hash: string;
+            performer: components["schemas"]["Author"];
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            /** Reason For Change */
+            reason_for_change: string | null;
+            /** Witness Confirmations */
+            witness_confirmations: components["schemas"]["FrozenWitnessConfirmation"][];
         };
         /**
          * FrozenCoverage
@@ -917,7 +1547,7 @@ export interface components {
         FrozenDecision: {
             /** Id */
             id: number;
-            decision: components["schemas"]["Verdict"];
+            decision: components["schemas"]["traceq__proposals__decisions__Verdict"];
             /** Coverage */
             coverage: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -928,6 +1558,76 @@ export interface components {
              * Format: date-time
              */
             at: string;
+        };
+        /**
+         * FrozenDeviation
+         * @description One Deviation of the completed Execution, in deviation_number order.
+         */
+        FrozenDeviation: {
+            /** Id */
+            id: number;
+            /** Deviation Number */
+            deviation_number: number;
+            /** Description */
+            description: string;
+            deviation_class: components["schemas"]["DeviationClass"] | null;
+            /** Requirement */
+            requirement: string | null;
+            /** Attempt Id */
+            attempt_id: number | null;
+            cause: components["schemas"]["DeviationCause"];
+            status: components["schemas"]["DeviationStatus"];
+            opener: components["schemas"]["Author"];
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Investigations */
+            investigations: components["schemas"]["FrozenDeviationInvestigation"][];
+            /** Events */
+            events: components["schemas"]["FrozenDeviationEvent"][];
+        };
+        /**
+         * FrozenDeviationEvent
+         * @description One status event on a Deviation.
+         */
+        FrozenDeviationEvent: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            event: components["schemas"]["DeviationEventKind"];
+            status: components["schemas"]["DeviationStatus"];
+            /** Reason */
+            reason: string | null;
+            actor: components["schemas"]["Author"];
+        };
+        /**
+         * FrozenDeviationInvestigation
+         * @description One immutable version of a Deviation's Investigation.
+         */
+        FrozenDeviationInvestigation: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Version */
+            version: number;
+            /** Investigation */
+            investigation: string;
+            deviation_class: components["schemas"]["DeviationClass"];
+            /** Capa */
+            capa: string | null;
+            /** Reason For Change */
+            reason_for_change: string | null;
+            actor: components["schemas"]["Author"];
         };
         /**
          * FrozenDisposition
@@ -957,6 +1657,45 @@ export interface components {
             /** Draft Id */
             draft_id: string;
             decision: components["schemas"]["FrozenDecision"] | null;
+        };
+        /**
+         * FrozenExecutionRow
+         * @description One row of the completed Execution, in Protocol order.
+         */
+        FrozenExecutionRow: {
+            /** Requirement */
+            requirement: string;
+            /** Text */
+            text: string;
+            source: components["schemas"]["Cite"];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vendor_reference" | "test_step";
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceStep"][];
+            test_step: components["schemas"]["FrozenExecutionTestStep"] | null;
+            /** Attempts */
+            attempts: components["schemas"]["FrozenAttempt"][];
+        };
+        /**
+         * FrozenExecutionTestStep
+         * @description The Test Step of a Test Step row from the Approved Protocol's frozen copy.
+         */
+        FrozenExecutionTestStep: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "accepted_draft" | "written";
+            /** Description */
+            description: string;
+            /** Method */
+            method: string;
+            /** Instrument */
+            instrument: string | null;
+            acceptance: components["schemas"]["Acceptance"];
         };
         /** FrozenMissed */
         FrozenMissed: {
@@ -1050,6 +1789,28 @@ export interface components {
             at: string;
         };
         /**
+         * FrozenWitnessConfirmation
+         * @description One Witness confirmation bound to an attempt version's hash.
+         */
+        FrozenWitnessConfirmation: {
+            /** Id */
+            id: number;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            /** Version Id */
+            version_id: number;
+            /** Version Hash */
+            version_hash: string;
+            witness: components["schemas"]["Author"];
+            /** Voided */
+            voided: boolean;
+            /** Note */
+            note: string;
+        };
+        /**
          * GoverningDocument
          * @description A VMP or SOP the run read its required documents and site rules from.
          */
@@ -1077,6 +1838,32 @@ export interface components {
             proposals: number;
             /** Already Imported */
             already_imported: boolean;
+        };
+        /**
+         * InstrumentInput
+         * @description One calibrated instrument used during a Test Step.
+         */
+        InstrumentInput: {
+            /** Identifier */
+            identifier: string;
+            /**
+             * Calibration Due Date
+             * Format: date
+             */
+            calibration_due_date: string;
+        };
+        /**
+         * InvestigationRequest
+         * @description Payload to record an immutable version of a Deviation's Investigation.
+         */
+        InvestigationRequest: {
+            /** Investigation */
+            investigation: string;
+            deviation_class: components["schemas"]["DeviationClass"];
+            /** Capa */
+            capa?: string | null;
+            /** Reason For Change */
+            reason_for_change?: string | null;
         };
         /** @enum {string} */
         Kind: "coverage" | "check" | "ai" | "draft" | "test_step";
@@ -1276,7 +2063,7 @@ export interface components {
          *     ``edited``, and for any decision that replaces an earlier one on the same content.
          */
         NewDecision: {
-            decision: components["schemas"]["Verdict"];
+            decision: components["schemas"]["Verdict-Input"];
             /** Coverage */
             coverage?: ("covered_by_vendor" | "partial" | "site_only" | "gap" | "conflict") | null;
             /** Reason */
@@ -1313,6 +2100,19 @@ export interface components {
             /** Unit */
             unit: string;
         };
+        /**
+         * NumberResultValue
+         * @description Numeric measurement for a ``number`` or ``range`` Acceptance Criterion (no unit).
+         */
+        NumberResultValue: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "number";
+            /** Value */
+            value: number;
+        };
         /** OneOf */
         OneOf: {
             /**
@@ -1323,6 +2123,55 @@ export interface components {
             /** Allowed */
             allowed: string[];
         };
+        /**
+         * OneOfResultValue
+         * @description Choice for a ``one_of`` Acceptance Criterion, or ``not_one_of`` with observed text.
+         */
+        OneOfResultValue: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "one_of";
+            /** Value */
+            value: string;
+            /**
+             * Not One Of
+             * @default false
+             */
+            not_one_of: boolean;
+        };
+        /**
+         * OpenDeviationBlockerItem
+         * @description One Deviation that is not yet Closed (``open`` or ``submitted``).
+         */
+        OpenDeviationBlockerItem: {
+            /** Deviation Number */
+            deviation_number: number;
+            status: components["schemas"]["DeviationStatus"];
+        };
+        /**
+         * OpenDeviationsBlocker
+         * @description Deviations that are not yet Closed.
+         */
+        OpenDeviationsBlocker: {
+            /** Count */
+            count: number;
+            /** Items */
+            items: components["schemas"]["OpenDeviationBlockerItem"][];
+        };
+        /**
+         * OpenManualDeviationRequest
+         * @description Payload to open a manual Deviation linked to a Test Step row or to the Execution.
+         */
+        OpenManualDeviationRequest: {
+            /** Requirement */
+            requirement?: string | null;
+            /** Description */
+            description: string;
+        };
+        /** @enum {string} */
+        OutcomeKind: "value" | "not_performable";
         /** @enum {string} */
         PrefillOrigin: "written" | "withdrawn" | "draft";
         /**
@@ -1337,6 +2186,19 @@ export interface components {
             type: "present";
             /** Value */
             value?: boolean | null;
+        };
+        /**
+         * PresentResultValue
+         * @description Observation for a ``present`` Acceptance Criterion.
+         */
+        PresentResultValue: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "present";
+            /** Value */
+            value: boolean;
         };
         /**
          * Proposal
@@ -1405,8 +2267,8 @@ export interface components {
         ProtocolEvent: {
             /** Id */
             id: number;
-            event: components["schemas"]["EventKind"];
-            status: components["schemas"]["Status"];
+            event: components["schemas"]["traceq__assembly__lifecycle__EventKind"];
+            status: components["schemas"]["traceq__assembly__lifecycle__Status"];
             /** Reason */
             reason: string | null;
             /** Subject */
@@ -1477,7 +2339,7 @@ export interface components {
             equipment: string;
             /** Run Id */
             run_id: string;
-            status: components["schemas"]["Status"];
+            status: components["schemas"]["traceq__assembly__lifecycle__Status"];
             /** Events */
             events: components["schemas"]["ProtocolEvent"][];
             /** Rows */
@@ -1508,6 +2370,30 @@ export interface components {
             unit: string;
         };
         /**
+         * RecordAttemptRequest
+         * @description Payload to record the first attempt on a Test Step row.
+         */
+        RecordAttemptRequest: {
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason?: string | null;
+            value?: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation?: string | null;
+            /**
+             * Instruments
+             * @default []
+             */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason?: string | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: string[];
+        };
+        /**
          * RequiredDocument
          * @description A document the VMP requires for the Equipment, with the annex row cited.
          */
@@ -1525,8 +2411,49 @@ export interface components {
             in_corpus: boolean;
             citation: components["schemas"]["Cite"];
         };
+        ResultValue: components["schemas"]["NumberResultValue"] | components["schemas"]["OneOfResultValue"] | components["schemas"]["PresentResultValue"];
+        /**
+         * RetestRowRequest
+         * @description Payload to record a Retest (new attempt) on a failed Test Step row.
+         */
+        RetestRowRequest: {
+            outcome_kind: components["schemas"]["OutcomeKind"];
+            /** Not Performable Reason */
+            not_performable_reason?: string | null;
+            value?: components["schemas"]["ResultValue"] | null;
+            /** Observation */
+            observation?: string | null;
+            /**
+             * Instruments
+             * @default []
+             */
+            instruments: components["schemas"]["InstrumentInput"][];
+            /** No Calibrated Instrument Reason */
+            no_calibrated_instrument_reason?: string | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: string[];
+            /** Retest Reason */
+            retest_reason?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Deviation Number */
+            deviation_number?: number | null;
+            /** Deviation Id */
+            deviation_id?: number | null;
+        };
         /** Return */
         Return: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * ReturnDeviationRequest
+         * @description Payload to return a Submitted Deviation to Open with a required reason.
+         */
+        ReturnDeviationRequest: {
             /** Reason */
             reason: string;
         };
@@ -1579,6 +2506,16 @@ export interface components {
             acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
             /** Acceptance Flag */
             acceptance_flag: string | null;
+        };
+        /**
+         * RowsWithoutResultBlocker
+         * @description Test Step rows that still have no recorded Result (attempts empty).
+         */
+        RowsWithoutResultBlocker: {
+            /** Count */
+            count: number;
+            /** Requirements */
+            requirements: string[];
         };
         /**
          * RunPackage
@@ -1640,8 +2577,6 @@ export interface components {
         };
         /** @enum {string} */
         State: "decided" | "changed" | "undecided";
-        /** @enum {string} */
-        Status: "draft" | "submitted" | "approved" | "withdrawn";
         /**
          * SubmissionView
          * @description A submission of the Protocol: the frozen copy it stored and that copy's hash.
@@ -1759,11 +2694,38 @@ export interface components {
             citation: components["schemas"]["Cite"];
         };
         /** @enum {string} */
-        Verdict: "accepted" | "rejected" | "edited";
+        "Verdict-Input": "accepted" | "rejected" | "edited";
         /** Withdrawal */
         Withdrawal: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * WitnessConfirmationView
+         * @description One Witness confirmation bound to an attempt version's hash.
+         */
+        WitnessConfirmationView: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Version Id */
+            version_id: number;
+            /** Version Hash */
+            version_hash: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /** Voided */
+            voided: boolean;
+            /** Note */
+            note: string;
         };
         /**
          * WrittenContent
@@ -1806,6 +2768,18 @@ export interface components {
              */
             at: string;
         };
+        /** @enum {string} */
+        traceq__assembly__lifecycle__EventKind: "started" | "submitted" | "approved" | "returned" | "withdrawn";
+        /** @enum {string} */
+        traceq__assembly__lifecycle__Status: "draft" | "submitted" | "approved" | "withdrawn";
+        /** @enum {string} */
+        traceq__execution__lifecycle__EventKind: "started" | "completed";
+        /** @enum {string} */
+        traceq__execution__lifecycle__Status: "in_progress" | "completed";
+        /** @enum {string} */
+        traceq__execution__results__Verdict: "pass" | "fail";
+        /** @enum {string} */
+        traceq__proposals__decisions__Verdict: "accepted" | "rejected" | "edited";
     };
     responses: never;
     parameters: never;
@@ -2476,6 +3450,416 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    startExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recordAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordAttemptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correctAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+                attempt_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorrectAttemptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retestRow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetestRowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    openManualDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenManualDeviationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    addDeviationInvestigation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvestigationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submitDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    closeDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returnDeviation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                deviation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnDeviationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirmWitness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+                requirement: string;
+                attempt_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmWitnessRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    completeExecution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
                 };
             };
             /** @description Validation Error */
