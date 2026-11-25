@@ -18,7 +18,7 @@ The universal protocol already lives in `AGENTS.md`, and `CLAUDE.md` imports `@A
 
 ## Checklist on the day of the switch
 
-1. **Instructions.** Move the body of `CLAUDE.md` to `AGENTS.md` and leave `CLAUDE.md` with one line, `@AGENTS.md`. Keep the Claude-specific Models section in `CLAUDE.md` under a "Claude Code" heading, or mark it as such in `AGENTS.md`.
+1. **Instructions.** Verify that `AGENTS.md` holds the universal protocol and `CLAUDE.md` imports `@AGENTS.md` with Claude-specific model/hook notes only; add any harness-specific pointer file (e.g. `.agents/rules/`) as needed without duplicating `AGENTS.md`.
 2. **Local guards.** Rebuild them with the new agent's hook or permission mechanism, and test them with the same cases as the Claude Code guard tests:
    - no push to `main` or `master` in any form (`HEAD:main`, a bare push on `main`), and no force push;
    - no `--no-verify`;
