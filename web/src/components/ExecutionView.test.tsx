@@ -285,6 +285,8 @@ test("displays recorded attempt verdict, performer, UTC timestamp, and Deviation
           name: "Ayu Kartika Sari",
         },
       ],
+      investigations: [],
+      closure_note: null,
     },
   ];
 
@@ -301,4 +303,166 @@ test("displays recorded attempt verdict, performer, UTC timestamp, and Deviation
   expect(screen.getByText("Terbuka")).toBeDefined();
   expect(screen.getByText("Belum ditetapkan")).toBeDefined();
   expect(screen.getByText(/failed Acceptance Criterion/)).toBeDefined();
+});
+
+test("executor sees manual deviation button and can open investigation form; approver sees close/return on submitted; reader sees none", async () => {
+  const user = userEvent.setup();
+  const ex = executionFixture();
+  ex.deviations = [
+    {
+      id: 10,
+      at: "2026-11-24T10:15:00Z",
+      deviation_number: 1,
+      requirement: null,
+      attempt_id: null,
+      cause: "manual",
+      status: "open",
+      deviation_class: "minor",
+      description: "Gangguan udara tekan.",
+      subject: "demo-0001",
+      issuer: "http://127.0.0.1:9000",
+      name: "Ayu Kartika Sari",
+      events: [
+        {
+          id: 1,
+          at: "2026-11-24T10:15:00Z",
+          event: "opened",
+          status: "open",
+          reason: null,
+          subject: "demo-0001",
+          issuer: "http://127.0.0.1:9000",
+          name: "Ayu Kartika Sari",
+        },
+      ],
+      investigations: [
+        {
+          id: 1,
+          at: "2026-11-24T10:20:00Z",
+          version: 1,
+          investigation: "Kompresor berhenti sesaat.",
+          deviation_class: "minor",
+          capa: "Periksa katup.",
+          reason_for_change: null,
+          subject: "demo-0001",
+          issuer: "http://127.0.0.1:9000",
+          name: "Ayu Kartika Sari",
+        },
+      ],
+      closure_note: null,
+    },
+    {
+      id: 11,
+      at: "2026-11-24T10:25:00Z",
+      deviation_number: 2,
+      requirement: "URS-TP201-002",
+      attempt_id: 1,
+      cause: "failed",
+      status: "submitted",
+      deviation_class: "major",
+      description: "Kecepatan di luar rentang.",
+      subject: "demo-0001",
+      issuer: "http://127.0.0.1:9000",
+      name: "Ayu Kartika Sari",
+      events: [
+        {
+          id: 2,
+          at: "2026-11-24T10:25:00Z",
+          event: "opened",
+          status: "open",
+          reason: null,
+          subject: "demo-0001",
+          issuer: "http://127.0.0.1:9000",
+          name: "Ayu Kartika Sari",
+        },
+        {
+          id: 3,
+          at: "2026-11-24T10:30:00Z",
+          event: "submitted",
+          status: "submitted",
+          reason: null,
+          subject: "demo-0001",
+          issuer: "http://127.0.0.1:9000",
+          name: "Ayu Kartika Sari",
+        },
+      ],
+      investigations: [
+        {
+          id: 2,
+          at: "2026-11-24T10:28:00Z",
+          version: 1,
+          investigation: "Sensor terlepas.",
+          deviation_class: "major",
+          capa: null,
+          reason_for_change: null,
+          subject: "demo-0001",
+          issuer: "http://127.0.0.1:9000",
+          name: "Ayu Kartika Sari",
+        },
+      ],
+      closure_note: null,
+    },
+  ];
+
+  const noop = async () => ({ ok: true });
+
+  // Executor view
+  const { unmount } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        startAction={noop}
+        recordAction={noop}
+        openDeviationAction={noop}
+        investigateAction={noop}
+        submitDeviationAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+
+  expect(screen.getByRole("button", { name: "Buka deviasi manual" })).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "#1" }));
+  expect((await screen.findAllByText("Kompresor berhenti sesaat.")).length).toBeGreaterThanOrEqual(
+    1,
+  );
+  expect(screen.getByLabelText("Alasan perubahan (wajib untuk versi 2+)")).toBeDefined();
+  expect(screen.getByRole("button", { name: "Ajukan deviasi" })).toBeDefined();
+  unmount();
+
+  // Approver view on Submitted deviation
+  const { unmount: unmountApprover } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={ex}
+        protocol={approved}
+        runId={RUN_ID}
+        startAction={null}
+        closeDeviationAction={noop}
+        returnDeviationAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+
+  expect(screen.queryByRole("button", { name: "Buka deviasi manual" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "#2" }));
+  expect(await screen.findByText("Sensor terlepas.")).toBeDefined();
+  expect(screen.getByRole("button", { name: "Tutup deviasi" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Kembalikan ke Terbuka" })).toBeDefined();
+  expect(
+    screen.getByText("Penutupan deviasi adalah status tercatat, bukan Tanda Tangan Elektronik."),
+  ).toBeDefined();
+  unmountApprover();
+
+  // Reader view
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel execution={ex} protocol={approved} runId={RUN_ID} startAction={null} />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.queryByRole("button", { name: "Buka deviasi manual" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "#2" }));
+  expect(await screen.findByText("Sensor terlepas.")).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Tutup deviasi" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Simpan investigasi" })).toBeNull();
 });

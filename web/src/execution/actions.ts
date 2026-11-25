@@ -193,3 +193,138 @@ export async function recordAttempt(
     ? { ok: false, error: failed, detail }
     : { ok: true, submittedAt: Date.now() };
 }
+
+async function postExecutionMutation(
+  call: () => Promise<{ response: Response; error?: unknown }>,
+): Promise<ExecutionActionState> {
+  let failed: ExecutionError | undefined;
+  let detail: string | undefined;
+  try {
+    const { response, error } = await call();
+    failed = errorFromStatus(response.status);
+    if (failed && error && typeof error === "object" && "detail" in error) {
+      const d = (error as { detail?: unknown }).detail;
+      if (typeof d === "string") detail = d;
+    }
+  } catch {
+    failed = "failed";
+  }
+  revalidatePath("/runs/[runId]", "layout");
+  return failed
+    ? { ok: false, error: failed, detail }
+    : { ok: true, submittedAt: Date.now() };
+}
+
+/** Opens a manual Deviation linked to a Test Step row or to the Execution (spec #273). */
+export async function openManualDeviation(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const description = field(form, "description");
+  const requirement = field(form, "requirement") ?? null;
+  if (!Number.isInteger(executionId) || !description) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/deviations", {
+      params: { path: { execution_id: executionId } },
+      body: { requirement, description },
+      headers,
+    }),
+  );
+}
+
+/** Records an immutable Investigation version on an Open Deviation (spec #273). */
+export async function addDeviationInvestigation(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const deviationId = Number(field(form, "deviation_id"));
+  const investigation = field(form, "investigation");
+  const deviationClass = field(form, "deviation_class");
+  if (
+    !Number.isInteger(executionId) ||
+    !Number.isInteger(deviationId) ||
+    !investigation ||
+    (deviationClass !== "minor" && deviationClass !== "major" && deviationClass !== "critical")
+  ) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const capa = field(form, "capa") ?? null;
+  const reasonForChange = field(form, "reason_for_change") ?? null;
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/deviations/{deviation_id}/investigations", {
+      params: { path: { execution_id: executionId, deviation_id: deviationId } },
+      body: {
+        investigation,
+        deviation_class: deviationClass,
+        capa,
+        reason_for_change: reasonForChange,
+      },
+      headers,
+    }),
+  );
+}
+
+/** Submits an Open Deviation once an Investigation with a class is recorded (spec #273). */
+export async function submitDeviation(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const deviationId = Number(field(form, "deviation_id"));
+  if (!Number.isInteger(executionId) || !Number.isInteger(deviationId)) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/deviations/{deviation_id}/submit", {
+      params: { path: { execution_id: executionId, deviation_id: deviationId } },
+      headers,
+    }),
+  );
+}
+
+/** Closes a Submitted Deviation (a recorded status, not an Electronic Signature) (spec #273). */
+export async function closeDeviation(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const deviationId = Number(field(form, "deviation_id"));
+  if (!Number.isInteger(executionId) || !Number.isInteger(deviationId)) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/deviations/{deviation_id}/close", {
+      params: { path: { execution_id: executionId, deviation_id: deviationId } },
+      headers,
+    }),
+  );
+}
+
+/** Returns a Submitted Deviation to Open with a required reason (spec #273). */
+export async function returnDeviation(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  const deviationId = Number(field(form, "deviation_id"));
+  const reason = field(form, "reason");
+  if (!Number.isInteger(executionId) || !Number.isInteger(deviationId) || !reason) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/deviations/{deviation_id}/return", {
+      params: { path: { execution_id: executionId, deviation_id: deviationId } },
+      body: { reason },
+      headers,
+    }),
+  );
+}

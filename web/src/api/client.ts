@@ -38,6 +38,8 @@ export type ExecutionTestStep = components["schemas"]["ExecutionTestStep"];
 export type AttemptView = components["schemas"]["AttemptView"];
 export type AttemptVersionView = components["schemas"]["AttemptVersionView"];
 export type DeviationView = components["schemas"]["DeviationView"];
+export type DeviationEventView = components["schemas"]["DeviationEventView"];
+export type DeviationInvestigationView = components["schemas"]["DeviationInvestigationView"];
 export type InstrumentInput = components["schemas"]["InstrumentInput"];
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 

@@ -13,9 +13,11 @@ import type {
   ProtocolView,
 } from "@/api/client";
 import type { ExecutionActionState } from "@/execution/actions";
+import { DeviationDetailDrawer } from "./DeviationDetailDrawer";
 import { ExecutionResultDrawer } from "./ExecutionResultDrawer";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
+import { ManualDeviationDrawer } from "./ManualDeviationDrawer";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
 import {
   DeviationStatusBadge,
@@ -200,12 +202,31 @@ function ExecutionRow({
   );
 }
 
-function DeviationsSection({ t, deviations }: { t: T; deviations: DeviationView[] }) {
+function DeviationsSection({
+  t,
+  deviations,
+  canOpenManual,
+  onOpenManual,
+  onSelectDeviation,
+}: {
+  t: T;
+  deviations: DeviationView[];
+  canOpenManual: boolean;
+  onOpenManual: () => void;
+  onSelectDeviation: (id: number) => void;
+}) {
   return (
     <section aria-labelledby="execution-deviations" className="space-y-2">
-      <h2 id="execution-deviations" className="m-0 text-sm font-bold text-ink tabular-nums">
-        {t("deviationsTitle", { count: deviations.length })}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="execution-deviations" className="m-0 text-sm font-bold text-ink tabular-nums">
+          {t("deviationsTitle", { count: deviations.length })}
+        </h2>
+        {canOpenManual && (
+          <Button type="button" variant="soft" onClick={onOpenManual}>
+            {t("openManualDeviation")}
+          </Button>
+        )}
+      </div>
       {deviations.length === 0 ? (
         <p className="m-0 rounded-lg border border-border bg-surface px-4 py-3 text-xs text-ink-muted">
           {t("deviationsEmpty")}
@@ -235,14 +256,22 @@ function DeviationsSection({ t, deviations }: { t: T; deviations: DeviationView[
             <tbody>
               {deviations.map((d) => (
                 <tr key={d.id} className="border-b border-border last:border-b-0">
-                  <td className="px-3 py-2.5 font-mono font-semibold text-ink tabular-nums">
-                    #{d.deviation_number}
-                  </td>
+                  <th scope="row" className="px-3 py-2.5 text-left font-mono font-semibold text-ink tabular-nums">
+                    <button
+                      type="button"
+                      onClick={() => onSelectDeviation(d.id)}
+                      className="cursor-pointer rounded border-0 bg-transparent p-0 font-mono text-xs font-semibold text-accent underline hover:text-accent-hover"
+                    >
+                      #{d.deviation_number}
+                    </button>
+                  </th>
                   <td className="px-3 py-2.5">
                     <DeviationStatusBadge status={d.status} />
                   </td>
                   <td className="px-3 py-2.5 text-ink-muted">
-                    {d.deviation_class ?? t("deviationClassUnset")}
+                    {d.deviation_class
+                      ? t(`deviationClasses.${d.deviation_class}`)
+                      : t("deviationClassUnset")}
                   </td>
                   <td className="px-3 py-2.5 font-mono text-ink tabular-nums">
                     {d.requirement ?? "—"}
@@ -264,6 +293,11 @@ export function ExecutionViewPanel({
   runId,
   startAction,
   recordAction = null,
+  openDeviationAction = null,
+  investigateAction = null,
+  submitDeviationAction = null,
+  closeDeviationAction = null,
+  returnDeviationAction = null,
 }: {
   execution: ExecutionView | null;
   protocol: ProtocolView | null;
@@ -274,12 +308,29 @@ export function ExecutionViewPanel({
   recordAction?:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
+  openDeviationAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  investigateAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  submitDeviationAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  closeDeviationAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
+  returnDeviationAction?:
+    | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
+    | null;
 }) {
   const t = useTranslations("execution");
   const m = useTranslations("matrix");
   const when: WhenT = useTranslations("decisions");
 
   const [activeRequirement, setActiveRequirement] = useState<string | null>(null);
+  const [manualDevOpen, setManualDevOpen] = useState(false);
+  const [activeDeviationId, setActiveDeviationId] = useState<number | null>(null);
   const [state, formAction] = useActionState(
     startAction ?? (async () => INITIAL_STATE),
     INITIAL_STATE,
@@ -289,6 +340,10 @@ export function ExecutionViewPanel({
   const activeRow =
     execution && activeRequirement
       ? (execution.rows.find((r) => r.requirement === activeRequirement) ?? null)
+      : null;
+  const activeDeviation =
+    execution && activeDeviationId !== null
+      ? (execution.deviations.find((d) => d.id === activeDeviationId) ?? null)
       : null;
 
   return (
@@ -425,7 +480,13 @@ export function ExecutionViewPanel({
             </div>
           </section>
 
-          <DeviationsSection t={t} deviations={execution.deviations} />
+          <DeviationsSection
+            t={t}
+            deviations={execution.deviations}
+            canOpenManual={execution.status === "in_progress" && openDeviationAction !== null}
+            onOpenManual={() => setManualDevOpen(true)}
+            onSelectDeviation={(id) => setActiveDeviationId(id)}
+          />
 
           {activeRow && recordAction && (
             <ExecutionResultDrawer
@@ -437,6 +498,33 @@ export function ExecutionViewPanel({
                 if (!open) setActiveRequirement(null);
               }}
               recordAction={recordAction}
+            />
+          )}
+
+          {manualDevOpen && openDeviationAction && (
+            <ManualDeviationDrawer
+              executionId={execution.id}
+              rows={execution.rows}
+              open={true}
+              onOpenChange={setManualDevOpen}
+              openAction={openDeviationAction}
+            />
+          )}
+
+          {activeDeviation && (
+            <DeviationDetailDrawer
+              key={activeDeviation.id}
+              executionId={execution.id}
+              executionInProgress={execution.status === "in_progress"}
+              deviation={activeDeviation}
+              open={true}
+              onOpenChange={(open) => {
+                if (!open) setActiveDeviationId(null);
+              }}
+              investigateAction={investigateAction}
+              submitAction={submitDeviationAction}
+              closeAction={closeDeviationAction}
+              returnAction={returnDeviationAction}
             />
           )}
         </>
