@@ -15,6 +15,7 @@ import subprocess
 import sys
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -329,3 +330,112 @@ def test_run_demo_prints_production_start_command_and_cleans_ready_file(
     out = capsys.readouterr().out
     assert "npm run build && npm start" in out
     assert not ready.exists()
+
+
+def test_run_demo_supports_keycloak_mode_with_none_issuer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from traceq.app.demo import Demo
+
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait()
+    fake_demo = Demo(
+        issuer=None,
+        api=proc,
+        run_id="r1",
+        issuer_url="http://127.0.0.1:8080/realms/traceq",
+        api_url="http://127.0.0.1:8000",
+    )
+    monkeypatch.setattr("traceq.app.demo.bring_up", lambda _s, log=None: fake_demo)
+    monkeypatch.setattr(fake_demo, "stop", lambda: None)
+
+    settings = DemoSettings(
+        corpus=tmp_path,
+        equipment="TP-201",
+        recordings=R10,
+        idp="keycloak",
+    )
+    assert run_demo(settings) == 1
+
+
+def test_keycloak_pkce_token_exchanges_code_with_s256_and_prompt_login(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from traceq.app.demo import keycloak_pkce_token
+
+    seen: dict[str, Any] = {}
+
+    class _FakeResp:
+        def __init__(
+            self,
+            status_code: int,
+            *,
+            text: str = "",
+            headers: dict[str, str] | None = None,
+            json_data: Any = None,
+            cookies: dict[str, str] | None = None,
+        ) -> None:
+            self.status_code = status_code
+            self.text = text
+            self.headers = headers or {}
+            self._json = json_data
+            self.cookies = cookies or {}
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise RuntimeError(f"HTTP {self.status_code}")
+
+        def json(self) -> Any:
+            return self._json
+
+    class _FakeClient:
+        def __init__(self, **_kwargs: Any) -> None:
+            pass
+
+        def __enter__(self) -> _FakeClient:
+            return self
+
+        def __exit__(self, *_args: Any) -> None:
+            return None
+
+        def get(self, url: str, params: dict[str, str]) -> _FakeResp:
+            seen["auth_url"] = url
+            seen["auth_params"] = params
+            return _FakeResp(
+                200,
+                text='<form action="http://127.0.0.1:8080/login-actions/authenticate?tab_id=1&amp;x=2">',
+                cookies={"AUTH_SESSION_ID": "abc"},
+            )
+
+        def post(
+            self,
+            url: str,
+            data: dict[str, str],
+            headers: dict[str, str] | None = None,
+        ) -> _FakeResp:
+            if "login-actions" in url:
+                seen["login_url"] = url
+                seen["login_data"] = data
+                seen["login_headers"] = headers
+                return _FakeResp(
+                    302,
+                    headers={
+                        "location": "http://127.0.0.1:3000/api/auth/callback?code=auth-code-1"
+                    },
+                )
+            seen["token_url"] = url
+            seen["token_data"] = data
+            return _FakeResp(200, json_data={"access_token": "kc-pkce-tok"})
+
+    monkeypatch.setattr("traceq.app.demo.httpx.Client", _FakeClient)
+    tok = keycloak_pkce_token("http://127.0.0.1:8080/realms/traceq", "ayu")
+    assert tok == "kc-pkce-tok"
+    assert seen["auth_params"]["client_id"] == "traceq-web"
+    assert seen["auth_params"]["code_challenge_method"] == "S256"
+    assert seen["auth_params"]["prompt"] == "login"
+    assert seen["auth_params"]["max_age"] == "0"
+    assert seen["login_url"] == "http://127.0.0.1:8080/login-actions/authenticate?tab_id=1&x=2"
+    assert seen["login_headers"] == {"Cookie": "AUTH_SESSION_ID=abc"}
+    assert seen["token_data"]["grant_type"] == "authorization_code"
+    assert seen["token_data"]["code"] == "auth-code-1"
+    assert "code_verifier" in seen["token_data"]

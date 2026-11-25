@@ -17,24 +17,34 @@ from typing import Any
 
 import httpx
 
+from traceq.app.demo import keycloak_pkce_token
+
 DEFAULT_API_URL = "http://127.0.0.1:8000"
 DEFAULT_ISSUER_URL = "http://127.0.0.1:9000"
 
 
-def _token(client: httpx.Client, issuer_url: str, username: str) -> dict[str, str]:
+def _token(
+    client: httpx.Client, issuer_url: str, username: str, *, idp: str = "demo"
+) -> dict[str, str]:
+    if idp == "keycloak":
+        access_token = keycloak_pkce_token(issuer_url, username)
+        return {"Authorization": f"Bearer {access_token}"}
     resp = client.post(f"{issuer_url}/demo/token", json={"username": username})
     resp.raise_for_status()
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
-def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str, str, str]:
+def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str, str, str, str]:
     api_url: str = args.api_url or DEFAULT_API_URL
     issuer_url: str = args.issuer_url or DEFAULT_ISSUER_URL
+    idp: str = getattr(args, "idp", None) or "demo"
     run_id: str | None = args.run_id
     if args.ready_file is not None:
         meta = json.loads(Path(args.ready_file).read_text(encoding="utf-8"))
         api_url = args.api_url or str(meta["api_url"])
         issuer_url = args.issuer_url or str(meta["issuer_url"])
+        if getattr(args, "idp", None) is None and meta.get("idp"):
+            idp = str(meta["idp"])
         if not getattr(args, "review_package", False):
             run_id = run_id or str(meta["run_id"])
     if run_id is None:
@@ -50,7 +60,7 @@ def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str
             run_id = str(rp_item["run_id"])
         else:
             run_id = str(items[0]["run_id"])
-    return api_url.rstrip("/"), issuer_url.rstrip("/"), run_id
+    return api_url.rstrip("/"), issuer_url.rstrip("/"), run_id, idp
 
 
 def _passing_value(acceptance: dict[str, Any]) -> dict[str, Any]:
@@ -94,7 +104,13 @@ def _witness_payload(latest_ver: dict[str, Any]) -> dict[str, Any]:
 
 
 def _ensure_approved_protocol(
-    client: Any, api_url: str, issuer_url: str, run_id: str, ayu: dict[str, str]
+    client: Any,
+    api_url: str,
+    issuer_url: str,
+    run_id: str,
+    ayu: dict[str, str],
+    *,
+    idp: str = "demo",
 ) -> dict[str, Any]:
     imp = client.post(f"{api_url}/runs/{run_id}/import", headers=ayu)
     imp.raise_for_status()
@@ -143,7 +159,7 @@ def _ensure_approved_protocol(
             )
         sub = client.post(
             f"{api_url}/protocols/{protocol_id}/submit",
-            headers=_token(client, issuer_url, "ayu"),
+            headers=_token(client, issuer_url, "ayu", idp=idp),
         )
         sub.raise_for_status()
         proto = sub.json()
@@ -152,7 +168,7 @@ def _ensure_approved_protocol(
         submission = proto["submission"]
         app = client.post(
             f"{api_url}/protocols/{protocol_id}/approve",
-            headers=_token(client, issuer_url, "dewi"),
+            headers=_token(client, issuer_url, "dewi", idp=idp),
             json={
                 "submission_event_id": int(submission["event_id"]),
                 "hash": str(submission["hash"]),
@@ -170,6 +186,8 @@ def _ensure_completed_execution(
     run_id: str,
     protocol_id: int,
     ayu: dict[str, str],
+    *,
+    idp: str = "demo",
 ) -> dict[str, Any]:
     exec_resp = client.get(f"{api_url}/runs/{run_id}/execution", headers=ayu)
     if exec_resp.status_code == 404:
@@ -210,7 +228,7 @@ def _ensure_completed_execution(
             continue
         wit = client.post(
             f"{api_url}/executions/{execution_id}/rows/{req}/attempts/{latest_attempt['attempt_number']}/witness",
-            headers=_token(client, issuer_url, "eko"),
+            headers=_token(client, issuer_url, "eko", idp=idp),
             json=_witness_payload(latest_ver),
         )
         wit.raise_for_status()
@@ -320,19 +338,20 @@ def main() -> int:
     parser.add_argument("--ready-file", type=Path)
     parser.add_argument("--api-url")
     parser.add_argument("--issuer-url")
+    parser.add_argument("--idp", choices=("demo", "keycloak"))
     parser.add_argument("--run-id")
     parser.add_argument("--second-run-id")
     parser.add_argument("--review-package", action="store_true")
     args = parser.parse_args()
 
     with httpx.Client(timeout=30) as client:
-        api_url, issuer_url, run_id = _resolve_target(args, client)
-        ayu = _token(client, issuer_url, "ayu")
+        api_url, issuer_url, run_id, idp = _resolve_target(args, client)
+        ayu = _token(client, issuer_url, "ayu", idp=idp)
         if args.stage == "two-rounds":
             rounds_summary = _ensure_two_rounds(client, api_url, run_id, args.second_run_id, ayu)
             print(json.dumps({"stage": args.stage, **rounds_summary}))
             return 0
-        proto = _ensure_approved_protocol(client, api_url, issuer_url, run_id, ayu)
+        proto = _ensure_approved_protocol(client, api_url, issuer_url, run_id, ayu, idp=idp)
         summary: dict[str, Any] = {
             "run_id": run_id,
             "protocol_id": proto["id"],
@@ -341,7 +360,7 @@ def main() -> int:
         }
         if args.stage in ("completed-execution", "qualification-report"):
             execution = _ensure_completed_execution(
-                client, api_url, issuer_url, run_id, int(proto["id"]), ayu
+                client, api_url, issuer_url, run_id, int(proto["id"]), ayu, idp=idp
             )
             summary["execution_id"] = execution["id"]
             summary["execution_status"] = execution["status"]
@@ -358,7 +377,7 @@ def main() -> int:
                 )
                 qual_resp = client.post(
                     f"{api_url}/executions/{execution['id']}/qualification-reports",
-                    headers=_token(client, issuer_url, "dewi"),
+                    headers=_token(client, issuer_url, "dewi", idp=idp),
                     json={
                         "conclusion_note": "Demo seed: qualification report approved.",
                         "expected_revision_number": next_rev,

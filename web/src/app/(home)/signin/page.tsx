@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
+import { isOidcMode } from "@/auth/oidc";
 import { listPersonas, signIn } from "@/auth/session";
 import { SignInView } from "@/components/SignInView";
 
@@ -36,5 +37,19 @@ export default async function SignInPage({
   searchParams: Promise<{ next?: string | string[] }>;
 }) {
   const nextPath = validNextPath((await searchParams).next);
+  if (isOidcMode()) {
+    const loginHref = nextPath
+      ? `/api/auth/login?next=${encodeURIComponent(nextPath)}`
+      : "/api/auth/login";
+    return (
+      <SignInView
+        personas={[]}
+        action={signInAction}
+        nextPath={nextPath}
+        oidcMode
+        oidcLoginHref={loginHref}
+      />
+    );
+  }
   return <SignInView personas={await listPersonas()} action={signInAction} nextPath={nextPath} />;
 }

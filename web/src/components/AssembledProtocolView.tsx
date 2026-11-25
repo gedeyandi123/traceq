@@ -31,7 +31,14 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /** Why the API refused a start or a withdrawal, as the page reports it. */
-export type ProtocolError = "conflict" | "refused" | "invalid" | "forbidden" | "unauthorized" | "failed";
+export type ProtocolError =
+  | "conflict"
+  | "refused"
+  | "invalid"
+  | "forbidden"
+  | "unauthorized"
+  | "reauth_required"
+  | "failed";
 
 type Action = (formData: FormData) => void | Promise<void>;
 type InlineAction = (

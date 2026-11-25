@@ -55,3 +55,19 @@ test("preserves validated nextPath in hidden input and guards empty personas", (
   );
   expect(screen.getByText("Belum ada persona demo yang tersedia.")).toBeDefined();
 });
+
+test("renders OIDC sign-in button in oidcMode without demo persona cards", () => {
+  render(
+    <NextIntlClientProvider locale="id" messages={messages}>
+      <SignInView
+        personas={[]}
+        action={() => {}}
+        oidcMode
+        oidcLoginHref="/api/auth/login?next=%2Fruns%2Fr1"
+      />
+    </NextIntlClientProvider>,
+  );
+  const link = screen.getByRole("link", { name: "Masuk dengan Keycloak" }) as HTMLAnchorElement;
+  expect(link.getAttribute("href")).toBe("/api/auth/login?next=%2Fruns%2Fr1");
+  expect(document.querySelector("input[type=password]")).toBeNull();
+});

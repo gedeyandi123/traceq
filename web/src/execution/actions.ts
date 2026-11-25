@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { api, type InstrumentInput } from "@/api/client";
+import { isReauthRequiredResponse } from "@/auth/oidc";
 import { bearerHeaders, consumeSignatureBearerHeaders } from "@/auth/session";
 
 export type ExecutionError =
   | "conflict"
   | "forbidden"
   | "unauthorized"
+  | "reauth_required"
   | "notFound"
   | "unprocessable"
   | "failed";
@@ -259,7 +261,9 @@ async function postExecutionMutation(
   let detail: string | undefined;
   try {
     const { response, error } = await call();
-    failed = errorFromStatus(response.status);
+    failed = isReauthRequiredResponse(response)
+      ? "reauth_required"
+      : errorFromStatus(response.status);
     if (failed && error && typeof error === "object" && "detail" in error) {
       const d = (error as { detail?: unknown }).detail;
       if (typeof d === "string") detail = d;

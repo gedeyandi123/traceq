@@ -20,5 +20,29 @@ services:
       timeout: 5s
       retries: 30
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    profiles: ["keycloak"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_HOSTNAME: http://127.0.0.1:8080
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./compose/keycloak/traceq-realm.json:/opt/keycloak/data/import/traceq-realm.json:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'UP' <&3",
+        ]
+      interval: 2s
+      timeout: 5s
+      start_period: 30s
+      retries: 60
+
 volumes:
   pgdata:

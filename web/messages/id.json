@@ -127,6 +127,8 @@
   "signin": {
     "title": "Masuk",
     "demoNote": "Ini identitas demo, bukan kontrol akses sungguhan: tanpa kata sandi, pilih salah satu tokoh fiktif.",
+    "oidcNote": "Masuk melalui penyedia identitas OIDC (Keycloak) menggunakan Authorization Code + PKCE.",
+    "oidcSignIn": "Masuk dengan Keycloak",
     "unavailable": "Penerbit identitas demo tidak dapat dihubungi. Jalankan traceq demo-issuer.",
     "as": "Masuk sebagai {name}",
     "canDecide": "Dapat memutuskan",
@@ -680,6 +682,7 @@
       "refused": "Ditolak API: alasan atau justifikasi wajib diisi, atau isi langkah uji tidak lengkap.",
       "forbidden": "Ditolak API: identitas ini tidak memiliki peran yang diperlukan (memutuskan, atau menyetujui).",
       "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",
+      "reauth_required": "Autentikasi ulang diperlukan untuk tanda tangan elektronik. Silakan masuk ulang.",
       "failed": "Tidak tersimpan. Coba lagi.",
       "invalid": "Tidak dikirim: langkah uji perlu deskripsi, metode, dan kriteria penerimaan dalam salah satu dari empat bentuk dengan nilainya; jawaban atas nomor yang terlewat perlu jenis jawaban."
     },
@@ -957,6 +960,7 @@
       "conflict": "Ditolak API: perubahan tidak diizinkan pada status saat ini atau kalibrasi kedaluwarsa.",
       "forbidden": "Ditolak API: identitas Anda tidak memiliki peran yang diperlukan untuk tindakan ini.",
       "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",
+      "reauth_required": "Autentikasi ulang diperlukan untuk tanda tangan elektronik. Silakan masuk ulang.",
       "notFound": "Ditolak API: eksekusi atau baris tidak ditemukan.",
       "unprocessable": "Data hasil tidak lengkap atau tidak sesuai bentuk kriteria penerimaan.",
       "failed": "Gagal menyimpan. Coba lagi."
@@ -1146,6 +1150,7 @@
       "conflict": "Ditolak API: status eksekusi atau konflik SoD tidak mengizinkan penerbitan (409).",
       "forbidden": "Ditolak API: peran Anda tidak memiliki izin untuk menerbitkan laporan (403).",
       "unauthorized": "Ditolak API: sesi tidak valid. Silakan masuk kembali (401).",
+      "reauth_required": "Autentikasi ulang diperlukan untuk tanda tangan elektronik. Silakan masuk ulang.",
       "notFound": "Ditolak API: eksekusi tidak ditemukan (404).",
       "unprocessable": "Data tidak valid: periksa tanggal rekualifikasi atau catatan kesimpulan (422).",
       "failed": "Terjadi kesalahan saat menghubungi API. Coba lagi."
