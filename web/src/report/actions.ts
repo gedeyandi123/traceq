@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { api, type QualificationReportView } from "@/api/client";
-import { bearerHeaders } from "@/auth/session";
+import { isReauthRequiredResponse } from "@/auth/oidc";
+import { consumeSignatureBearerHeaders } from "@/auth/session";
 
 export type ReportError =
   | "conflict"
   | "forbidden"
   | "unauthorized"
+  | "reauth_required"
   | "notFound"
   | "unprocessable"
   | "failed";
@@ -53,12 +55,20 @@ export async function approveQualificationReport(
 ): Promise<ApproveReportActionState> {
   const runId = field(form, "run_id") ?? "";
   const executionId = Number(field(form, "execution_id"));
+  const expectedRevisionNumber = Number(field(form, "expected_revision_number"));
+  const expectedExecutionCopyHash = field(form, "expected_execution_copy_hash") ?? "";
   const rawNote = form.get("conclusion_note");
   const conclusionNote = typeof rawNote === "string" ? rawNote : "";
   const rawDate = form.get("next_requalification_date");
   const nextRequalificationDate = typeof rawDate === "string" ? rawDate.trim() : "";
 
-  if (!Number.isInteger(executionId) || executionId <= 0) {
+  if (
+    !Number.isInteger(executionId) ||
+    executionId <= 0 ||
+    !Number.isInteger(expectedRevisionNumber) ||
+    expectedRevisionNumber <= 0 ||
+    expectedExecutionCopyHash === ""
+  ) {
     return {
       ok: false,
       error: "failed",
@@ -75,15 +85,19 @@ export async function approveQualificationReport(
       "/executions/{execution_id}/qualification-reports",
       {
         params: { path: { execution_id: executionId } },
-        headers: await bearerHeaders(),
+        headers: await consumeSignatureBearerHeaders(),
         body: {
           conclusion_note: conclusionNote.trim() === "" ? null : conclusionNote.trim(),
           next_requalification_date:
             nextRequalificationDate === "" ? null : nextRequalificationDate,
+          expected_revision_number: expectedRevisionNumber,
+          expected_execution_copy_hash: expectedExecutionCopyHash,
         },
       },
     );
-    failed = errorFromStatus(response.status);
+    failed = isReauthRequiredResponse(response)
+      ? "reauth_required"
+      : errorFromStatus(response.status);
     detail = extractDetail(error);
     report = data;
   } catch {

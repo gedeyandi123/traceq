@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { currentSession } from "@/auth/session";
+import { currentSession, signingAuthState } from "@/auth/session";
 import { ExecutionViewPanel } from "@/components/ExecutionView";
 import { EmptyState } from "@/components/ui/ui";
 import {
@@ -31,15 +31,23 @@ export async function generateMetadata(): Promise<Metadata> {
  * only `qualification-executor` may start it from an Approved Protocol. */
 export default async function ExecutionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ runId: string }>;
+  searchParams: Promise<{ reauth_target?: string | string[] }>;
 }) {
   const { runId } = await params;
+  const query = await searchParams;
+  const reauthTarget =
+    typeof query.reauth_target === "string" && query.reauth_target.trim() !== ""
+      ? query.reauth_target
+      : null;
   const t = await getTranslations("execution");
   const signin = await getTranslations("signin");
-  const [run, session, protocolRes, executionRes] = await Promise.all([
+  const [run, session, signingAuth, protocolRes, executionRes] = await Promise.all([
     fetchRun(runId),
     currentSession(),
+    signingAuthState(),
     fetchProtocol(runId),
     fetchExecution(runId),
   ]);
@@ -100,6 +108,8 @@ export default async function ExecutionPage({
         closeDeviationAction={session.mayApprove ? closeDeviation : null}
         returnDeviationAction={session.mayApprove ? returnDeviation : null}
         completeAction={session.mayExecute ? completeExecution : null}
+        signingAuth={signingAuth}
+        initialReauthTarget={reauthTarget}
       />
     </div>
   );

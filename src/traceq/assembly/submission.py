@@ -398,7 +398,14 @@ def submissions_of(session: Session, protocol_id: int) -> list[Submission]:
 
 
 def submit(
-    session: Session, actor: audit.Actor, protocol_id: int, check: Completeness | None
+    session: Session,
+    actor: audit.Actor,
+    protocol_id: int,
+    check: Completeness | None,
+    *,
+    auth_time: datetime | None = None,
+    jti: str | None = None,
+    is_demo: bool = False,
 ) -> lifecycle.AssembledProtocol:
     """Submits a Protocol in Draft status that nothing blocks: freezes its copy and hash in
     the ``submitted`` event. ``check``: the completeness check of the Protocol's run."""
@@ -429,6 +436,27 @@ def submit(
         frozen_copy=copy.model_dump(mode="json"),
         copy_hash=hashed,
     )
+    sig_id: int | None = None
+    if auth_time is not None and jti is not None:
+        sig = audit.record_signature(
+            session,
+            actor,
+            record_type="protocol_submission",
+            signature_meaning="prepared",
+            content_hash=hashed,
+            auth_time=auth_time,
+            jti=jti,
+            is_demo=is_demo,
+            protocol_event_id=done.id,
+        )
+        sig_id = sig.id
+    new_audit: dict[str, audit.JsonValue] = {
+        "status": done.status,
+        "event_id": done.id,
+        "hash": hashed,
+    }
+    if sig_id is not None:
+        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,
@@ -436,6 +464,6 @@ def submit(
         "protocol",
         str(protocol_id),
         old={"status": current.status},
-        new={"status": done.status, "event_id": done.id, "hash": hashed},
+        new=new_audit,
     )
     return current.after(done)

@@ -1547,7 +1547,7 @@
     "/executions/{execution_id}/deviations/{deviation_id}/close": {
       "post": {
         "summary": "Close Deviation",
-        "description": "Closes a ``submitted`` Deviation (a recorded status, not an Electronic Signature),\nenforcing 4-way Separation of Duties.",
+        "description": "Closes a ``submitted`` Deviation with Anti-TOCTOU and 4-way Separation of Duties.",
         "operationId": "closeDeviation",
         "security": [
           {
@@ -1574,6 +1574,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseDeviationRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1665,7 +1675,7 @@
     "/executions/{execution_id}/rows/{requirement}/attempts/{attempt_number}/witness": {
       "post": {
         "summary": "Confirm Witness",
-        "description": "Records a Witness confirmation bound to the latest version's ``version_hash``\n(a recorded status, not an Electronic Signature (ADR 0007 phase 2)).",
+        "description": "Records a Witness confirmation bound to the latest version's ``version_hash``.",
         "operationId": "confirmWitness",
         "security": [
           {
@@ -2321,10 +2331,22 @@
               }
             ],
             "title": "Next Requalification Date"
+          },
+          "expected_revision_number": {
+            "type": "integer",
+            "title": "Expected Revision Number"
+          },
+          "expected_execution_copy_hash": {
+            "type": "string",
+            "title": "Expected Execution Copy Hash"
           }
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "expected_revision_number",
+          "expected_execution_copy_hash"
+        ],
         "title": "ApproveQualificationReportRequest",
         "description": "Payload to approve a Qualification Report for a completed Execution."
       },
@@ -2713,6 +2735,31 @@
         ],
         "title": "Cite",
         "description": "Where a claim comes from: document, revision, page and the verbatim quote."
+      },
+      "CloseDeviationRequest": {
+        "properties": {
+          "expected_event_id": {
+            "type": "integer",
+            "title": "Expected Event Id"
+          },
+          "expected_investigation_version": {
+            "type": "integer",
+            "title": "Expected Investigation Version"
+          },
+          "expected_content_hash": {
+            "type": "string",
+            "title": "Expected Content Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_event_id",
+          "expected_investigation_version",
+          "expected_content_hash"
+        ],
+        "title": "CloseDeviationRequest",
+        "description": "Payload to close a Submitted Deviation with Anti-TOCTOU version/hash checks."
       },
       "CloseOutcome": {
         "type": "string",
@@ -3141,6 +3188,16 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "electronic_signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElectronicSignatureView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -3333,6 +3390,17 @@
               }
             ],
             "title": "Closure Note"
+          },
+          "closure_content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closure Content Hash"
           }
         },
         "additionalProperties": false,
@@ -4113,6 +4181,81 @@
         ],
         "title": "DroppedClaim",
         "description": "A claim the citation check dropped, with its reason in plain text."
+      },
+      "ElectronicSignatureView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "record_type": {
+            "$ref": "#/components/schemas/RecordType"
+          },
+          "signature_meaning": {
+            "$ref": "#/components/schemas/SignatureMeaning"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "hash_scheme_version": {
+            "type": "integer",
+            "title": "Hash Scheme Version"
+          },
+          "signer_subject": {
+            "type": "string",
+            "title": "Signer Subject"
+          },
+          "signer_issuer": {
+            "type": "string",
+            "title": "Signer Issuer"
+          },
+          "signer_name": {
+            "type": "string",
+            "title": "Signer Name"
+          },
+          "auth_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Auth Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "record_type",
+          "signature_meaning",
+          "content_hash",
+          "hash_scheme_version",
+          "signer_subject",
+          "signer_issuer",
+          "signer_name",
+          "auth_time",
+          "is_demo",
+          "label",
+          "verified"
+        ],
+        "title": "ElectronicSignatureView",
+        "description": "Public API view of an Electronic Signature binding."
       },
       "EquipmentSummary": {
         "properties": {
@@ -5089,6 +5232,16 @@
           },
           "actor": {
             "$ref": "#/components/schemas/Author"
+          },
+          "electronic_signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElectronicSignatureView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -5735,6 +5888,16 @@
           "note": {
             "type": "string",
             "title": "Note"
+          },
+          "electronic_signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElectronicSignatureView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -7084,6 +7247,16 @@
             "type": "string",
             "format": "date-time",
             "title": "At"
+          },
+          "electronic_signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElectronicSignatureView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -7508,6 +7681,16 @@
             "type": "string",
             "format": "date-time",
             "title": "At"
+          },
+          "electronic_signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElectronicSignatureView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -7718,6 +7901,16 @@
         ],
         "title": "RecordAttemptRequest",
         "description": "Payload to record the first attempt on a Test Step row."
+      },
+      "RecordType": {
+        "type": "string",
+        "enum": [
+          "protocol_submission",
+          "protocol_approval",
+          "deviation_closure",
+          "witness_confirmation",
+          "qualification_report"
+        ]
       },
       "ReportExportView": {
         "properties": {
@@ -7984,12 +8177,22 @@
           "reason": {
             "type": "string",
             "title": "Reason"
+          },
+          "expected_event_id": {
+            "type": "integer",
+            "title": "Expected Event Id"
+          },
+          "expected_investigation_version": {
+            "type": "integer",
+            "title": "Expected Investigation Version"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "reason"
+          "reason",
+          "expected_event_id",
+          "expected_investigation_version"
         ],
         "title": "ReturnDeviationRequest",
         "description": "Payload to return a Submitted Deviation to Open with a required reason."
@@ -8570,6 +8773,14 @@
         "title": "RunSummary",
         "description": "What identifies a run: its id, Equipment, model and mode."
       },
+      "SignatureMeaning": {
+        "type": "string",
+        "enum": [
+          "prepared",
+          "approved",
+          "witnessed"
+        ]
+      },
       "SiteRuleCite": {
         "properties": {
           "rule": {
@@ -9006,6 +9217,16 @@
           "note": {
             "type": "string",
             "title": "Note"
+          },
+          "electronic_signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElectronicSignatureView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,

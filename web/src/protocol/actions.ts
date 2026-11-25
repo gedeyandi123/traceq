@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { api, type Stage } from "@/api/client";
-import { bearerHeaders } from "@/auth/session";
+import { isReauthRequiredResponse } from "@/auth/oidc";
+import { bearerHeaders, consumeSignatureBearerHeaders } from "@/auth/session";
 import type { ProtocolError } from "@/components/AssembledProtocolView";
 import { stepFrom } from "@/protocol/form";
 
@@ -17,6 +18,11 @@ export type ProtocolFormActionState = {
 function field(form: FormData, name: string): string | undefined {
   const v = form.get(name);
   return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
+}
+
+function errorFromResponse(response: Pick<Response, "status" | "headers">): ProtocolError | undefined {
+  if (isReauthRequiredResponse(response)) return "reauth_required";
+  return error(response.status);
 }
 
 function error(status: number): ProtocolError | undefined {
@@ -181,10 +187,10 @@ export async function approveProtocol(form: FormData): Promise<void> {
   try {
     const { response } = await api.POST("/protocols/{protocol_id}/approve", {
       params: { path: { protocol_id: protocolId } },
-      headers: await bearerHeaders(),
+      headers: await consumeSignatureBearerHeaders(),
       body: { submission_event_id: eventId, hash },
     });
-    failed = error(response.status);
+    failed = errorFromResponse(response);
   } catch {
     failed = "failed";
   }
@@ -220,9 +226,9 @@ export async function submitProtocol(form: FormData): Promise<void> {
   try {
     const { response } = await api.POST("/protocols/{protocol_id}/submit", {
       params: { path: { protocol_id: protocolId } },
-      headers: await bearerHeaders(),
+      headers: await consumeSignatureBearerHeaders(),
     });
-    failed = error(response.status);
+    failed = errorFromResponse(response);
   } catch {
     failed = "failed";
   }

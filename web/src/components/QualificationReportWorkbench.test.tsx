@@ -209,7 +209,7 @@ test("renders conclusion, stage counts, ADR 0007 notice, retest lineage, exports
   );
 
   expect(screen.getAllByText("Memenuhi Syarat dengan Deviasi").length).toBeGreaterThan(0);
-  expect(screen.getByText(/bukan Tanda Tangan Elektronik/)).toBeDefined();
+  expect(screen.getAllByText(/bukan Tanda Tangan Elektronik/).length).toBeGreaterThanOrEqual(1);
   expect(screen.getByText("1 lulus · 0 gagal")).toBeDefined();
   expect(screen.getByText("2 lulus · 0 gagal")).toBeDefined();
   expect(screen.getByText("Percobaan #1 (Deviasi #4)")).toBeDefined();
@@ -264,4 +264,38 @@ test("hides approver form for non-approver and hides requalification date when n
       "Kesimpulan Tidak Memenuhi Syarat — tanggal rekualifikasi berikutnya tidak dapat dijadwalkan.",
     ),
   ).toBeDefined();
+});
+
+test("restores conclusion_note and next_requalification_date from sessionStorage and auto-opens ElectronicSignatureDialog on OIDC reauth return", () => {
+  window.sessionStorage.setItem(
+    "traceq:reauth:report:r7 TP/201",
+    JSON.stringify({
+      conclusion_note: "Catatan tersimpan sebelum reauth",
+      next_requalification_date: "2027-12-01",
+    }),
+  );
+  const authTime = Math.floor(Date.now() / 1000) - 5;
+
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <QualificationReportWorkbench
+        runId="r7 TP/201"
+        report={reportFixture()}
+        execution={null}
+        session={approverSession}
+        signingAuth={{ oidcMode: true, reauthAuthTime: authTime }}
+        initialReauthTarget="qualification_report"
+        approveAction={vi.fn(async () => ({ ok: true }))}
+      />
+    </NextIntlClientProvider>,
+  );
+
+  expect(
+    (screen.getByLabelText(/Catatan kesimpulan/i) as HTMLTextAreaElement).value,
+  ).toBe("Catatan tersimpan sebelum reauth");
+  expect(
+    (screen.getByLabelText("Tanggal rekualifikasi berikutnya (opsional)") as HTMLInputElement).value,
+  ).toBe("2027-12-01");
+  expect(screen.getByRole("dialog")).toBeDefined();
+  expect(screen.getByText(/detik tersisa/i)).toBeDefined();
 });

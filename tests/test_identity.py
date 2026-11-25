@@ -44,12 +44,14 @@ def test_a_persona_token_yields_subject_issuer_name_and_roles(
 ) -> None:
     persona = httpx.get(f"{demo_issuer.url}/demo/personas").json()[0]
     p = verifier.verify(_token(demo_issuer, persona["username"]))
-    assert p == Principal(
-        subject=persona["subject"],
-        issuer=demo_issuer.url,
-        name=persona["name"],
-        roles=frozenset(persona["roles"]),
-    )
+    assert p.subject == persona["subject"]
+    assert p.issuer == demo_issuer.url
+    assert p.name == persona["name"]
+    assert p.roles == frozenset(persona["roles"])
+    assert p.auth_time is not None
+    assert p.jti is not None and len(p.jti) > 0
+    assert p.amr == frozenset({"demo"})
+    assert p.is_demo is True
     assert p.may_decide is (DECIDING_ROLE in persona["roles"])
 
 
@@ -200,3 +202,85 @@ def test_issuer_unavailable_returns_generic_503() -> None:
         principal(creds)
     assert exc.value.status_code == 503
     assert exc.value.detail == "the identity issuer is temporarily unavailable"
+
+
+@pytest.mark.parametrize(
+    "bad_auth_time",
+    [True, False, "1700000000", float("nan"), float("inf"), float("-inf"), 1e20],
+    ids=["true", "false", "string", "nan", "inf", "ninf", "overflow"],
+)
+def test_bad_auth_time_is_refused(
+    demo_issuer: DemoIssuer, verifier: Verifier, bad_auth_time: object
+) -> None:
+    # Note: json.dumps in PyJWT rejects NaN/Inf by default unless allow_nan, so encode raw if needed
+    # For nan/inf we test _parse_auth_time directly as well as JWT-encoded values.
+    from traceq.identity.tokens import _parse_auth_time
+
+    with pytest.raises(InvalidToken, match="auth_time"):
+        _parse_auth_time(bad_auth_time)
+    if isinstance(bad_auth_time, bool | str) or bad_auth_time == 1e20:
+        with pytest.raises(InvalidToken, match="auth_time"):
+            verifier.verify(_forged(demo_issuer, {"auth_time": bad_auth_time}))
+
+
+@pytest.mark.parametrize("bad_jti", [123, "", "   ", ["a"]], ids=["int", "empty", "blank", "list"])
+def test_bad_jti_is_refused(demo_issuer: DemoIssuer, verifier: Verifier, bad_jti: object) -> None:
+    with pytest.raises(InvalidToken, match=r"jti|JWT ID"):
+        verifier.verify(_forged(demo_issuer, {"jti": bad_jti}))
+
+
+def test_require_fresh_auth_checks_age_leeway_and_rfc9470(
+    demo_issuer: DemoIssuer, verifier: Verifier
+) -> None:
+    from fastapi import HTTPException
+
+    from traceq.identity.http import require_fresh_auth
+
+    now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
+    checker = require_fresh_auth(verifier, clock=lambda: now)
+
+    fresh = Principal(
+        subject="u1",
+        issuer=demo_issuer.url,
+        name="User",
+        roles=frozenset(),
+        auth_time=now - timedelta(seconds=64),  # within 60 + 5 leeway
+        jti="jti-1",
+    )
+    assert checker(fresh) == fresh
+
+    stale = Principal(
+        subject="u1",
+        issuer=demo_issuer.url,
+        name="User",
+        roles=frozenset(),
+        auth_time=now - timedelta(seconds=66),  # > 60 + 5 leeway
+        jti="jti-2",
+    )
+    with pytest.raises(HTTPException) as exc:
+        checker(stale)
+    assert exc.value.status_code == 401
+    assert exc.value.headers == {
+        "WWW-Authenticate": 'Bearer error="insufficient_user_authentication", max_age=60'
+    }
+
+    future = Principal(
+        subject="u1",
+        issuer=demo_issuer.url,
+        name="User",
+        roles=frozenset(),
+        auth_time=now + timedelta(seconds=10),  # > 5s future leeway
+        jti="jti-3",
+    )
+    with pytest.raises(HTTPException) as exc_future:
+        checker(future)
+    assert exc_future.value.status_code == 401
+    assert exc_future.value.headers == {
+        "WWW-Authenticate": 'Bearer error="insufficient_user_authentication", max_age=60'
+    }
+
+    # verifier=None is preserved for openapi_schema()
+    none_checker = require_fresh_auth(None, clock=lambda: now)
+    with pytest.raises(HTTPException) as exc_none:
+        none_checker(fresh)
+    assert exc_none.value.status_code == 401

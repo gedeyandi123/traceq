@@ -332,6 +332,7 @@ def test_correction_automatic_deviations_and_witness_voiding(
 
 def test_correction_locked_by_submitted_or_closed_deviation_and_unlocked_after_return(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     ayu: dict[str, str],
     bima: dict[str, str],
     approver: dict[str, str],
@@ -364,6 +365,7 @@ def test_correction_locked_by_submitted_or_closed_deviation_and_unlocked_after_r
     assert inv.status_code == 201
     sub = client.post(f"/executions/{ex['id']}/deviations/{dev_id}/submit", headers=bima)
     assert sub.status_code == 200
+    d_sub = sub.json()["deviations"][0]
 
     # Refused while Submitted
     blocked_sub = client.post(
@@ -381,7 +383,11 @@ def test_correction_locked_by_submitted_or_closed_deviation_and_unlocked_after_r
     ret = client.post(
         f"/executions/{ex['id']}/deviations/{dev_id}/return",
         headers=approver,
-        json={"reason": "Perlu verifikasi ulang"},
+        json={
+            "reason": "Perlu verifikasi ulang",
+            "expected_event_id": d_sub["events"][-1]["id"],
+            "expected_investigation_version": d_sub["investigations"][-1]["version"],
+        },
     )
     assert ret.status_code == 200
     allowed_after_return = client.post(
@@ -396,13 +402,18 @@ def test_correction_locked_by_submitted_or_closed_deviation_and_unlocked_after_r
     assert allowed_after_return.status_code == 201
 
     # Re-submit and Close -> refused while Closed
-    assert (
-        client.post(f"/executions/{ex['id']}/deviations/{dev_id}/submit", headers=bima).status_code
-        == 200
-    )
+    resub = client.post(f"/executions/{ex['id']}/deviations/{dev_id}/submit", headers=bima)
+    assert resub.status_code == 200
+    d_resub = resub.json()["deviations"][0]
     assert (
         client.post(
-            f"/executions/{ex['id']}/deviations/{dev_id}/close", headers=approver
+            f"/executions/{ex['id']}/deviations/{dev_id}/close",
+            headers=persona_token(demo_issuer, "dewi"),
+            json={
+                "expected_event_id": d_resub["events"][-1]["id"],
+                "expected_investigation_version": d_resub["investigations"][-1]["version"],
+                "expected_content_hash": d_resub["closure_content_hash"],
+            },
         ).status_code
         == 200
     )
@@ -492,6 +503,7 @@ def test_instrument_reference_date_on_correction_vs_retest(
 
 def test_retest_refusals_acceptance_and_completion_frozen_copy(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     ayu: dict[str, str],
     bima: dict[str, str],
     reader: dict[str, str],
@@ -634,12 +646,11 @@ def test_retest_refusals_acceptance_and_completion_frozen_copy(
         ).status_code
         == 201
     )
-    assert (
-        client.post(
-            f"/executions/{ex['id']}/deviations/{dev_r026['id']}/submit", headers=bima
-        ).status_code
-        == 200
+    sub_r026 = client.post(
+        f"/executions/{ex['id']}/deviations/{dev_r026['id']}/submit", headers=bima
     )
+    assert sub_r026.status_code == 200
+    d_r026_sub = next(d for d in sub_r026.json()["deviations"] if d["id"] == dev_r026["id"])
     assert (
         client.post(
             _retest_url(ex["id"], R026),
@@ -659,7 +670,11 @@ def test_retest_refusals_acceptance_and_completion_frozen_copy(
         client.post(
             f"/executions/{ex['id']}/deviations/{dev_r026['id']}/return",
             headers=approver,
-            json={"reason": "Perlu uji ulang"},
+            json={
+                "reason": "Perlu uji ulang",
+                "expected_event_id": d_r026_sub["events"][-1]["id"],
+                "expected_investigation_version": d_r026_sub["investigations"][-1]["version"],
+            },
         ).status_code
         == 200
     )
@@ -706,27 +721,33 @@ def test_retest_refusals_acceptance_and_completion_frozen_copy(
     assert retest_pass.status_code == 201
     assert len(_row(retest_pass.json(), R026)["attempts"]) == 3
 
-    # Close all 4 Deviations and Complete Execution
+    # Close all 4 Deviations and Complete Execution (fresh token per signature)
     for d in retest_pass.json()["deviations"]:
-        if d["status"] == "open":
-            if not d["investigations"]:
+        cur_d = d
+        if cur_d["status"] == "open":
+            if not cur_d["investigations"]:
                 assert (
                     client.post(
-                        f"/executions/{ex['id']}/deviations/{d['id']}/investigations",
+                        f"/executions/{ex['id']}/deviations/{cur_d['id']}/investigations",
                         headers=bima,
                         json={"investigation": "Selesai", "deviation_class": "minor"},
                     ).status_code
                     == 201
                 )
-            assert (
-                client.post(
-                    f"/executions/{ex['id']}/deviations/{d['id']}/submit", headers=bima
-                ).status_code
-                == 200
+            sub_d = client.post(
+                f"/executions/{ex['id']}/deviations/{cur_d['id']}/submit", headers=bima
             )
+            assert sub_d.status_code == 200
+            cur_d = next(item for item in sub_d.json()["deviations"] if item["id"] == cur_d["id"])
         assert (
             client.post(
-                f"/executions/{ex['id']}/deviations/{d['id']}/close", headers=approver
+                f"/executions/{ex['id']}/deviations/{cur_d['id']}/close",
+                headers=persona_token(demo_issuer, "dewi"),
+                json={
+                    "expected_event_id": cur_d["events"][-1]["id"],
+                    "expected_investigation_version": cur_d["investigations"][-1]["version"],
+                    "expected_content_hash": cur_d["closure_content_hash"],
+                },
             ).status_code
             == 200
         )

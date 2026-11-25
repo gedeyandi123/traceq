@@ -149,9 +149,15 @@ def _close_deviation(
         headers=executor,
     )
     assert sub.status_code == 200, sub.text
+    d = next(item for item in sub.json()["deviations"] if item["id"] == deviation_id)
     closed = client.post(
         f"/executions/{execution_id}/deviations/{deviation_id}/close",
         headers=approver,
+        json={
+            "expected_event_id": d["events"][-1]["id"],
+            "expected_investigation_version": d["investigations"][-1]["version"],
+            "expected_content_hash": d["closure_content_hash"],
+        },
     )
     assert closed.status_code == 200, closed.text
     return closed.json()
@@ -256,6 +262,7 @@ def test_complete_refused_with_open_or_submitted_deviation(
 
 def test_complete_allowed_with_failed_latest_attempt_once_deviations_closed_and_without_witness(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     decider: dict[str, str],
     approver: dict[str, str],
 ) -> None:
@@ -268,8 +275,8 @@ def test_complete_allowed_with_failed_latest_attempt_once_deviations_closed_and_
     assert failed["deviations"][0]["status"] == "open"
     dev_id = failed["deviations"][0]["id"]
 
-    # Close the Deviation
-    closed = _close_deviation(client, decider, approver, ex_id, dev_id)
+    # Close the Deviation (fresh token per signature)
+    closed = _close_deviation(client, decider, persona_token(demo_issuer, "dewi"), ex_id, dev_id)
     assert closed["completion_blockers"]["blocked"] is False
 
     # Complete without any Witness confirmation, even though latest attempt failed
@@ -341,6 +348,7 @@ def test_frozen_copy_hash_stable_across_reads_and_includes_witness_and_audit(
 
 def test_every_write_after_completion_is_refused_with_409(
     client: TestClient,
+    demo_issuer: DemoIssuer,
     decider: dict[str, str],
     approver: dict[str, str],
     witness: dict[str, str],
@@ -351,7 +359,7 @@ def test_every_write_after_completion_is_refused_with_409(
     failed = _record_fail_for_002(client, decider, ex_id)
     dev_id = failed["deviations"][0]["id"]
     latest_v = failed["rows"][0]["attempts"][0]["latest"]
-    _close_deviation(client, decider, approver, ex_id, dev_id)
+    _close_deviation(client, decider, persona_token(demo_issuer, "dewi"), ex_id, dev_id)
 
     assert client.post(f"/executions/{ex_id}/complete", headers=decider).status_code == 200
 
@@ -408,14 +416,26 @@ def test_every_write_after_completion_is_refused_with_409(
         == 409
     )
     assert (
-        client.post(f"/executions/{ex_id}/deviations/{dev_id}/close", headers=approver).status_code
+        client.post(
+            f"/executions/{ex_id}/deviations/{dev_id}/close",
+            headers=approver,
+            json={
+                "expected_event_id": 1,
+                "expected_investigation_version": 1,
+                "expected_content_hash": "a" * 64,
+            },
+        ).status_code
         == 409
     )
     assert (
         client.post(
             f"/executions/{ex_id}/deviations/{dev_id}/return",
             headers=approver,
-            json={"reason": "Late return"},
+            json={
+                "reason": "Late return",
+                "expected_event_id": 1,
+                "expected_investigation_version": 1,
+            },
         ).status_code
         == 409
     )

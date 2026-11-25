@@ -5,12 +5,14 @@ import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
 import type { DeviationView } from "@/api/client";
+import type { SigningAuthState } from "@/auth/session";
 import type { ExecutionActionState } from "@/execution/actions";
+import { ElectronicSignatureDialog } from "./ElectronicSignatureDialog";
 import { formatWhen } from "./formatWhen";
+import { SignatureBadge } from "./SignatureBadge";
 import { DirtyGuardBanner } from "./ui/DirtyGuardBanner";
 import { Drawer } from "./ui/Drawer";
 import { FIELD_BASE_CLASS } from "./ui/FormControls";
-import { Modal } from "./ui/Modal";
 import { DeviationStatusBadge } from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
 import { Button } from "./ui/ui";
@@ -27,9 +29,12 @@ const CLASSES = ["minor", "major", "critical"] as const;
 /** Drawer showing full Deviation detail, Investigation history, status history, and
  * role-gated Investigation / Submit / Close / Return controls (ADR 0013, spec #273). */
 export function DeviationDetailDrawer({
+  runId = "",
   executionId,
   executionInProgress,
   deviation,
+  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  initialReauthTarget = null,
   open,
   onOpenChange,
   investigateAction,
@@ -37,9 +42,12 @@ export function DeviationDetailDrawer({
   closeAction,
   returnAction,
 }: {
+  runId?: string;
   executionId: number;
   executionInProgress: boolean;
   deviation: DeviationView;
+  signingAuth?: SigningAuthState;
+  initialReauthTarget?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   investigateAction: Action | null;
@@ -60,7 +68,9 @@ export function DeviationDetailDrawer({
   const [reasonForChange, setReasonForChange] = useState("");
   const [returnReason, setReturnReason] = useState("");
   const [dirtyPrompt, setDirtyPrompt] = useState(false);
-  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(
+    () => initialReauthTarget === `deviation_closure:${deviation.id}`,
+  );
   const [lastActionState, setLastActionState] = useState<ExecutionActionState | null>(null);
 
   const isDirty =
@@ -190,9 +200,17 @@ export function DeviationDetailDrawer({
         </section>
 
         {deviation.status === "closed" && (
-          <div className="flex items-start gap-2 rounded-lg border border-pass-edge bg-pass-soft px-3 py-2.5 text-xs text-pass">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{t("deviationClosureNote")}</span>
+          <div className="space-y-2">
+            <div className="flex items-start gap-2 rounded-lg border border-pass-edge bg-pass-soft px-3 py-2.5 text-xs text-pass">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{t("deviationClosureNote")}</span>
+            </div>
+            <SignatureBadge
+              signature={
+                [...deviation.events].reverse().find((e) => e.event === "closed")
+                  ?.electronic_signature
+              }
+            />
           </div>
         )}
 
@@ -354,34 +372,49 @@ export function DeviationDetailDrawer({
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{t("deviationCloseButton")}</span>
                 </Button>
-                <Modal
+                <ElectronicSignatureDialog
                   open={closeConfirmOpen}
                   onOpenChange={setCloseConfirmOpen}
-                  size="sm"
                   title={t("deviationCloseButton")}
-                  description={t("deviationClosureNote")}
+                  targetSummary={t("deviationDetailTitle", { number: deviation.deviation_number })}
+                  signatureMeaning="approved"
+                  contentHash={deviation.closure_content_hash ?? null}
+                  signingAuth={signingAuth}
+                  reauthNextUrl={
+                    runId
+                      ? `/runs/${encodeURIComponent(runId)}/execution?reauth_target=${encodeURIComponent(`deviation_closure:${deviation.id}`)}`
+                      : "/runs"
+                  }
+                  action={closeFormAction}
+                  confirmLabel={t("deviationCloseButton")}
+                  cancelLabel={tp("cancel")}
+                  error={
+                    activeError?.error
+                      ? (activeError.detail ?? t(`errors.${activeError.error}`))
+                      : null
+                  }
+                  isReauthError={activeError?.error === "reauth_required"}
                 >
-                  <form action={closeFormAction} className="space-y-3">
-                    <input type="hidden" name="execution_id" value={executionId} />
-                    <input type="hidden" name="deviation_id" value={deviation.id} />
-                    <p className="m-0 text-xs text-ink">
-                      {t("deviationDetailTitle", { number: deviation.deviation_number })}
-                    </p>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCloseConfirmOpen(false)}
-                        className="cursor-pointer rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
-                      >
-                        {tp("cancel")}
-                      </button>
-                      <SubmitButton variant="primary">
-                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>{t("deviationCloseButton")}</span>
-                      </SubmitButton>
-                    </div>
-                  </form>
-                </Modal>
+                  <input type="hidden" name="execution_id" value={executionId} />
+                  <input type="hidden" name="deviation_id" value={deviation.id} />
+                  <input
+                    type="hidden"
+                    name="expected_event_id"
+                    value={deviation.events[deviation.events.length - 1]?.id ?? ""}
+                  />
+                  <input
+                    type="hidden"
+                    name="expected_investigation_version"
+                    value={
+                      deviation.investigations[deviation.investigations.length - 1]?.version ?? ""
+                    }
+                  />
+                  <input
+                    type="hidden"
+                    name="expected_content_hash"
+                    value={deviation.closure_content_hash ?? ""}
+                  />
+                </ElectronicSignatureDialog>
               </>
             )}
 
@@ -389,6 +422,18 @@ export function DeviationDetailDrawer({
               <form action={retFormAction} className="space-y-2 border-t border-border pt-3">
                 <input type="hidden" name="execution_id" value={executionId} />
                 <input type="hidden" name="deviation_id" value={deviation.id} />
+                <input
+                  type="hidden"
+                  name="expected_event_id"
+                  value={deviation.events[deviation.events.length - 1]?.id ?? ""}
+                />
+                <input
+                  type="hidden"
+                  name="expected_investigation_version"
+                  value={
+                    deviation.investigations[deviation.investigations.length - 1]?.version ?? ""
+                  }
+                />
                 <label
                   htmlFor="dev-return-reason"
                   className="block text-xs font-semibold text-ink"

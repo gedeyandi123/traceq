@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
@@ -39,3 +40,45 @@ def authenticate(verifier: Verifier | None) -> Callable[..., Principal]:
             raise HTTPException(503, "the identity issuer is temporarily unavailable") from e
 
     return principal
+
+
+def require_fresh_auth(
+    verifier: Verifier | None,
+    *,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> Callable[[Principal], Principal]:
+    """Return a checker enforcing fresh ``auth_time`` and non-null ``jti`` on ``Principal``.
+
+    Preserves ``verifier=None`` for ``openapi_schema()``. Run AFTER 403 role checks so callers
+    without the required role receive 403 before 401 re-authentication challenges.
+    """
+    max_age = 60 if verifier is None else verifier.settings.max_auth_age_seconds
+    leeway = 5 if verifier is None else verifier.settings.clock_skew_leeway_seconds
+    challenge = {
+        "WWW-Authenticate": (f'Bearer error="insufficient_user_authentication", max_age={max_age}')
+    }
+
+    def check(principal: Principal) -> Principal:
+        if verifier is None:
+            raise HTTPException(401, "no trusted issuer is configured", _CHALLENGE)
+        if principal.auth_time is None:
+            raise HTTPException(401, "re-authentication required: missing auth_time", challenge)
+        if principal.jti is None:
+            raise HTTPException(401, "re-authentication required: missing jti", challenge)
+        now = clock()
+        age = (now - principal.auth_time).total_seconds()
+        if age < -leeway:
+            raise HTTPException(
+                401,
+                "re-authentication required: auth_time is in the future",
+                challenge,
+            )
+        if age > max_age + leeway:
+            raise HTTPException(
+                401,
+                f"re-authentication required: auth_time is older than {max_age}s",
+                challenge,
+            )
+        return principal
+
+    return check

@@ -15,6 +15,8 @@ both succeed, and each has its Audit Trail entry in the same transaction.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from traceq import audit
@@ -55,7 +57,15 @@ def _submitted(
 
 
 def approve(
-    session: Session, actor: audit.Actor, protocol_id: int, event_id: int, hashed: str
+    session: Session,
+    actor: audit.Actor,
+    protocol_id: int,
+    event_id: int,
+    hashed: str,
+    *,
+    auth_time: datetime | None = None,
+    jti: str | None = None,
+    is_demo: bool = False,
 ) -> lifecycle.AssembledProtocol:
     """Approves the Submitted Protocol whose current submission is ``event_id`` with copy hash
     ``hashed``: what the Approver read."""
@@ -82,6 +92,28 @@ def approve(
             " an Approver did not"
         )
     done = lifecycle.append(session, actor, protocol_id, "approved", None)
+    sig_id: int | None = None
+    if auth_time is not None and jti is not None:
+        sig = audit.record_signature(
+            session,
+            actor,
+            record_type="protocol_approval",
+            signature_meaning="approved",
+            content_hash=latest.hash,
+            auth_time=auth_time,
+            jti=jti,
+            is_demo=is_demo,
+            protocol_event_id=done.id,
+        )
+        sig_id = sig.id
+    new_audit: dict[str, audit.JsonValue] = {
+        "status": done.status,
+        "event_id": done.id,
+        "submission_event_id": latest.event_id,
+        "hash": latest.hash,
+    }
+    if sig_id is not None:
+        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,
@@ -89,12 +121,7 @@ def approve(
         "protocol",
         str(protocol_id),
         old={"status": current.status},
-        new={
-            "status": done.status,
-            "event_id": done.id,
-            "submission_event_id": latest.event_id,
-            "hash": latest.hash,
-        },
+        new=new_audit,
     )
     return current.after(done)
 

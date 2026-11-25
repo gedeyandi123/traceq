@@ -19,12 +19,34 @@ export function SignInView({
   personas,
   action,
   nextPath,
+  oidcMode = false,
+  oidcLoginHref = "/api/auth/login",
 }: {
   personas: readonly Persona[] | null;
   action: (formData: FormData) => void | Promise<void>;
   nextPath?: string;
+  oidcMode?: boolean;
+  oidcLoginHref?: string;
 }) {
   const t = useTranslations("signin");
+  if (oidcMode) {
+    return (
+      <div className="mx-auto max-w-xl space-y-5">
+        <div>
+          <h1 className="m-0 text-xl font-bold tracking-tight text-ink">{t("title")}</h1>
+          <p className="mt-1 mb-0 text-sm text-ink-muted">{t("oidcNote")}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-5 shadow-xs">
+          <a
+            href={oidcLoginHref}
+            className="inline-flex h-9 w-full items-center justify-center rounded-md border border-accent bg-accent px-4 text-sm font-semibold text-on-accent no-underline transition-colors hover:bg-accent-hover"
+          >
+            {t("oidcSignIn")}
+          </a>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <div>

@@ -6,8 +6,11 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { ProtocolEvent, ProtocolView } from "@/api/client";
+import type { SigningAuthState } from "@/auth/session";
 import type { ApprovalControls, ProtocolControls } from "./AssembledProtocolView";
+import { ElectronicSignatureDialog } from "./ElectronicSignatureDialog";
 import { formatWhen } from "./formatWhen";
+import { SignatureBadge } from "./SignatureBadge";
 import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { Modal } from "./ui/Modal";
 import { ProtocolStatusBadge } from "./ui/StatusBadge";
@@ -63,6 +66,9 @@ export function ProtocolHistory({
         {events.map((e) => (
           <li key={e.id} className="space-y-1 text-ink">
             <div>{t(`events.${e.event}`, { name: e.name, when: formatWhen(when, e.at) })}</div>
+            {(e.event === "submitted" || e.event === "approved") && (
+              <SignatureBadge signature={e.electronic_signature} compact />
+            )}
             {e.reason && (
               <div className="rounded border border-border bg-sunken px-2.5 py-1.5 text-ink-muted italic">
                 {e.reason}
@@ -82,13 +88,19 @@ function ApprovalForms({
   protocol,
   runId,
   approval,
+  signingAuth,
+  initialReauthTarget,
 }: {
   t: T;
   protocol: ProtocolView;
   runId: string;
   approval: ApprovalControls;
+  signingAuth: SigningAuthState;
+  initialReauthTarget: string | null;
 }) {
-  const [approveOpen, setApproveOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(
+    () => initialReauthTarget === "protocol_approval",
+  );
   const [returnOpen, setReturnOpen] = useState(false);
   const shown = protocol.submission;
   if (protocol.status !== "submitted" || approval === null || shown === null) return null;
@@ -109,36 +121,24 @@ function ApprovalForms({
         </button>
       </div>
 
-      <Modal
+      <ElectronicSignatureDialog
         open={approveOpen}
         onOpenChange={setApproveOpen}
-        size="sm"
         title={t("approval.approve")}
-        description={t("approval.note")}
+        targetSummary={t("status", { id: protocol.id })}
+        signatureMeaning="approved"
+        contentHash={shown.hash}
+        signingAuth={signingAuth}
+        reauthNextUrl={`/runs/${encodeURIComponent(runId)}/protocol?reauth_target=protocol_approval`}
+        action={approval.approve}
+        confirmLabel={t("approval.approve")}
+        cancelLabel={t("cancel")}
       >
-        <form action={approval.approve} className="space-y-3">
-          <input type="hidden" name="run_id" value={runId} />
-          <input type="hidden" name="protocol_id" value={protocol.id} />
-          <input type="hidden" name="submission_event_id" value={shown.event_id} />
-          <input type="hidden" name="hash" value={shown.hash} />
-          <div className="rounded-md border border-border bg-sunken px-3 py-2 text-xs">
-            <div className="font-semibold text-ink-muted">{t("copy.hash")}</div>
-            <code className="mt-0.5 block font-mono text-xs text-ink tabular-nums">
-              {shown.hash.slice(0, 16)}…
-            </code>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setApproveOpen(false)}
-              className="cursor-pointer rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sunken"
-            >
-              {t("cancel")}
-            </button>
-            <SubmitButton variant="primary">{t("approval.approve")}</SubmitButton>
-          </div>
-        </form>
-      </Modal>
+        <input type="hidden" name="run_id" value={runId} />
+        <input type="hidden" name="protocol_id" value={protocol.id} />
+        <input type="hidden" name="submission_event_id" value={shown.event_id} />
+        <input type="hidden" name="hash" value={shown.hash} />
+      </ElectronicSignatureDialog>
 
       <Modal
         open={returnOpen}
@@ -187,16 +187,26 @@ export function ProtocolStatusPanel({
   runId,
   controls,
   approval,
+  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  initialReauthTarget = null,
 }: {
   t: T;
   protocol: ProtocolView;
   runId: string;
   controls: ProtocolControls;
   approval: ApprovalControls;
+  signingAuth?: SigningAuthState;
+  initialReauthTarget?: string | null;
 }) {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const currentStepIdx =
     protocol.status === "approved" ? 2 : protocol.status === "submitted" ? 1 : 0;
+  const latestSubmittedEvent = [...protocol.events]
+    .reverse()
+    .find((e) => e.event === "submitted");
+  const latestApprovedEvent = [...protocol.events]
+    .reverse()
+    .find((e) => e.event === "approved");
 
   return (
     <section
@@ -260,19 +270,26 @@ export function ProtocolStatusPanel({
       </div>
 
       {protocol.status === "approved" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass">
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{t("approval.approvedNote")}</span>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{t("approval.approvedNote")}</span>
+            </div>
+            <Link
+              href={`/runs/${encodeURIComponent(runId)}/execution`}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-accent no-underline hover:text-accent-hover hover:underline"
+            >
+              <span>{t("toExecution")}</span>
+              <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            </Link>
           </div>
-          <Link
-            href={`/runs/${encodeURIComponent(runId)}/execution`}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-accent no-underline hover:text-accent-hover hover:underline"
-          >
-            <span>{t("toExecution")}</span>
-            <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          </Link>
+          <SignatureBadge signature={latestApprovedEvent?.electronic_signature} />
         </div>
+      )}
+
+      {protocol.status === "submitted" && (
+        <SignatureBadge signature={latestSubmittedEvent?.electronic_signature} />
       )}
 
       {protocol.status === "submitted" && controls !== null && approval === null && (
@@ -282,7 +299,14 @@ export function ProtocolStatusPanel({
         </div>
       )}
 
-      <ApprovalForms t={t} protocol={protocol} runId={runId} approval={approval} />
+      <ApprovalForms
+        t={t}
+        protocol={protocol}
+        runId={runId}
+        approval={approval}
+        signingAuth={signingAuth}
+        initialReauthTarget={initialReauthTarget}
+      />
 
       {protocol.status === "withdrawn" && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-sunken px-3.5 py-2.5">

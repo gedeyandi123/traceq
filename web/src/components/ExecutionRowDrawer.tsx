@@ -2,7 +2,7 @@
 
 import { AlertCircle, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import type {
   AttemptVersionView,
@@ -10,13 +10,15 @@ import type {
   DeviationView,
   ExecutionRowView,
 } from "@/api/client";
+import type { SigningAuthState } from "@/auth/session";
 import type { ExecutionActionState } from "@/execution/actions";
+import { ElectronicSignatureDialog } from "./ElectronicSignatureDialog";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
+import { SignatureBadge } from "./SignatureBadge";
 import { Drawer } from "./ui/Drawer";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
 import { VerdictBadge } from "./ui/StatusBadge";
-import { SubmitButton } from "./ui/SubmitButton";
 import { Button } from "./ui/ui";
 
 type T = ReturnType<typeof useTranslations<"execution">>;
@@ -49,36 +51,46 @@ export function formatAttemptValue(
 
 function WitnessConfirmForm({
   t,
+  runId,
   executionId,
   requirement,
   attemptNumber,
   versionNumber,
   versionHash,
+  signingAuth,
+  initialReauthTarget,
   witnessAction,
 }: {
   t: T;
+  runId: string;
   executionId: number;
   requirement: string;
   attemptNumber: number;
   versionNumber: number;
   versionHash: string;
+  signingAuth: SigningAuthState;
+  initialReauthTarget: string | null;
   witnessAction: (
     prevState: ExecutionActionState,
     formData: FormData,
   ) => Promise<ExecutionActionState>;
 }) {
-  const [state, formAction] = useActionState(witnessAction, INITIAL_STATE);
+  const targetKey = `witness_confirmation:${requirement}:${attemptNumber}:${versionNumber}`;
+  const [dialogOpen, setDialogOpen] = useState(() => initialReauthTarget === targetKey);
+  const [state, formAction] = useActionState(
+    async (prev: ExecutionActionState, fd: FormData) => {
+      const res = await witnessAction(prev, fd);
+      if (res.ok) setDialogOpen(false);
+      return res;
+    },
+    INITIAL_STATE,
+  );
 
   return (
     <div className="space-y-1.5">
-      <form action={formAction}>
-        <input type="hidden" name="execution_id" value={executionId} />
-        <input type="hidden" name="requirement" value={requirement} />
-        <input type="hidden" name="attempt_number" value={attemptNumber} />
-        <input type="hidden" name="version" value={versionNumber} />
-        <input type="hidden" name="version_hash" value={versionHash} />
-        <SubmitButton variant="soft">{t("witnessConfirmButton")}</SubmitButton>
-      </form>
+      <Button type="button" variant="soft" onClick={() => setDialogOpen(true)}>
+        {t("witnessConfirmButton")}
+      </Button>
       <p className="m-0 text-[10px] text-ink-muted">{t("witnessNotSignatureNote")}</p>
       {!state.ok && state.error && (
         <div
@@ -89,6 +101,26 @@ function WitnessConfirmForm({
           <span>{state.detail ?? t(`errors.${state.error}`)}</span>
         </div>
       )}
+      <ElectronicSignatureDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={t("witnessConfirmButton")}
+        targetSummary={`${requirement} · #${attemptNumber} v${versionNumber}`}
+        signatureMeaning="witnessed"
+        contentHash={versionHash}
+        signingAuth={signingAuth}
+        reauthNextUrl={`/runs/${encodeURIComponent(runId)}/execution?reauth_target=${encodeURIComponent(targetKey)}`}
+        action={formAction}
+        confirmLabel={t("witnessConfirmButton")}
+        error={!state.ok && state.error ? (state.detail ?? t(`errors.${state.error}`)) : null}
+        isReauthError={!state.ok && state.error === "reauth_required"}
+      >
+        <input type="hidden" name="execution_id" value={executionId} />
+        <input type="hidden" name="requirement" value={requirement} />
+        <input type="hidden" name="attempt_number" value={attemptNumber} />
+        <input type="hidden" name="version_number" value={versionNumber} />
+        <input type="hidden" name="version_hash" value={versionHash} />
+      </ElectronicSignatureDialog>
     </div>
   );
 }
@@ -104,6 +136,8 @@ export function ExecutionRowDrawer({
   canCorrect,
   canRetest,
   witnessAction,
+  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  initialReauthTarget = null,
   open,
   onOpenChange,
   onRecord,
@@ -122,6 +156,8 @@ export function ExecutionRowDrawer({
   witnessAction:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
+  signingAuth?: SigningAuthState;
+  initialReauthTarget?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRecord: () => void;
@@ -350,6 +386,11 @@ export function ExecutionRowDrawer({
                                           <div className="text-[10px] text-ink-muted">
                                             {t("witnessNotSignatureNote")}
                                           </div>
+                                          <SignatureBadge
+                                            signature={w.electronic_signature}
+                                            voided={w.voided}
+                                            compact
+                                          />
                                         </li>
                                       ))}
                                     </ul>
@@ -374,11 +415,14 @@ export function ExecutionRowDrawer({
                                       ) : (
                                         <WitnessConfirmForm
                                           t={t}
+                                          runId={runId}
                                           executionId={executionId}
                                           requirement={row.requirement}
                                           attemptNumber={attempt.attempt_number}
                                           versionNumber={ver.version}
                                           versionHash={ver.version_hash}
+                                          signingAuth={signingAuth}
+                                          initialReauthTarget={initialReauthTarget}
                                           witnessAction={witnessAction}
                                         />
                                       )}

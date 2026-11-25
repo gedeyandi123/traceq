@@ -14,8 +14,12 @@ in replay, so the draft and its findings are loaded and imported at start, with 
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import html
 import json
+import os
+import re
 import shutil
 import socket
 import subprocess
@@ -25,7 +29,8 @@ from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 from sqlalchemy import URL, create_engine, make_url, text
@@ -54,6 +59,10 @@ class DemoSettings:
     issuer_port: int = 9000
     api_port: int = 8000
     compose: bool = True
+    idp: Literal["demo", "keycloak"] = "demo"
+    """Identity provider mode: ``demo`` (local demo-issuer) or ``keycloak`` (Compose IdP)."""
+    keycloak_url: str = "http://127.0.0.1:8080/realms/traceq"
+    """Issuer URL used when ``idp == 'keycloak'``."""
     review_package: Path | None = None
     """A released Review Package directory for this corpus and Equipment."""
     package_recordings: Path | None = None
@@ -191,9 +200,9 @@ def _stop(*procs: subprocess.Popen[bytes] | None) -> None:
 
 @dataclass
 class Demo:
-    """A running demo: the two local processes and what was imported."""
+    """A running demo: local processes (``issuer`` is ``None`` in keycloak mode) and run ID."""
 
-    issuer: subprocess.Popen[bytes]
+    issuer: subprocess.Popen[bytes] | None
     api: subprocess.Popen[bytes]
     run_id: str
     issuer_url: str
@@ -214,6 +223,103 @@ def start_postgres() -> None:
         ) from e
 
 
+def start_keycloak() -> None:
+    try:
+        subprocess.run(
+            ["docker", "compose", "--profile", "keycloak", "up", "-d", "--wait", "keycloak"],
+            check=True,
+            timeout=300,
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        raise DemoError(
+            f"could not start Keycloak with Docker Compose ({e}); is Docker running?"
+        ) from e
+
+
+def keycloak_pkce_token(
+    issuer_url: str,
+    username: str,
+    password: str = "demo",
+    *,
+    client_id: str = "traceq-web",
+    redirect_uri: str = "http://127.0.0.1:3000/api/auth/callback",
+) -> str:
+    """Mint a fresh Keycloak access token via Authorization Code + PKCE (S256) with
+    ``prompt=login&max_age=0`` so ``auth_time`` is populated and fresh."""
+    base = issuer_url.rstrip("/")
+    verifier = base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode("ascii")
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest())
+        .rstrip(b"=")
+        .decode("ascii")
+    )
+    state = base64.urlsafe_b64encode(os.urandom(16)).rstrip(b"=").decode("ascii")
+    nonce = base64.urlsafe_b64encode(os.urandom(16)).rstrip(b"=").decode("ascii")
+    with httpx.Client(follow_redirects=False, timeout=15) as client:
+        auth_resp = client.get(
+            f"{base}/protocol/openid-connect/auth",
+            params={
+                "client_id": client_id,
+                "response_type": "code",
+                "scope": "openid",
+                "redirect_uri": redirect_uri,
+                "state": state,
+                "nonce": nonce,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "prompt": "login",
+                "max_age": "0",
+            },
+        )
+        auth_resp.raise_for_status()
+        match = re.search(r'action="([^"]+)"', auth_resp.text)
+        if match is None:
+            raise DemoError("Keycloak login form did not include an action URL")
+        action_url = html.unescape(match.group(1))
+        # Keycloak sets Secure cookies even on loopback http://127.0.0.1:8080; httpx does not
+        # auto-send Secure cookies over http://, so forward them explicitly.
+        cookie_header = "; ".join(f"{k}={v}" for k, v in auth_resp.cookies.items())
+        post_resp = client.post(
+            action_url,
+            data={"username": username, "password": password, "credentialId": ""},
+            headers={"Cookie": cookie_header} if cookie_header else {},
+        )
+        location: str | None = post_resp.headers.get("location")
+        if (
+            post_resp.status_code not in (301, 302, 303)
+            or not isinstance(location, str)
+            or not location
+        ):
+            raise DemoError(
+                f"Keycloak PKCE login failed for {username!r} (status {post_resp.status_code})"
+            )
+        qs: dict[str, list[str]] = parse_qs(urlsplit(location).query)
+        codes = qs.get("code")
+        code = codes[0] if codes else None
+        if not code:
+            raise DemoError(f"Keycloak redirect did not include an authorization code: {location}")
+        token_resp = client.post(
+            f"{base}/protocol/openid-connect/token",
+            data={
+                "grant_type": "authorization_code",
+                "client_id": client_id,
+                "code": code,
+                "redirect_uri": redirect_uri,
+                "code_verifier": verifier,
+            },
+        )
+        token_resp.raise_for_status()
+        return str(token_resp.json()["access_token"])
+
+
+def _demo_import_token(issuer_url: str, idp: Literal["demo", "keycloak"], username: str) -> str:
+    if idp == "keycloak":
+        return keycloak_pkce_token(issuer_url, username)
+    resp = httpx.post(f"{issuer_url}/demo/token", json={"username": username}, timeout=10)
+    resp.raise_for_status()
+    return str(resp.json()["access_token"])
+
+
 def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: None) -> Demo:
     """Everything the demo command does except waiting. Raises ``DemoError``."""
     if (settings.review_package is None) != (settings.package_recordings is None):
@@ -222,7 +328,12 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
     check_pair(settings.corpus, settings.equipment, settings.recordings)
     release = _manifest(settings.corpus).get("version")
     log(f"corpus release {release}, recordings {settings.recordings}")
-    for port, what in ((settings.issuer_port, "issuer"), (settings.api_port, "API")):
+    if settings.idp not in ("demo", "keycloak"):
+        raise DemoError(f"unsupported idp {settings.idp!r}; expected 'demo' or 'keycloak'")
+    ports_to_check: list[tuple[int, str]] = [(settings.api_port, "API")]
+    if settings.idp == "demo":
+        ports_to_check.insert(0, (settings.issuer_port, "issuer"))
+    for port, what in ports_to_check:
         if not _port_free(port):
             raise DemoError(
                 f"port {port} is in use; stop the earlier demo (Ctrl-C) before the {what} starts"
@@ -230,6 +341,9 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
     if settings.compose:
         log("starting Postgres (Docker Compose)")
         start_postgres()
+        if settings.idp == "keycloak":
+            log("starting Keycloak (Docker Compose)")
+            start_keycloak()
     log("resetting the database")
     try:
         app_url = reset_database(settings.admin_url, settings.database)
@@ -258,14 +372,24 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
         raise DemoError(f"the replay failed: {e}") from e
     run_id: str = out.metadata["run_id"]
 
-    issuer_url = f"http://127.0.0.1:{settings.issuer_port}"
+    if settings.idp == "keycloak":
+        issuer_url = settings.keycloak_url.rstrip("/")
+        role_claim = "realm_access.roles"
+    else:
+        issuer_url = f"http://127.0.0.1:{settings.issuer_port}"
+        role_claim = "roles"
     api_url = f"http://127.0.0.1:{settings.api_port}"
     cli = [sys.executable, "-m", "traceq.app.cli"]
-    log("starting the demo issuer and the API")
-    issuer = subprocess.Popen([*cli, "demo-issuer", "--port", str(settings.issuer_port)])
+    issuer: subprocess.Popen[bytes] | None = None
+    if settings.idp == "demo":
+        log("starting the demo issuer and the API")
+        issuer = subprocess.Popen([*cli, "demo-issuer", "--port", str(settings.issuer_port)])
+    else:
+        log("starting the API (Keycloak IdP)")
     api: subprocess.Popen[bytes] | None = None
     try:
-        _wait(f"{issuer_url}/demo/personas", "demo issuer", issuer)
+        if issuer is not None:
+            _wait(f"{issuer_url}/demo/personas", "demo issuer", issuer)
         api = subprocess.Popen(
             [
                 *cli,
@@ -278,17 +402,18 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
                 str(settings.api_port),
                 "--issuer",
                 issuer_url,
+                "--role-claim",
+                role_claim,
                 "--database",
                 app_url.render_as_string(hide_password=False),
             ]
         )
         _wait(f"{api_url}/runs", "API", api)
         log(f"importing {run_id} as {DEMO_PERSONA}")
-        token = httpx.post(f"{issuer_url}/demo/token", json={"username": DEMO_PERSONA}, timeout=10)
-        token.raise_for_status()
+        access_token = _demo_import_token(issuer_url, settings.idp, DEMO_PERSONA)
         imported = httpx.post(
             f"{api_url}/runs/{run_id}/import",
-            headers={"Authorization": f"Bearer {token.json()['access_token']}"},
+            headers={"Authorization": f"Bearer {access_token}"},
             timeout=60,
         )
         if imported.status_code != 200:
@@ -296,7 +421,13 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
         if settings.ready_file is not None:
             _write_ready_file(
                 settings.ready_file,
-                {"run_id": run_id, "api_url": api_url, "issuer_url": issuer_url},
+                {
+                    "run_id": run_id,
+                    "api_url": api_url,
+                    "issuer_url": issuer_url,
+                    "idp": settings.idp,
+                    "role_claim": role_claim,
+                },
             )
     except BaseException:
         _stop(api, issuer)
@@ -326,7 +457,7 @@ def run_demo(settings: DemoSettings) -> int:
         flush=True,
     )
     try:
-        while demo.api.poll() is None and demo.issuer.poll() is None:
+        while demo.api.poll() is None and (demo.issuer is None or demo.issuer.poll() is None):
             time.sleep(0.5)
         print("demo: a process stopped; stopping the demo", file=sys.stderr)
         return 1

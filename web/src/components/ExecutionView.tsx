@@ -11,6 +11,7 @@ import type {
   ExecutionView,
   ProtocolView,
 } from "@/api/client";
+import type { SigningAuthState } from "@/auth/session";
 import type { ExecutionActionState } from "@/execution/actions";
 import { DeviationDetailDrawer } from "./DeviationDetailDrawer";
 import { ExecutionResultDrawer, type ResultDrawerMode } from "./ExecutionResultDrawer";
@@ -134,11 +135,15 @@ export function ExecutionViewPanel({
   closeDeviationAction = null,
   returnDeviationAction = null,
   completeAction = null,
+  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  initialReauthTarget = null,
 }: {
   execution: ExecutionView | null;
   protocol: ProtocolView | null;
   runId: string;
   currentUser?: { subject: string; issuer: string } | null;
+  signingAuth?: SigningAuthState;
+  initialReauthTarget?: string | null;
   startAction:
     | ((prevState: ExecutionActionState, formData: FormData) => Promise<ExecutionActionState>)
     | null;
@@ -181,14 +186,27 @@ export function ExecutionViewPanel({
     startAction ?? (async () => INITIAL_STATE),
     INITIAL_STATE,
   );
-  const [activeTab, setActiveTab] = useState<"rows" | "deviations" | "history">("rows");
-  const [selectedReq, setSelectedReq] = useState<string | null>(null);
+  const initialDevId = (() => {
+    if (!initialReauthTarget?.startsWith("deviation_closure:")) return null;
+    const id = Number(initialReauthTarget.slice("deviation_closure:".length));
+    return Number.isInteger(id) ? id : null;
+  })();
+  const initialWitnessReq = (() => {
+    if (!initialReauthTarget?.startsWith("witness_confirmation:")) return null;
+    const parts = initialReauthTarget.split(":");
+    return parts[1] ? decodeURIComponent(parts[1]) : null;
+  })();
+
+  const [activeTab, setActiveTab] = useState<"rows" | "deviations" | "history">(() =>
+    initialDevId !== null ? "deviations" : "rows",
+  );
+  const [selectedReq, setSelectedReq] = useState<string | null>(initialWitnessReq);
   const [drawerTarget, setDrawerTarget] = useState<{
     requirement: string;
     mode: ResultDrawerMode;
   } | null>(null);
   const [manualDevOpen, setManualDevOpen] = useState(false);
-  const [activeDeviationId, setActiveDeviationId] = useState<number | null>(null);
+  const [activeDeviationId, setActiveDeviationId] = useState<number | null>(initialDevId);
 
   const anyDrawerOpen =
     selectedReq !== null ||
@@ -389,6 +407,8 @@ export function ExecutionViewPanel({
             canCorrect={correctAction !== null}
             canRetest={retestAction !== null}
             witnessAction={witnessAction}
+            signingAuth={signingAuth}
+            initialReauthTarget={initialReauthTarget}
             open={selectedRow !== null}
             onOpenChange={(open) => {
               if (!open) setSelectedReq(null);
@@ -458,9 +478,12 @@ export function ExecutionViewPanel({
           {activeDeviation && (
             <DeviationDetailDrawer
               key={activeDeviation.id}
+              runId={runId}
               executionId={execution.id}
               executionInProgress={execution.status === "in_progress"}
               deviation={activeDeviation}
+              signingAuth={signingAuth}
+              initialReauthTarget={initialReauthTarget}
               open={true}
               onOpenChange={(open) => {
                 if (!open) setActiveDeviationId(null);
