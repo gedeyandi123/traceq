@@ -23,7 +23,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from traceq.assembly import approval, lifecycle, missed, submission, written
+from traceq.assembly import approval, attributes, lifecycle, missed, submission, written
+from traceq.assembly.attributes import Stage
 from traceq.assembly.lifecycle import EventKind, Status
 from traceq.assembly.missed import MissedKind, UrsMissed
 from traceq.assembly.rows import (
@@ -92,6 +93,8 @@ class RowTestStep(_Model):
     acceptance: Value | None
     """The Acceptance Criterion; ``null`` while it is "to be set by a human"."""
     acceptance_flag: str | None
+    stage: Stage | None = None
+    witness_required: bool = False
 
 
 class WrittenVersionView(_Model):
@@ -160,6 +163,8 @@ class ProtocolRowView(_Model):
     """What blocks this row: ``coverage_undecided``; for a Test Step row ``draft_undecided``
     (a drafted Test Step not decided), ``no_test_step``, ``acceptance_not_shaped`` (its Test
     Step is an accepted draft whose Acceptance Criterion is missing or free text)."""
+    stage: Stage | None = None
+    witness_required: bool = False
 
 
 # The spec called a human's ruling on a missed number its "answer"; the code names it a
@@ -307,6 +312,13 @@ class NewWrittenVersion(_Model):
     """The full content; ``null`` removes the written Test Step."""
 
 
+class StepAttributesUpdate(_Model):
+    """Step attributes for a Test Step row in a Draft Protocol."""
+
+    stage: Stage | None = None
+    witness_required: bool = False
+
+
 class MissedDisposition(_Model):
     """A disposition of a printed requirement number the run missed. No Reason for Change: a
     later one replaces it, and every one is kept."""
@@ -374,6 +386,8 @@ def _row_step(r: ProtocolRow) -> RowTestStep | None:
         instrument=step.instrument,
         acceptance=step.acceptance,
         acceptance_flag=step.acceptance_flag,
+        stage=step.stage,
+        witness_required=step.witness_required,
     )
 
 
@@ -424,6 +438,9 @@ def _urs(u: UrsMissed) -> ProtocolUrs:
 
 def _row(r: ProtocolRow) -> ProtocolRowView:
     req = r.requirement
+    stage, witness_required = (
+        attributes.current(r.step_attributes) if r.kind == "test_step" else (None, False)
+    )
     return ProtocolRowView(
         requirement=req.id,
         text=req.text,
@@ -437,6 +454,8 @@ def _row(r: ProtocolRow) -> ProtocolRowView:
         written=[_version(v) for v in r.written],
         prefill=_prefill(r),
         blockers=list(r.blockers),
+        stage=stage,
+        witness_required=witness_required,
     )
 
 
@@ -721,6 +740,38 @@ entry. Needs the approving role.""",
             raise HTTPException(404, str(e)) from e
         except lifecycle.Refused as e:
             raise HTTPException(422, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.put(
+        "/protocols/{protocol_id}/rows/{requirement}/attributes",
+        operation_id="setRowAttributes",
+    )
+    def set_row_attributes(
+        protocol_id: int,
+        requirement: str,
+        body: StepAttributesUpdate,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ProtocolView:
+        """Sets ``stage`` (``IQ``, ``OQ``, or ``null``) and ``witness_required`` on a Test Step
+        row of a Protocol in Draft status, appending a new version and an Audit Trail entry.
+        Refused (409) unless the Protocol is in Draft status and the row is a ``test_step`` row.
+        Needs the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "setting step attributes needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                attributes.set_attributes(
+                    session,
+                    actor_of(who),
+                    protocol_id,
+                    requirement,
+                    body.stage,
+                    body.witness_required,
+                )
+                return reread(session, protocol_id)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
         except lifecycle.Conflict as e:
             raise HTTPException(409, str(e)) from e
 

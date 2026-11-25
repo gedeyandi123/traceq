@@ -34,6 +34,7 @@ def authors(copy: ProtocolCopy) -> list[Author]:
         if r.test_step is not None and r.test_step.decision is not None:
             found.append(r.test_step.decision.author)
         found.extend(v.author for v in r.written)
+        found.extend(a.author for a in r.step_attributes)
     for u in copy.urs or ():
         found.extend(d.author for m in u.missed for d in m.dispositions)
     return found
@@ -77,7 +78,8 @@ def approve(
     if any(_same(a, actor) for a in authors(copy)):
         raise Conflict(
             f"{actor.name} recorded part of what Protocol {protocol_id} rests on (a decision in"
-            " force, a disposition of a missed number or a written Test Step): an Approver did not"
+            " force, a disposition of a missed number, a written Test Step or step attributes):"
+            " an Approver did not"
         )
     done = lifecycle.append(session, actor, protocol_id, "approved", None)
     audit.append(

@@ -145,6 +145,8 @@ def _event_view(e: RoundEvent) -> ReviewRoundEventView:
 
 
 def _export_view(x: ReportExport) -> ReportExportView:
+    if x.round_id is None:
+        raise ValueError(f"export {x.id} has no round_id")
     return ReportExportView(
         id=x.id,
         round_id=x.round_id,

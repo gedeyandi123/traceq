@@ -1016,6 +1016,70 @@
         }
       }
     },
+    "/protocols/{protocol_id}/rows/{requirement}/attributes": {
+      "put": {
+        "summary": "Set Row Attributes",
+        "description": "Sets ``stage`` (``IQ``, ``OQ``, or ``null``) and ``witness_required`` on a Test Step\nrow of a Protocol in Draft status, appending a new version and an Audit Trail entry.\nRefused (409) unless the Protocol is in Draft status and the row is a ``test_step`` row.\nNeeds the deciding role.",
+        "operationId": "setRowAttributes",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "requirement",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Requirement"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepAttributesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/protocols/{protocol_id}/execution": {
       "post": {
         "summary": "Start Execution",
@@ -1716,6 +1780,156 @@
         }
       }
     },
+    "/runs/{run_id}/qualification-report": {
+      "get": {
+        "summary": "Get Qualification Report",
+        "description": "Reads the Qualification Report state of a run's completed Execution. 404 if no\nExecution exists or it is not completed. Open to any signed-in role.",
+        "operationId": "getQualificationReport",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualificationReportView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{execution_id}/qualification-reports": {
+      "post": {
+        "summary": "Approve Qualification Report",
+        "description": "Approves and exports a Qualification Report PDF for a completed Execution. Needs the\napproving role and enforces Separation of Duties against Performers, Completer,\nInvestigation authors, manual Deviation openers, Deviation submitters, and Witnesses.",
+        "operationId": "approveQualificationReport",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveQualificationReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualificationReportView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executions/{execution_id}/qualification-reports/{export_id}/pdf": {
+      "get": {
+        "summary": "Download Qualification Report Pdf",
+        "description": "Re-renders and downloads a stored Qualification Report PDF (zero DB writes).",
+        "operationId": "downloadQualificationReportPdf",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/runs/{run_id}/rounds": {
       "get": {
         "summary": "Get Run Rounds",
@@ -1913,6 +2127,34 @@
           }
         }
       }
+    },
+    "/equipment": {
+      "get": {
+        "summary": "List Equipment",
+        "description": "Lists every Equipment known from disk runs or database records, with latest round,\nprotocol, execution, and qualification report summaries.",
+        "operationId": "listEquipment",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EquipmentSummary"
+                  },
+                  "type": "array",
+                  "title": "Response Listequipment"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2054,6 +2296,37 @@
         ],
         "title": "Approval",
         "description": "What the Approver read: approval is bound to that submission and its hash."
+      },
+      "ApproveQualificationReportRequest": {
+        "properties": {
+          "conclusion_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion Note"
+          },
+          "next_requalification_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Requalification Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ApproveQualificationReportRequest",
+        "description": "Payload to approve a Qualification Report for a completed Execution."
       },
       "AttemptVersionView": {
         "properties": {
@@ -2232,6 +2505,28 @@
           },
           "latest": {
             "$ref": "#/components/schemas/AttemptVersionView"
+          },
+          "retest_deviation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retest Deviation Id"
+          },
+          "retest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retest Reason"
           }
         },
         "additionalProperties": false,
@@ -2479,6 +2774,9 @@
           },
           "open_deviations": {
             "$ref": "#/components/schemas/OpenDeviationsBlocker"
+          },
+          "unconfirmed_witness_rows": {
+            "$ref": "#/components/schemas/UnconfirmedWitnessBlocker"
           }
         },
         "additionalProperties": false,
@@ -2486,7 +2784,8 @@
         "required": [
           "blocked",
           "rows_without_result",
-          "open_deviations"
+          "open_deviations",
+          "unconfirmed_witness_rows"
         ],
         "title": "CompletionBlockers",
         "description": "Blocking checklist computed for every Execution view."
@@ -3815,6 +4114,76 @@
         "title": "DroppedClaim",
         "description": "A claim the citation check dropped, with its reason in plain text."
       },
+      "EquipmentSummary": {
+        "properties": {
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "run_count": {
+            "type": "integer",
+            "title": "Run Count"
+          },
+          "latest_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_round": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestRoundSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_protocol": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestProtocolSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestExecutionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_qualification_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestQualificationReportSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "equipment",
+          "run_count"
+        ],
+        "title": "EquipmentSummary",
+        "description": "One Equipment's merged disk + DB lifecycle summary."
+      },
       "EvidenceStep": {
         "properties": {
           "doc": {
@@ -4144,6 +4513,21 @@
           },
           "acceptance": {
             "$ref": "#/components/schemas/Acceptance"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "witness_required": {
+            "type": "boolean",
+            "title": "Witness Required",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -4333,6 +4717,28 @@
             },
             "type": "array",
             "title": "Versions"
+          },
+          "retest_deviation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retest Deviation Id"
+          },
+          "retest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retest Reason"
           }
         },
         "additionalProperties": false,
@@ -4917,6 +5323,21 @@
           },
           "acceptance": {
             "$ref": "#/components/schemas/Acceptance"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "witness_required": {
+            "type": "boolean",
+            "title": "Witness Required",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -5016,6 +5437,14 @@
             },
             "type": "array",
             "title": "Written"
+          },
+          "step_attributes": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenStepAttribute"
+            },
+            "type": "array",
+            "title": "Step Attributes",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -5032,6 +5461,46 @@
           "written"
         ],
         "title": "FrozenRow"
+      },
+      "FrozenStepAttribute": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "witness_required": {
+            "type": "boolean",
+            "title": "Witness Required",
+            "default": false
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "author",
+          "at"
+        ],
+        "title": "FrozenStepAttribute",
+        "description": "One version of a Test Step row's attributes (stage and witness_required)."
       },
       "FrozenTestStep": {
         "properties": {
@@ -5096,6 +5565,21 @@
           },
           "acceptance": {
             "$ref": "#/components/schemas/Acceptance"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "witness_required": {
+            "type": "boolean",
+            "title": "Witness Required",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -5446,6 +5930,165 @@
         ],
         "title": "KindCounts",
         "description": "The Proposals of one kind in a run, by decision state. ``total`` is the sum of\n``undecided``, ``changed`` and the current decisions ``accepted``, ``edited`` and\n``rejected``."
+      },
+      "LatestExecutionSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "protocol_id": {
+            "type": "integer",
+            "title": "Protocol Id"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/traceq__execution__lifecycle__Status"
+          },
+          "open_deviations": {
+            "type": "integer",
+            "title": "Open Deviations"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "protocol_id",
+          "run_id",
+          "status",
+          "open_deviations",
+          "at"
+        ],
+        "title": "LatestExecutionSummary"
+      },
+      "LatestProtocolSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/traceq__assembly__lifecycle__Status"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "status",
+          "at"
+        ],
+        "title": "LatestProtocolSummary"
+      },
+      "LatestQualificationReportSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "execution_id": {
+            "type": "integer",
+            "title": "Execution Id"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "revision_number": {
+            "type": "integer",
+            "title": "Revision Number"
+          },
+          "technical_conclusion": {
+            "$ref": "#/components/schemas/TechnicalConclusion"
+          },
+          "next_requalification_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Requalification Date"
+          },
+          "pdf_sha256": {
+            "type": "string",
+            "title": "Pdf Sha256"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "execution_id",
+          "run_id",
+          "revision_number",
+          "technical_conclusion",
+          "next_requalification_date",
+          "pdf_sha256",
+          "at"
+        ],
+        "title": "LatestQualificationReportSummary"
+      },
+      "LatestRoundSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "round_number": {
+            "type": "integer",
+            "title": "Round Number"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RoundStatus"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "round_number",
+          "run_id",
+          "status",
+          "at"
+        ],
+        "title": "LatestRoundSummary"
       },
       "Limit": {
         "properties": {
@@ -6542,6 +7185,21 @@
             },
             "type": "array",
             "title": "Blockers"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "witness_required": {
+            "type": "boolean",
+            "title": "Witness Required",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -6708,6 +7366,242 @@
         ],
         "title": "ProtocolView",
         "description": "A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not\na Protocol Draft: that is the site's document under Pre-review."
+      },
+      "QualificationCounts": {
+        "properties": {
+          "iq_total": {
+            "type": "integer",
+            "title": "Iq Total"
+          },
+          "iq_passed": {
+            "type": "integer",
+            "title": "Iq Passed"
+          },
+          "iq_failed": {
+            "type": "integer",
+            "title": "Iq Failed"
+          },
+          "oq_total": {
+            "type": "integer",
+            "title": "Oq Total"
+          },
+          "oq_passed": {
+            "type": "integer",
+            "title": "Oq Passed"
+          },
+          "oq_failed": {
+            "type": "integer",
+            "title": "Oq Failed"
+          },
+          "unsplit_total": {
+            "type": "integer",
+            "title": "Unsplit Total"
+          },
+          "unsplit_passed": {
+            "type": "integer",
+            "title": "Unsplit Passed"
+          },
+          "unsplit_failed": {
+            "type": "integer",
+            "title": "Unsplit Failed"
+          },
+          "vendor_reference_count": {
+            "type": "integer",
+            "title": "Vendor Reference Count"
+          },
+          "total_rows": {
+            "type": "integer",
+            "title": "Total Rows"
+          },
+          "total_deviations": {
+            "type": "integer",
+            "title": "Total Deviations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "iq_total",
+          "iq_passed",
+          "iq_failed",
+          "oq_total",
+          "oq_passed",
+          "oq_failed",
+          "unsplit_total",
+          "unsplit_passed",
+          "unsplit_failed",
+          "vendor_reference_count",
+          "total_rows",
+          "total_deviations"
+        ],
+        "title": "QualificationCounts"
+      },
+      "QualificationExportView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "revision_number": {
+            "type": "integer",
+            "title": "Revision Number"
+          },
+          "technical_conclusion": {
+            "$ref": "#/components/schemas/TechnicalConclusion"
+          },
+          "conclusion_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion Note"
+          },
+          "next_requalification_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Requalification Date"
+          },
+          "approval_note": {
+            "type": "string",
+            "title": "Approval Note"
+          },
+          "snapshot_hash": {
+            "type": "string",
+            "title": "Snapshot Hash"
+          },
+          "pdf_sha256": {
+            "type": "string",
+            "title": "Pdf Sha256"
+          },
+          "template_version": {
+            "type": "string",
+            "title": "Template Version"
+          },
+          "typst_version": {
+            "type": "string",
+            "title": "Typst Version"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "revision_number",
+          "technical_conclusion",
+          "conclusion_note",
+          "next_requalification_date",
+          "approval_note",
+          "snapshot_hash",
+          "pdf_sha256",
+          "template_version",
+          "typst_version",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "QualificationExportView",
+        "description": "One immutable Qualification Report export."
+      },
+      "QualificationReportView": {
+        "properties": {
+          "execution_id": {
+            "type": "integer",
+            "title": "Execution Id"
+          },
+          "protocol_id": {
+            "type": "integer",
+            "title": "Protocol Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "execution_copy_hash": {
+            "type": "string",
+            "title": "Execution Copy Hash"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          },
+          "technical_conclusion": {
+            "$ref": "#/components/schemas/TechnicalConclusion"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/QualificationCounts"
+          },
+          "approval_note": {
+            "type": "string",
+            "title": "Approval Note"
+          },
+          "latest_export": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QualificationExportView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exports": {
+            "items": {
+              "$ref": "#/components/schemas/QualificationExportView"
+            },
+            "type": "array",
+            "title": "Exports",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "execution_id",
+          "protocol_id",
+          "equipment",
+          "run_id",
+          "execution_copy_hash",
+          "completed_at",
+          "technical_conclusion",
+          "counts",
+          "approval_note"
+        ],
+        "title": "QualificationReportView",
+        "description": "Qualification Report state for a completed Execution."
       },
       "Range": {
         "properties": {
@@ -7499,6 +8393,21 @@
               }
             ],
             "title": "Acceptance Flag"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "witness_required": {
+            "type": "boolean",
+            "title": "Witness Required",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -7707,6 +8616,13 @@
         "title": "Source",
         "description": "A document and revision an AI Finding cites."
       },
+      "Stage": {
+        "type": "string",
+        "enum": [
+          "IQ",
+          "OQ"
+        ]
+      },
       "State": {
         "type": "string",
         "enum": [
@@ -7714,6 +8630,29 @@
           "changed",
           "undecided"
         ]
+      },
+      "StepAttributesUpdate": {
+        "properties": {
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "witness_required": {
+            "type": "boolean",
+            "title": "Witness Required",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "StepAttributesUpdate",
+        "description": "Step attributes for a Test Step row in a Draft Protocol."
       },
       "SubmissionView": {
         "properties": {
@@ -7755,6 +8694,14 @@
         ],
         "title": "SubmissionView",
         "description": "A submission of the Protocol: the frozen copy it stored and that copy's hash."
+      },
+      "TechnicalConclusion": {
+        "type": "string",
+        "enum": [
+          "qualified",
+          "qualified_with_deviations",
+          "not_qualified"
+        ]
       },
       "Text": {
         "properties": {
@@ -7811,6 +8758,29 @@
         ],
         "title": "Tolerance",
         "description": "A nominal value with a tolerance: ``380 V ± 10 %``."
+      },
+      "UnconfirmedWitnessBlocker": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requirements"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "count",
+          "requirements"
+        ],
+        "title": "UnconfirmedWitnessBlocker",
+        "description": "Test Step rows requiring Witness whose latest attempt lacks an active Witness."
       },
       "UnquotedText": {
         "properties": {
