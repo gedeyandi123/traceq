@@ -1,4 +1,28 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(**/world/tp202.yaml)",
+      "Read(**/world/pw001.yaml)",
+      "Read(**/TP-202/**)",
+      "Read(**/PW-001/**)",
+      "Edit(**/world/tp202.yaml)",
+      "Edit(**/world/pw001.yaml)",
+      "Edit(**/TP-202/**)",
+      "Edit(**/PW-001/**)",
+      "Read(**/*TP-202*)",
+      "Read(**/*tp202*)",
+      "Read(**/*PW-001*)",
+      "Read(**/*pw001*)",
+      "Edit(**/*TP-202*)",
+      "Edit(**/*tp202*)",
+      "Edit(**/*PW-001*)",
+      "Edit(**/*pw001*)",
+      "Read(**/*PW001*)",
+      "Read(**/*TP202*)",
+      "Edit(**/*PW001*)",
+      "Edit(**/*TP202*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

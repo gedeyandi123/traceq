@@ -210,11 +210,15 @@ jobs:
   checks:
     name: checks
     runs-on: ubuntu-24.04
-    needs: [hygiene, py-fast, py-db, py-slow, web]
+    needs: [changes, hygiene, py-fast, py-db, py-slow, web]
     if: always()
     steps:
       - name: verify all required checks passed or were skipped
         run: |
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "changes=${{ needs.changes.result }}"
+            exit 1
+          fi
           if [ "${{ needs.hygiene.result }}" != "success" ]; then
             echo "hygiene=${{ needs.hygiene.result }}"
             exit 1

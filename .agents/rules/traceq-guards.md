@@ -1,8 +1,6 @@
 # TraceQ Antigravity Workspace Guards
 
-These workspace rules mirror TraceQ's local Claude Code hooks (which do not execute in Antigravity). Always obey them:
-
-1. **Held-Out Isolation (CRITICAL):** NEVER open, read, or search `world/tp202*`, `world/pw001*`, `answer_key/TP-202`, `answer_key/PW-001`, or any held-out document, recording, or matrix row. Run held-out commands ONLY through `bash scripts/heldout_run.sh <TAG> -- <command...>` and report only scorer summary outputs.
-2. **Git & Branch Safety:** NEVER push to `main`, force-push, or use `--no-verify`. Never merge code PRs into `main` (owner-only).
-3. **Secrets & Public Repo:** NEVER read or commit `.env` or `.denylist.local`, and never write private names, real vendor names, or machine-local paths into any tracked file.
-4. **SSOT & Architecture Integrity:** Follow `AGENTS.md`, `GLOSSARY.md`, `docs/DESIGN.md`, `docs/adr/0008-modular-monolith-pragmatic-ports.md`, and `docs/adr/0014-web-ui-architecture-tailwind-v4-radix-and-design-system.md`. Do NOT create `STATUS.md`, `tasks/plan.md`, or `BACKLOG.md`, and do NOT add font/asset CDNs, dark mode, or unapproved suppressions (`tests/test_boundaries.py`).
+Follow `AGENTS.md` as the universal protocol (SSOT, ADRs, verification).
+Claude Code hooks (`.claude/hooks/*.mjs`, `~/.claude/hooks/*`) do **not** execute in Antigravity, so self-enforce:
+- Held-out isolation: never open/read/grep `world/tp202*`, `world/pw001*`, `answer_key/TP-202`, `answer_key/PW-001`; run held-out only via `bash scripts/heldout_run.sh <TAG> -- <cmd>`.
+- Git & secrets: never push to `main`, force-push, use `--no-verify`, merge code PRs into `main`, or read/commit `.env` or `.denylist.local`.

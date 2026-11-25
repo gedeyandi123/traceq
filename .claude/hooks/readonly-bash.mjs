@@ -39,7 +39,10 @@ function segment([cmd, ...args]) {
     if (sub === "api" && !args.some((a) => /^(-X|--method|-f|-F|--field|--raw-field|--input)$/.test(a))) return null;
     return `gh ${sub ?? ""} ${verb ?? ""} is not read-only`;
   }
-  if (cmd === "uv" && args[0] === "run" && /^(pytest|pyright)$/.test(args[1] ?? "")) return null;
+  if (cmd === "uv" && args[0] === "run") {
+    if (/^(pytest|pyright|lint-imports)$/.test(args[1] ?? "")) return null;
+    if (args[1] === "ruff" && args[2] === "check" && !args.slice(3).some((a) => /^(--fix|--fix-only|--unsafe-fixes|-w|--watch)$/.test(a))) return null;
+  }
   return `${cmd} is not on the read-only allowlist`;
 }
 
