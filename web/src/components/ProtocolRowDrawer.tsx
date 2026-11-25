@@ -1,10 +1,12 @@
 "use client";
 
-import { AlertTriangle, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ExternalLink, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { useActionState, useState } from "react";
 
-import type { ProtocolRowView } from "@/api/client";
+import type { ProtocolRowView, Stage } from "@/api/client";
+import type { ProtocolFormActionState } from "@/protocol/actions";
 import type { ProtocolControls } from "./AssembledProtocolView";
 import type { DecisionView } from "./Decisions";
 import { FindingDecisionPanel } from "./FindingDecisionPanel";
@@ -12,8 +14,96 @@ import { formatValue } from "./MatrixTable";
 import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
 import { DirtyGuardBanner } from "./ui/DirtyGuardBanner";
 import { Drawer } from "./ui/Drawer";
+import { FIELD_BASE_CLASS } from "./ui/FormControls";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
-import { CoverageStatusBadge } from "./ui/StatusBadge";
+import { CoverageStatusBadge, StageBadge } from "./ui/StatusBadge";
+import { SubmitButton } from "./ui/SubmitButton";
+
+function RowAttributesForm({
+  row,
+  protocolId,
+  updateAction,
+}: {
+  row: ProtocolRowView;
+  protocolId: number;
+  updateAction: (
+    prevState: ProtocolFormActionState,
+    formData: FormData,
+  ) => Promise<ProtocolFormActionState>;
+}) {
+  const t = useTranslations("protocol");
+  const [stage, setStage] = useState<Stage | "">(row.stage ?? "");
+  const [witnessRequired, setWitnessRequired] = useState(row.witness_required);
+  const [state, formAction] = useActionState(updateAction, { ok: false });
+
+  return (
+    <form
+      action={formAction}
+      className="space-y-3 rounded-lg border border-border bg-surface p-3.5"
+    >
+      <input type="hidden" name="protocol_id" value={protocolId} />
+      <input type="hidden" name="requirement" value={row.requirement} />
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
+          {t("attributes.title")}
+        </h3>
+        <div className="flex items-center gap-1.5">
+          <StageBadge stage={row.stage} />
+          {row.witness_required && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-info-edge bg-info-soft px-2 py-0.5 text-[11px] font-semibold text-info">
+              <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span>{t("attributes.witnessBadge")}</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="block space-y-1 text-xs font-medium text-ink">
+          <span>{t("attributes.stageLabel")}</span>
+          <select
+            name="stage"
+            value={stage}
+            onChange={(e) => setStage(e.target.value as Stage | "")}
+            className={`w-full text-xs ${FIELD_BASE_CLASS}`}
+          >
+            <option value="">{t("attributes.stageUnsplit")}</option>
+            <option value="IQ">{t("attributes.stageIQ")}</option>
+            <option value="OQ">{t("attributes.stageOQ")}</option>
+          </select>
+        </label>
+
+        <label className="flex cursor-pointer items-center gap-2 self-end rounded-md border border-border bg-sunken px-3 py-2 text-xs font-medium text-ink">
+          <input
+            type="checkbox"
+            name="witness_required"
+            checked={witnessRequired}
+            onChange={(e) => setWitnessRequired(e.target.checked)}
+            className="h-4 w-4 rounded border-border-strong accent-accent"
+          />
+          <span>{t("attributes.witnessLabel")}</span>
+        </label>
+      </div>
+
+      {state.error && (
+        <p role="alert" className="m-0 text-xs text-fail">
+          {t(`errors.${state.error}`)}
+        </p>
+      )}
+      {state.ok && state.submittedAt && (
+        <p className="m-0 flex items-center gap-1 text-xs text-pass">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{t("attributes.saved")}</span>
+        </p>
+      )}
+
+      <div className="flex justify-end">
+        <SubmitButton variant="soft">{t("attributes.save")}</SubmitButton>
+      </div>
+    </form>
+  );
+}
 
 export function ProtocolRowDrawer({
   row,
@@ -193,6 +283,15 @@ export function ProtocolRowDrawer({
               </dd>
             </dl>
           </section>
+        )}
+
+        {controls !== null && controls.updateAttributesInline && row.kind === "test_step" && (
+          <RowAttributesForm
+            key={`attrs-${row.requirement}-${row.stage ?? "none"}-${row.witness_required}`}
+            row={row}
+            protocolId={protocolId}
+            updateAction={controls.updateAttributesInline}
+          />
         )}
 
         {controls !== null && row.kind !== "undecided" && (

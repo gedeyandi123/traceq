@@ -44,6 +44,7 @@ function RunShellInner({
         <RunContextBar
           run={run}
           protocolStatus={protocolStatus}
+          executionStatus={badges?.executionStatus}
           session={session}
           signOutAction={signOutAction}
           onOpenMobileNav={() => setMobileOpen(true)}

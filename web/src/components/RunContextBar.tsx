@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 
-import type { ProtocolView, RunSummary } from "@/api/client";
+import type { ExecutionView, ProtocolView, RunSummary } from "@/api/client";
 import type { Session } from "@/auth/session";
 import { SessionMenu } from "@/components/SessionMenu";
 import { ModeBadge } from "@/components/ui/ui";
@@ -13,12 +13,14 @@ import { ModeBadge } from "@/components/ui/ui";
 export function RunContextBar({
   run,
   protocolStatus,
+  executionStatus,
   session,
   signOutAction,
   onOpenMobileNav,
 }: {
   run: RunSummary;
   protocolStatus?: ProtocolView["status"] | null;
+  executionStatus?: ExecutionView["status"] | null;
   session: Session | null;
   signOutAction: () => Promise<void>;
   onOpenMobileNav: () => void;
@@ -43,6 +45,8 @@ export function RunContextBar({
     nextAction = { href: `${base}/protocol`, label: t("toProtocol") };
   } else if (segment === "protocol" && protocolStatus === "approved") {
     nextAction = { href: `${base}/execution`, label: t("toExecution") };
+  } else if (segment === "execution" && executionStatus === "completed") {
+    nextAction = { href: `${base}/report`, label: t("toReport") };
   }
 
   return (
@@ -62,6 +66,15 @@ export function RunContextBar({
             {t("back")}
           </Link>
           <span aria-hidden="true" className="hidden text-ink-muted sm:inline">
+            /
+          </span>
+          <Link
+            href="/equipment"
+            className="hidden text-ink-muted no-underline hover:text-ink md:inline"
+          >
+            {t("equipmentRegistry")}
+          </Link>
+          <span aria-hidden="true" className="hidden text-ink-muted md:inline">
             /
           </span>
           <span title={run.equipment} className="shrink-0 font-bold text-ink tabular-nums">
