@@ -853,6 +853,26 @@
     "deviationReturnReason": "Alasan pengembalian",
     "deviationReturnReasonPlaceholder": "Jelaskan hal yang perlu diperbaiki...",
     "deviationClosureNote": "Penutupan deviasi adalah status tercatat, bukan Tanda Tangan Elektronik.",
+    "completion": {
+      "title": "Daftar periksa penyelesaian eksekusi",
+      "ready": "Semua baris langkah uji memiliki hasil dan semua deviasi sudah ditutup. Eksekusi siap diselesaikan.",
+      "blockedNote": "Selesaikan item berikut sebelum eksekusi dapat dibekukan:",
+      "rowsWithoutResult": "Baris langkah uji tanpa hasil ({count})",
+      "rowsWithoutResultNone": "Semua baris langkah uji sudah memiliki hasil.",
+      "openDeviations": "Deviasi belum ditutup ({count})",
+      "openDeviationsNone": "Semua deviasi sudah ditutup.",
+      "deviationItem": "#{number} ({status})",
+      "deviationStatuses": {
+        "open": "Terbuka",
+        "submitted": "Diajukan",
+        "closed": "Ditutup"
+      },
+      "completeButton": "Selesaikan eksekusi",
+      "frozenTitle": "Salinan beku eksekusi",
+      "frozenBy": "Diselesaikan oleh {name}, {when}",
+      "frozenHashLabel": "Hash SHA-256 salinan beku",
+      "frozenSummary": "{rows} baris protokol · {deviations} deviasi"
+    },
     "errors": {
       "conflict": "Ditolak API: perubahan tidak diizinkan pada status saat ini atau kalibrasi kedaluwarsa.",
       "forbidden": "Ditolak API: identitas ini tidak memiliki peran pelaksana (qualification-executor).",

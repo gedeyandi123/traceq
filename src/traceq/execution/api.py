@@ -23,7 +23,8 @@ from traceq.assembly import submission
 from traceq.assembly.submission import FrozenRow, ProtocolCopy
 from traceq.assembly.written import Acceptance
 from traceq.db import transaction
-from traceq.execution import deviations, lifecycle, results
+from traceq.execution import completion, deviations, lifecycle, results
+from traceq.execution.completion import CompletionBlockers, ExecutionCopy, compute_blockers
 from traceq.execution.deviations import (
     CLOSURE_NOTE,
     InvestigationRequest,
@@ -201,6 +202,9 @@ class ExecutionView(_Model):
     events: list[ExecutionEvent]
     rows: list[ExecutionRowView]
     deviations: list[DeviationView]
+    completion_blockers: CompletionBlockers
+    frozen_copy: ExecutionCopy | None = None
+    copy_hash: str | None = None
 
 
 def _event(e: lifecycle.Event) -> ExecutionEvent:
@@ -354,7 +358,9 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
     def view(session: Session, ex: lifecycle.Execution) -> ExecutionView:
         copy = _frozen_copy(session, ex)
         attempts_by_req = results.attempts_of(session, ex.id)
-        deviations = results.deviations_of(session, ex.id)
+        deviations_list = results.deviations_of(session, ex.id)
+        blockers = compute_blockers(copy, attempts_by_req, deviations_list)
+        comp = completion.get_completion(session, ex.id) if ex.status == "completed" else None
         return ExecutionView(
             id=ex.id,
             protocol_id=ex.protocol_id,
@@ -365,7 +371,10 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             status=ex.status,
             events=[_event(e) for e in ex.events],
             rows=[_row(r, attempts_by_req.get(r.requirement, ())) for r in copy.rows],
-            deviations=[_deviation(d) for d in deviations],
+            deviations=[_deviation(d) for d in deviations_list],
+            completion_blockers=blockers,
+            frozen_copy=None if comp is None else comp.copy,
+            copy_hash=None if comp is None else comp.copy_hash,
         )
 
     @router.post(
@@ -563,6 +572,23 @@ def create_router(db: Engine | None, principal: Callable[..., Principal]) -> API
             lambda s: results.confirm_witness(
                 s, actor_of(who), execution_id, requirement, attempt_number, body
             ),
+        )
+
+    @router.post(
+        "/executions/{execution_id}/complete",
+        operation_id="completeExecution",
+    )
+    def complete_execution(
+        execution_id: int,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ExecutionView:
+        """Completes an ``in_progress`` Execution once every Test Step row has a Result and every
+        Deviation is Closed, freezing its copy and SHA-256 hash."""
+        if not who.may_execute:
+            raise HTTPException(403, "completing an Execution needs the executing role")
+        return run_execution_write(
+            execution_id,
+            lambda s: completion.complete_execution(s, actor_of(who), execution_id),
         )
 
     return router

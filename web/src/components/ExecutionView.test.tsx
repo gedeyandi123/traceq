@@ -72,6 +72,13 @@ function executionFixture(): ExecutionView {
       },
     ],
     deviations: [],
+    completion_blockers: {
+      blocked: true,
+      rows_without_result: { count: 1, requirements: ["URS-TP201-002"] },
+      open_deviations: { count: 0, items: [] },
+    },
+    frozen_copy: null,
+    copy_hash: null,
   };
 }
 
@@ -607,4 +614,118 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
   ).toBeDefined();
   expect(screen.getByText("Anda sudah mengonfirmasi versi ini.")).toBeDefined();
   expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
+});
+
+test("completion checklist shows blockers, enables complete button only for executor when unblocked, and shows frozen copy when completed", () => {
+  const noop = async () => ({ ok: true });
+  const blockedEx = executionFixture();
+  blockedEx.completion_blockers = {
+    blocked: true,
+    rows_without_result: { count: 1, requirements: ["URS-TP201-002"] },
+    open_deviations: { count: 1, items: [{ deviation_number: 1, status: "open" }] },
+  };
+
+  // 1. Executor sees checklist + disabled Complete button when blocked
+  const { unmount: unmountBlocked } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={blockedEx}
+        protocol={approved}
+        runId={RUN_ID}
+        startAction={null}
+        completeAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("Daftar periksa penyelesaian eksekusi")).toBeDefined();
+  expect(screen.getByText("Baris langkah uji tanpa hasil (1)")).toBeDefined();
+  expect(screen.getByText("Deviasi belum ditutup (1)")).toBeDefined();
+  expect(screen.getByText("#1 (Terbuka)")).toBeDefined();
+  const blockedBtn = screen.getByRole("button", { name: "Selesaikan eksekusi" }) as HTMLButtonElement;
+  expect(blockedBtn.disabled).toBe(true);
+  unmountBlocked();
+
+  // 2. Non-executor (completeAction = null) does not see Complete button
+  const readyEx = executionFixture();
+  readyEx.completion_blockers = {
+    blocked: false,
+    rows_without_result: { count: 0, requirements: [] },
+    open_deviations: { count: 0, items: [] },
+  };
+  const { unmount: unmountReader } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={readyEx}
+        protocol={approved}
+        runId={RUN_ID}
+        startAction={null}
+        completeAction={null}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.queryByRole("button", { name: "Selesaikan eksekusi" })).toBeNull();
+  unmountReader();
+
+  // 3. Executor sees enabled Complete button when unblocked
+  const { unmount: unmountReady } = render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={readyEx}
+        protocol={approved}
+        runId={RUN_ID}
+        startAction={null}
+        completeAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+  const readyBtn = screen.getByRole("button", { name: "Selesaikan eksekusi" }) as HTMLButtonElement;
+  expect(readyBtn.disabled).toBe(false);
+  unmountReady();
+
+  // 4. Completed Execution shows frozen copy + hash and hides all write controls
+  const completedEx = executionFixture();
+  const copyHash = "f".repeat(64);
+  completedEx.status = "completed";
+  completedEx.completion_blockers = {
+    blocked: false,
+    rows_without_result: { count: 0, requirements: [] },
+    open_deviations: { count: 0, items: [] },
+  };
+  completedEx.copy_hash = copyHash;
+  completedEx.frozen_copy = {
+    execution_id: completedEx.id,
+    protocol_id: completedEx.protocol_id,
+    equipment: completedEx.equipment,
+    run_id: completedEx.run_id,
+    submission_event_id: completedEx.submission_event_id,
+    submission_hash: completedEx.submission_hash,
+    completed_event_id: 2,
+    completed_at: "2026-11-24T12:00:00Z",
+    completer: {
+      subject: "demo-0001",
+      issuer: "http://127.0.0.1:9000",
+      name: "Ayu Kartika Sari",
+    },
+    rows: [],
+    deviations: [],
+  };
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <ExecutionViewPanel
+        execution={completedEx}
+        protocol={approved}
+        runId={RUN_ID}
+        startAction={null}
+        recordAction={noop}
+        openDeviationAction={noop}
+        witnessAction={noop}
+        completeAction={noop}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("Salinan beku eksekusi")).toBeDefined();
+  expect(screen.getByText(copyHash)).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Selesaikan eksekusi" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Catat hasil" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Buka deviasi manual" })).toBeNull();
 });

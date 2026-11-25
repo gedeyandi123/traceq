@@ -41,6 +41,8 @@ export type WitnessConfirmationView = components["schemas"]["WitnessConfirmation
 export type DeviationView = components["schemas"]["DeviationView"];
 export type DeviationEventView = components["schemas"]["DeviationEventView"];
 export type DeviationInvestigationView = components["schemas"]["DeviationInvestigationView"];
+export type CompletionBlockers = components["schemas"]["CompletionBlockers"];
+export type ExecutionCopy = components["schemas"]["ExecutionCopy"];
 export type InstrumentInput = components["schemas"]["InstrumentInput"];
 export type ObservedValue = NonNullable<components["schemas"]["EvidenceStep"]["observed_value"]>;
 

@@ -363,3 +363,21 @@ export async function confirmWitness(
     }),
   );
 }
+
+/** Completes an In progress Execution once all blockers are clear (ADR 0013, spec #275). */
+export async function completeExecution(
+  _prevState: ExecutionActionState,
+  form: FormData,
+): Promise<ExecutionActionState> {
+  const executionId = Number(field(form, "execution_id"));
+  if (!Number.isInteger(executionId)) {
+    return { ok: false, error: "unprocessable" };
+  }
+  const headers = await bearerHeaders();
+  return postExecutionMutation(() =>
+    api.POST("/executions/{execution_id}/complete", {
+      params: { path: { execution_id: executionId } },
+      headers,
+    }),
+  );
+}
