@@ -83,7 +83,10 @@ export function QualificationReportWorkbench({
         next_requalification_date?: unknown;
       };
       return {
-        conclusionNote: typeof parsed.conclusion_note === "string" ? parsed.conclusion_note : "",
+        conclusionNote:
+          typeof parsed.conclusion_note === "string"
+            ? parsed.conclusion_note
+            : "",
         nextDate:
           typeof parsed.next_requalification_date === "string"
             ? parsed.next_requalification_date
@@ -94,7 +97,9 @@ export function QualificationReportWorkbench({
     }
   };
 
-  const [conclusionNote, setConclusionNote] = useState(() => readSavedDraft().conclusionNote);
+  const [conclusionNote, setConclusionNote] = useState(
+    () => readSavedDraft().conclusionNote,
+  );
   const [nextDate, setNextDate] = useState(() => readSavedDraft().nextDate);
   const [signDialogOpen, setSignDialogOpen] = useState(
     () => canApprove && initialReauthTarget === "qualification_report",
@@ -132,8 +137,10 @@ export function QualificationReportWorkbench({
         setNextDate("");
         setSignDialogOpen(false);
       } else if (!next.ok && next.error) {
-        if (next.conclusionNote !== undefined) setConclusionNote(next.conclusionNote);
-        if (next.nextRequalificationDate !== undefined) setNextDate(next.nextRequalificationDate);
+        if (next.conclusionNote !== undefined)
+          setConclusionNote(next.conclusionNote);
+        if (next.nextRequalificationDate !== undefined)
+          setNextDate(next.nextRequalificationDate);
       }
       return next;
     },
@@ -149,7 +156,8 @@ export function QualificationReportWorkbench({
     liveRows.length > 0
       ? liveRows.filter((r) => r.kind === "test_step")
       : frozenRows.filter((r) => r.kind === "test_step");
-  const deviations = execution?.frozen_copy?.deviations ?? execution?.deviations ?? [];
+  const deviations =
+    execution?.frozen_copy?.deviations ?? execution?.deviations ?? [];
   const witnessRows = testStepRows.filter((r) => r.test_step?.witness_required);
 
   return (
@@ -160,8 +168,12 @@ export function QualificationReportWorkbench({
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <Award className="h-4 w-4 text-accent" aria-hidden="true" />
-              <h2 className="m-0 text-sm font-bold text-ink">{t("conclusionTitle")}</h2>
-              <TechnicalConclusionBadge conclusion={report.technical_conclusion} />
+              <h2 className="m-0 text-sm font-bold text-ink">
+                {t("conclusionTitle")}
+              </h2>
+              <TechnicalConclusionBadge
+                conclusion={report.technical_conclusion}
+              />
             </div>
             <p className="m-0 text-xs text-ink-muted tabular-nums">
               {t("executionMeta", {
@@ -191,9 +203,14 @@ export function QualificationReportWorkbench({
             <div className="text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
               {t("stages.iq")}
             </div>
-            <div className="mt-1 text-lg font-bold text-ink tabular-nums">{counts.iq_total}</div>
+            <div className="mt-1 text-lg font-bold text-ink tabular-nums">
+              {counts.iq_total}
+            </div>
             <div className="mt-0.5 text-[11px] text-ink-muted tabular-nums">
-              {t("stagePassFail", { passed: counts.iq_passed, failed: counts.iq_failed })}
+              {t("stagePassFail", {
+                passed: counts.iq_passed,
+                failed: counts.iq_failed,
+              })}
             </div>
           </div>
 
@@ -201,9 +218,14 @@ export function QualificationReportWorkbench({
             <div className="text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
               {t("stages.oq")}
             </div>
-            <div className="mt-1 text-lg font-bold text-ink tabular-nums">{counts.oq_total}</div>
+            <div className="mt-1 text-lg font-bold text-ink tabular-nums">
+              {counts.oq_total}
+            </div>
             <div className="mt-0.5 text-[11px] text-ink-muted tabular-nums">
-              {t("stagePassFail", { passed: counts.oq_passed, failed: counts.oq_failed })}
+              {t("stagePassFail", {
+                passed: counts.oq_passed,
+                failed: counts.oq_failed,
+              })}
             </div>
           </div>
 
@@ -241,7 +263,11 @@ export function QualificationReportWorkbench({
 
       {/* ADR 0007 explicit notice */}
       <Alert tone="info" title={t("adrNoticeTitle")}>
-        <p className="m-0">{report.approval_note || t("adrNoticeBody")}</p>
+        <p className="m-0">
+          {report.exports.length > 0
+            ? report.approval_note
+            : t("adrNoticeBody")}
+        </p>
       </Alert>
 
       {/* Approver issue form */}
@@ -251,7 +277,9 @@ export function QualificationReportWorkbench({
           title={t("issueTitle")}
           note={
             report.latest_export
-              ? t("latestRevision", { rev: report.latest_export.revision_number })
+              ? t("latestRevision", {
+                  rev: report.latest_export.revision_number,
+                })
               : t("noExportYet")
           }
         />
@@ -265,8 +293,13 @@ export function QualificationReportWorkbench({
             {approveState.error && (
               <Alert tone="fail">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{errorMessage(t, approveState.error, approveState.detail)}</span>
+                  <AlertCircle
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {errorMessage(t, approveState.error, approveState.detail)}
+                  </span>
                 </div>
               </Alert>
             )}
@@ -274,7 +307,10 @@ export function QualificationReportWorkbench({
             {approveState.ok && approveState.submittedAt && (
               <Alert tone="pass">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <CheckCircle2
+                    className="h-4 w-4 shrink-0"
+                    aria-hidden="true"
+                  />
                   <span>{t("issueSuccess")}</span>
                 </div>
               </Alert>
@@ -314,7 +350,9 @@ export function QualificationReportWorkbench({
                   onChange={(e) => setNextDate(e.target.value)}
                   className={`w-full text-xs ${FIELD_BASE_CLASS}`}
                 />
-                <p className="m-0 text-[11px] text-ink-muted">{t("nextRequalificationHint")}</p>
+                <p className="m-0 text-[11px] text-ink-muted">
+                  {t("nextRequalificationHint")}
+                </p>
               </div>
             ) : (
               <p className="m-0 rounded border border-warn-edge bg-warn-soft px-3 py-2 text-xs text-warn">
@@ -323,7 +361,11 @@ export function QualificationReportWorkbench({
             )}
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="primary" onClick={() => setSignDialogOpen(true)}>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => setSignDialogOpen(true)}
+              >
                 <FileCheck2 className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{t("issueButton")}</span>
               </Button>
@@ -350,7 +392,11 @@ export function QualificationReportWorkbench({
               isReauthError={approveState.error === "reauth_required"}
             >
               <input type="hidden" name="run_id" value={runId} />
-              <input type="hidden" name="execution_id" value={report.execution_id} />
+              <input
+                type="hidden"
+                name="execution_id"
+                value={report.execution_id}
+              />
               <input
                 type="hidden"
                 name="expected_revision_number"
@@ -361,8 +407,16 @@ export function QualificationReportWorkbench({
                 name="expected_execution_copy_hash"
                 value={report.execution_copy_hash}
               />
-              <input type="hidden" name="conclusion_note" value={conclusionNote} />
-              <input type="hidden" name="next_requalification_date" value={nextDate} />
+              <input
+                type="hidden"
+                name="conclusion_note"
+                value={conclusionNote}
+              />
+              <input
+                type="hidden"
+                name="next_requalification_date"
+                value={nextDate}
+              />
             </ElectronicSignatureDialog>
           </div>
         )}
@@ -376,7 +430,9 @@ export function QualificationReportWorkbench({
           count={report.exports.length}
         />
         {report.exports.length === 0 ? (
-          <EmptyState title={t("exportsEmptyTitle")}>{t("exportsEmpty")}</EmptyState>
+          <EmptyState title={t("exportsEmptyTitle")}>
+            {t("exportsEmpty")}
+          </EmptyState>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
             <table className="w-full border-collapse text-left text-xs">
@@ -405,11 +461,17 @@ export function QualificationReportWorkbench({
               <tbody className="divide-y divide-border">
                 {report.exports.map((exp) => (
                   <tr key={exp.id} className="hover:bg-sunken/40">
-                    <th scope="row" className="px-3 py-2.5 font-mono font-semibold text-ink tabular-nums">
+                    <th
+                      scope="row"
+                      className="px-3 py-2.5 font-mono font-semibold text-ink tabular-nums"
+                    >
                       Rev {exp.revision_number}
                     </th>
                     <td className="px-3 py-2.5">
-                      <TechnicalConclusionBadge conclusion={exp.technical_conclusion} size="xs" />
+                      <TechnicalConclusionBadge
+                        conclusion={exp.technical_conclusion}
+                        size="xs"
+                      />
                       {exp.conclusion_note && (
                         <div className="mt-1 max-w-xs text-[11px] text-ink-muted">
                           {exp.conclusion_note}
@@ -422,7 +484,10 @@ export function QualificationReportWorkbench({
                         {formatWhen(when, exp.at)}
                       </div>
                       <div className="mt-1.5">
-                        <SignatureBadge signature={exp.electronic_signature} compact />
+                        <SignatureBadge
+                          signature={exp.electronic_signature}
+                          compact
+                        />
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-ink-muted tabular-nums">
@@ -431,7 +496,9 @@ export function QualificationReportWorkbench({
                     <td className="px-3 py-2.5">
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-ink-muted">snap:</span>
+                          <span className="text-[11px] text-ink-muted">
+                            snap:
+                          </span>
                           <code className="font-mono text-[11px] text-ink tabular-nums">
                             {exp.snapshot_hash.slice(0, 10)}…
                           </code>
@@ -442,7 +509,9 @@ export function QualificationReportWorkbench({
                           />
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-ink-muted">pdf:</span>
+                          <span className="text-[11px] text-ink-muted">
+                            pdf:
+                          </span>
                           <code className="font-mono text-[11px] text-ink tabular-nums">
                             {exp.pdf_sha256.slice(0, 10)}…
                           </code>
@@ -506,14 +575,19 @@ export function QualificationReportWorkbench({
                       ? lastAttempt.latest
                       : lastAttempt.versions.at(-1)
                     : undefined;
-                  const activeWitnesses = (latest?.witness_confirmations ?? []).filter(
-                    (w) => !w.voided,
+                  const activeWitnesses = (
+                    latest?.witness_confirmations ?? []
+                  ).filter((w) => !w.voided);
+                  const retests = row.attempts.filter(
+                    (a) => a.retest_deviation_id != null,
                   );
-                  const retests = row.attempts.filter((a) => a.retest_deviation_id != null);
 
                   return (
                     <tr key={row.requirement} className="hover:bg-sunken/40">
-                      <th scope="row" className="px-3 py-2.5 font-mono font-semibold text-ink tabular-nums">
+                      <th
+                        scope="row"
+                        className="px-3 py-2.5 font-mono font-semibold text-ink tabular-nums"
+                      >
                         <div>{row.requirement}</div>
                         <div className="mt-0.5 line-clamp-1 font-sans text-[11px] font-normal text-ink-muted">
                           {row.text}
@@ -524,17 +598,25 @@ export function QualificationReportWorkbench({
                           <StageBadge stage={row.test_step?.stage} />
                           {row.test_step?.witness_required && (
                             <span className="inline-flex items-center gap-1 rounded-full border border-info-edge bg-info-soft px-2 py-0.5 text-[11px] font-semibold text-info">
-                              <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <ShieldCheck
+                                className="h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />
                               <span>{t("witnessRequiredBadge")}</span>
                             </span>
                           )}
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-ink tabular-nums">
-                        <div>{t("attemptCount", { count: row.attempts.length })}</div>
+                        <div>
+                          {t("attemptCount", { count: row.attempts.length })}
+                        </div>
                         {retests.length > 0 && (
                           <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-warn">
-                            <GitBranch className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <GitBranch
+                              className="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
                             <span>
                               {retests
                                 .map((a) =>
@@ -550,10 +632,17 @@ export function QualificationReportWorkbench({
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          {latest ? <VerdictBadge verdict={latest.verdict} /> : <span>—</span>}
+                          {latest ? (
+                            <VerdictBadge verdict={latest.verdict} />
+                          ) : (
+                            <span>—</span>
+                          )}
                           {activeWitnesses.length > 0 && (
                             <span className="inline-flex items-center gap-1 rounded-full border border-pass-edge bg-pass-soft px-1.5 py-0.5 text-[10px] font-semibold text-pass">
-                              <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <ShieldCheck
+                                className="h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />
                               <span>{execT("witnessConfirmedBadge")}</span>
                             </span>
                           )}
@@ -577,7 +666,9 @@ export function QualificationReportWorkbench({
             count={deviations.length}
           />
           {deviations.length === 0 ? (
-            <p className="m-0 text-xs text-ink-muted">{execT("deviationsEmpty")}</p>
+            <p className="m-0 text-xs text-ink-muted">
+              {execT("deviationsEmpty")}
+            </p>
           ) : (
             <ul className="m-0 list-none space-y-2 p-0 text-xs">
               {deviations.map((d) => (
@@ -622,7 +713,9 @@ export function QualificationReportWorkbench({
                     ? lastAttempt.latest
                     : lastAttempt.versions.at(-1)
                   : undefined;
-                const active = (latest?.witness_confirmations ?? []).filter((w) => !w.voided);
+                const active = (latest?.witness_confirmations ?? []).filter(
+                  (w) => !w.voided,
+                );
                 return (
                   <li
                     key={row.requirement}
@@ -635,8 +728,10 @@ export function QualificationReportWorkbench({
                       {active.length > 0
                         ? active
                             .map((w) => {
-                              const wName = "witness" in w ? w.witness.name : w.name;
-                              const wAt = "recorded_at" in w ? w.recorded_at : w.at;
+                              const wName =
+                                "witness" in w ? w.witness.name : w.name;
+                              const wAt =
+                                "recorded_at" in w ? w.recorded_at : w.at;
                               return `${wName} (${formatWhen(when, wAt)})`;
                             })
                             .join(", ")

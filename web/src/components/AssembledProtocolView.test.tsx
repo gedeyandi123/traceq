@@ -361,7 +361,7 @@ test("the known limits are always shown", () => {
     "Satu langkah uji per persyaratan.",
     "IQ dan OQ digabung dalam satu protokol.",
     "Tidak ada protokol cetak atau ekspor.",
-    "Persetujuan adalah status yang dicatat, bukan Tanda Tangan Elektronik.",
+    "Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007).",
     "Belum ada versi baru setelah protokol disetujui (langkah 6).",
   ]);
 });
@@ -482,7 +482,8 @@ function renderForApprover(protocol: ProtocolView) {
 test("the approving role approves the submission shown, bound to its event id and hash, or returns it via confirmation modal", async () => {
   const user = userEvent.setup();
   renderForApprover(submitted);
-  expect(screen.getByText(/bukan Tanda Tangan Elektronik \(ADR 0007 fase 2\)/)).toBeDefined();
+  expect(screen.queryByText(/bukan Tanda Tangan Elektronik(?! \(pra-Langkah 8\))/)).toBeNull();
+  expect(screen.queryByText(/status yang dicatat/i)).toBeNull();
   await user.click(screen.getByRole("button", { name: "Setujui protokol" }));
   const approveModal = within(await screen.findByRole("dialog", { name: "Setujui protokol" }));
   const form = approveModal.getByRole("button", { name: "Setujui protokol" }).closest("form") as HTMLFormElement;
@@ -506,11 +507,13 @@ test("the deciding role and a reader get no approve or return control", () => {
   expect(screen.queryByRole("button", { name: "Kembalikan ke Draft" })).toBeNull();
 });
 
-test("an approved Protocol shows the approval as a recorded status and no controls", async () => {
+test("an approved Protocol shows the approval note and no controls", async () => {
   const user = userEvent.setup();
   renderForApprover(approved);
   expect(screen.getByText("Disetujui")).toBeDefined();
-  expect(screen.getByText(/Disetujui: status yang dicatat .* bukan Tanda Tangan Elektronik/)).toBeDefined();
+  expect(screen.getByText("Versi baru protokol ini adalah langkah 6.")).toBeDefined();
+  expect(screen.queryByText(/bukan Tanda Tangan Elektronik(?! \(pra-Langkah 8\))/)).toBeNull();
+  expect(screen.queryByText(/status yang dicatat/i)).toBeNull();
   expect(screen.getByTestId("copy-hash").textContent).toBe("a".repeat(64));
   expect(screen.queryByRole("button", { name: /Setujui|Kembalikan/ })).toBeNull();
 

@@ -111,7 +111,6 @@ function ApprovalForms({
 
   return (
     <div className="space-y-3 rounded-lg border border-info-edge bg-info-soft p-3.5 text-xs text-ink">
-      <p className="m-0 leading-relaxed">{t("approval.note")}</p>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="primary" onClick={() => setApproveOpen(true)}>
           {t("approval.approve")}

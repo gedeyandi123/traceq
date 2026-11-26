@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Info, Send, Undo2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Send, Undo2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
@@ -200,18 +200,12 @@ export function DeviationDetailDrawer({
         </section>
 
         {deviation.status === "closed" && (
-          <div className="space-y-2">
-            <div className="flex items-start gap-2 rounded-lg border border-pass-edge bg-pass-soft px-3 py-2.5 text-xs text-pass">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{t("deviationClosureNote")}</span>
-            </div>
-            <SignatureBadge
-              signature={
-                [...deviation.events].reverse().find((e) => e.event === "closed")
-                  ?.electronic_signature
-              }
-            />
-          </div>
+          <SignatureBadge
+            signature={
+              [...deviation.events].reverse().find((e) => e.event === "closed")
+                ?.electronic_signature
+            }
+          />
         )}
 
         <section className="space-y-2">
@@ -361,11 +355,6 @@ export function DeviationDetailDrawer({
 
         {canApprove && (closeAction !== null || returnAction !== null) && (
           <section className="space-y-3 rounded-lg border border-border bg-surface p-3.5">
-            <div className="flex items-start gap-2 rounded-md border border-info-edge bg-info-soft px-3 py-2 text-[11px] text-info">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span>{t("deviationClosureNote")}</span>
-            </div>
-
             {closeAction !== null && (
               <>
                 <Button type="button" variant="primary" onClick={() => setCloseConfirmOpen(true)}>
