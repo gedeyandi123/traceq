@@ -14,7 +14,10 @@ from pydantic import BaseModel, ConfigDict
 
 TEMPLATE_VERSION = "1.0.0"
 TYPST_VERSION: str = version("typst")
-_TEMPLATE_PATH = Path(__file__).parent / "pre_review_report.typ"
+_TEMPLATE_PATHS = {TEMPLATE_VERSION: Path(__file__).parent / "pre_review_report_v1.typ"}
+# A released template is frozen: stored exports re-render from it by their ``template_version``.
+# A changed layout is a new ``pre_review_report_vN.typ`` and a new entry here, never an edit.
+PRE_REVIEW_TEMPLATE_VERSIONS: tuple[str, ...] = tuple(_TEMPLATE_PATHS)
 
 
 class _Frozen(BaseModel):
@@ -117,18 +120,25 @@ def snapshot_hash(snapshot: PreReviewReportSnapshot) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def render_pre_review_pdf(snapshot: PreReviewReportSnapshot) -> bytes:
+def render_pre_review_pdf(
+    snapshot: PreReviewReportSnapshot, *, template_version: str = TEMPLATE_VERSION
+) -> bytes:
     """Compiles the Indonesian Pre-Review Report PDF deterministically from ``snapshot``.
+
+    Dispatches to the template of ``template_version`` (the current one by default).
 
     Uses Typst built-in fonts only (``ignore_system_fonts=True``) and pins ``timestamp`` to
     ``snapshot.generated_at`` so re-rendering the same snapshot yields byte-identical PDFs.
     Raises ``RuntimeError`` if Typst emits any compiler warning.
     """
+    template_path = _TEMPLATE_PATHS.get(template_version)
+    if template_path is None:
+        raise ValueError(f"unsupported pre-review report template_version: {template_version!r}")
     payload = _canonical_json(snapshot.model_dump(mode="json"))
     ts = snapshot.generated_at
     ts = ts.replace(tzinfo=UTC) if ts.tzinfo is None else ts.astimezone(UTC)
     pdf_bytes, warnings = typst.compile_with_warnings(
-        _TEMPLATE_PATH,
+        template_path,
         ignore_system_fonts=True,
         sys_inputs={"snapshot": payload},
         timestamp=ts,

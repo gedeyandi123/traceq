@@ -4,6 +4,7 @@ Isolated from ``traceq_dataset``, ``traceq_eval``, and database modules (ADR 000
 """
 
 from traceq.reports.pre_review import (
+    PRE_REVIEW_TEMPLATE_VERSIONS,
     TEMPLATE_VERSION,
     TYPST_VERSION,
     PreReviewReportSnapshot,
@@ -21,6 +22,7 @@ from traceq.reports.qualification import (
     QUALIFICATION_APPROVAL_NOTE,
     QUALIFICATION_TEMPLATE_VERSION,
     QUALIFICATION_TEMPLATE_VERSION_V1,
+    QUALIFICATION_TEMPLATE_VERSIONS,
     QualificationCounts,
     QualificationReportDeviation,
     QualificationReportRow,
@@ -32,10 +34,17 @@ from traceq.reports.qualification import (
     qualification_snapshot_hash,
     render_qualification_pdf,
 )
+from traceq.reports.reproducibility import (
+    ReportNotReproducible,
+    check_rendered_pdf,
+    check_template_supported,
+)
 
 __all__ = [
+    "PRE_REVIEW_TEMPLATE_VERSIONS",
     "QUALIFICATION_APPROVAL_NOTE",
     "QUALIFICATION_TEMPLATE_VERSION",
+    "QUALIFICATION_TEMPLATE_VERSIONS",
     "QUALIFICATION_TEMPLATE_VERSION_V1",
     "TEMPLATE_VERSION",
     "TYPST_VERSION",
@@ -50,10 +59,13 @@ __all__ = [
     "ReportFinding",
     "ReportKindSummary",
     "ReportMissingDocument",
+    "ReportNotReproducible",
     "ReportRoundDiff",
     "ReportUrsCompleteness",
     "SignatureSnapshotClaim",
     "TechnicalConclusion",
+    "check_rendered_pdf",
+    "check_template_supported",
     "parse_qualification_snapshot",
     "qualification_snapshot_hash",
     "render_pre_review_pdf",

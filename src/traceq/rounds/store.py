@@ -28,6 +28,7 @@ from traceq import audit
 from traceq.proposals import decisions
 from traceq.proposals.store import PROPOSALS, RUN_PROPOSALS, RUNS, Imported, RunFiles
 from traceq.reports import (
+    PRE_REVIEW_TEMPLATE_VERSIONS,
     TEMPLATE_VERSION,
     TYPST_VERSION,
     PreReviewReportSnapshot,
@@ -38,6 +39,8 @@ from traceq.reports import (
     ReportMissingDocument,
     ReportRoundDiff,
     ReportUrsCompleteness,
+    check_rendered_pdf,
+    check_template_supported,
     render_pre_review_pdf,
     snapshot_hash,
 )
@@ -831,10 +834,19 @@ def export_pre_review(
 
 
 def render_stored_export_pdf(session: Session, round_id: int, export_id: int) -> bytes:
-    """Re-renders a stored export's PDF from ``snapshot_json`` without any DB writes."""
+    """Re-renders a stored export's PDF from ``snapshot_json`` without any DB writes.
+
+    Raises ``ReportNotReproducible`` when the export's template version is not carried by this
+    release, or when the re-render does not match the stored SHA-256 (a Typst version that
+    differs from the running one is named as the likely cause, not a refusal by itself)."""
     row = (
         session.execute(
-            select(REPORT_EXPORTS.c.snapshot_json, REPORT_EXPORTS.c.pdf_sha256).where(
+            select(
+                REPORT_EXPORTS.c.snapshot_json,
+                REPORT_EXPORTS.c.pdf_sha256,
+                REPORT_EXPORTS.c.template_version,
+                REPORT_EXPORTS.c.typst_version,
+            ).where(
                 REPORT_EXPORTS.c.id == export_id,
                 REPORT_EXPORTS.c.round_id == round_id,
                 REPORT_EXPORTS.c.report_kind == "pre_review",
@@ -845,8 +857,11 @@ def render_stored_export_pdf(session: Session, round_id: int, export_id: int) ->
     )
     if row is None:
         raise NotFound(f"no export {export_id} for review round {round_id}")
+    template_version = str(row["template_version"])
+    check_template_supported(template_version, PRE_REVIEW_TEMPLATE_VERSIONS)
     snapshot = PreReviewReportSnapshot.model_validate(row["snapshot_json"])
-    pdf_bytes = render_pre_review_pdf(snapshot)
-    if hashlib.sha256(pdf_bytes).hexdigest() != str(row["pdf_sha256"]):
-        raise RuntimeError("Re-rendered PDF SHA-256 does not match stored export")
+    pdf_bytes = render_pre_review_pdf(snapshot, template_version=template_version)
+    check_rendered_pdf(
+        pdf_bytes, str(row["pdf_sha256"]), stored_typst_version=str(row["typst_version"])
+    )
     return pdf_bytes

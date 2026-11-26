@@ -51,7 +51,7 @@ from traceq.execution.results import (
 )
 from traceq.identity import Principal
 from traceq.proposals.api import actor_of
-from traceq.reports import QualificationCounts, TechnicalConclusion
+from traceq.reports import QualificationCounts, ReportNotReproducible, TechnicalConclusion
 from traceq.runs.schemas import Cite, EvidenceStep
 
 
@@ -878,6 +878,8 @@ def create_router(
                 )
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
+        except ReportNotReproducible as e:
+            raise HTTPException(409, str(e)) from e
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",

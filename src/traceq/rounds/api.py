@@ -16,6 +16,7 @@ from sqlalchemy import Engine
 from traceq.audit import Actor
 from traceq.db import transaction
 from traceq.identity import Principal
+from traceq.reports import ReportNotReproducible
 from traceq.rounds import store
 from traceq.rounds.diff import RoundDiff
 from traceq.rounds.store import (
@@ -280,6 +281,8 @@ def create_router(
                 pdf_bytes = store.render_stored_export_pdf(session, round_id, export_id)
         except NotFound as e:
             raise HTTPException(404, str(e)) from e
+        except ReportNotReproducible as e:
+            raise HTTPException(409, str(e)) from e
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
