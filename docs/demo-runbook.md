@@ -1,8 +1,8 @@
-# Runbook demo TraceQ (Proposal Decisions, Protocol Assembly, & Execution)
+# Runbook demo TraceQ
 
-Panduan menjalankan demo TraceQ untuk sesi praktisi: persiapan, alur end to end (Proposal Decisions, Protocol Assembly, dan Execution & Deviations), kasus uji langkah demi langkah, hal yang diketahui salah, dan pemulihan. Perintah dasarnya ada di `README.md` (bagian "Demo"). Dokumen ini tidak mengulanginya kecuali bila urutannya penting.
+Panduan menjalankan demo TraceQ untuk sesi praktisi: persiapan, alur end to end (Proposal Decisions, Protocol Assembly, Execution & Deviations, Ronde Tinjauan, Laporan Kualifikasi, dan login Keycloak dengan tanda tangan elektronik), kasus uji langkah demi langkah, hal yang diketahui salah, dan pemulihan. Perintah dasarnya ada di `README.md` (bagian "Demo"). Dokumen ini tidak mengulanginya kecuali bila urutannya penting.
 
-**Status:** dilatih penuh pada 17 Nov 2026 23.18–23.27 UTC di laptop Windows 11 dengan korpus rilis 0.1.1 (freeze), rekaman `haiku-r10`, `main` e3bb58e (sesudah #100, #101 dan #182) dan build produksi baru di Chrome; semua 17 kasus lulus (#133). Demo pindah dari r8 ke r10 atas keputusan owner. Gladi sebelumnya (r8 pada 17 Nov dengan `main` d00dec8 dan 9e85590; r7 pada rilis 0.1.0, 16–17 Nov) ada di riwayat git berkas ini. Hasil per kasus ada di kolom "Hasil" pada bagian 5. Sesi praktisi diadakan sesudah freeze 25 Nov di atas rilis dan rekaman yang sama.
+**Status:** gladi penuh terakhir yang tercatat di bagian 5 dilakukan pada 17 Nov 2026 (rilis 0.1.1, rekaman `haiku-r10`, `main` e3bb58e, 17 kasus), sebelum langkah 5 sampai 8 (Protocol Assembly, Eksekusi & Deviasi, Ronde Tinjauan, Laporan Kualifikasi, Keycloak dan tanda tangan elektronik). Kasus bagian 11 sampai 15 punya kolom "Hasil" sendiri; sel yang kosong belum diverifikasi ulang pada stack demo saat ini. Demo memakai rekaman r10 atas keputusan owner. Riwayat gladi sebelumnya ada di riwayat git berkas ini.
 
 ## 1. Apa yang ditunjukkan demo, dan apa yang tidak
 
@@ -10,7 +10,7 @@ Panduan menjalankan demo TraceQ untuk sesi praktisi: persiapan, alur end to end 
 - **Bukan panggilan LLM langsung:** run diputar ulang dari rekaman `recordings/haiku-r10` dan tidak mengirim apa pun ke API. "Biaya run: 0,039 USD" di layar eval adalah biaya panggilan yang direkam saat dijalankan live (`cost_usd`), bukan biaya demo (`live_cost_usd` = 0).
 - **Data fiktif:** pabrik, vendor (Pressora Maschinenbau GmbH), mesin dan persona demo semuanya sintetis (ADR 0001).
 - **AI hanya memberi saran:** setiap Proposal menunggu keputusan manusia (ADR 0002, ADR 0009).
-- **Bukan kontrol akses sungguhan:** persona demo tidak memakai kata sandi. Keycloak dan tanda tangan elektronik datang belakangan (ADR 0005, ADR 0007).
+- **Dua mode login:** persona demo bawaan tidak memakai kata sandi dan bukan kontrol akses sungguhan. Mode Keycloak OIDC dengan tanda tangan elektronik berotentikasi ulang tersedia di bagian 15 (ADR 0005, ADR 0007).
 - **Rekaman r10 dibuat pada rilis 0.1.1:** tanda kritis dan transport-sensitive di layar mengikuti korpus beku, termasuk label form lanjutan (#128).
 
 ## 2. Persiapan (H-1)
@@ -241,6 +241,12 @@ Layar "Eksekusi & Deviasi" (`/runs/<id>/execution`, tab di header run, terpisah 
 Layar **Dokumen & Ronde** (`/runs/<id>/rounds`, di bilah sisi antara Draf Protokol dan Protokol IQ/OQ) menampilkan versi dokumen peralatan (`Aktif` / `Digantikan`), riwayat ronde tinjauan pra-protokol (`R1`, `R2`, …), diff lintas-ronde, penutupan ronde (*"Tutup ronde"*), serta penerbitan dan pengunduhan **Laporan Pra-Tinjauan (PDF)**.
 
 **Menyalakan & persiapan dua ronde (`--stage two-rounds`).** Setelah `scripts/demo.py` menyalakan stack demo, jalankan `uv run python scripts/demo_seed.py --stage two-rounds` untuk menutup ronde R1 (`returned_for_revision`) dan membuka ronde R2 dengan dokumen revisi pada peralatan `TP-201`. Pastikan `typst` terpasang bila menerbitkan ekspor PDF baru.
+
+**Dua run harus ada di `runs-demo/` sebelum seeding.** `demo.py` hanya membuat satu run. Buat run kedua dari korpus dan rekaman yang sama (replay, tanpa panggilan API):
+
+`uv run traceq run <CORPUS_DIR>/t0-2026-06-01 --equipment TP-201 --out runs-demo --recordings recordings/haiku-r10`
+
+Run kedua tidak perlu langkah impor terpisah: API membaca folder `runs-demo/` pada setiap permintaan `/runs`, dan `demo_seed.py` memanggil `POST /runs/<id>/import` untuk kedua run. Tanpa `--run-id` / `--second-run-id`, seed mengurutkan run menurut `created`: run yang lebih lama menjadi **R1** (dikembalikan untuk revisi), yang lebih baru menjadi **R2**. Bila hanya ada satu run, seed berhenti dengan pesan yang menunjuk ke perintah ini. Id eksplisit tetap dihormati (`--run-id` = R1, `--second-run-id` = R2).
 
 | ID | Kasus | Langkah | Hasil yang diharapkan | Hasil |
 |---|---|---|---|---|

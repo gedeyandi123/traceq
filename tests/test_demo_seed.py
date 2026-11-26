@@ -423,3 +423,60 @@ def test_keycloak_defaults_the_issuer_url_and_demo_keeps_its_own() -> None:
     )
     api, issuer, _, idp = ds._resolve_target(_args(None), None)
     assert (issuer, idp) == ("http://127.0.0.1:9000", "demo")
+
+
+# --- two-rounds: the older run is round 1 (issue #365) ---------------------------------------
+
+
+class _RunsClient:
+    def __init__(self, runs: list[dict[str, Any]]) -> None:
+        self._runs = runs
+
+    def get(self, url: str, **_: Any) -> _FakeResp:
+        assert url.endswith("/runs")
+        return _FakeResp(200, self._runs)
+
+
+def _two_rounds_args(**over: Any) -> Any:
+    import argparse
+
+    base: dict[str, Any] = {
+        "stage": "two-rounds",
+        "ready_file": None,
+        "api_url": None,
+        "issuer_url": None,
+        "idp": None,
+        "run_id": None,
+        "second_run_id": None,
+        "review_package": False,
+    }
+    return argparse.Namespace(**{**base, **over})
+
+
+def test_two_rounds_takes_the_older_run_as_round_1_and_the_newer_as_round_2() -> None:
+    ds = _load_demo_seed()
+    # The API lists newest first.
+    client = _RunsClient(
+        [
+            {"run_id": "run-new", "created": "2026-11-26T10:00:00+00:00"},
+            {"run_id": "run-old", "created": "2026-11-25T10:00:00+00:00"},
+        ]
+    )
+    args = _two_rounds_args()
+    _, _, run_id, _ = ds._resolve_target(args, client)
+    assert run_id == "run-old"
+    assert args.second_run_id == "run-new"
+
+
+def test_two_rounds_explicit_ids_are_left_alone() -> None:
+    ds = _load_demo_seed()
+    args = _two_rounds_args(run_id="a", second_run_id="b")
+    _, _, run_id, _ = ds._resolve_target(args, _RunsClient([]))
+    assert (run_id, args.second_run_id) == ("a", "b")
+
+
+def test_two_rounds_with_a_single_run_names_the_runbook_command() -> None:
+    ds = _load_demo_seed()
+    client = _RunsClient([{"run_id": "only", "created": "2026-11-25T10:00:00+00:00"}])
+    with pytest.raises(RuntimeError, match=r"section 13.*traceq run"):
+        ds._resolve_target(_two_rounds_args(), client)
