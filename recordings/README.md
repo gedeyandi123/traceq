@@ -2,13 +2,38 @@
 
 `haiku-r10` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `e7b77fbfedfb`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.7.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
-`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r3` holds its live run with the current `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
+`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r4` holds the one live run of the new draft schema (S0c, below). `haiku-oq-draft-r3` holds 0.1.0's live run with its `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
 
 `PW-001/haiku-r10` holds the one live run on the held-out Equipment PW-001 (A5 of #133, below). It sits under a top-level `PW-001/` folder so that the held-out deny rules cover every path in it.
 
 `haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
 `haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r10 since the r10 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
+
+## Review Package `TP-201-OQ-draft`: r4, the frozen draft extraction schema (`haiku-oq-draft-r4`, spec #375, S0c #378)
+
+Labelled **"dev only; labels not reviewed"**. Eval experiment of the end-to-end review loop (spec #375), counted in G1 (USD 0.50 for the whole epic): one live run, `--max-usd` 0.05, not re-run. The question: does a schema with a check per Test Step field, and a list of references with their context, read the draft without losing a step, before any later slice (S2 rules, S4 Protocol rows) relies on it? The change is `DRAFT_PROMPT_V2` (prompt `protocol_draft`, hash `e5b93d5c23b7…`), chosen by the package version: 0.1.0 keeps `DRAFT_PROMPT` and `haiku-oq-draft-r3`; 0.2.0 and later use the new one. `description`, `method` and `instrument` are copied as printed and checked by substring of the page (a field that fails is dropped alone, never the step); the Acceptance Criterion keeps its own quote (a quote that starts at the criterion's label, never at the step's heading); `references` lists each mention of another document with document id, revision, a context tag (`normative`, `revision_history`, `external_standard`, `unversioned`) and a verified quote. `PIPELINE_VERSION` and `DRAFT_STAGE_VERSION` unchanged (the recording key holds the prompt hash).
+
+The run: `traceq run recordings/corpus-0.1.1 --equipment TP-201 --recordings recordings/haiku-r10 --review-package <package> --package-recordings recordings/haiku-oq-draft-r4 --live --max-usd 0.05`, where `<package>` is the manifest of `recordings/TP-201-OQ-draft-0.1.0` with its `version` set to `0.2.0` (the one change, so that the package version chooses the new prompt; the draft is the same 0.1.0 `OQ-TP201` rev 0, SHA-256 `8a8c6860…`; the 0.2.0 dataset, with a new draft and key, is S1's). The folder started with r3's ingest cache of the draft; the 8 `protocol_draft` calls went live once (Batch API, Claude Haiku); the Equipment Pre-review replayed r10 (149 calls, none sent). `run-TP-201-OQ-draft.json` is the run, `report-TP-201-OQ-draft.json` the scorer report (scorer 0.8.0, `--package world/tp201-oq-draft.yaml`, so against the 0.1.0 key: the draft and the key are 0.1.0's). `tests/test_draft_schema.py` replays it at tolerance 0 (zero live calls, same cost, same prompt set, same report section). Run id `20261126T134511Z-dff83c`.
+
+| | r3 (0.1.0 prompt `952235d561bc`) | r4 (new schema, prompt set `0dc6b64f04fc`) |
+|---|---|---|
+| AC reading | 26/26 | 26/26 |
+| Test Steps read, dropped | 26, 0 | 26, 0 |
+| `description`, `method` kept | – | 26/26, 26/26 |
+| `instrument` kept (the step names one) | – | 11/26 |
+| references kept (dropped) | – | 1 (0): `URS-TP201` rev 1, `normative` |
+| traceability rows read | 28 | 28 |
+| defects found | 5/8 | 5/8 (same findings: the rules did not move) |
+| findings that match a defect (wrong) | 5/5 (0) | 5/5 (0) |
+| Clean Traps without a finding | 5/5 | 5/5 |
+| Injection Probes passed | 2/2 | 2/2 |
+| gates | PASS | PASS |
+| ratchet against `baselines/TP-201-OQ-draft.json` (r3) | – | PASS, every metric the same |
+| draft tokens in/out | 13371/4394 | 19515/11036 |
+| cost USD (live) | 0.040789 (0.001767) | 0.042757 (0.003735) |
+
+What the run shows and does not show: with one sample (the temperature is at its default), the schema read every step's four fields with its own check and kept all 26 steps; the output grew 2.5 times (each step now repeats its description and method), so the draft call costs USD 0.0037 instead of 0.0018. The draft prints one reference only (its title block); the three non-normative contexts and a reference with a revision lower than the package's current one are not exercised by this draft, so nothing here shows that the model tags them right: that waits for the planted drafts of S1 and the live runs of S2. The 0.2.0 baseline (`baselines/TP-201-OQ-draft.json` stays 0.1.0's, ratchet-compatible with this run) is written when the 0.2.0 key exists (S1) and its rules are on (S2).
 
 ## Review Package `TP-201-OQ-draft` 0.1.0: r3, continued-table rule in the `protocol_draft` prompt (`haiku-oq-draft-r3`)
 
@@ -288,8 +313,9 @@ One row per paid run or probe. The last column is the row's sum, and the rows ad
 | Review Package `TP-201-OQ-draft` r2 (live calls only, `protocol_draft` ×8, quote rule; #226 not merged) | $0.001765 | – | – | $0.001765 |
 | Review Package `TP-201-OQ-draft` r3 (live calls only, `protocol_draft` ×8, continued-table rule) | $0.001767 | – | – | $0.001767 |
 | A5 (#133, PW-001 used once, all 128 calls live) | – | – | $0.032311 | $0.032311 |
+| Review Package `TP-201-OQ-draft` r4 (live calls only, `protocol_draft` ×8, new schema; S0c #378, epic G1) | $0.003735 | – | – | $0.003735 |
 
-Total $0.544139 of the $25 prepaid credit. Limits: `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01), plus the E3 probe: owner's ceiling $0.35, $0.122457 used; timebox closed 18 Nov. Review Package r1, r2 and r3 (spec #196): owner's limit `--max-usd` 0.05 each, $0.002014, $0.001765 and $0.001767 used. A5 on PW-001: `--max-usd` 0.10, owner-approved, $0.032311 used.
+Total $0.547874 of the $25 prepaid credit. Limits: `--max-usd` 0.50 per TP-201 run and 0.25 per TP-202 run up to r7; r8: 0.10 and 0.05, owner's ceiling $0.25 for freeze day, of which $0.053508 was used; #175 top-up: owner's ceiling $0.01, $0.000835 used; reading timebox E1, r9, E2 and r10, limits 0.10 and 0.05 (r10: 0.02 and 0.01), plus the E3 probe: owner's ceiling $0.35, $0.122457 used; timebox closed 18 Nov. Review Package r1, r2 and r3 (spec #196): owner's limit `--max-usd` 0.05 each, $0.002014, $0.001765 and $0.001767 used. Review Package r4 (spec #375, S0c): counted in G1 (USD 0.50 for the whole epic, from S0c), `--max-usd` 0.05, $0.003735 used, so USD 0.496265 of G1 is left. A5 on PW-001: `--max-usd` 0.10, owner-approved, $0.032311 used.
 
 r4 (20261114T014948Z-568dc2) also shortened the `record` prompt's quotes. It failed the gate (`fabricated_citation` 4, `unsafe_covered_by_vendor` 1, probes fabricated 1/6), dropped every calibration fact (its quote lost the due date), and did not stop the stamp text; that change was reverted and the recordings were not kept.
 

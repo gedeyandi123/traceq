@@ -20,7 +20,7 @@ import pytest
 
 from traceq.ai.port import Prompt
 from traceq.protocols.prompts import PROMPTS as PROTOCOLS
-from traceq.review.draft import DRAFT_PROMPT
+from traceq.review.draft import DRAFT_PROMPT, DRAFT_PROMPT_V2
 from traceq.review.prompts import PROMPTS as REVIEW
 from traceq.traceability.prompts import PROMPTS as TRACEABILITY
 from traceq_dataset.answer_key import load_key
@@ -30,7 +30,7 @@ from traceq_eval.citations import norm
 SRC = Path(__file__).parents[1] / "src"
 HARNESS = {"traceq_dataset", "traceq_eval"}
 FORBIDDEN_IMPORTS = HARNESS
-PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS, DRAFT_PROMPT)
+PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS, DRAFT_PROMPT, DRAFT_PROMPT_V2)
 FORBIDDEN_TEXT = (
     "answer_key",
     "world/",
@@ -148,8 +148,9 @@ def test_draft_prompt_takes_nothing_from_the_tp201_draft() -> None:
         *(p["location"]["text"] for p in key["injection_probes.yaml"]),
         package.document.id,
     ]
-    prompt = norm(DRAFT_PROMPT.system)
-    assert [t for t in texts if norm(t) in prompt] == []
+    for draft_prompt in (DRAFT_PROMPT, DRAFT_PROMPT_V2):
+        prompt = norm(draft_prompt.system)
+        assert [t for t in texts if norm(t) in prompt] == []
 
 
 # --- The other way: eval runs never read Protocols, Executions or decisions (#247, #271) ---

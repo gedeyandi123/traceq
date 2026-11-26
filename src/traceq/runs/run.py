@@ -61,10 +61,11 @@ from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
 from traceq.review import review
 from traceq.review.draft import (
-    DRAFT_PROMPT,
     DRAFT_STAGE_VERSION,
+    DraftEdition,
     DraftReading,
     DraftRow,
+    draft_edition,
     draft_rows,
     read_draft,
 )
@@ -132,10 +133,11 @@ def _read_package(
     traced: Traceability,
     llm: LLM,
     store: Path,
+    edition: DraftEdition,
 ) -> _Draft:
     """Read the chosen revision of the package's Protocol Draft from a corpus of its own,
     after the Equipment stages: the draft never enters them. Its ingest goes to the package
-    store."""
+    store. ``edition``: the draft prompt the package version selects."""
     doc = package.draft(draft_rev)
     drafts = Corpus(
         root=package.root,
@@ -144,7 +146,7 @@ def _read_package(
         cache=IngestCache(store / INGEST_DIR),
     )
     ingested = drafts.ingest(doc)
-    reading = read_draft(doc, ingested.pages, llm)
+    reading = read_draft(doc, ingested.pages, llm, edition)
     urs = corpus.current("urs")
     language = urs[0].language if urs else "en"
     rows = draft_rows(reading, traced, language)
@@ -195,7 +197,8 @@ def run(
     this corpus and Equipment; its recordings and ingest cache go to ``package_recordings``,
     while ``recordings`` is only read and the Equipment stages only replay. ``draft_rev``: the
     revision of the package's draft to read (the latest when none); the draft read is keyed on
-    ``DRAFT_STAGE_VERSION``, the Equipment stages on ``PIPELINE_VERSION``."""
+    ``DRAFT_STAGE_VERSION``, the Equipment stages on ``PIPELINE_VERSION``, and read with the
+    draft prompt the package's version selects (``draft_edition``)."""
     if answers is not None and (
         live is not None or review_package is not None or answers.model != model
     ):
@@ -205,6 +208,7 @@ def run(
     now = now or dt.datetime.now(dt.UTC)
     run_id = f"{now:%Y%m%dT%H%M%SZ}-{secrets.token_hex(3)}"
     package: ReviewPackage | None = None
+    edition: DraftEdition | None = None
     store, reads = recordings, tuple[Path, ...]()
     if review_package is not None:
         if package_recordings is None or package_recordings.resolve() == recordings.resolve():
@@ -214,6 +218,8 @@ def run(
             )
         package = ReviewPackage.load(review_package)
         package.draft(draft_rev)  # refused before anything is read or written
+        # The package version selects the draft prompt: 0.1.0 keeps its own and its recordings.
+        edition = draft_edition(package.version)
         store, reads = package_recordings, (recordings,)
     corpus = Corpus.load(
         corpus_dir,
@@ -239,16 +245,16 @@ def run(
     equipment_calls = len(recorder.calls)
     on_draft = (
         None
-        if package is None
+        if package is None or edition is None
         else _read_package(
-            package, draft_rev, corpus, traced, recorder.stage(DRAFT_STAGE_VERSION), store
+            package, draft_rev, corpus, traced, recorder.stage(DRAFT_STAGE_VERSION), store, edition
         )
     )
 
     prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS, *DRAFT_PROMPTS)}
-    if package is not None:
+    if edition is not None:
         # Only in a Review Package run, so an Equipment run's ``system.prompt`` is unchanged.
-        prompt_hashes[DRAFT_PROMPT.name] = DRAFT_PROMPT.hash
+        prompt_hashes[edition.prompt.name] = edition.prompt.hash
     system = SystemInfo(
         name=SYSTEM_NAME,
         model=model,
