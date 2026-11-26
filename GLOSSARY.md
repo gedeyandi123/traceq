@@ -37,7 +37,7 @@ A controlled document that defines the Test Steps and Acceptance Criteria for on
 _Avoid_: template, form, checklist
 
 **Protocol Draft**:
-A site's Protocol document before its approval, as received for Pre-review. A Protocol assembled in TraceQ is not a Protocol Draft at any status.
+A site's Protocol document before its approval, as received for Pre-review. A Protocol assembled in TraceQ is not a Protocol Draft at any status, even when it was started from one (ADR 0012, amended 26 November 2026). A Protocol Draft can have several revisions, each a document version.
 
 **Preparer**:
 The person who submits a Protocol for approval.
@@ -154,7 +154,7 @@ _Avoid_: log, history
 ## AI and checks
 
 **Proposal**:
-Anything the system puts before a human for a decision: the Coverage class of a requirement, a Pre-review finding (Check Finding or AI Finding), or a drafted Test Step. It has no effect until a human decides on it.
+Anything the system puts before a human for a decision: the Coverage class of a requirement, a Pre-review finding (Check Finding or AI Finding), a drafted Test Step, or a Test Step or Acceptance Criterion read from a Protocol Draft. It has no effect until a human decides on it.
 _Avoid_: AI decision, AI result, suggestion
 
 **Proposal Decision**:
@@ -186,7 +186,7 @@ A run of the same pipeline in which every reading the LLM would do is done by pl
 _Avoid_: rules engine, fallback mode
 
 **Review Package**:
-One site Protocol Draft with its own answer key, which refers to a frozen Equipment package without changing it. Pre-review of a site document is scored on it.
+One site Protocol Draft with its own answer key (two revisions from version 0.2.0), which refers to a frozen Equipment package without changing it. Pre-review of a site document is scored on it.
 _Avoid_: test set, review bundle
 
 **Pre-review**:
