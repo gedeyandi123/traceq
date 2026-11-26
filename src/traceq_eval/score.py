@@ -61,7 +61,12 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from traceq_dataset.render import Rendered
-from traceq_dataset.review_package import NOT_REVIEWED_FIELD, Package
+from traceq_dataset.review_package import (
+    NOT_REVIEWED_FIELD,
+    REVISIONS,
+    Package,
+    key_at_revision,
+)
 from traceq_dataset.schema import CoverageClass
 from traceq_eval.citations import (
     FABRICATED,
@@ -642,7 +647,17 @@ class ReviewPackage:
 
     @classmethod
     def of(cls, package: Package, draft: Rendered, key: Key) -> ReviewPackage:
-        return cls(package.id, package.version, package.equipment, draft, key)
+        """``key``: the package's whole key. The scorer grades the draft ``draft`` is the
+        revision of, on the key as it reads at that revision (``key_at_revision``): a defect
+        another revision fixed or adds is not this revision's. A key without ``revisions``
+        (0.1.0) is revision 0 as it is."""
+        return cls(
+            package.id, package.version, package.equipment, draft, key_at_revision(key, draft.rev)
+        )
+
+    @property
+    def has_revisions(self) -> bool:
+        return any(REVISIONS in e for entries in self.key.values() for e in entries)
 
     def cites_draft(self, c: Citation) -> bool:
         return (c.doc, c.rev) == (self.draft.doc_id, self.draft.rev)
@@ -798,6 +813,8 @@ def score_review_package(
         "version": package.version,
         "labels": [*PACKAGE_LABELS, *(f"{t}: {NOT_REVIEWED_LABEL}" for t in unreviewed)],
         **({"not_reviewed_types": unreviewed} if unreviewed else {}),
+        # Shown only for a key that lists revisions, so a report of 0.1.0 keeps its bytes.
+        **({"draft_rev": package.draft.rev} if package.has_revisions else {}),
         "metrics": {
             "test_steps": ac.n,
             "ac_read_right": ac.k,
