@@ -367,6 +367,42 @@ def hash_of(copy: ProtocolCopy) -> str:
     return digest(copy.model_dump(mode="json"))
 
 
+def _copy(
+    current: lifecycle.AssembledProtocol,
+    rows: list[ProtocolRow],
+    urs: list[UrsMissed] | None,
+    preparer: Author,
+) -> ProtocolCopy:
+    return ProtocolCopy(
+        protocol_id=current.id,
+        equipment=current.equipment,
+        run_id=current.run_id,
+        preparer=preparer,
+        rows=tuple(_row(r) for r in rows),
+        urs=None if urs is None else tuple(_urs(u) for u in urs),
+    )
+
+
+def draft_hash_of(copy: ProtocolCopy) -> str:
+    """The SHA-256 of the copy's canonical JSON without its Preparer: what a Preparer confirms
+    before submitting, whoever they are. Every row, decision, Test Step, step attribute and
+    disposition of the copy is in it, so it changes whenever the copy would."""
+    return digest(copy.model_dump(mode="json", exclude={"preparer"}))
+
+
+_NO_ONE = Author(subject="", issuer="", name="")
+
+
+def draft_hash(
+    current: lifecycle.AssembledProtocol, rows: list[ProtocolRow], urs: list[UrsMissed] | None
+) -> str | None:
+    """``draft_hash_of`` the copy a submission would freeze now; ``None`` while a check of
+    ``checklist`` blocks it (there is nothing to submit yet)."""
+    if any(b.count for b in checklist(rows, urs)):
+        return None
+    return draft_hash_of(_copy(current, rows, urs, _NO_ONE))
+
+
 # --- Submitting -----------------------------------------------------------------------
 
 
@@ -409,13 +445,16 @@ def submit(
     actor: audit.Actor,
     protocol_id: int,
     check: Completeness | None,
+    expected_draft_hash: str,
     *,
     auth_time: datetime | None = None,
     jti: str | None = None,
     is_demo: bool = False,
 ) -> lifecycle.AssembledProtocol:
     """Submits a Protocol in Draft status that nothing blocks: freezes its copy and hash in
-    the ``submitted`` event. ``check``: the completeness check of the Protocol's run."""
+    the ``submitted`` event. ``check``: the completeness check of the Protocol's run.
+    ``expected_draft_hash``: the ``draft_hash`` the Preparer read; ``Conflict`` when the draft
+    holds anything else now, so nobody signs content they did not see."""
     current = lifecycle.locked(
         session, protocol_id, "draft", "only a Protocol in Draft status can be submitted"
     )
@@ -425,14 +464,12 @@ def submit(
     if blocking:
         listed = ", ".join(f"{b.check} ({b.count})" for b in blocking)
         raise Conflict(f"Protocol {protocol_id} cannot be submitted while it is blocked: {listed}")
-    copy = ProtocolCopy(
-        protocol_id=current.id,
-        equipment=current.equipment,
-        run_id=current.run_id,
-        preparer=_author(actor),
-        rows=tuple(_row(r) for r in rows),
-        urs=None if urs is None else tuple(_urs(u) for u in urs),
-    )
+    copy = _copy(current, rows, urs, _author(actor))
+    if draft_hash_of(copy) != expected_draft_hash:
+        raise Conflict(
+            f"Protocol {protocol_id} has changed since you read it: reload the page and review"
+            " it before submitting"
+        )
     hashed = hash_of(copy)
     done = lifecycle.append(
         session,

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
@@ -281,6 +281,12 @@ class ProtocolView(_Model):
     checklist: list[ChecklistItem] | None
     """In Draft status: the five submission checks, in order, each with its count; it may be
     submitted when every count is 0. ``null`` in any other status."""
+    draft_hash: str | None
+    """In Draft status when no check blocks: the SHA-256 of the copy a submission would freeze
+    now, without its Preparer (the same canonical JSON as the copy's hash). The Preparer
+    submits it as ``expected_draft_hash``; any change to a row, decision, Test Step, step
+    attribute or disposition changes it. ``null`` while a check blocks, and in any other
+    status."""
     submission: SubmissionView | None
     """While Submitted or Approved: the current submission, which the page shows instead of
     live rows. ``null`` in any other status."""
@@ -300,6 +306,13 @@ class Approval(_Model):
     """The ``event_id`` of the current submission."""
     hash: str
     """The ``hash`` of the current submission's frozen copy."""
+
+
+class SubmitRequest(_Model):
+    """What the Preparer read: submission is bound to that draft and its hash."""
+
+    expected_draft_hash: str = Field(min_length=1)
+    """The ``draft_hash`` of the Protocol view the Preparer was reading."""
 
 
 class Return(_Model):
@@ -550,6 +563,7 @@ def create_router(
             rows=None if rows is None else [_row(r) for r in rows],
             urs=None if urs is None else [_urs(u) for u in urs],
             checklist=None if rows is None else [_item(b) for b in submission.checklist(rows, urs)],
+            draft_hash=None if rows is None else submission.draft_hash(p, rows, urs),
             submission=submissions[-1] if frozen else None,
             submissions=submissions,
         )
@@ -692,14 +706,16 @@ def create_router(
 
     @router.post("/protocols/{protocol_id}/submit", operation_id="submitProtocol")
     def submit_protocol(
-        protocol_id: int, who: Annotated[Principal, Depends(principal)]
+        protocol_id: int, body: SubmitRequest, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         """Submits a Protocol in Draft status that no check blocks; the submitter becomes its
         Preparer. Stores the frozen copy and its hash in the ``submitted`` event, with its
         Audit Trail entry; from then on the Protocol shows that copy, and written Test Steps
         and missed-number dispositions are refused. Refused (409) unless in Draft status, and
-        while any check of ``checklist`` blocks (the reason lists them with their counts).
-        Needs the deciding role."""
+        while any check of ``checklist`` blocks (the reason lists them with their counts), and
+        when ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another
+        decider changed it after the Preparer read it); 422 without one. Needs the deciding
+        role."""
         if not who.may_decide:
             raise HTTPException(403, "submitting a Protocol needs the deciding role")
         if fresh_auth is not None:
@@ -712,6 +728,7 @@ def create_router(
                     actor_of(who),
                     protocol_id,
                     None if found is None else check_of(session, found.run_id),
+                    body.expected_draft_hash,
                     auth_time=who.auth_time,
                     jti=who.jti,
                     is_demo=who.is_demo,

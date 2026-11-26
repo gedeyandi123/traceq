@@ -116,7 +116,7 @@ def test_ensure_approved_protocol_imports_and_handles_changed_and_null_coverage(
             if url.endswith("/protocol"):
                 return _Resp(
                     201,
-                    {"id": 7, "status": "draft", "blockers": []},
+                    {"id": 7, "status": "draft", "blockers": [], "draft_hash": "d" * 64},
                 )
             if url.endswith("/submit"):
                 return _Resp(
@@ -138,6 +138,8 @@ def test_ensure_approved_protocol_imports_and_handles_changed_and_null_coverage(
     )
     assert proto["status"] == "approved"
     assert ("POST", "http://api/runs/r1/import", None) in calls
+    # The seed submits what it just read: the draft hash of the Protocol view.
+    assert ("POST", "http://api/protocols/7/submit", {"expected_draft_hash": "d" * 64}) in calls
     assert any(
         m == "POST" and u.endswith("/proposals/2/decisions") and b.get("decision") == "edited"
         for m, u, b in calls

@@ -334,6 +334,17 @@ test("when nothing blocks the deciding role may submit; a reader may not", () =>
   expect(screen.queryByRole("button", { name: "Ajukan protokol" })).toBeNull();
 });
 
+test("the submit dialog posts the draft hash of the page the Preparer reads", async () => {
+  const user = userEvent.setup();
+  const hash = "c".repeat(64);
+  renderPage(protocolView({ checklist: ready, draft_hash: hash }), decider);
+  await user.click(screen.getByRole("button", { name: "Ajukan protokol" }));
+  const dialog = within(await screen.findByRole("dialog", { name: "Ajukan protokol untuk persetujuan?" }));
+  const form = dialog.getByRole("button", { name: "Ajukan protokol" }).closest("form") as HTMLFormElement;
+  expect((form.elements.namedItem("expected_draft_hash") as HTMLInputElement).value).toBe(hash);
+  expect((form.elements.namedItem("protocol_id") as HTMLInputElement).value).toBe("7");
+});
+
 test("the known limits are always shown", () => {
   renderPage(null);
   const limits = within(screen.getByRole("complementary", { name: "Batas yang diketahui" }));

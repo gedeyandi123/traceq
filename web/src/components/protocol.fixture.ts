@@ -251,6 +251,7 @@ export function protocolView(over: Partial<ProtocolView> = {}): ProtocolView {
     rows,
     urs,
     checklist,
+    draft_hash: null,
     submission: null,
     submissions: [],
     ...over,

@@ -216,17 +216,21 @@ export async function returnProtocol(form: FormData): Promise<void> {
   back(runId, failed);
 }
 
-/** Submits a Protocol in Draft status that nothing blocks, then returns to the page, which
- * shows the frozen copy and its hash. The API checks again what blocks and refuses (409). */
+/** Submits a Protocol in Draft status that nothing blocks, bound to the draft the Preparer
+ * read (its `draft_hash`, from a hidden field), then returns to the page, which shows the
+ * frozen copy and its hash. The API checks again what blocks and refuses (409), as it does a
+ * draft changed since the page was read. */
 export async function submitProtocol(form: FormData): Promise<void> {
   const runId = field(form, "run_id") ?? "";
   const protocolId = Number(field(form, "protocol_id"));
-  if (!Number.isInteger(protocolId)) back(runId, "failed");
+  const draftHash = field(form, "expected_draft_hash") ?? "";
+  if (!Number.isInteger(protocolId) || draftHash === "") back(runId, "failed");
   let failed: ProtocolError | undefined;
   try {
     const { response } = await api.POST("/protocols/{protocol_id}/submit", {
       params: { path: { protocol_id: protocolId } },
       headers: await consumeSignatureBearerHeaders(),
+      body: { expected_draft_hash: draftHash },
     });
     failed = errorFromResponse(response);
   } catch {
