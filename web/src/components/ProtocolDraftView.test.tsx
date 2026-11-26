@@ -9,6 +9,7 @@ import { vi } from "vitest";
 import messages from "../../messages/id.json";
 import type { DecisionView } from "./Decisions";
 import { counts, decision, RUN_ID } from "./decisions.fixture";
+import { openBlockingModal, openDialogCount } from "./modal.fixture";
 import { deviates, draftView, notReadStep, notTested, proposal } from "./protocolDraft.fixture";
 import { ProtocolDraftView } from "./ProtocolDraftView";
 import { RunShellProvider, useRunShell } from "./RunShellContext";
@@ -221,4 +222,13 @@ test("a run not imported shows the findings without decision state", async () =>
   const dialog = await screen.findByRole("dialog", { name: "OQ-03" });
   expect(within(dialog).getByText(deviates.detail)).toBeDefined();
   expect(within(dialog).queryByText("Belum diputuskan")).toBeNull();
+});
+
+test("J/K shortcuts do nothing while a modal dialog is open (#349)", () => {
+  renderDraft(imported);
+  const button = openBlockingModal();
+  fireEvent.keyDown(button, { key: "j" });
+  fireEvent.keyDown(button, { key: "k" });
+  expect(openDialogCount()).toBe(1);
+  expect(document.activeElement).toBe(button);
 });

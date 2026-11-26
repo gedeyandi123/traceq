@@ -34,6 +34,7 @@ export function Drawer({
         <Dialog.Overlay className="tq-fade-in fixed inset-0 z-50 bg-ink/25 backdrop-blur-[1px]" />
         <Dialog.Content
           onCloseAutoFocus={onCloseAutoFocus}
+          data-tq-drawer=""
           className={`tq-slide-in-right fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-border bg-surface text-ink shadow-2xl outline-none ${widthClass}`}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2.5">

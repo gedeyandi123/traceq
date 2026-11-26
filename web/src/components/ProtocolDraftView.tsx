@@ -25,7 +25,7 @@ import { useRunShell } from "@/components/RunShellContext";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
-import { isTypingTarget } from "@/lib/keyboard";
+import { shouldIgnoreRowShortcut } from "@/lib/keyboard";
 
 export { formatPrinted };
 
@@ -202,9 +202,7 @@ export function ProtocolDraftView({
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key !== "j" && e.key !== "J" && e.key !== "k" && e.key !== "K") return;
-      if (isTypingTarget(e.target)) return;
+      if (shouldIgnoreRowShortcut(e)) return;
       if (filteredSteps.length === 0) return;
 
       e.preventDefault();
