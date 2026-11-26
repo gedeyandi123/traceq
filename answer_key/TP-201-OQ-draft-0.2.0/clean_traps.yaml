@@ -1,4 +1,4 @@
-# TP-201-OQ-draft answer key: clean_traps.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability and unit_error not reviewed by a practitioner.
+# TP-201-OQ-draft answer key: clean_traps.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability, unit_error and outdated_reference not reviewed by a practitioner.
 # Generated, do not edit:
 #   uv run python -m traceq_dataset.review_package world/<file>.yaml
 # Refers to corpus-v0.1.1. Never sent to an LLM (design section 6).
@@ -32,3 +32,22 @@
   location: {doc: OQ-TP201, rev: 0, page: 7, field: OQ-27.acceptance, text: maks. 2 jam}
   compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-032, text: Waktu changeover
       dan pembersihan antar produk maksimal 120 menit.}
+- id: CT-TP201OQ-005
+  test_step: OQ-14
+  requirement: URS-TP201-019
+  why: VMP-001 is cited without a revision and IEC 60204-1 is an external standard; neither is a register
+    document at a lower revision
+  location: {doc: OQ-TP201, rev: 0, page: 4, field: OQ-14.method, text: amati penghentian mesin sesuai
+      IEC 60204-1 dan prosedur pengujian dalam VMP-001.}
+  reference:
+    contexts: [unversioned, external_standard]
+- id: CT-TP201OQ-006
+  test_step: OQ-19
+  requirement: URS-TP201-024
+  why: SOP-VAL-002 is cited at its current revision, and Rev. 1 is mentioned only as superseded (revision
+    history)
+  location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-19.method, text: Pencatatan hasil mengikuti SOP-VAL-002
+      Rev. 2; Rev. 1 sudah digantikan.}
+  reference:
+    contexts: [current_revision, revision_history]
+  register: {doc: SOP-VAL-002, rev: 2}

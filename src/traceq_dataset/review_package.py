@@ -97,6 +97,11 @@ class Acceptance(Model):
     value: AcValue
 
 
+class DocRef(Model):
+    doc: str
+    rev: int
+
+
 class Capability(Model):
     """The Datasheet row that states what the Equipment can do (spec #375, S1a): the row the
     system links to the requirement, as printed on the datasheet page."""
@@ -145,6 +150,36 @@ class Trap(Acceptance):
     capability: Capability | None = None
 
 
+class StaleReference(Model):
+    """The Test Step's method citing a register document at a revision lower than the current
+    one, in normative text (``outdated_reference``, spec #375): printed on a step the world data
+    plants it on. ``doc`` is a document of the package's register (the corpus release)."""
+
+    method: str = Field(description="The Test Step's method as printed, with the citation.")
+    quote: str = Field(description="The sentence of the method that cites the document.")
+    detail: str = Field(description="The expected finding, as a reviewer would write it.")
+    doc: str
+    printed_rev: int
+    current_rev: int
+
+
+ReferenceContext = Literal[
+    "current_revision", "revision_history", "unversioned", "external_standard"
+]
+
+
+class ReferenceTrap(Model):
+    """A method that cites documents without a defect: the current revision, an older revision
+    mentioned only as superseded (revision history), a document without a revision, or an
+    external standard. ``in_register``: the register document (doc, current rev) it names."""
+
+    method: str
+    quote: str = Field(description="The sentence of the method that cites the documents.")
+    why: str
+    contexts: tuple[ReferenceContext, ...]
+    in_register: DocRef | None = None
+
+
 class Step(Model):
     id: str = Field(pattern=r"^OQ-\d{2}$")
     requirement: str
@@ -155,6 +190,8 @@ class Step(Model):
     trap: Trap | None = None
     outside: Outside | None = None
     unit_slip: UnitSlip | None = None
+    stale_reference: StaleReference | None = None
+    reference_trap: ReferenceTrap | None = None
 
 
 class CorpusDocument(Model):
@@ -168,11 +205,6 @@ class CorpusRef(Model):
     version: str
     manifest_sha256: str
     documents: tuple[CorpusDocument, ...]
-
-
-class DocRef(Model):
-    doc: str
-    rev: int
 
 
 class Draft(Model):
@@ -196,6 +228,8 @@ class Placements(Model):
     injection_probes: ProbePlacements
     ac_outside_documented_capability: tuple[str, ...] = ()
     unit_error: tuple[str, ...] = ()
+    outdated_reference: tuple[str, ...] = ()
+    reference_traps: tuple[str, ...] = ()
 
 
 class Fixed(Model):
@@ -205,6 +239,8 @@ class Fixed(Model):
 
     ac_outside_documented_capability: tuple[str, ...] = ()
     unit_error: tuple[str, ...] = ()
+    outdated_reference: tuple[str, ...] = ()
+    reference_traps: tuple[str, ...] = ()
     clean_traps: tuple[str, ...] = ()
 
 
@@ -212,7 +248,8 @@ class Draw(Model):
     seed: int
     ac_deviates_from_urs: int
     clean_traps: int
-    """All Clean Traps, the fixed ones included."""
+    """All Clean Traps of an Acceptance Criterion, the fixed ones included; the reference traps
+    (``fixed.reference_traps``) are counted beside them."""
     requirement_not_tested: int
     injection_probes: Literal[2]
     fixed: Fixed = Fixed()
@@ -276,10 +313,22 @@ def draw(package: Package, requirements: Sequence[Mapping[str, Any]]) -> Placeme
     for r in fixed.unit_error:
         if r not in steps or steps[r].unit_slip is None:
             raise RenderError(f"{r}: fixed as a unit error but has no `unit_slip`")
+    for r in fixed.outdated_reference:
+        if r not in steps or steps[r].stale_reference is None:
+            raise RenderError(f"{r}: fixed as an outdated reference but has no `stale_reference`")
+    for r in fixed.reference_traps:
+        if r not in steps or steps[r].reference_trap is None:
+            raise RenderError(f"{r}: fixed as a reference trap but has no `reference_trap`")
     for r in fixed.clean_traps:
         if r not in steps or steps[r].trap is None:
             raise RenderError(f"{r}: fixed as a Clean Trap but has no `trap`")
-    held = {*fixed.ac_outside_documented_capability, *fixed.unit_error, *fixed.clean_traps}
+    held = {
+        *fixed.ac_outside_documented_capability,
+        *fixed.unit_error,
+        *fixed.outdated_reference,
+        *fixed.reference_traps,
+        *fixed.clean_traps,
+    }
     pool = [r for r in comparable(requirements) if r in planned and r not in held]
     picked = rng.sample(pool, d.ac_deviates_from_urs + d.clean_traps - len(fixed.clean_traps))
     defects = sorted(picked[: d.ac_deviates_from_urs])
@@ -291,6 +340,8 @@ def draw(package: Package, requirements: Sequence[Mapping[str, Any]]) -> Placeme
         ac_deviates_from_urs=tuple(defects),
         ac_outside_documented_capability=tuple(sorted(fixed.ac_outside_documented_capability)),
         unit_error=tuple(sorted(fixed.unit_error)),
+        outdated_reference=tuple(sorted(fixed.outdated_reference)),
+        reference_traps=tuple(sorted(fixed.reference_traps)),
         clean_traps=tuple(traps),
         requirement_not_tested=tuple(not_tested),
         injection_probes=ProbePlacements(remarks=remarks, small_print=small_print),
@@ -341,6 +392,37 @@ def printed(step: Step, drawn: Placements) -> Acceptance:
     return step.acceptance
 
 
+def printed_method(step: Step, drawn: Placements) -> str:
+    """The method the draw prints for a step: the stale citation or the reference trap where
+    the world data places one, else the step's own."""
+    if step.requirement in drawn.outdated_reference:
+        if step.stale_reference is None:
+            raise RenderError(f"{step.id}: placed as an outdated reference but has none")
+        return step.stale_reference.method
+    if step.requirement in drawn.reference_traps:
+        if step.reference_trap is None:
+            raise RenderError(f"{step.id}: placed as a reference trap but has none")
+        return step.reference_trap.method
+    return step.method
+
+
+def printed_quote(step: Step, drawn: Placements) -> str | None:
+    """The sentence of the printed method that carries the reference (the placed string and the
+    key's anchor), or None where the step prints its own method."""
+    ref = (
+        step.stale_reference
+        if step.requirement in drawn.outdated_reference
+        else step.reference_trap
+        if step.requirement in drawn.reference_traps
+        else None
+    )
+    if ref is None:
+        return None
+    if ref.quote not in ref.method:
+        raise RenderError(f"{step.id}: the reference quote is not in the printed method")
+    return ref.quote
+
+
 def printed_steps(package: Package) -> list[Step]:
     """Steps printed in the draft: every planned step except those whose requirement lost
     its Test Step (``requirement_not_tested``)."""
@@ -372,11 +454,16 @@ def render_draft(package: Package, eq: Equipment) -> DraftRender:
         ac = printed(s, drawn).text
         texts |= {f"{s.id}.id": s.id, f"{s.id}.requirement": s.requirement}
         texts[f"{s.id}.acceptance"] = ac
+        method, quote = printed_method(s, drawn), printed_quote(s, drawn)
+        method_key = f"{s.id}.method" if quote is not None else None
+        if method_key is not None and quote is not None:
+            texts[method_key] = quote
         row: dict[str, Any] = {
             "id": s.id,
             "title": s.title,
             "requirement": s.requirement,
-            "method": s.method,
+            "method": method,
+            "method_key": method_key,
             "acceptance": ac,
             "remarks": "–",
             "remarks_key": None,
@@ -629,6 +716,31 @@ def derive_key(
                     },
                 }
             )
+    for s in steps:
+        if s.requirement in drawn.outdated_reference:
+            assert s.stale_reference is not None
+            ref = s.stale_reference
+            defects.append(
+                {
+                    "id": f"D-{tag}-{len(defects) + 1:03d}",
+                    "type": "outdated_reference",
+                    "severity": SEVERITY,
+                    "layer": LAYER,
+                    NOT_REVIEWED_FIELD: True,
+                    "detail": ref.detail,
+                    "test_step": s.id,
+                    "requirement": s.requirement,
+                    "documents": [{"doc": draft.doc_id, "rev": draft.rev}],
+                    "locations": [_location(draft, f"{s.id}.method")],
+                    "register": {"doc": ref.doc, "rev": ref.current_rev},
+                    "reference": {
+                        "doc": ref.doc,
+                        "printed_rev": ref.printed_rev,
+                        "current_rev": ref.current_rev,
+                        "context": "normative",
+                    },
+                }
+            )
     traps = [
         {
             "id": f"CT-{tag}-{n:03d}",
@@ -646,6 +758,25 @@ def derive_key(
         for n, s in enumerate((s for s in steps if s.requirement in drawn.clean_traps), 1)
         if s.trap is not None
     ]
+    for s in steps:
+        if s.requirement in drawn.reference_traps:
+            assert s.reference_trap is not None
+            rt = s.reference_trap
+            traps.append(
+                {
+                    "id": f"CT-{tag}-{len(traps) + 1:03d}",
+                    "test_step": s.id,
+                    "requirement": s.requirement,
+                    "why": rt.why,
+                    "location": _location(draft, f"{s.id}.method"),
+                    "reference": {"contexts": list(rt.contexts)},
+                    **(
+                        {"register": rt.in_register.model_dump(mode="json")}
+                        if rt.in_register
+                        else {}
+                    ),
+                }
+            )
     defect_of = {d["test_step"]: d["id"] for d in defects if "test_step" in d}
     probes = [
         {
@@ -761,11 +892,16 @@ def key_problems(
             corpus_anchor(d["id"], d["compared_with"])
         if "capability" in d:
             corpus_anchor(d["id"], d["capability"])
+        if "register" in d:
+            corpus_anchor(d["id"], d["register"])
     for t in traps:
         location(t["id"], t["location"])
-        corpus_anchor(t["id"], t["compared_with"])
+        if "compared_with" in t:
+            corpus_anchor(t["id"], t["compared_with"])
         if "capability" in t:
             corpus_anchor(t["id"], t["capability"])
+        if "register" in t:
+            corpus_anchor(t["id"], t["register"])
     defective = {d["test_step"]: d["id"] for d in defects if "test_step" in d}
     for p in probes:
         location(p["id"], p["location"])

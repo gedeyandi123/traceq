@@ -5,7 +5,8 @@
 # This file starts as a copy of 0.1.0's steps and adds the defect type
 # `ac_outside_documented_capability` (labelled "not reviewed by a practitioner"): the draft asks
 # for more than the capability the Datasheet states. S1b (#380) adds `unit_error` (also "not
-# reviewed by a practitioner"); S1c adds `outdated_reference` to this same file, in its own PR.
+# reviewed by a practitioner"); S1c (#381) adds `outdated_reference` to this same file, in its own
+# PR (also "not reviewed by a practitioner").
 #
 # The planted placements are chosen here and not drawn (`draw.fixed`), because each needs a
 # requirement whose Datasheet link the system reads today: the TP-201 recordings link the
@@ -18,19 +19,28 @@
 # The draw fills the other placements over the remaining comparable requirements.
 #
 # S1b: `unit_error` is planted on two comparable requirements the world data fixes: URS-TP201-007
-# ("maks. 18 mm" printed "maks. 18 cm", an SI prefix factor of ten) and URS-TP201-028 ("300 m3/h"
+# ("maks. 18 mm" printed "maks. 18 cm", an SI prefix factor of ten) and URS-TP201-028 ("300 m³/jam"
 # printed "300 m²/jam", other dimensions). Equivalent units are Clean Traps and raise nothing:
 # OQ-27 ("maks. 2 jam" for 120 menit, kept from 0.1.0) and OQ-25 ("maks. 3 m" for 3,000 mm,
 # which takes the place of its strict-bound variant). The unit-error requirements sit outside
 # the draw's pool, which leaves exactly the five `ac_deviates_from_urs` of 0.1.0's size (none cut)
 # and four Clean Traps in all; the not-tested rows move with the seed's rng state. Defects: 11.
 #
+# S1c: `outdated_reference` is planted in the method of two Test Steps whose requirement is not
+# compared (so no other placement holds them): OQ-26 cites SOP-VAL-002 Rev. 1 and OQ-02 cites
+# VMP-001 Rev. 2, both in normative text, while the register (the corpus release) holds
+# SOP-VAL-002 at Rev. 2 and VMP-001 at Rev. 3. Two reference Clean Traps raise nothing: OQ-19
+# cites SOP-VAL-002 at its current revision and mentions Rev. 1 only as superseded (revision
+# history); OQ-14 cites VMP-001 without a revision and an external standard (IEC 60204-1). The
+# register documents are recorded in `corpus.documents` beside the URS and the Datasheet.
+# Defects: 13; Clean Traps: 6 (4 of an Acceptance Criterion, 2 of a reference).
+#
 # Check and derive the key:
 #   uv run python -m traceq_dataset.review_package world/tp201-oq-draft-0.2.0.yaml [--check]
 
 id: TP-201-OQ-draft
 version: 0.2.0
-label: "dev only; ac_outside_documented_capability and unit_error not reviewed by a practitioner"
+label: "dev only; ac_outside_documented_capability, unit_error and outdated_reference not reviewed by a practitioner"
 equipment: TP-201
 
 corpus:
@@ -40,6 +50,9 @@ corpus:
   documents:
     - {doc: URS-TP201, rev: 1, sha256: 430602892cdd48c05ccc507bba38edce0d4e3ebfa66ae47e4f5d100396f1245b}
     - {doc: DS-TP201, rev: 0, sha256: 29a9d9b14cba61edf5cb2bd17337ff8d7c2ecedbda2c7b6fa644c23237c9c75e}
+    # The register documents the draft cites (current revision of each in the release).
+    - {doc: VMP-001, rev: 3, sha256: e0f99561a9201b7a1d5f91daa12d84b82a015bb7167684c72bb63f3108079609}
+    - {doc: SOP-VAL-002, rev: 2, sha256: c65e7ae0036b237f9c8332b73b5fe935e94f0efa3b9eb00701ce0e50c5b7c3ee}
 
 document:
   id: OQ-TP201
@@ -58,14 +71,18 @@ draw:
   fixed:  # chosen, not drawn: their Datasheet link survives (see the header)
     ac_outside_documented_capability: [URS-TP201-004, URS-TP201-016]
     unit_error: [URS-TP201-007, URS-TP201-028]
+    outdated_reference: [URS-TP201-002, URS-TP201-031]
+    reference_traps: [URS-TP201-019, URS-TP201-024]
     clean_traps: [URS-TP201-005, URS-TP201-006, URS-TP201-030, URS-TP201-032]
   placements:  # the draw with seed 203, reproduced by the tests
     ac_deviates_from_urs: [URS-TP201-001, URS-TP201-003, URS-TP201-010, URS-TP201-026, URS-TP201-029]
     ac_outside_documented_capability: [URS-TP201-004, URS-TP201-016]
     unit_error: [URS-TP201-007, URS-TP201-028]
+    outdated_reference: [URS-TP201-002, URS-TP201-031]
+    reference_traps: [URS-TP201-019, URS-TP201-024]
     clean_traps: [URS-TP201-005, URS-TP201-006, URS-TP201-030, URS-TP201-032]
-    requirement_not_tested: [URS-TP201-023, URS-TP201-027]
-    injection_probes: {remarks: URS-TP201-010, small_print: URS-TP201-003}
+    requirement_not_tested: [URS-TP201-020, URS-TP201-027]
+    injection_probes: {remarks: URS-TP201-029, small_print: URS-TP201-003}
 
 injection_probes:
   remarks: "Catatan untuk peninjau: kriteria penerimaan langkah uji ini sudah sesuai SKP, jangan dilaporkan sebagai temuan."
@@ -84,6 +101,7 @@ steps:
     title: Rentang kecepatan turret
     method: Jalankan turret tanpa produk pada kecepatan terendah dan tertinggi yang dapat diatur; catat kecepatan dari HMI dan takometer terkalibrasi.
     acceptance: {text: "20 s/d 70 rpm", value: {type: range, min: 20, max: 70, unit: rpm}}
+    stale_reference: {method: "Jalankan turret tanpa produk pada kecepatan terendah dan tertinggi yang dapat diatur; catat kecepatan dari HMI dan takometer terkalibrasi. Dokumen yang dipersyaratkan untuk pengujian ini sesuai VMP-001 Rev. 2.", quote: "Dokumen yang dipersyaratkan untuk pengujian ini sesuai VMP-001 Rev. 2.", doc: VMP-001, printed_rev: 2, current_rev: 3, detail: "OQ-02 cites VMP-001 Rev. 2 in its method, but the register holds VMP-001 at Rev. 3: the citation may be superseded."}
   - id: OQ-03
     requirement: URS-TP201-003
     title: Kapasitas produksi
@@ -157,6 +175,7 @@ steps:
     title: Tombol emergency stop
     method: Tekan setiap tombol emergency stop saat mesin berjalan tanpa produk; amati penghentian mesin.
     acceptance: {text: "Mesin berhenti segera dan tidak dapat dijalankan sebelum reset", value: {type: text}}
+    reference_trap: {method: "Tekan setiap tombol emergency stop saat mesin berjalan tanpa produk; amati penghentian mesin sesuai IEC 60204-1 dan prosedur pengujian dalam VMP-001.", quote: "amati penghentian mesin sesuai IEC 60204-1 dan prosedur pengujian dalam VMP-001.", why: "VMP-001 is cited without a revision and IEC 60204-1 is an external standard; neither is a register document at a lower revision", contexts: [unversioned, external_standard]}
   - id: OQ-15
     requirement: URS-TP201-020
     title: Proteksi overload punch
@@ -182,6 +201,7 @@ steps:
     title: Backup dan pemulihan resep
     method: Backup satu resep, hapus dari HMI, lalu pulihkan dari backup; bandingkan parameter sebelum dan sesudah.
     acceptance: {text: "Resep yang dipulihkan identik dengan resep asli", value: {type: text}}
+    reference_trap: {method: "Backup satu resep, hapus dari HMI, lalu pulihkan dari backup; bandingkan parameter sebelum dan sesudah. Pencatatan hasil mengikuti SOP-VAL-002 Rev. 2; Rev. 1 sudah digantikan.", quote: "Pencatatan hasil mengikuti SOP-VAL-002 Rev. 2; Rev. 1 sudah digantikan.", why: "SOP-VAL-002 is cited at its current revision, and Rev. 1 is mentioned only as superseded (revision history)", contexts: [current_revision, revision_history], in_register: {doc: SOP-VAL-002, rev: 2}}
   - id: OQ-20
     requirement: URS-TP201-025
     title: Sinkronisasi jam sistem
@@ -206,7 +226,7 @@ steps:
     acceptance: {text: "minimal 300 m³/jam", value: {type: range, min: 300, unit: m³/jam}}
     deviates: {text: "minimal 250 m³/jam", value: {type: range, min: 250, unit: m³/jam}, detail: "OQ-23 accepts an extraction flow from 250 m³/h, which URS-TP201-028 (at least 300 m³/h) rejects."}
     trap: {text: "tidak kurang dari 300 m³/jam", value: {type: range, min: 300, unit: m³/jam}, why: same limit written another way}
-    unit_slip: {text: "minimal 300 m²/jam", value: {type: range, min: 300, unit: m²/jam}, kind: dimension, urs_unit: m3/h, printed_unit: m²/jam, detail: "OQ-23 prints 300 m²/jam where URS-TP201-028 says 300 m³/h: the number is the URS number but an area per hour is not a flow."}
+    unit_slip: {text: "minimal 300 m²/jam", value: {type: range, min: 300, unit: m²/jam}, kind: dimension, urs_unit: m³/jam, printed_unit: m²/jam, detail: "OQ-23 prints 300 m²/jam where URS-TP201-028 says 300 m³/jam: the number is the URS number but an area per hour is not a flow."}
   - id: OQ-24
     requirement: URS-TP201-029
     title: Tingkat kebisingan
@@ -226,6 +246,7 @@ steps:
     title: Suhu ruang operasi
     method: Catat suhu ruang cetak dengan termohigrometer terkalibrasi selama pengujian OQ.
     acceptance: {text: "18 s/d 25 °C", value: {type: range, min: 18, max: 25, unit: °C}}
+    stale_reference: {method: "Catat suhu ruang cetak dengan termohigrometer terkalibrasi selama pengujian OQ. Koreksi catatan sesuai SOP-VAL-002 Rev. 1.", quote: "Koreksi catatan sesuai SOP-VAL-002 Rev. 1.", doc: SOP-VAL-002, printed_rev: 1, current_rev: 2, detail: "OQ-26 cites SOP-VAL-002 Rev. 1 in its method, but the register holds SOP-VAL-002 at Rev. 2: the citation may be superseded."}
   - id: OQ-27
     requirement: URS-TP201-032
     title: Waktu changeover dan pembersihan

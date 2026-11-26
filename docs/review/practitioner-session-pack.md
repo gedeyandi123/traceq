@@ -60,7 +60,7 @@ Pertanyaan 1–4 dari runbook bagian 9, pertanyaan 5 dari grilling irisan 3 (18 
 3. **Menolak usulan cakupan:** baris cakupan tidak punya "Tolak". Apakah "Ubah kelas" dengan alasan sudah cukup untuk menolak usulan AI?
 4. **D9, tanpa ditunjukkan di layar:** FAT menguji turret 20–60 rpm, sedangkan URS meminta 20–70 rpm (FAT-M-02, juga FAT-M-09 untuk paddle feeder). Apakah ini layak menjadi temuan terhadap FAT, atau cukup dicatat dan diuji ulang di OQ? Kalau F1 di awal sesi sudah menjawabnya, lewati.
 5. **Kepadatan draf, kalau ada waktu:** "Biasanya berapa komentar reviewer pada draf pertama protokol OQ, dan berapa yang menyangkut AC?" Bacakan pertanyaannya saja, tanpa angka dari proyek.
-   *Catatan presenter, jangan dibacakan:* paket review irisan 3 merencanakan 6–10 cacat di satu draf OQ. Kalau jawaban praktisi jauh lebih kecil, paket itu diberi label "lebih padat dari draf biasa" (`docs/design/synthetic-dataset.md` §11).
+   *Catatan presenter, jangan dibacakan:* paket review irisan 3 merencanakan 6–14 cacat di satu draf OQ. Kalau jawaban praktisi jauh lebih kecil, paket itu diberi label "lebih padat dari draf biasa" (`docs/design/synthetic-dataset.md` §11).
 
 Lalu, kalau masih ada waktu: D13 (siapa QA approver dan Witness) dan D14 (siapa yang memutuskan alat kerja baru), dari `tp201-practitioner-q16.md`.
 

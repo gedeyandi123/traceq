@@ -1,4 +1,4 @@
-# TP-201-OQ-draft answer key: test_steps.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability and unit_error not reviewed by a practitioner.
+# TP-201-OQ-draft answer key: test_steps.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability, unit_error and outdated_reference not reviewed by a practitioner.
 # Generated, do not edit:
 #   uv run python -m traceq_dataset.review_package world/<file>.yaml
 # Refers to corpus-v0.1.1. Never sent to an LLM (design section 6).
@@ -63,11 +63,6 @@
   acceptance: {type: text, value: Mesin berhenti segera dan tidak dapat dijalankan sebelum reset}
   location: {doc: OQ-TP201, rev: 0, page: 4, field: OQ-14.acceptance, text: Mesin berhenti segera dan
       tidak dapat dijalankan sebelum reset}
-- id: OQ-15
-  requirements: [URS-TP201-020]
-  acceptance: {type: text, value: Mesin berhenti otomatis dan alarm overload tampil di HMI}
-  location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-15.acceptance, text: Mesin berhenti otomatis dan
-      alarm overload tampil di HMI}
 - id: OQ-16
   requirements: [URS-TP201-021]
   acceptance: {type: text, value: Setiap level hanya dapat mengakses fungsi sesuai haknya}
@@ -79,6 +74,11 @@
       waktu'}
   location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-17.acceptance, text: 'Setiap perubahan tercatat
       dengan nilai lama, nilai baru, pengguna dan waktu'}
+- id: OQ-18
+  requirements: [URS-TP201-023]
+  acceptance: {type: text, value: Alarm tercatat beserta waktu dan pengguna}
+  location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-18.acceptance, text: Alarm tercatat beserta waktu
+      dan pengguna}
 - id: OQ-19
   requirements: [URS-TP201-024]
   acceptance: {type: text, value: Resep yang dipulihkan identik dengan resep asli}

@@ -57,7 +57,7 @@
       [*Langkah uji*], [*#s.id*#place(s.id + ".id")],
       [Judul], [#s.title],
       [Persyaratan SKP], [#s.requirement#place(s.id + ".requirement")],
-      [Metode], [#s.method],
+      [Metode], [#s.method#if s.method_key != none { place(s.method_key) }],
       [Kriteria penerimaan], [#s.acceptance#place(s.id + ".acceptance")],
       [Hasil], [],
       [Lulus/Gagal], [],

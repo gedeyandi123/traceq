@@ -2,7 +2,7 @@
   "dataset": "traceq-review-package",
   "package": "TP-201-OQ-draft",
   "version": "0.2.0",
-  "label": "dev only; ac_outside_documented_capability and unit_error not reviewed by a practitioner",
+  "label": "dev only; ac_outside_documented_capability, unit_error and outdated_reference not reviewed by a practitioner",
   "equipment": "TP-201",
   "corpus": {
     "release": "corpus-v0.1.1",
@@ -18,6 +18,16 @@
         "doc": "DS-TP201",
         "rev": 0,
         "sha256": "29a9d9b14cba61edf5cb2bd17337ff8d7c2ecedbda2c7b6fa644c23237c9c75e"
+      },
+      {
+        "doc": "VMP-001",
+        "rev": 3,
+        "sha256": "e0f99561a9201b7a1d5f91daa12d84b82a015bb7167684c72bb63f3108079609"
+      },
+      {
+        "doc": "SOP-VAL-002",
+        "rev": 2,
+        "sha256": "c65e7ae0036b237f9c8332b73b5fe935e94f0efa3b9eb00701ce0e50c5b7c3ee"
       }
     ]
   },
@@ -39,8 +49,8 @@
       },
       "issued": "2026-05-25",
       "pages": 8,
-      "bytes": 164925,
-      "sha256": "7aecb99115615805e61eae2b1c3ef0b633cc769ddb8ccedb9e2b9c5039e05262"
+      "bytes": 165272,
+      "sha256": "a127013eb7dc2bfbf25e7c62a2c89e9d2537a5afcccca76a7a59c5b3a7486ef2"
     }
   ]
 }

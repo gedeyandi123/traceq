@@ -1,5 +1,6 @@
-"""Review Package TP-201-OQ-draft 0.2.0, S1a and S1b: the defect types
-``ac_outside_documented_capability`` (spec #375, ticket #379) and ``unit_error`` (ticket #380):
+"""Review Package TP-201-OQ-draft 0.2.0, S1a to S1c: the defect types
+``ac_outside_documented_capability`` (spec #375, ticket #379), ``unit_error`` (ticket #380) and
+``outdated_reference`` (ticket #381):
 fixed and seeded placements, the render, the derived key and its Clean Traps, and the
 Datasheet-to-requirement link every planted defect relies on.
 
@@ -55,6 +56,9 @@ NEAR_CAPABILITY = {"OQ-05": "URS-TP201-005", "OQ-06": "URS-TP201-006"}
 UNIT = "unit_error"
 UNIT_PLANTED = {"OQ-07": "URS-TP201-007", "OQ-23": "URS-TP201-028"}
 EQUIVALENT_UNIT = {"OQ-25": "URS-TP201-030", "OQ-27": "URS-TP201-032"}
+OUTDATED = "outdated_reference"
+OUTDATED_PLANTED = {"OQ-02": "URS-TP201-002", "OQ-26": "URS-TP201-031"}
+REFERENCE_TRAPS = {"OQ-14": "URS-TP201-019", "OQ-19": "URS-TP201-024"}
 
 
 @pytest.fixture(scope="module")
@@ -100,11 +104,16 @@ def test_placements_are_the_seeded_draw_over_what_the_world_data_fixes(
         *drawn.unit_error,
         *NEAR_CAPABILITY.values(),
         *EQUIVALENT_UNIT.values(),
+        *OUTDATED_PLANTED.values(),
+        *REFERENCE_TRAPS.values(),
     }
     # The draw never takes a fixed requirement for another placement.
     assert not fixed & set(drawn.ac_deviates_from_urs)
     assert not fixed & set(drawn.requirement_not_tested)
     assert not set(drawn.unit_error) & set(drawn.clean_traps)
+    assert set(drawn.outdated_reference) == set(OUTDATED_PLANTED.values())
+    assert set(drawn.reference_traps) == set(REFERENCE_TRAPS.values())
+    assert not set(drawn.reference_traps) & set(drawn.clean_traps)
     # No old-type defect is cut: 0.1.0's five deviations and two missing tests stay.
     assert len(drawn.ac_deviates_from_urs) == package.draw.ac_deviates_from_urs == 5
     assert len(drawn.requirement_not_tested) == package.draw.requirement_not_tested == 2
@@ -144,6 +153,23 @@ def test_a_fixed_unit_error_needs_its_printed_variant(
         draw(package.model_copy(update={"steps": steps}), tp201_requirements)
 
 
+def test_a_fixed_outdated_reference_or_reference_trap_needs_its_printed_variant(
+    package: Package, tp201_requirements: list[dict[str, Any]]
+) -> None:
+    steps = tuple(
+        s.model_copy(update={"stale_reference": None}) if s.id == "OQ-26" else s
+        for s in package.steps
+    )
+    with pytest.raises(RenderError, match="URS-TP201-031: fixed as an outdated reference"):
+        draw(package.model_copy(update={"steps": steps}), tp201_requirements)
+    steps = tuple(
+        s.model_copy(update={"reference_trap": None}) if s.id == "OQ-19" else s
+        for s in package.steps
+    )
+    with pytest.raises(RenderError, match="URS-TP201-024: fixed as a reference trap"):
+        draw(package.model_copy(update={"steps": steps}), tp201_requirements)
+
+
 # --- Render -------------------------------------------------------------------------
 
 
@@ -168,6 +194,19 @@ def test_the_planted_steps_print_their_outside_variant(draft: DraftRender) -> No
     assert draft.placed["OQ-25.acceptance"].text == "tinggi maks. 3 m"
     assert draft.placed["OQ-27.acceptance"].text == "maks. 2 jam"
     assert len([k for k in draft.placed if k.endswith(".acceptance")]) == 26
+
+
+def test_the_reference_steps_print_their_method_variant(draft: DraftRender) -> None:
+    assert draft.placed["OQ-02.method"].text.endswith("sesuai VMP-001 Rev. 2.")
+    assert draft.placed["OQ-26.method"].text.endswith("sesuai SOP-VAL-002 Rev. 1.")
+    assert draft.placed["OQ-19.method"].text.endswith("Rev. 2; Rev. 1 sudah digantikan.")
+    assert "IEC 60204-1" in draft.placed["OQ-14.method"].text
+    assert sorted(k for k in draft.placed if k.endswith(".method")) == [
+        "OQ-02.method",
+        "OQ-14.method",
+        "OQ-19.method",
+        "OQ-26.method",
+    ]
 
 
 # --- Answer key ---------------------------------------------------------------------
@@ -198,7 +237,7 @@ def test_two_defects_of_the_new_type_each_flagged_not_reviewed(key: dict[str, An
     planted = [d for d in key["defects.yaml"] if d["type"] == CAPABILITY]
     assert [(d["test_step"], d["requirement"]) for d in planted] == list(PLANTED.items())
     assert all(d[NOT_REVIEWED_FIELD] is True and d["layer"] == "rule" for d in planted)
-    others = [d for d in key["defects.yaml"] if d["type"] not in (CAPABILITY, UNIT)]
+    others = [d for d in key["defects.yaml"] if d["type"] not in (CAPABILITY, UNIT, OUTDATED)]
     assert {d["type"] for d in others} == {"ac_deviates_from_urs", "requirement_not_tested"}
     assert not any(NOT_REVIEWED_FIELD in d for d in others)
     assert len(others) == 7
@@ -212,16 +251,74 @@ def test_two_unit_errors_each_flagged_not_reviewed(key: dict[str, Any]) -> None:
     assert all(d[NOT_REVIEWED_FIELD] is True and d["layer"] == "rule" for d in planted)
     assert [d["unit"] for d in planted] == [
         {"kind": "prefix", "urs": "mm", "printed": "cm"},
-        {"kind": "dimension", "urs": "m3/h", "printed": "m²/jam"},
+        {"kind": "dimension", "urs": "m³/jam", "printed": "m²/jam"},
     ]
     steps = {s["id"]: s["acceptance"] for s in key["test_steps.yaml"]}
     assert steps["OQ-07"] == {"type": "range", "max": 18, "unit": "cm"}  # URS: at most 18 mm
-    assert steps["OQ-23"] == {"type": "range", "min": 300, "unit": "m²/jam"}  # URS: 300 m3/h
+    assert steps["OQ-23"] == {"type": "range", "min": 300, "unit": "m²/jam"}  # URS: 300 m³/jam
     assert [d["locations"][0]["text"] for d in planted] == ["maks. 18 cm", "minimal 300 m²/jam"]
     # No `ac_deviates_from_urs` is expected on a unit error: the type takes the Test Step.
     assert not {d["test_step"] for d in planted} & {
         d["test_step"] for d in key["defects.yaml"] if d["type"] == "ac_deviates_from_urs"
     }
+
+
+def test_two_outdated_references_each_flagged_not_reviewed(
+    key: dict[str, Any], package: Package
+) -> None:
+    """Both sit in normative method text, cite a register document below its current revision,
+    and carry the register anchor and the flag as fields of the key; n = 2 is a smoke count."""
+    planted = [d for d in key["defects.yaml"] if d["type"] == OUTDATED]
+    assert [(d["test_step"], d["requirement"]) for d in planted] == list(OUTDATED_PLANTED.items())
+    assert all(d[NOT_REVIEWED_FIELD] is True and d["layer"] == "rule" for d in planted)
+    assert [d["reference"] for d in planted] == [
+        {"doc": "VMP-001", "printed_rev": 2, "current_rev": 3, "context": "normative"},
+        {"doc": "SOP-VAL-002", "printed_rev": 1, "current_rev": 2, "context": "normative"},
+    ]
+    recorded = {(d.doc, d.rev) for d in package.corpus.documents}
+    for d in planted:
+        assert d["reference"]["printed_rev"] < d["reference"]["current_rev"]
+        assert d["register"] == {"doc": d["reference"]["doc"], "rev": d["reference"]["current_rev"]}
+        assert (d["register"]["doc"], d["register"]["rev"]) in recorded
+        assert d["locations"][0]["field"] == f"{d['test_step']}.method"
+        assert d["reference"]["doc"] in d["locations"][0]["text"]
+    # No other placement on these steps: the rule must not meet a second finding there.
+    assert not {d["test_step"] for d in planted} & {
+        d["test_step"] for d in key["defects.yaml"] if d["type"] != OUTDATED and "test_step" in d
+    }
+
+
+def test_reference_clean_traps_cover_the_four_safe_contexts_and_raise_nothing(
+    key: dict[str, Any],
+) -> None:
+    traps = {t["test_step"]: t for t in key["clean_traps.yaml"] if "reference" in t}
+    assert {s: r["requirement"] for s, r in traps.items()} == REFERENCE_TRAPS
+    contexts = {c for t in traps.values() for c in t["reference"]["contexts"]}
+    assert contexts == {"current_revision", "revision_history", "unversioned", "external_standard"}
+    text = {k: t["location"]["text"] for k, t in traps.items()}
+    assert "SOP-VAL-002 Rev. 2; Rev. 1 sudah digantikan" in text["OQ-19"]
+    assert "VMP-001." in text["OQ-14"] and "Rev." not in text["OQ-14"]
+    assert traps["OQ-19"]["register"] == {"doc": "SOP-VAL-002", "rev": 2}
+    assert not set(traps) & {d.get("test_step") for d in key["defects.yaml"]}
+
+
+def test_a_register_anchor_off_the_recorded_corpus_is_a_problem(
+    key: dict[str, Any], package: Package, draft: DraftRender
+) -> None:
+    broken = json.loads(json.dumps(key))
+    next(d for d in broken["defects.yaml"] if d["type"] == OUTDATED)["register"]["rev"] = 9
+    problems = key_problems(broken, package, draft, CORPUS_MANIFEST.read_bytes())
+    assert len(problems) == 1 and "rev 9 is not a recorded corpus document" in problems[0]
+
+
+def test_the_register_documents_are_the_releases_current_revisions(package: Package) -> None:
+    manifest = json.loads(CORPUS_MANIFEST.read_text(encoding="utf-8"))
+    current: dict[str, int] = {}
+    for d in manifest["documents"]:
+        current[d["doc_id"]] = max(current.get(d["doc_id"], -1), d["rev"])
+    for ref in ("VMP-001", "SOP-VAL-002"):
+        (rev,) = [d.rev for d in package.corpus.documents if d.doc == ref]
+        assert rev == current[ref]
 
 
 def test_equivalent_units_are_clean_traps_and_not_defects(key: dict[str, Any]) -> None:
@@ -259,7 +356,7 @@ def test_clean_traps_of_the_type_sit_at_the_capability_without_passing_it(
     key: dict[str, Any],
 ) -> None:
     traps = {t["test_step"]: t for t in key["clean_traps.yaml"]}
-    assert len(traps) == 4
+    assert len(traps) == 6
     for step, requirement in NEAR_CAPABILITY.items():
         trap = traps[step]
         assert trap["requirement"] == requirement
@@ -271,10 +368,11 @@ def test_clean_traps_of_the_type_sit_at_the_capability_without_passing_it(
 
 
 def test_key_counts_are_in_the_design_range(key: dict[str, Any]) -> None:
-    # The design range is 6 to 14 defects (owner, 26 Nov 2026); 11 here: 5 deviations, 2 missing
-    # tests, 2 outside the capability, 2 unit errors. No old-type defect was cut.
-    assert len(key["defects.yaml"]) == 11
-    assert len(key["clean_traps.yaml"]) == 4
+    # The design range is 6 to 14 defects (owner, 26 Nov 2026); 13 here: 5 deviations, 2 missing
+    # tests, 2 outside the capability, 2 unit errors, 2 outdated references. No old-type defect
+    # was cut. Clean Traps: 4 of an Acceptance Criterion and 2 of a reference, never below 4.
+    assert len(key["defects.yaml"]) == 13
+    assert len(key["clean_traps.yaml"]) == 6
     assert len(key["injection_probes.yaml"]) == 2
     assert len(key["test_steps.yaml"]) == 26
 
@@ -378,13 +476,15 @@ def test_the_oracle_scores_full_marks_and_labels_the_new_type(
         "dev only",
         "labels not reviewed",
         f"{CAPABILITY}: not reviewed by a practitioner",
+        f"{OUTDATED}: not reviewed by a practitioner",
         f"{UNIT}: not reviewed by a practitioner",
     ]
-    assert rp["not_reviewed_types"] == [CAPABILITY, UNIT]
+    assert rp["not_reviewed_types"] == [CAPABILITY, OUTDATED, UNIT]
     c = rp["counts"]
-    assert c["recall"] == {"k": 11, "n": 11, "rate": 1.0}
+    assert c["recall"] == {"k": 13, "n": 13, "rate": 1.0}
     assert c[f"recall_by_type.{CAPABILITY}"] == {"k": 2, "n": 2, "rate": 1.0}
     assert c[f"recall_by_type.{UNIT}"] == {"k": 2, "n": 2, "rate": 1.0}
+    assert c[f"recall_by_type.{OUTDATED}"] == {"k": 2, "n": 2, "rate": 1.0}
     assert c["recall_by_type.ac_deviates_from_urs"] == {"k": 5, "n": 5, "rate": 1.0}
-    assert c["clean_traps_without_finding"] == {"k": 4, "n": 4, "rate": 1.0}
+    assert c["clean_traps_without_finding"] == {"k": 6, "n": 6, "rate": 1.0}
     assert rp["metrics"]["wrong_findings"] == 0
