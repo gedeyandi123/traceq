@@ -438,11 +438,14 @@ def close_deviation(
     deviation_id: int,
     req: CloseDeviationRequest,
     *,
-    auth_time: datetime | None = None,
-    jti: str | None = None,
+    auth_time: datetime | None,
+    jti: str | None,
     is_demo: bool = False,
 ) -> DeviationEvent:
-    """Closes a ``submitted`` Deviation after enforcing Anti-TOCTOU and 4-way SoD."""
+    """Closes a ``submitted`` Deviation after enforcing Anti-TOCTOU and 4-way SoD. Signs the
+    closure: ``SignatureAuthRequired`` without a fresh ``auth_time`` and ``jti``, before anything
+    is written."""
+    auth_time, jti = audit.require_signing_claims(auth_time, jti)
     _require_in_progress_execution(session, execution_id)
     dev = _require_deviation(session, execution_id, deviation_id)
     if dev.status != "submitted":
@@ -488,33 +491,27 @@ def close_deviation(
         .one()
     )
     ev = results.deviation_event_from_row(ev_row)
-    sig_id: int | None = None
-    if auth_time is not None and jti is not None:
-        sig = audit.record_signature(
-            session,
-            actor,
-            record_type="deviation_closure",
-            signature_meaning="approved",
-            content_hash=closure_hash,
-            auth_time=auth_time,
-            jti=jti,
-            is_demo=is_demo,
-            deviation_event_id=ev.id,
-            content_payload=closure_payload,
-        )
-        sig_id = sig.id
+    sig = audit.record_signature(
+        session,
+        actor,
+        record_type="deviation_closure",
+        signature_meaning="approved",
+        content_hash=closure_hash,
+        auth_time=auth_time,
+        jti=jti,
+        is_demo=is_demo,
+        deviation_event_id=ev.id,
+        content_payload=closure_payload,
+    )
     new_audit: dict[str, audit.JsonValue] = {
         "execution_id": execution_id,
         "deviation_id": deviation_id,
         "deviation_number": dev.deviation_number,
         "event_id": ev.id,
         "status": ev.status,
-        "note": audit.ELECTRONIC_SIGNATURE_LABEL
-        if (sig_id is not None and not is_demo)
-        else (audit.DEMO_SIGNATURE_LABEL if sig_id is not None else audit.UNSIGNED_STATUS_LABEL),
+        "note": audit.DEMO_SIGNATURE_LABEL if is_demo else audit.ELECTRONIC_SIGNATURE_LABEL,
+        "signature_id": sig.id,
     }
-    if sig_id is not None:
-        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,

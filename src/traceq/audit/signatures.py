@@ -78,6 +78,22 @@ class SignatureReplayConflict(Exception):
     """Raised when a token's ``(signer_issuer, jti)`` has already signed a record."""
 
 
+class SignatureAuthRequired(Exception):
+    """Raised when a signing action has no ``auth_time`` or no ``jti`` to sign with: the token
+    carries no fresh authentication, so the action is refused rather than recorded unsigned
+    (ADR 0007)."""
+
+
+def require_signing_claims(auth_time: datetime | None, jti: str | None) -> tuple[datetime, str]:
+    """The ``(auth_time, jti)`` of the signer's token, or ``SignatureAuthRequired`` when either
+    is missing. Called before a signing action writes anything, so no event is left unsigned."""
+    if auth_time is None:
+        raise SignatureAuthRequired("re-authentication required: missing auth_time")
+    if jti is None:
+        raise SignatureAuthRequired("re-authentication required: missing jti")
+    return auth_time, jti
+
+
 @dataclass(frozen=True)
 class ElectronicSignature:
     id: int

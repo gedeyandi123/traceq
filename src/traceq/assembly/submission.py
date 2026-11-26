@@ -447,14 +447,17 @@ def submit(
     check: Completeness | None,
     expected_draft_hash: str,
     *,
-    auth_time: datetime | None = None,
-    jti: str | None = None,
+    auth_time: datetime | None,
+    jti: str | None,
     is_demo: bool = False,
 ) -> lifecycle.AssembledProtocol:
     """Submits a Protocol in Draft status that nothing blocks: freezes its copy and hash in
     the ``submitted`` event. ``check``: the completeness check of the Protocol's run.
     ``expected_draft_hash``: the ``draft_hash`` the Preparer read; ``Conflict`` when the draft
-    holds anything else now, so nobody signs content they did not see."""
+    holds anything else now, so nobody signs content they did not see. Signs it:
+    ``SignatureAuthRequired`` without a fresh ``auth_time`` and ``jti``, before anything is
+    written."""
+    auth_time, jti = audit.require_signing_claims(auth_time, jti)
     current = lifecycle.locked(
         session, protocol_id, "draft", "only a Protocol in Draft status can be submitted"
     )
@@ -480,27 +483,23 @@ def submit(
         frozen_copy=copy.model_dump(mode="json"),
         copy_hash=hashed,
     )
-    sig_id: int | None = None
-    if auth_time is not None and jti is not None:
-        sig = audit.record_signature(
-            session,
-            actor,
-            record_type="protocol_submission",
-            signature_meaning="prepared",
-            content_hash=hashed,
-            auth_time=auth_time,
-            jti=jti,
-            is_demo=is_demo,
-            protocol_event_id=done.id,
-        )
-        sig_id = sig.id
+    sig = audit.record_signature(
+        session,
+        actor,
+        record_type="protocol_submission",
+        signature_meaning="prepared",
+        content_hash=hashed,
+        auth_time=auth_time,
+        jti=jti,
+        is_demo=is_demo,
+        protocol_event_id=done.id,
+    )
     new_audit: dict[str, audit.JsonValue] = {
         "status": done.status,
         "event_id": done.id,
         "hash": hashed,
+        "signature_id": sig.id,
     }
-    if sig_id is not None:
-        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,

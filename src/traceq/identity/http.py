@@ -42,6 +42,15 @@ def authenticate(verifier: Verifier | None) -> Callable[..., Principal]:
     return principal
 
 
+def reauthentication_required(detail: str, max_age: int | None = None) -> HTTPException:
+    """The 401 asking the client to authenticate the user again (RFC 9470), for a signing
+    action whose token has no usable ``auth_time`` or ``jti``."""
+    challenge = 'Bearer error="insufficient_user_authentication"'
+    if max_age is not None:
+        challenge += f", max_age={max_age}"
+    return HTTPException(401, detail, {"WWW-Authenticate": challenge})
+
+
 def require_fresh_auth(
     verifier: Verifier | None,
     *,

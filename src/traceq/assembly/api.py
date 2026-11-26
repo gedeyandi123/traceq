@@ -40,7 +40,7 @@ from traceq.assembly.rows import (
 from traceq.assembly.submission import Check, ProtocolCopy
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.db import transaction
-from traceq.identity import Principal
+from traceq.identity import Principal, reauthentication_required
 from traceq.proposals import decisions
 from traceq.proposals.api import Proposal, actor_of, proposal_view
 from traceq.runs.api import DRAFTS_FILE, find_run
@@ -520,7 +520,7 @@ def create_router(
     db: Engine | None,
     principal: Callable[..., Principal],
     *,
-    fresh_auth: Callable[[Principal], Principal] | None = None,
+    fresh_auth: Callable[[Principal], Principal],
 ) -> APIRouter:
     """``db``: the database as the application role; none with default settings, when
     ``principal`` refuses every request."""
@@ -718,8 +718,7 @@ def create_router(
         role."""
         if not who.may_decide:
             raise HTTPException(403, "submitting a Protocol needs the deciding role")
-        if fresh_auth is not None:
-            who = fresh_auth(who)
+        who = fresh_auth(who)
         try:
             with transaction(database()) as session:
                 found = lifecycle.get(session, protocol_id)
@@ -736,6 +735,8 @@ def create_router(
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
+        except audit.SignatureAuthRequired as e:
+            raise reauthentication_required(str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
@@ -776,8 +777,7 @@ entry. Needs the approving role.""",
     ) -> ProtocolView:
         if not who.may_approve:
             raise HTTPException(403, "approving a Protocol needs the approving role")
-        if fresh_auth is not None:
-            who = fresh_auth(who)
+        who = fresh_auth(who)
         try:
             with transaction(database()) as session:
                 done = approval.approve(
@@ -793,6 +793,8 @@ entry. Needs the approving role.""",
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
+        except audit.SignatureAuthRequired as e:
+            raise reauthentication_required(str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
