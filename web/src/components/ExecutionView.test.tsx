@@ -142,6 +142,12 @@ test("renders started Execution with status, history, frozen rows in order, and 
   expect(screen.getByRole("heading", { name: "Batas yang diketahui" })).toBeDefined();
   expect(screen.getByText(/IQ dan OQ digabung dalam satu eksekusi/)).toBeDefined();
   expect(screen.getByText(/zona waktu UTC/)).toBeDefined();
+  expect(
+    screen.getByText(
+      "Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007). Penyelesaian eksekusi dan penutupan ronde adalah status tercatat tanpa tanda tangan.",
+    ),
+  ).toBeDefined();
+  expect(screen.queryByText(/Konfirmasi dan penutupan adalah status tercatat/)).toBeNull();
   expect(screen.queryByRole("button", { name: "Catat hasil" })).toBeNull();
 
   await user.click(screen.getByRole("tab", { name: /Riwayat & salinan/ }));
@@ -478,9 +484,8 @@ test("executor sees manual deviation button and can open investigation form; app
   expect(await screen.findByText("Sensor terlepas.")).toBeDefined();
   expect(screen.getByRole("button", { name: "Tutup deviasi" })).toBeDefined();
   expect(screen.getByRole("button", { name: "Kembalikan ke Terbuka" })).toBeDefined();
-  expect(
-    screen.getByText("Penutupan deviasi adalah status tercatat, bukan Tanda Tangan Elektronik."),
-  ).toBeDefined();
+  expect(screen.queryByText(/bukan Tanda Tangan Elektronik(?! \(pra-Langkah 8\))/)).toBeNull();
+  expect(screen.queryByText(/Penutupan deviasi adalah status tercatat/)).toBeNull();
   await user.click(screen.getByRole("button", { name: "Tutup deviasi" }));
   expect((await screen.findByTestId("signature-signer")).textContent).toBe("Dewi Lestari(dewi)");
   unmountApprover();
@@ -661,9 +666,8 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
   );
   expect(await screen.findByText("Dibatalkan oleh versi baru")).toBeDefined();
   expect(screen.getByText(/Disaksikan oleh Eko Prasetyo Wijaya/)).toBeDefined();
-  expect(
-    screen.getAllByText("Status tercatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2).").length,
-  ).toBeGreaterThanOrEqual(1);
+  expect(screen.queryByText(/bukan Tanda Tangan Elektronik(?! \(pra-Langkah 8\))/)).toBeNull();
+  expect(screen.queryByText(/Status tercatat(?!, bukan Tanda Tangan Elektronik \(pra-Langkah 8\))/)).toBeNull();
   expect(screen.getByText("Anda sudah mengonfirmasi versi ini.")).toBeDefined();
   expect(screen.queryByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeNull();
 });

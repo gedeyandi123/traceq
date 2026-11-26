@@ -241,7 +241,7 @@ export function QualificationReportWorkbench({
 
       {/* ADR 0007 explicit notice */}
       <Alert tone="info" title={t("adrNoticeTitle")}>
-        <p className="m-0">{report.approval_note || t("adrNoticeBody")}</p>
+        <p className="m-0">{report.exports.length > 0 ? report.approval_note : t("adrNoticeBody")}</p>
       </Alert>
 
       {/* Approver issue form */}
