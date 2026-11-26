@@ -36,8 +36,8 @@ from traceq.reports.qualification import (
 )
 from traceq.reports.reproducibility import (
     ReportNotReproducible,
-    check_render_inputs,
     check_rendered_pdf,
+    check_template_supported,
 )
 
 __all__ = [
@@ -64,8 +64,8 @@ __all__ = [
     "ReportUrsCompleteness",
     "SignatureSnapshotClaim",
     "TechnicalConclusion",
-    "check_render_inputs",
     "check_rendered_pdf",
+    "check_template_supported",
     "parse_qualification_snapshot",
     "qualification_snapshot_hash",
     "render_pre_review_pdf",

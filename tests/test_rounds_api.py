@@ -226,9 +226,18 @@ def test_stored_pre_review_export_that_cannot_be_reproduced_is_409_with_its_caus
     def download(export_id: int) -> Any:
         return client.get(f"/rounds/{round_id}/exports/{export_id}/pdf", headers=reader)
 
-    # The same export, stored by a release that ran another Typst.
+    # The same export stored by a release that ran another Typst: the re-render still matches
+    # its SHA-256, so it is served; the Typst version alone is no reason to refuse.
     other_typst = copy_export_with(fresh_database.owner, stored["id"], typst_version="0.0.1")
     r = download(other_typst)
+    assert r.status_code == 200, r.text
+    assert hashlib.sha256(r.content).hexdigest() == stored["pdf_sha256"]
+
+    # Another Typst and a SHA that no longer matches: refused, naming both versions.
+    other_typst_bad_sha = copy_export_with(
+        fresh_database.owner, stored["id"], typst_version="0.0.1", pdf_sha256="0" * 64
+    )
+    r = download(other_typst_bad_sha)
     assert r.status_code == 409, r.text
     assert "0.0.1" in r.json()["detail"]
     assert TYPST_VERSION in r.json()["detail"]
@@ -244,6 +253,7 @@ def test_stored_pre_review_export_that_cannot_be_reproduced_is_409_with_its_caus
     r = download(bad_sha)
     assert r.status_code == 409, r.text
     assert "SHA-256" in r.json()["detail"]
+    assert "0.0.1" not in r.json()["detail"]
 
     # The untouched export still downloads.
     assert download(stored["id"]).status_code == 200

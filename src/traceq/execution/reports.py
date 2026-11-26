@@ -28,8 +28,8 @@ from traceq.reports import (
     QualificationReportSnapshot,
     SignatureSnapshotClaim,
     TechnicalConclusion,
-    check_render_inputs,
     check_rendered_pdf,
+    check_template_supported,
     parse_qualification_snapshot,
     qualification_snapshot_hash,
     render_qualification_pdf,
@@ -560,8 +560,9 @@ def render_stored_qualification_pdf(
 ) -> tuple[bytes, int]:
     """Re-renders a stored Qualification Report PDF from ``snapshot_json`` without any DB writes.
 
-    Raises ``ReportNotReproducible`` when the export's template or Typst version is not the one
-    this release can reproduce, or when the re-render does not match the stored SHA-256."""
+    Raises ``ReportNotReproducible`` when the export's template version is not carried by this
+    release, or when the re-render does not match the stored SHA-256 (a Typst version that
+    differs from the running one is named as the likely cause, not a refusal by itself)."""
     row = (
         session.execute(
             select(
@@ -583,12 +584,10 @@ def render_stored_qualification_pdf(
             f"no qualification report export {export_id} for Execution {execution_id}"
         )
     template_version = str(row["template_version"])
-    check_render_inputs(
-        template_version=template_version,
-        typst_version=str(row["typst_version"]),
-        supported_templates=QUALIFICATION_TEMPLATE_VERSIONS,
-    )
+    check_template_supported(template_version, QUALIFICATION_TEMPLATE_VERSIONS)
     snapshot = parse_qualification_snapshot(row["snapshot_json"], template_version)
     pdf_bytes = render_qualification_pdf(snapshot, template_version=template_version)
-    check_rendered_pdf(pdf_bytes, str(row["pdf_sha256"]))
+    check_rendered_pdf(
+        pdf_bytes, str(row["pdf_sha256"]), stored_typst_version=str(row["typst_version"])
+    )
     return pdf_bytes, snapshot.revision_number

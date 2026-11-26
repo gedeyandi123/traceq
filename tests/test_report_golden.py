@@ -8,8 +8,9 @@ snapshot (ADR 0001) must render to the committed SHA-256.
 
 If one fails, do NOT edit the expected value. A released template version is frozen: copy the
 template to a new ``_vN`` file, give it a new ``template_version`` and leave the old one untouched.
-A Typst upgrade changes the bytes of every template: record it in an ADR, because exports stored
-under the old ``typst_version`` then answer 409 until they are regenerated.
+A Typst upgrade that changes these bytes also changes the bytes of every stored export: record it in
+an ADR, because exports made under the old ``typst_version`` then answer 409 until regenerated.
+(A Typst upgrade that keeps these bytes keeps old exports downloadable.)
 """
 
 from __future__ import annotations

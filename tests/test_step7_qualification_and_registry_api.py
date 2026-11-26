@@ -438,8 +438,15 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
             f"/executions/{eid}/qualification-reports/{export_id}/pdf", headers=reader
         )
 
+    # Another Typst but the same bytes: served. Another Typst and other bytes: 409 naming both.
     other_typst = copy_export_with(fresh_database.owner, exp1["id"], typst_version="0.0.1")
     r = pdf_of(other_typst)
+    assert r.status_code == 200, r.text
+    assert hashlib.sha256(r.content).hexdigest() == exp1["pdf_sha256"]
+    other_typst_bad_sha = copy_export_with(
+        fresh_database.owner, exp1["id"], typst_version="0.0.1", pdf_sha256="0" * 64
+    )
+    r = pdf_of(other_typst_bad_sha)
     assert r.status_code == 409, r.text
     assert "0.0.1" in r.json()["detail"]
     assert TYPST_VERSION in r.json()["detail"]
@@ -451,6 +458,7 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
     r = pdf_of(bad_sha)
     assert r.status_code == 409, r.text
     assert "SHA-256" in r.json()["detail"]
+    assert "0.0.1" not in r.json()["detail"]
 
 
 @pytest.mark.db
