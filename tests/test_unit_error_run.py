@@ -1,10 +1,12 @@
-"""The first 0.2.0 baseline of ``TP-201-OQ-draft`` (spec #375, ticket S2a, run r5).
+"""The 0.2.0 baseline of ``TP-201-OQ-draft`` with ``unit_error`` (spec #375, ticket S2b, run r6).
 
-One live run of the frozen draft schema over the 0.2.0 draft (revision 0) with the new rule
-``ac_outside_documented_capability`` on: the Equipment stages replay r10, the 8 draft calls went
-live once (``recordings/haiku-oq-draft-r5``). Replay needs only the release manifest and the
-ingest cache. The run is scored against the 0.2.0 key as it reads at revision 0
-(``key_at_revision``), so 13 defects, not 14.
+One live run of the frozen draft schema over the 0.2.0 draft (revision 0) with the rules
+``ac_outside_documented_capability`` (S2a) and ``unit_error`` (S2b) on, over the one unit table:
+the Equipment stages replay r10, the 8 draft calls went live once
+(``recordings/haiku-oq-draft-r6``). Replay needs only the release manifest and the ingest cache.
+The run is scored against the 0.2.0 key as it reads at revision 0 (``key_at_revision``), so 13
+defects, not 14. r6 takes the place of r5 (S2a), whose report the new rules change; r5's
+recordings are in the history at 223ea91.
 
 0.1.0 keeps its own baseline, ``baselines/TP-201-OQ-draft-0.1.0.json``, and its r3 report still
 ratchets against it.
@@ -39,12 +41,13 @@ RECORDINGS = ROOT / "recordings"
 MANIFEST = RECORDINGS / "corpus-0.1.1"
 R10 = RECORDINGS / "haiku-r10"
 PACKAGE = RECORDINGS / "TP-201-OQ-draft-0.2.0"
-R5 = RECORDINGS / "haiku-oq-draft-r5"
+R6 = RECORDINGS / "haiku-oq-draft-r6"
 R3 = RECORDINGS / "haiku-oq-draft-r3"
 MODEL = "claude-haiku-5-5"
 TAG = "TP-201-OQ-draft"
 CAPABILITY = "ac_outside_documented_capability"
-RUN_ID = "20261126T163941Z-5434cb"
+UNIT = "unit_error"
+RUN_ID = "20261126T172244Z-abf8f7"
 
 
 def _json(path: Path) -> Any:
@@ -55,12 +58,12 @@ def _json(path: Path) -> Any:
 def replayed(tmp_path_factory: pytest.TempPathFactory) -> RunOutput:
     return run(
         MANIFEST,
-        tmp_path_factory.mktemp("capability-run"),
+        tmp_path_factory.mktemp("unit-error-run"),
         R10,
         MODEL,
         equipment="TP-201",
         review_package=PACKAGE,
-        package_recordings=R5,
+        package_recordings=R6,
         draft_rev=0,
     )
 
@@ -87,11 +90,11 @@ def report(replayed: RunOutput, tp201_corpus: Corpus) -> dict[str, Any]:
 
 def test_the_run_replays_at_tolerance_0(replayed: RunOutput, report: dict[str, Any]) -> None:
     """Same submission, same scores, zero live calls, same cost as the live run."""
-    recorded = _json(R5 / f"run-{TAG}.json")
-    expected = _json(R5 / f"report-{TAG}.json")
+    recorded = _json(R6 / f"run-{TAG}.json")
+    expected = _json(R6 / f"report-{TAG}.json")
     assert (recorded["mode"], recorded["run_id"]) == ("live", RUN_ID)
     assert recorded["review_package"]["calls"]["live"] == 8
-    assert recorded["live_cost_usd"] == 0.004168
+    assert recorded["live_cost_usd"] == 0.004
     assert replayed.metadata["calls"] == {"total": 157, "replayed": 157, "live": 0}
     assert replayed.metadata["cost_usd"] == recorded["cost_usd"]
     assert replayed.metadata["prompts"] == recorded["prompts"]
@@ -101,23 +104,28 @@ def test_the_run_replays_at_tolerance_0(replayed: RunOutput, report: dict[str, A
     assert report["dataset"] == expected["dataset"]
 
 
-def test_the_capability_type_k_over_n_with_wrong_findings_beside_missed(
-    report: dict[str, Any],
-) -> None:
+def test_the_unit_type_k_over_n_with_wrong_findings_beside_missed(report: dict[str, Any]) -> None:
+    """Dev only, n = 2 per new type: a smoke count, not a statistic."""
     rp = report["review_package"]
     assert rp["draft_rev"] == 0
     c = rp["counts"]
+    assert c[f"recall_by_type.{UNIT}"] == {"k": 2, "n": 2, "rate": 1.0}
     assert c[f"recall_by_type.{CAPABILITY}"] == {"k": 2, "n": 2, "rate": 1.0}
-    assert (rp["metrics"]["wrong_findings"], rp["metrics"]["findings"]) == (0, 7)
-    found = {d["test_step"]: d["found_by"] for d in rp["defects"] if d["type"] == CAPABILITY}
-    assert {s: bool(n) for s, n in found.items()} == {"OQ-04": True, "OQ-11": True}
-    # The other new types have no rule yet (S2b, S2c): their 0 of 2 is a missing rule.
-    assert c["recall_by_type.unit_error"]["k"] == c["recall_by_type.outdated_reference"]["k"] == 0
-    assert c["recall"] == {"k": 7, "n": 13, "rate": pytest.approx(7 / 13, abs=1e-3)}
+    assert (rp["metrics"]["wrong_findings"], rp["metrics"]["findings"]) == (0, 10)
+    found = {d["test_step"]: d["found_by"] for d in rp["defects"] if d["type"] == UNIT}
+    assert {s: bool(n) for s, n in found.items()} == {"OQ-07": True, "OQ-23": True}
+    # `outdated_reference` has no rule yet (S2c): its 0 of 2 is a missing rule.
+    assert c["recall_by_type.outdated_reference"]["k"] == 0
+    assert c["recall"] == {"k": 10, "n": 13, "rate": pytest.approx(10 / 13, abs=1e-3)}
+    # OQ-24 (`dB(A)` against `dBA`) is found now that the unit table compares them: the
+    # Injection Probe that guards it passes.
+    assert c["injection_probes_passed"] == {"k": 2, "n": 2, "rate": 1.0}
+    assert c["recall_by_type.ac_deviates_from_urs"]["k"] == 4
 
 
 def test_the_clean_traps_of_the_key_raise_nothing(report: dict[str, Any]) -> None:
-    """Including OQ-05 and OQ-06 (a limit at the Datasheet's maximum) and the equivalent units."""
+    """Including OQ-05 and OQ-06 (a limit at the Datasheet's maximum) and the equivalent units
+    OQ-25 (3 m for 3,000 mm) and OQ-27 (2 jam for 120 menit), which now compare."""
     rp = report["review_package"]
     assert rp["counts"]["clean_traps_without_finding"] == {"k": 6, "n": 6, "rate": 1.0}
     assert rp["metrics"]["findings_on_clean_traps"] == 0
@@ -128,15 +136,25 @@ def test_the_findings_carry_the_label_on_every_surface_the_run_writes(
     replayed: RunOutput, report: dict[str, Any]
 ) -> None:
     draft = _json(replayed.folder / "protocol_draft.json")
-    labelled = [f for f in draft["findings"] if f["type"] == CAPABILITY]
-    assert [f["test_step"] for f in labelled] == ["OQ-04", "OQ-11"]
+    new = {CAPABILITY, UNIT}
+    labelled = [f for f in draft["findings"] if f["type"] in new]
+    assert [(f["type"], f["test_step"]) for f in labelled] == [
+        (CAPABILITY, "OQ-04"),
+        (CAPABILITY, "OQ-11"),
+        (UNIT, "OQ-07"),
+        (UNIT, "OQ-23"),
+    ]
     assert {f["label"] for f in labelled} == {"not reviewed by a practitioner"}
-    assert [f["label"] for f in draft["findings"] if f["type"] != CAPABILITY] == [None] * 5
-    for f in labelled:  # the capability the Datasheet states, and the row it comes from
-        assert f["capability"] is not None
-        assert [c["doc"] for c in f["citations"]] == ["OQ-TP201", "DS-TP201"]
+    assert [f["label"] for f in draft["findings"] if f["type"] not in new] == [None] * 6
+    for f in labelled:
+        if f["type"] == CAPABILITY:  # the capability the Datasheet states, and the row it is from
+            assert f["capability"] is not None
+            assert [c["doc"] for c in f["citations"]] == ["OQ-TP201", "DS-TP201"]
+        else:  # the AC in the draft and the URS sentence
+            assert [c["doc"] for c in f["citations"]] == ["OQ-TP201", "URS-TP201"]
     labels = report["review_package"]["labels"]
     assert f"{CAPABILITY}: not reviewed by a practitioner" in labels
+    assert f"{UNIT}: not reviewed by a practitioner" in labels
 
 
 def test_the_baseline_is_this_run_and_the_report_ratchets_against_it(
@@ -149,6 +167,7 @@ def test_the_baseline_is_this_run_and_the_report_ratchets_against_it(
     verdict = ratchet.compare(baseline, report)
     assert verdict["passed"] and verdict["failing"] == []
     assert all(r["status"] == "same" for r in verdict["metrics"])
+    assert baseline.metrics["review_package.recall_by_type.unit_error"] == 1.0
     assert baseline.metrics["review_package.recall_by_type.ac_outside_documented_capability"] == 1.0
 
 

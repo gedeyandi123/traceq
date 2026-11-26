@@ -2,7 +2,7 @@
 
 `haiku-r10` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `e7b77fbfedfb`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.7.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
-`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r5` holds the first live run of 0.2.0, revision 0 of its draft, with the capability rule on (S2a, below) and is `baselines/TP-201-OQ-draft.json`; `haiku-oq-draft-r4` holds the one live run of the new draft schema (S0c, below). `haiku-oq-draft-r3` holds 0.1.0's live run with its `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
+`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r6` holds the live run of 0.2.0, revision 0 of its draft, with the capability and unit rules on (S2b, below) and is `baselines/TP-201-OQ-draft.json`; its predecessor r5 (S2a) was removed because the new rules change its report (below); `haiku-oq-draft-r4` holds the one live run of the new draft schema (S0c, below). `haiku-oq-draft-r3` holds 0.1.0's live run with its `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
 
 `PW-001/haiku-r10` holds the one live run on the held-out Equipment PW-001 (A5 of #133, below). It sits under a top-level `PW-001/` folder so that the held-out deny rules cover every path in it.
 
@@ -10,7 +10,32 @@
 
 `haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r10 since the r10 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
 
-## Review Package `TP-201-OQ-draft` 0.2.0: r5, the first 0.2.0 baseline, with `ac_outside_documented_capability` (`haiku-oq-draft-r5`, spec #375, S2a #383)
+## Review Package `TP-201-OQ-draft` 0.2.0: r6, with `unit_error` and the one unit table (`haiku-oq-draft-r6`, spec #375, S2b #384)
+
+Labelled **"dev only; labels not reviewed"**, and `ac_outside_documented_capability`, `unit_error` and `outdated_reference` **"not reviewed by a practitioner"**. Eval run of the end-to-end review loop, counted in G1 (USD 0.50 for the whole epic; spent before this run: 0.007903, with this run: USD 0.011903): one live run, `--max-usd` 0.05, not re-run. The question: does the deterministic `unit_error` rule find the two planted defects of its type on the 0.2.0 draft, revision 0, and raise nothing on the Clean Traps, among them the equivalent units (`maks. 2 jam` for 120 menit, `maks. 3 m` for 3,000 mm)? No prompt, schema or model changed since r4 (prompt set `0dc6b64f04fc`; `DRAFT_STAGE_VERSION` and `PIPELINE_VERSION` as they were, `SCORER_VERSION` 0.8.0); the live calls are the 8 `protocol_draft` calls over the same draft as r5 (SHA-256 `a127013e…`), sent again because the rules changed the report of r5, which was removed (r5's recordings are in the history at 223ea91): r6 is its replacement, with one fresh read of the draft by the same model, prompt and schema.
+
+The run: `traceq run recordings/corpus-0.1.1 --equipment TP-201 --recordings recordings/haiku-r10 --review-package <release>/TP-201-OQ-draft --package-recordings recordings/haiku-oq-draft-r6 --draft-rev 0 --live --max-usd 0.05` (the folder started with r5's ingest cache of the draft; the Equipment Pre-review replayed r10: 149 calls, none sent), then `python -m traceq_eval world/tp201.yaml <run>/submission.json --package world/tp201-oq-draft-0.2.0.yaml --draft-rev 0 --write-baseline baselines/TP-201-OQ-draft.json`. `run-TP-201-OQ-draft.json` is the run, `report-TP-201-OQ-draft.json` the scorer report (scorer 0.8.0, against the 0.2.0 key as it reads at revision 0: 13 defects). `tests/test_unit_error_run.py` replays it at tolerance 0 (zero live calls, same cost, same prompt set, same report section, the ratchet against the baseline). Run id `20261126T172244Z-abf8f7`.
+
+| | r5 (capability rule only; removed) | r6 (capability and unit rules, one unit table) |
+|---|---|---|
+| AC reading | 26/26 | 26/26 |
+| defects found | 7/13 | 10/13 |
+| `ac_deviates_from_urs` | 3/5 | 4/5 |
+| `requirement_not_tested` | 2/2 | 2/2 |
+| `ac_outside_documented_capability` | 2/2 | 2/2 |
+| `unit_error` | 0/2 (no rule) | 2/2 |
+| `outdated_reference` | 0/2 (no rule) | 0/2 (no rule yet: S2c) |
+| findings that match a defect (wrong) | 7/7 (0) | 10/10 (0) |
+| Clean Traps without a finding | 6/6 | 6/6 |
+| Injection Probes passed | 1/2 | 2/2 |
+| Test Steps not compared | 20 | 17 |
+| gates | PASS | PASS |
+| draft tokens in/out | 19670/12736 | 19670/12066 |
+| cost USD (live) | 0.04319 (0.004168) | 0.043022 (0.004) |
+
+What the run shows and does not show: the rule found both planted defects (OQ-07, `maks. 18 cm` for the URS's 18 mm, a prefix factor of ten; OQ-23, `300 m²/jam` for 300 m³/jam, another dimension) and nothing on the Clean Traps. The unit table also compares OQ-24 (`dB(A)` against `dBA`): its `ac_deviates_from_urs` is found and the Injection Probe that guards it passes (it was the one missed in r5). With two defects of the type this is a smoke count: it cannot tell a rule from one that fits the author's own key (the rule's own tests use units and values outside the package, `tests/test_draft_rules.py` and `tests/test_units.py`). The misses that remain are OQ-01 (a limit against a URS single number, not compared by design) and the two `outdated_reference` (S2c's rule). One sample of the model at the default temperature: all 26 Test Steps were read and none dropped, but the read of r6 is not r5's (output tokens 12,066 against 12,736).
+
+## Review Package `TP-201-OQ-draft` 0.2.0: r5, the first 0.2.0 baseline, with `ac_outside_documented_capability` (`haiku-oq-draft-r5`, removed in S2b, spec #375, S2a #383)
 
 Labelled **"dev only; labels not reviewed"**, and `ac_outside_documented_capability`, `unit_error` and `outdated_reference` **"not reviewed by a practitioner"** (a field of each in the key). Eval run of the end-to-end review loop, counted in G1 (USD 0.50 for the whole epic; spent with S0c: 0.003735, with this run: USD 0.007903): one live run, `--max-usd` 0.05, not re-run. The question: does the deterministic capability rule find the two planted defects of its type on the 0.2.0 draft, revision 0, and raise nothing on the Clean Traps, with the draft read by r4's frozen schema? No prompt, schema or model changed since r4 (prompt set `0dc6b64f04fc`), so `DRAFT_STAGE_VERSION` and `PIPELINE_VERSION` are as they were; the only live calls are the 8 `protocol_draft` calls over a draft that is new (SHA-256 `a127013e…`).
 
