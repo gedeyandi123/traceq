@@ -7,7 +7,8 @@ import { useState } from "react";
 
 import type { ProtocolEvent, ProtocolView } from "@/api/client";
 import type { SigningAuthState } from "@/auth/session";
-import type { ApprovalControls, ProtocolControls } from "./AssembledProtocolView";
+import type { ApprovalControls, ProtocolControls, ProtocolError } from "./AssembledProtocolView";
+import { useSigningDialog } from "./useSigningDialog";
 import { ElectronicSignatureDialog } from "./ElectronicSignatureDialog";
 import { formatWhen } from "./formatWhen";
 import { SignatureBadge } from "./SignatureBadge";
@@ -90,6 +91,7 @@ function ApprovalForms({
   approval,
   signingAuth,
   initialReauthTarget,
+  error,
 }: {
   t: T;
   protocol: ProtocolView;
@@ -97,9 +99,11 @@ function ApprovalForms({
   approval: ApprovalControls;
   signingAuth: SigningAuthState;
   initialReauthTarget: string | null;
+  error?: ProtocolError;
 }) {
-  const [approveOpen, setApproveOpen] = useState(
-    () => initialReauthTarget === "protocol_approval",
+  const { open: approveOpen, setOpen: setApproveOpen } = useSigningDialog(
+    error,
+    initialReauthTarget === "protocol_approval",
   );
   const [returnOpen, setReturnOpen] = useState(false);
   const shown = protocol.submission;
@@ -134,6 +138,8 @@ function ApprovalForms({
         action={approval.approve}
         confirmLabel={t("approval.approve")}
         cancelLabel={t("cancel")}
+        error={error ? t(`errors.${error}`) : null}
+        isReauthError={error === "reauth_required"}
       >
         <input type="hidden" name="run_id" value={runId} />
         <input type="hidden" name="protocol_id" value={protocol.id} />
@@ -190,6 +196,7 @@ export function ProtocolStatusPanel({
   approval,
   signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
+  error,
 }: {
   t: T;
   protocol: ProtocolView;
@@ -198,6 +205,7 @@ export function ProtocolStatusPanel({
   approval: ApprovalControls;
   signingAuth?: SigningAuthState;
   initialReauthTarget?: string | null;
+  error?: ProtocolError;
 }) {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const currentStepIdx =
@@ -307,6 +315,7 @@ export function ProtocolStatusPanel({
         approval={approval}
         signingAuth={signingAuth}
         initialReauthTarget={initialReauthTarget}
+        error={error}
       />
 
       {protocol.status === "withdrawn" && (

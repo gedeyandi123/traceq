@@ -2,7 +2,7 @@
 
 import { AlertCircle, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ProtocolView } from "@/api/client";
 import type { SigningAuthState } from "@/auth/session";
@@ -130,6 +130,15 @@ export function AssembledProtocolView({
   const [selectedReq, setSelectedReq] = useState<string | null>(initialSelected);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [pendingReq, setPendingReq] = useState<string | null | undefined>(undefined);
+
+  // A refused action (notably a stale-draft conflict) must be seen: move focus to the alert, after
+  // any signature dialog has closed and Radix has handed focus back to its trigger.
+  const alertRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!error) return;
+    const id = window.setTimeout(() => alertRef.current?.focus(), 50);
+    return () => window.clearTimeout(id);
+  }, [error]);
 
   useEffect(() => {
     setDrawerOpen(selectedReq !== null);
@@ -259,6 +268,8 @@ export function AssembledProtocolView({
     <div className="space-y-4">
       {error && (
         <div
+          ref={alertRef}
+          tabIndex={-1}
           role="alert"
           className="flex items-start gap-2 rounded-lg border border-fail-edge bg-fail-soft px-3.5 py-2.5 text-xs text-fail"
         >
@@ -284,6 +295,7 @@ export function AssembledProtocolView({
             approval={approval}
             signingAuth={signingAuth}
             initialReauthTarget={initialReauthTarget}
+            error={error}
           />
 
           {rows !== null && (
@@ -298,6 +310,7 @@ export function AssembledProtocolView({
                   controls={controls}
                   signingAuth={signingAuth}
                   initialReauthTarget={initialReauthTarget}
+                  error={error}
                   onNavigateToRow={navigateToRow}
                   onNavigateToMissed={navigateToMissed}
                 />
