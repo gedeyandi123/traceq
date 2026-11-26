@@ -12,9 +12,21 @@ Execution (step 5b) is judged by code (ADR 0002), so it needs a Protocol whose T
 
 **Statuses:** Draft, Submitted, Approved, and Withdrawn (a Draft given up with a reason, so a newer run can get a Protocol). An Approver may return a Submitted Protocol to Draft with a reason; the returned copy stays as history. One Protocol per Equipment may be open at a time, and none may be started once one is approved: a new version is step 6.
 
+## Amended 26 November 2026: the Protocol may start from the site's reviewed Protocol Draft
+
+Decided by the owner in chat on 26 November 2026 ("Ya, ketiganya", an answer to a question that listed this change together with the two amendments of ADR 0010 of the same date). Until now the Protocol was assembled from TraceQ's own drafted Test Steps, so the draft that Pre-review reviewed was never the document that Execution ran. The Considered Option "Execute the site's Protocol Draft" is reversed in part: its objection (no human decides the rows) is met, because every row below is decided by a human.
+
+- **Source.** For a run with a Review Package, a Protocol may start from the site's Protocol Draft instead: each Test Step the system read from the draft with a verified citation becomes a candidate row. The Test Step and its Acceptance Criterion are Proposals, as before: a human accepts or edits each, and an Acceptance Criterion read from a document needs a Proposal Decision before approval (ADR 0010).
+- **Submission.** The rules of Submission above apply unchanged to a draft-sourced Protocol. For every draft-sourced row a human decides both the Test Step and its Acceptance Criterion (accept or edit); a row left unread, or a criterion only displayed, blocks submission. One Protocol uses one source: the draft or the system's own drafted Test Steps, never both, so a row never carries two Test Steps.
+- **What stays.** Every Coverage class decided by a human, every missed requirement number answered, one open Protocol per Equipment, the shape rule for Acceptance Criteria (code must be able to judge it, free text refused), answers on missed requirements, the frozen copy and its hash (the copy also records the draft's document version, revision and hash it was read from, so the Approver and the Audit Trail can trace the source), preparer is not approver, and approval as a signed status (ADR 0007, step 8).
+- **Findings carry over.** An accepted finding about a draft row ("this is a real defect and will be fixed") is shown on that row until the Test Step is edited or a later revision of the draft resolves it. A later revision resolves it only when the round-over-round diff says so, never by a person marking it silently. The carry-over reads Proposal Decisions only for display; Eval runs never read them. Whether it blocks submission or only warns is a gate: the owner decides it on the spec.
+- **Stage.** The draft carries no Stage; a human sets IQ or OQ per Test Step, as the consequence of this ADR already anticipated.
+- **Marking.** The draft-sourced path is marked in the UI and the demo runbook as awaiting the practitioner's answer (#245).
+- **Open question, not settled by this amendment:** whether a plant executes the draft it reviewed is a question for the practitioner (#245). If the answer is no, this path is removed, not patched.
+
 ## Considered Options
 
-- **Execute the site's Protocol Draft:** its Test Steps and Acceptance Criteria are read with verified citations, but no human decides them, and the Review Package holds only an OQ draft.
+- **Execute the site's Protocol Draft (reversed in part, see Amended 26 November 2026):** its Test Steps and Acceptance Criteria are read with verified citations, but no human decides them, and the Review Package holds only an OQ draft.
 - **Read decisions live until approval:** simpler, but an Approver could approve content other than what they read.
 - **Separate IQ and OQ Protocols:** the drafts carry no Stage, so a requirement whose draft belongs to the other Stage would block submission with no honest way out.
 - **Block submission on any missed requirement number:** a replayed run misses the same numbers again, and a URS numbered `4.1` over-reports by design, so submission could never happen.
@@ -23,7 +35,7 @@ Execution (step 5b) is judged by code (ADR 0002), so it needs a Protocol whose T
 ## Consequences
 
 - Known limits, stated in the product: one Test Step per requirement; no printed or exported Protocol (not in the order of ADR 0010; on the practitioner agenda, #245); no new version after approval until step 6.
-- The document Pre-review reviewed is not the one executed: a site Protocol Draft finding accepted as "will be fixed" leads nowhere in TraceQ yet. Whether a site executes the draft it reviewed is a question for the practitioner session.
+- The document Pre-review reviewed is not the one executed: a site Protocol Draft finding accepted as "will be fixed" leads nowhere in TraceQ unless the Protocol is started from the draft (amendment of 26 November 2026). Whether a site executes the draft it reviewed is a question for the practitioner session.
 - Execution and the Qualification Report (steps 5b and 7) are per Stage, so a combined IQ/OQ Protocol is debt for step 7; a Stage set by a human per Test Step is the likely way out.
 - Status changes are appended events, since the tables refuse UPDATE. A demo rehearsal starts again from a reset database, because an approved Protocol blocks a new one.
 - The demo issuer gets a fourth fictional persona holding only the approving role.
