@@ -259,20 +259,9 @@ export function QualificationReportWorkbench({
         {!canApprove ? (
           <p className="m-0 text-xs text-ink-muted">{t("approverOnly")}</p>
         ) : (
-          <form action={formAction} className="space-y-3">
-            <input type="hidden" name="run_id" value={runId} />
-            <input type="hidden" name="execution_id" value={report.execution_id} />
-            <input
-              type="hidden"
-              name="expected_revision_number"
-              value={(report.latest_export?.revision_number ?? 0) + 1}
-            />
-            <input
-              type="hidden"
-              name="expected_execution_copy_hash"
-              value={report.execution_copy_hash}
-            />
-
+          // Not a <form>: Enter in the date field would submit the approval without the signature
+          // dialog. Only the dialog's own form (below) carries the fields and submits.
+          <div className="space-y-3">
             {approveState.error && (
               <Alert tone="fail">
                 <div className="flex items-start gap-2">
@@ -374,7 +363,7 @@ export function QualificationReportWorkbench({
               <input type="hidden" name="conclusion_note" value={conclusionNote} />
               <input type="hidden" name="next_requalification_date" value={nextDate} />
             </ElectronicSignatureDialog>
-          </form>
+          </div>
         )}
       </section>
 

@@ -1592,7 +1592,7 @@ export interface components {
             /** Label */
             label: string;
             /** Verified */
-            verified: boolean;
+            verified?: boolean | null;
         };
         /**
          * EquipmentSummary

@@ -9,6 +9,7 @@ calibration due dates are checked against the database's current UTC date.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal, cast
@@ -625,6 +626,49 @@ def _deviation_description(
     )
 
 
+def _version_digest(
+    *,
+    execution_id: int,
+    requirement: str,
+    attempt_number: int,
+    version: int,
+    outcome_kind: OutcomeKind,
+    not_performable_reason: str | None,
+    value: ResultValue | None,
+    observation: str | None,
+    instruments: Sequence[InstrumentInput],
+    no_calibrated_instrument_reason: str | None,
+    evidence: Sequence[str],
+    verdict: Verdict,
+    actor: audit.Actor,
+    reason_for_change: str | None,
+) -> str:
+    rfc = reason_for_change.strip() if reason_for_change is not None else None
+    if rfc == "":
+        rfc = None
+    payload: dict[str, Any] = {
+        "execution_id": execution_id,
+        "requirement": requirement,
+        "attempt_number": attempt_number,
+        "version": version,
+        "outcome_kind": outcome_kind,
+        "not_performable_reason": (
+            not_performable_reason.strip() if not_performable_reason else None
+        ),
+        "value": None if value is None else value.model_dump(mode="json"),
+        "observation": observation,
+        "instruments": [i.model_dump(mode="json") for i in instruments],
+        "no_calibrated_instrument_reason": (
+            no_calibrated_instrument_reason.strip() if no_calibrated_instrument_reason else None
+        ),
+        "evidence": list(evidence),
+        "verdict": verdict,
+        "reason_for_change": rfc,
+        "actor": {"subject": actor.subject, "issuer": actor.issuer, "name": actor.name},
+    }
+    return digest(payload)
+
+
 def _version_hash(
     *,
     execution_id: int,
@@ -636,32 +680,43 @@ def _version_hash(
     actor: audit.Actor,
     reason_for_change: str | None = None,
 ) -> str:
-    rfc = reason_for_change.strip() if reason_for_change is not None else None
-    if rfc == "":
-        rfc = None
-    payload: dict[str, Any] = {
-        "execution_id": execution_id,
-        "requirement": requirement,
-        "attempt_number": attempt_number,
-        "version": version,
-        "outcome_kind": req.outcome_kind,
-        "not_performable_reason": (
-            req.not_performable_reason.strip() if req.not_performable_reason else None
-        ),
-        "value": None if req.value is None else req.value.model_dump(mode="json"),
-        "observation": req.observation,
-        "instruments": [i.model_dump(mode="json") for i in req.instruments],
-        "no_calibrated_instrument_reason": (
-            req.no_calibrated_instrument_reason.strip()
-            if req.no_calibrated_instrument_reason
-            else None
-        ),
-        "evidence": list(req.evidence),
-        "verdict": verdict,
-        "reason_for_change": rfc,
-        "actor": {"subject": actor.subject, "issuer": actor.issuer, "name": actor.name},
-    }
-    return digest(payload)
+    return _version_digest(
+        execution_id=execution_id,
+        requirement=requirement,
+        attempt_number=attempt_number,
+        version=version,
+        outcome_kind=req.outcome_kind,
+        not_performable_reason=req.not_performable_reason,
+        value=req.value,
+        observation=req.observation,
+        instruments=req.instruments,
+        no_calibrated_instrument_reason=req.no_calibrated_instrument_reason,
+        evidence=req.evidence,
+        verdict=verdict,
+        actor=actor,
+        reason_for_change=reason_for_change,
+    )
+
+
+def recomputed_version_hash(attempt: Attempt, v: AttemptVersion) -> str:
+    """The hash of version ``v`` of ``attempt``, recomputed from what is stored: differs from
+    ``v.version_hash`` when the stored Result was altered after it was recorded."""
+    return _version_digest(
+        execution_id=attempt.execution_id,
+        requirement=attempt.requirement,
+        attempt_number=attempt.attempt_number,
+        version=v.version,
+        outcome_kind=v.outcome_kind,
+        not_performable_reason=v.not_performable_reason,
+        value=v.value,
+        observation=v.observation,
+        instruments=v.instruments,
+        no_calibrated_instrument_reason=v.no_calibrated_instrument_reason,
+        evidence=v.evidence,
+        verdict=v.verdict,
+        actor=v.actor,
+        reason_for_change=v.reason_for_change,
+    )
 
 
 def frozen_copy(session: Session, ex: lifecycle.Execution) -> ProtocolCopy:

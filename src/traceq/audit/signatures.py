@@ -116,7 +116,9 @@ class ElectronicSignatureView(BaseModel):
     auth_time: datetime
     is_demo: bool
     label: str
-    verified: bool
+    verified: bool | None = None
+    """``True``: the bound ``content_hash`` matches the hash recomputed from the stored source
+    data. ``False``: it does not (the data changed after signing). ``None``: not checked."""
 
 
 def signature_label(record: ElectronicSignature | None) -> str:
@@ -133,17 +135,28 @@ def verify_signature(record: ElectronicSignature, expected_content_hash: str) ->
     return record.content_hash == expected_content_hash
 
 
+def verified_against(
+    record: ElectronicSignature | None, recomputed_hash: str | None
+) -> bool | None:
+    """``verify_signature`` for a record that may be absent and a recompute that may not have
+    been made: ``None`` ("not checked") when either is missing."""
+    if record is None or recomputed_hash is None:
+        return None
+    return verify_signature(record, recomputed_hash)
+
+
 def signature_view(
     record: ElectronicSignature | None,
     *,
-    expected_content_hash: str | None = None,
+    verified: bool | None,
 ) -> ElectronicSignatureView | None:
-    """Convert an ``ElectronicSignature`` into its public API view."""
+    """Convert an ``ElectronicSignature`` into its public API view.
+
+    ``verified`` is the outcome of comparing ``record.content_hash`` with a hash the caller
+    recomputed from the source data (``verify_signature``), or ``None`` when no such recompute
+    was made: a signature is never reported verified because nothing was compared."""
     if record is None:
         return None
-    verified = (
-        True if expected_content_hash is None else verify_signature(record, expected_content_hash)
-    )
     return ElectronicSignatureView(
         id=record.id,
         at=record.at,

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { vi } from "vitest";
 
@@ -298,4 +299,65 @@ test("restores conclusion_note and next_requalification_date from sessionStorage
   ).toBe("2027-12-01");
   expect(screen.getByRole("dialog")).toBeDefined();
   expect(screen.getByText(/detik tersisa/i)).toBeDefined();
+});
+
+test("pressing Enter in the requalification date field does not issue the report without the signature dialog", async () => {
+  const approveAction = vi.fn(async () => ({ ok: true, submittedAt: Date.now() }));
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <QualificationReportWorkbench
+        runId="r7 TP/201"
+        report={reportFixture()}
+        execution={null}
+        session={approverSession}
+        approveAction={approveAction}
+      />
+    </NextIntlClientProvider>,
+  );
+
+  const date = screen.getByLabelText("Tanggal rekualifikasi berikutnya (opsional)");
+  expect(date.closest("form")).toBeNull();
+  const user = userEvent.setup();
+  await user.type(date, "2027-12-01{Enter}");
+
+  expect(approveAction).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+test("the signature dialog's own form carries the report fields, the typed note and the date", async () => {
+  const approveAction = vi.fn(async () => ({ ok: true, submittedAt: Date.now() }));
+  render(
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <QualificationReportWorkbench
+        runId="r7 TP/201"
+        report={reportFixture()}
+        execution={null}
+        session={approverSession}
+        approveAction={approveAction}
+      />
+    </NextIntlClientProvider>,
+  );
+
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText(/Catatan kesimpulan/i), "Catatan QA");
+  fireEvent.change(screen.getByLabelText("Tanggal rekualifikasi berikutnya (opsional)"), {
+    target: { value: "2027-12-01" },
+  });
+  await user.click(screen.getByRole("button", { name: "Terbitkan Laporan Kualifikasi (PDF)" }));
+
+  const dialog = screen.getByRole("dialog");
+  await user.click(
+    within(dialog).getByRole("button", { name: "Terbitkan Laporan Kualifikasi (PDF)" }),
+  );
+
+  expect(approveAction).toHaveBeenCalledTimes(1);
+  const fd = (approveAction.mock.calls[0] as unknown as [unknown, FormData])[1];
+  expect(Object.fromEntries(fd.entries())).toEqual({
+    run_id: "r7 TP/201",
+    execution_id: "12",
+    expected_revision_number: "2",
+    expected_execution_copy_hash: "b".repeat(64),
+    conclusion_note: "Catatan QA",
+    next_requalification_date: "2027-12-01",
+  });
 });

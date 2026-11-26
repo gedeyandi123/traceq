@@ -25,6 +25,7 @@ from traceq.assembly.attributes import Stage
 from traceq.assembly.submission import Author, FrozenRow, ProtocolCopy
 from traceq.assembly.written import Acceptance
 from traceq.execution import lifecycle, results
+from traceq.execution.deviations import recomputed_closure_hash
 from traceq.execution.lifecycle import EVENTS, Conflict, NotFound
 from traceq.execution.results import (
     Attempt,
@@ -285,7 +286,7 @@ def _utc(at: datetime) -> datetime:
 
 
 def _frozen_witness(
-    w: WitnessConfirmation, sig: audit.ElectronicSignature | None = None
+    w: WitnessConfirmation, recomputed_version_hash: str, sig: audit.ElectronicSignature | None
 ) -> FrozenWitnessConfirmation:
     return FrozenWitnessConfirmation(
         id=w.id,
@@ -295,13 +296,16 @@ def _frozen_witness(
         witness=_author(w.actor),
         voided=w.voided,
         note=audit.signature_label(sig),
-        electronic_signature=audit.signature_view(sig, expected_content_hash=w.version_hash),
+        electronic_signature=audit.signature_view(
+            sig, verified=audit.verified_against(sig, recomputed_version_hash)
+        ),
     )
 
 
 def _frozen_version(
-    v: AttemptVersion, witness_sigs: dict[int, audit.ElectronicSignature]
+    a: Attempt, v: AttemptVersion, witness_sigs: dict[int, audit.ElectronicSignature]
 ) -> FrozenAttemptVersion:
+    recomputed = results.recomputed_version_hash(a, v)
     return FrozenAttemptVersion(
         id=v.id,
         version=v.version,
@@ -318,7 +322,7 @@ def _frozen_version(
         recorded_at=_utc(v.at),
         reason_for_change=v.reason_for_change,
         witness_confirmations=tuple(
-            _frozen_witness(w, witness_sigs.get(w.id)) for w in v.witness_confirmations
+            _frozen_witness(w, recomputed, witness_sigs.get(w.id)) for w in v.witness_confirmations
         ),
     )
 
@@ -331,7 +335,7 @@ def _frozen_attempt(
         attempt_number=a.attempt_number,
         performer=_author(a.actor),
         recorded_at=_utc(a.at),
-        versions=tuple(_frozen_version(v, witness_sigs) for v in a.versions),
+        versions=tuple(_frozen_version(a, v, witness_sigs) for v in a.versions),
         retest_deviation_id=a.retest_deviation_id,
         retest_reason=a.retest_reason,
     )
@@ -365,8 +369,9 @@ def _frozen_row(
 
 
 def _frozen_dev_event(
-    e: DeviationEvent, sig: audit.ElectronicSignature | None = None
+    d: Deviation, e: DeviationEvent, sig: audit.ElectronicSignature | None
 ) -> FrozenDeviationEvent:
+    recomputed = None if sig is None else recomputed_closure_hash(d, e.id)
     return FrozenDeviationEvent(
         id=e.id,
         at=_utc(e.at),
@@ -374,7 +379,9 @@ def _frozen_dev_event(
         status=e.status,
         reason=e.reason,
         actor=_author(e.actor),
-        electronic_signature=audit.signature_view(sig),
+        electronic_signature=audit.signature_view(
+            sig, verified=audit.verified_against(sig, recomputed)
+        ),
     )
 
 
@@ -406,7 +413,7 @@ def _frozen_deviation(
         opener=_author(d.actor),
         opened_at=_utc(d.at),
         investigations=tuple(_frozen_dev_investigation(inv) for inv in d.investigations),
-        events=tuple(_frozen_dev_event(e, dev_sigs.get(e.id)) for e in d.events),
+        events=tuple(_frozen_dev_event(d, e, dev_sigs.get(e.id)) for e in d.events),
     )
 
 

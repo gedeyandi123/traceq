@@ -74,4 +74,28 @@ describe("SignatureBadge", () => {
       screen.getByText(/designed for 21 CFR Part 11, CPOB Annex 7/i),
     ).toBeTruthy();
   });
+
+  it("renders a signature that was not checked as 'not checked', never as verified", () => {
+    render(wrap(<SignatureBadge signature={{ ...DEMO_SIG, verified: null }} />));
+    expect(screen.getByText("Belum Diperiksa")).toBeTruthy();
+    expect(screen.queryByText("Terverifikasi")).toBeNull();
+    expect(screen.queryByText(/Verifikasi Gagal/i)).toBeNull();
+  });
+
+  it("renders a signature whose hash does not match as a failed verification", () => {
+    render(wrap(<SignatureBadge signature={{ ...DEMO_SIG, verified: false }} />));
+    expect(screen.getByText(/Verifikasi Gagal/i)).toBeTruthy();
+    expect(screen.queryByText("Terverifikasi")).toBeNull();
+  });
+
+  it("does not show the green check for a voided signature", () => {
+    render(wrap(<SignatureBadge signature={OIDC_SIG} voided />));
+    expect(screen.getByText("Dibatalkan")).toBeTruthy();
+    expect(screen.queryByTestId("signature-verified-check")).toBeNull();
+  });
+
+  it("shows the green check for a verified, not voided signature", () => {
+    render(wrap(<SignatureBadge signature={OIDC_SIG} />));
+    expect(screen.getByTestId("signature-verified-check")).toBeTruthy();
+  });
 });

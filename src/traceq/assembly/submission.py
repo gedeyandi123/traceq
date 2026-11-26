@@ -378,23 +378,30 @@ class Submission:
     at: datetime
     copy: ProtocolCopy
     hash: str
+    """The stored ``copy_hash`` column."""
+    recomputed_hash: str
+    """``hash_of`` the parsed ``frozen_copy``: differs from ``hash`` when the copy was altered."""
 
 
 def submissions_of(session: Session, protocol_id: int) -> list[Submission]:
     """Every submission of the Protocol, oldest first; earlier ones were returned."""
-    return [
-        Submission(
-            event_id=m["id"],
-            at=m["at"],
-            copy=ProtocolCopy.model_validate(m["frozen_copy"]),
-            hash=m["copy_hash"],
+    out: list[Submission] = []
+    for m in session.execute(
+        select(EVENTS.c.id, EVENTS.c.at, EVENTS.c.frozen_copy, EVENTS.c.copy_hash)
+        .where(EVENTS.c.protocol_id == protocol_id, EVENTS.c.event == "submitted")
+        .order_by(EVENTS.c.id)
+    ).mappings():
+        copy = ProtocolCopy.model_validate(m["frozen_copy"])
+        out.append(
+            Submission(
+                event_id=m["id"],
+                at=m["at"],
+                copy=copy,
+                hash=m["copy_hash"],
+                recomputed_hash=hash_of(copy),
+            )
         )
-        for m in session.execute(
-            select(EVENTS.c.id, EVENTS.c.at, EVENTS.c.frozen_copy, EVENTS.c.copy_hash)
-            .where(EVENTS.c.protocol_id == protocol_id, EVENTS.c.event == "submitted")
-            .order_by(EVENTS.c.id)
-        ).mappings()
-    ]
+    return out
 
 
 def submit(

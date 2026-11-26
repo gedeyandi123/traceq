@@ -53,6 +53,12 @@ class QualificationExport:
     pdf_sha256: str
     template_version: str
     typst_version: str
+    recomputed_snapshot_hash: str
+    """``qualification_snapshot_hash`` of the stored snapshot: differs from ``snapshot_hash``
+    when the snapshot was altered after the export."""
+    claimed_content_hash: str | None
+    """The signature ``content_hash`` the stored snapshot itself claims; ``None`` when it
+    claims no Electronic Signature."""
 
 
 def compute_conclusion(copy: ExecutionCopy) -> TechnicalConclusion:
@@ -183,6 +189,7 @@ def check_sod(copy: ExecutionCopy, actor: audit.Actor) -> None:
 
 def _export_of(m: RowMapping) -> QualificationExport:
     snap = QualificationReportSnapshot.model_validate(m["snapshot_json"])
+    stored = parse_qualification_snapshot(m["snapshot_json"], str(m["template_version"]))
     return QualificationExport(
         id=int(m["id"]),
         execution_id=int(m["execution_id"]),
@@ -197,6 +204,26 @@ def _export_of(m: RowMapping) -> QualificationExport:
         pdf_sha256=str(m["pdf_sha256"]),
         template_version=str(m["template_version"]),
         typst_version=str(m["typst_version"]),
+        recomputed_snapshot_hash=qualification_snapshot_hash(stored),
+        claimed_content_hash=(
+            None if snap.electronic_signature is None else snap.electronic_signature.content_hash
+        ),
+    )
+
+
+def signature_verified(
+    export: QualificationExport, sig: audit.ElectronicSignature | None
+) -> bool | None:
+    """Whether the signature of ``export`` still matches what was signed: its ``content_hash``
+    is the digest of its stored ``content_payload``, and the stored snapshot still hashes to
+    ``snapshot_hash`` and claims that same ``content_hash``. ``None`` when nothing to recompute
+    from (no signature, or none with a stored payload)."""
+    if sig is None or sig.content_payload is None:
+        return None
+    return (
+        audit.verify_signature(sig, digest(sig.content_payload))
+        and export.recomputed_snapshot_hash == export.snapshot_hash
+        and export.claimed_content_hash == sig.content_hash
     )
 
 

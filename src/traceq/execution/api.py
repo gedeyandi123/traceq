@@ -277,8 +277,11 @@ def _event(e: lifecycle.Event) -> ExecutionEvent:
 
 
 def _attempt_version(
-    v: results.AttemptVersion, witness_sigs: dict[int, audit.ElectronicSignature]
+    a: results.Attempt,
+    v: results.AttemptVersion,
+    witness_sigs: dict[int, audit.ElectronicSignature],
 ) -> AttemptVersionView:
+    recomputed = results.recomputed_version_hash(a, v)
     return AttemptVersionView(
         id=v.id,
         at=v.at,
@@ -308,7 +311,8 @@ def _attempt_version(
                 voided=w.voided,
                 note=audit.signature_label(witness_sigs.get(w.id)),
                 electronic_signature=audit.signature_view(
-                    witness_sigs.get(w.id), expected_content_hash=w.version_hash
+                    witness_sigs.get(w.id),
+                    verified=audit.verified_against(witness_sigs.get(w.id), recomputed),
                 ),
             )
             for w in v.witness_confirmations
@@ -317,7 +321,7 @@ def _attempt_version(
 
 
 def _attempt(a: results.Attempt, witness_sigs: dict[int, audit.ElectronicSignature]) -> AttemptView:
-    versions = [_attempt_version(v, witness_sigs) for v in a.versions]
+    versions = [_attempt_version(a, v, witness_sigs) for v in a.versions]
     return AttemptView(
         id=a.id,
         at=a.at,
@@ -331,6 +335,13 @@ def _attempt(a: results.Attempt, witness_sigs: dict[int, audit.ElectronicSignatu
         retest_deviation_id=a.retest_deviation_id,
         retest_reason=a.retest_reason,
     )
+
+
+def _deviation_event_signature(
+    d: results.Deviation, e: results.DeviationEvent, sig: audit.ElectronicSignature | None
+) -> audit.ElectronicSignatureView | None:
+    recomputed = None if sig is None else deviations.recomputed_closure_hash(d, e.id)
+    return audit.signature_view(sig, verified=audit.verified_against(sig, recomputed))
 
 
 def _deviation(
@@ -362,7 +373,7 @@ def _deviation(
                 subject=e.actor.subject,
                 issuer=e.actor.issuer,
                 name=e.actor.name,
-                electronic_signature=audit.signature_view(dev_sigs.get(e.id)),
+                electronic_signature=_deviation_event_signature(d, e, dev_sigs.get(e.id)),
             )
             for e in d.events
         ],
@@ -764,7 +775,9 @@ def create_router(
             issuer=exp.actor.issuer,
             name=exp.actor.name,
             at=exp.at,
-            electronic_signature=audit.signature_view(sig),
+            electronic_signature=audit.signature_view(
+                sig, verified=reports.signature_verified(exp, sig)
+            ),
         )
 
     def _qual_report_view(

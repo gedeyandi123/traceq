@@ -35,7 +35,7 @@ from traceq.proposals.decisions import Decision, Standing, standings
 from traceq.proposals.store import RUN_PROPOSALS
 from traceq.runs.schemas import DraftedTestStep, MatrixRow
 from traceq.traceability.coverage import CoverageClass
-from traceq.traceability.values import Text, Value
+from traceq.traceability.values import Range, Text, Value
 
 type PrefillOrigin = Literal["written", "withdrawn", "draft"]
 
@@ -213,8 +213,17 @@ def _test_step_blockers(
 
 
 def shaped(acceptance: Value | None) -> TypeGuard[Acceptance]:
-    """An Acceptance Criterion in one of the four shapes: range, number, one of, present."""
-    return acceptance is not None and not isinstance(acceptance, Text)
+    """An Acceptance Criterion in one of the four shapes: range, number, one of, present.
+
+    A range whose lower bound is above its upper bound is no shape (as a written Test Step's)."""
+    if acceptance is None or isinstance(acceptance, Text):
+        return False
+    return not (
+        isinstance(acceptance, Range)
+        and acceptance.min is not None
+        and acceptance.max is not None
+        and acceptance.min > acceptance.max
+    )
 
 
 def rows_of(session: Session, protocol: AssembledProtocol) -> list[ProtocolRow]:
