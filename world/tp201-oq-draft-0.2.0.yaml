@@ -33,7 +33,10 @@
 # cites SOP-VAL-002 at its current revision and mentions Rev. 1 only as superseded (revision
 # history); OQ-14 cites VMP-001 without a revision and an external standard (IEC 60204-1). The
 # register documents are recorded in `corpus.documents` beside the URS and the Datasheet.
-# Defects: 13; Clean Traps: 6 (4 of an Acceptance Criterion, 2 of a reference).
+# Defects: 13 at revision 0; Clean Traps: 6 (4 of an Acceptance Criterion, 2 of a reference).
+#
+# S1d (see `revisions` at the end): revision 1 of the draft; the key then holds 14 defects (the 13
+# of revision 0 and one new in revision 1), each entry listing the revisions it is present in.
 #
 # Check and derive the key:
 #   uv run python -m traceq_dataset.review_package world/tp201-oq-draft-0.2.0.yaml [--check]
@@ -259,3 +262,41 @@ steps:
     title: Pelepasan bagian kontak produk
     method: Lepas hopper, feeder dan punch tanpa alat khusus sesuai instruksi kerja pembersihan.
     acceptance: {text: "Semua bagian kontak produk dapat dilepas tanpa alat khusus", value: {type: text}}
+
+# S1d (#382): revision 1 of the draft, written in answer to a review of revision 0. Every defect of
+# revision 0 has an outcome: eleven are fixed (the two missing Test Steps are restored, the limits
+# and units corrected, the citations brought to the current revision), OQ-24 persists unchanged,
+# and OQ-03 carries the wrong fix (the same Test Step with another limit that is still looser than
+# the URS). OQ-12 gains one new defect: a citation of SOP-VAL-002 Rev. 1, written in this revision.
+# The Clean Traps and both Injection Probes print as in revision 0 (the probes sit on OQ-24 and
+# OQ-03, whose defects are still there). The key lists the revisions each entry is present in.
+revisions:
+  - rev: 1
+    issued_on: 2026-06-08
+    steps:
+      - {requirement: URS-TP201-001, outcome: fixed}
+      - requirement: URS-TP201-003
+        outcome: changed
+        acceptance: {text: "minimal 110.000 tablet/jam", value: {type: range, min: 110000, unit: tablet/jam}}
+        detail: "OQ-03 now accepts an output from 110,000 tablets/h, which URS-TP201-003 rev 1 (at least 120,000 tablets/h) still rejects: the limit changed but is still looser than the URS."
+      - {requirement: URS-TP201-010, outcome: fixed}
+      - {requirement: URS-TP201-026, outcome: fixed}
+      - {requirement: URS-TP201-029, outcome: persists}
+      - {requirement: URS-TP201-020, outcome: fixed}
+      - {requirement: URS-TP201-027, outcome: fixed}
+      - {requirement: URS-TP201-004, outcome: fixed}
+      - {requirement: URS-TP201-016, outcome: fixed}
+      - {requirement: URS-TP201-007, outcome: fixed}
+      - {requirement: URS-TP201-028, outcome: fixed}
+      - requirement: URS-TP201-002
+        outcome: fixed
+        method: "Jalankan turret tanpa produk pada kecepatan terendah dan tertinggi yang dapat diatur; catat kecepatan dari HMI dan takometer terkalibrasi. Dokumen yang dipersyaratkan untuk pengujian ini sesuai VMP-001 Rev. 3."
+      - requirement: URS-TP201-031
+        outcome: fixed
+        method: "Catat suhu ruang cetak dengan termohigrometer terkalibrasi selama pengujian OQ. Koreksi catatan sesuai SOP-VAL-002 Rev. 2."
+      - requirement: URS-TP201-017
+        outcome: new
+        method: "Jalankan paddle feeder tanpa produk pada kecepatan terendah dan tertinggi yang dapat diatur; catat kecepatan dari HMI. Pencatatan hasil mengikuti SOP-VAL-002 Rev. 1."
+        quote: "Pencatatan hasil mengikuti SOP-VAL-002 Rev. 1."
+        reference: {doc: SOP-VAL-002, printed_rev: 1, current_rev: 2}
+        detail: "OQ-12 cites SOP-VAL-002 Rev. 1 in its method, but the register holds SOP-VAL-002 at Rev. 2: the citation may be superseded. The citation is new in revision 1."

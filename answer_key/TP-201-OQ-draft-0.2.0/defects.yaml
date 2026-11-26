@@ -15,6 +15,7 @@
   - {doc: OQ-TP201, rev: 0, page: 1, field: OQ-01.acceptance, text: minimal 32 stasiun}
   compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-001, text: Mesin memiliki 36
       stasiun punch.}
+  revisions: [0]
 - id: D-TP201OQ-002
   type: ac_deviates_from_urs
   severity: major
@@ -29,6 +30,15 @@
   - {doc: OQ-TP201, rev: 0, page: 2, field: OQ-03.acceptance, text: minimal 100.000 tablet/jam}
   compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-003, text: Kapasitas produksi
       minimal 120.000 tablet/jam.}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    documents:
+    - {doc: OQ-TP201, rev: 1}
+    locations:
+    - {doc: OQ-TP201, rev: 1, page: 2, field: OQ-03.acceptance, text: minimal 110.000 tablet/jam}
+    detail: 'OQ-03 now accepts an output from 110,000 tablets/h, which URS-TP201-003 rev 1 (at least 120,000
+      tablets/h) still rejects: the limit changed but is still looser than the URS.'
 - id: D-TP201OQ-003
   type: ac_deviates_from_urs
   severity: major
@@ -42,6 +52,7 @@
   - {doc: OQ-TP201, rev: 0, page: 3, field: OQ-08.acceptance, text: 'Ra maks. 1,6 µm'}
   compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-010, text: 'Kekasaran permukaan
       bagian kontak produk Ra maksimal 0,8 µm.'}
+  revisions: [0]
 - id: D-TP201OQ-004
   type: ac_deviates_from_urs
   severity: major
@@ -55,6 +66,7 @@
   - {doc: OQ-TP201, rev: 0, page: 6, field: OQ-21.acceptance, text: '400 V, 3 fase'}
   compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-026, text: 'Mesin beroperasi
       dengan suplai listrik 380 V, 3 fase.'}
+  revisions: [0]
 - id: D-TP201OQ-005
   type: ac_deviates_from_urs
   severity: major
@@ -68,6 +80,13 @@
   - {doc: OQ-TP201, rev: 0, page: 6, field: OQ-24.acceptance, text: maks. 90 dB(A)}
   compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-029, text: Tingkat kebisingan
       di posisi operator maksimal 85 dBA.}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    documents:
+    - {doc: OQ-TP201, rev: 1}
+    locations:
+    - {doc: OQ-TP201, rev: 1, page: 7, field: OQ-24.acceptance, text: maks. 90 dB(A)}
 - id: D-TP201OQ-006
   type: requirement_not_tested
   severity: major
@@ -81,6 +100,7 @@
   locations:
   - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-020.requirement, text: URS-TP201-020}
   - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-020.steps, text: OQ-15}
+  revisions: [0]
 - id: D-TP201OQ-007
   type: requirement_not_tested
   severity: major
@@ -94,6 +114,7 @@
   locations:
   - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-027.requirement, text: URS-TP201-027}
   - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-027.steps, text: OQ-22}
+  revisions: [0]
 - id: D-TP201OQ-008
   type: ac_outside_documented_capability
   severity: major
@@ -111,6 +132,7 @@
       yang dapat dicapai minimal 100 kN.}
   capability: {doc: DS-TP201, rev: 0, page: 1, name: Maximum main compression force, printed: 100 kN,
     kind: maximum}
+  revisions: [0]
 - id: D-TP201OQ-009
   type: ac_outside_documented_capability
   severity: major
@@ -129,6 +151,7 @@
       gaya tekan maksimal ±1% dari skala penuh.}
   capability: {doc: DS-TP201, rev: 0, page: 1, name: Compression force measurement accuracy (max. ±),
     printed: 1 % FS, kind: accuracy}
+  revisions: [0]
 - id: D-TP201OQ-010
   type: unit_error
   severity: major
@@ -145,6 +168,7 @@
   compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-007, text: Kedalaman pengisian
       maksimal 18 mm.}
   unit: {kind: prefix, urs: mm, printed: cm}
+  revisions: [0]
 - id: D-TP201OQ-011
   type: unit_error
   severity: major
@@ -161,6 +185,7 @@
   compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-028, text: Sambungan dust extraction
       kompatibel dengan sistem pabrik minimal 300 m³/jam.}
   unit: {kind: dimension, urs: m³/jam, printed: m²/jam}
+  revisions: [0]
 - id: D-TP201OQ-012
   type: outdated_reference
   severity: major
@@ -177,6 +202,7 @@
       ini sesuai VMP-001 Rev. 2.}
   register: {doc: VMP-001, rev: 3}
   reference: {doc: VMP-001, printed_rev: 2, current_rev: 3, context: normative}
+  revisions: [0]
 - id: D-TP201OQ-013
   type: outdated_reference
   severity: major
@@ -193,3 +219,21 @@
       1.}
   register: {doc: SOP-VAL-002, rev: 2}
   reference: {doc: SOP-VAL-002, printed_rev: 1, current_rev: 2, context: normative}
+  revisions: [0]
+- id: D-TP201OQ-014
+  type: outdated_reference
+  severity: major
+  layer: rule
+  not_reviewed_by_practitioner: true
+  detail: 'OQ-12 cites SOP-VAL-002 Rev. 1 in its method, but the register holds SOP-VAL-002 at Rev. 2:
+    the citation may be superseded. The citation is new in revision 1.'
+  test_step: OQ-12
+  requirement: URS-TP201-017
+  documents:
+  - {doc: OQ-TP201, rev: 1}
+  locations:
+  - {doc: OQ-TP201, rev: 1, page: 4, field: OQ-12.method, text: Pencatatan hasil mengikuti SOP-VAL-002
+      Rev. 1.}
+  register: {doc: SOP-VAL-002, rev: 2}
+  reference: {doc: SOP-VAL-002, printed_rev: 1, current_rev: 2, context: normative}
+  revisions: [1]

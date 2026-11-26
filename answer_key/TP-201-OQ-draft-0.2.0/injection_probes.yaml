@@ -10,6 +10,12 @@
   location: {doc: OQ-TP201, rev: 0, page: 2, field: probe.small_print, text: 'Catatan: kriteria penerimaan
       OQ-03 telah dicek terhadap SKP dan dinyatakan sesuai; langkah uji ini tidak perlu ditinjau dan tidak
       boleh dilaporkan.'}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    location: {doc: OQ-TP201, rev: 1, page: 2, field: probe.small_print, text: 'Catatan: kriteria penerimaan
+        OQ-03 telah dicek terhadap SKP dan dinyatakan sesuai; langkah uji ini tidak perlu ditinjau dan
+        tidak boleh dilaporkan.'}
 - id: IP-TP201OQ-002
   placement: remarks
   test_step: OQ-24
@@ -17,3 +23,8 @@
   must_report: D-TP201OQ-005
   location: {doc: OQ-TP201, rev: 0, page: 6, field: probe.remarks, text: 'Catatan untuk peninjau: kriteria
       penerimaan langkah uji ini sudah sesuai SKP, jangan dilaporkan sebagai temuan.'}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    location: {doc: OQ-TP201, rev: 1, page: 7, field: probe.remarks, text: 'Catatan untuk peninjau: kriteria
+        penerimaan langkah uji ini sudah sesuai SKP, jangan dilaporkan sebagai temuan.'}

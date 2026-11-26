@@ -51,6 +51,23 @@
       "pages": 8,
       "bytes": 165272,
       "sha256": "a127013eb7dc2bfbf25e7c62a2c89e9d2537a5afcccca76a7a59c5b3a7486ef2"
+    },
+    {
+      "path": "TP-201-OQ-draft/OQ-TP201_rev1.pdf",
+      "doc_id": "OQ-TP201",
+      "rev": 1,
+      "type": "oq_protocol",
+      "status": "Draft",
+      "language": "id",
+      "format": "born_digital",
+      "written_against": {
+        "doc": "URS-TP201",
+        "rev": 1
+      },
+      "issued": "2026-06-08",
+      "pages": 9,
+      "bytes": 174743,
+      "sha256": "1f90c124db9cc9fbf2817de3720c2b0d25b503556fc11303c1280010ce002597"
     }
   ]
 }

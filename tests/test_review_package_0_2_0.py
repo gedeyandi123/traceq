@@ -26,6 +26,7 @@ from traceq_dataset.review_package import (
     derive_key,
     draw,
     dump_key,
+    key_at_revision,
     key_problems,
     load_package,
     load_package_key,
@@ -77,8 +78,20 @@ def draft(package: Package, tp201_corpus: Corpus) -> DraftRender:
 
 
 @pytest.fixture(scope="module")
-def key() -> dict[str, list[dict[str, Any]]]:
+def later(package: Package, tp201_corpus: Corpus) -> list[DraftRender]:
+    return [render_draft(package, tp201_corpus.eq, r.rev) for r in package.revisions]
+
+
+@pytest.fixture(scope="module")
+def full_key() -> dict[str, list[dict[str, Any]]]:
     return load_package_key(KEY)
+
+
+@pytest.fixture(scope="module")
+def key(full_key: dict[str, list[dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
+    """The key as it reads for revision 0, the draft this file's tests are about (revision 1
+    is in ``test_review_package_revision_1.py``)."""
+    return key_at_revision(full_key, 0)
 
 
 # --- Placements ---------------------------------------------------------------------
@@ -213,22 +226,29 @@ def test_the_reference_steps_print_their_method_variant(draft: DraftRender) -> N
 
 
 def test_committed_key_is_current(
-    package: Package, draft: DraftRender, tp201_requirements: list[dict[str, Any]]
+    package: Package,
+    draft: DraftRender,
+    later: list[DraftRender],
+    tp201_requirements: list[dict[str, Any]],
 ) -> None:
     """Regenerate with: uv run python -m traceq_dataset.review_package
     world/tp201-oq-draft-0.2.0.yaml"""
-    for name, data in derive_key(package, draft, tp201_requirements).items():
+    for name, data in derive_key(package, draft, tp201_requirements, later).items():
         assert (KEY / name).read_text(encoding="utf-8") == dump_key(name, data, package), name
 
 
 def test_committed_key_matches_the_draft_and_the_corpus_release(
-    key: dict[str, Any], package: Package, draft: DraftRender
+    full_key: dict[str, Any], package: Package, draft: DraftRender, later: list[DraftRender]
 ) -> None:
-    assert key_problems(key, package, draft, CORPUS_MANIFEST.read_bytes()) == []
+    assert key_problems(full_key, package, draft, CORPUS_MANIFEST.read_bytes(), later) == []
 
 
-def test_committed_release_manifest_is_current(package: Package, draft: DraftRender) -> None:
-    assert RELEASE_MANIFEST.read_text(encoding="utf-8") == release_manifest_text(package, draft)
+def test_committed_release_manifest_is_current(
+    package: Package, draft: DraftRender, later: list[DraftRender]
+) -> None:
+    assert RELEASE_MANIFEST.read_text(encoding="utf-8") == release_manifest_text(
+        package, draft, later
+    )
     assert json.loads(RELEASE_MANIFEST.read_text(encoding="utf-8"))["version"] == "0.2.0"
 
 
@@ -303,11 +323,11 @@ def test_reference_clean_traps_cover_the_four_safe_contexts_and_raise_nothing(
 
 
 def test_a_register_anchor_off_the_recorded_corpus_is_a_problem(
-    key: dict[str, Any], package: Package, draft: DraftRender
+    full_key: dict[str, Any], package: Package, draft: DraftRender, later: list[DraftRender]
 ) -> None:
-    broken = json.loads(json.dumps(key))
+    broken = json.loads(json.dumps(full_key))
     next(d for d in broken["defects.yaml"] if d["type"] == OUTDATED)["register"]["rev"] = 9
-    problems = key_problems(broken, package, draft, CORPUS_MANIFEST.read_bytes())
+    problems = key_problems(broken, package, draft, CORPUS_MANIFEST.read_bytes(), later)
     assert len(problems) == 1 and "rev 9 is not a recorded corpus document" in problems[0]
 
 
@@ -367,32 +387,34 @@ def test_clean_traps_of_the_type_sit_at_the_capability_without_passing_it(
     assert steps["OQ-06"] == {"type": "range", "max": 25, "unit": "mm"}  # Datasheet maximum 25 mm
 
 
-def test_key_counts_are_in_the_design_range(key: dict[str, Any]) -> None:
-    # The design range is 6 to 14 defects (owner, 26 Nov 2026); 13 here: 5 deviations, 2 missing
-    # tests, 2 outside the capability, 2 unit errors, 2 outdated references. No old-type defect
-    # was cut. Clean Traps: 4 of an Acceptance Criterion and 2 of a reference, never below 4.
+def test_key_counts_are_in_the_design_range(full_key: dict[str, Any], key: dict[str, Any]) -> None:
+    # The design range is 6 to 14 defects (owner, 26 Nov 2026). At revision 0: 13, being 5
+    # deviations, 2 missing tests, 2 outside the capability, 2 unit errors, 2 outdated
+    # references; no old-type defect was cut. The whole key adds the one defect new in revision 1
+    # (14). Clean Traps: 4 of an Acceptance Criterion and 2 of a reference, never below 4.
     assert len(key["defects.yaml"]) == 13
-    assert len(key["clean_traps.yaml"]) == 6
+    assert len(full_key["defects.yaml"]) == 14
+    assert len(key["clean_traps.yaml"]) == len(full_key["clean_traps.yaml"]) == 6
     assert len(key["injection_probes.yaml"]) == 2
     assert len(key["test_steps.yaml"]) == 26
 
 
 def test_the_type_without_its_flag_is_a_key_problem(
-    key: dict[str, Any], package: Package, draft: DraftRender
+    full_key: dict[str, Any], package: Package, draft: DraftRender, later: list[DraftRender]
 ) -> None:
-    broken = json.loads(json.dumps(key))
+    broken = json.loads(json.dumps(full_key))
     planted = next(d for d in broken["defects.yaml"] if d["type"] == CAPABILITY)
     del planted[NOT_REVIEWED_FIELD]
-    problems = key_problems(broken, package, draft, CORPUS_MANIFEST.read_bytes())
+    problems = key_problems(broken, package, draft, CORPUS_MANIFEST.read_bytes(), later)
     assert problems == [f"{planted['id']}: {NOT_REVIEWED_FIELD} must be true for type {CAPABILITY}"]
 
 
 def test_a_capability_anchor_off_the_recorded_corpus_is_a_problem(
-    key: dict[str, Any], package: Package, draft: DraftRender
+    full_key: dict[str, Any], package: Package, draft: DraftRender, later: list[DraftRender]
 ) -> None:
-    broken = json.loads(json.dumps(key))
+    broken = json.loads(json.dumps(full_key))
     next(d for d in broken["defects.yaml"] if d["type"] == CAPABILITY)["capability"]["doc"] = "XX"
-    problems = key_problems(broken, package, draft, CORPUS_MANIFEST.read_bytes())
+    problems = key_problems(broken, package, draft, CORPUS_MANIFEST.read_bytes(), later)
     assert len(problems) == 1 and "XX rev 0 is not a recorded corpus document" in problems[0]
 
 
@@ -464,6 +486,7 @@ def test_no_planted_row_is_a_utilities_row(tp201_corpus: Corpus) -> None:
 def test_the_oracle_scores_full_marks_and_labels_the_new_type(
     key: dict[str, Any], package: Package, draft: DraftRender, tp201_corpus: Corpus
 ) -> None:
+    """The key at revision 0 (the scorer reads a key through :func:`key_at_revision`)."""
     review = ReviewPackage.of(package, draft, key)
     best = perfect_review(load_key(TP201_KEY), review)
     report = score(
