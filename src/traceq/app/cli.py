@@ -4,7 +4,8 @@ Usage::
 
     traceq run CORPUS_DIR [--equipment TAG] [--out runs] [--recordings recordings]
         [--model claude-haiku-5-5] [--llm cloud|no-llm] [--live] [--max-usd 1]
-        [--no-vendor-reuse] [--review-package PACKAGE_DIR --package-recordings DIR]
+        [--no-vendor-reuse]
+        [--review-package PACKAGE_DIR --package-recordings DIR [--draft-rev N]]
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
         [--issuer URL --database URL [--audience traceq] [--role-claim roles]]
     traceq demo-issuer [--port 9000] [--audience traceq] [--role-claim roles]
@@ -18,7 +19,8 @@ a scan is neither cached nor readable (OCR model not installed) or the corpus is
 ``--review-package`` takes a released Review Package for the corpus and Equipment: the
 Equipment calls replay from ``--recordings``, which is read and never written, and are never
 sent, also with ``--live``; the package's calls and ingest are recorded in
-``--package-recordings``.
+``--package-recordings``. A package holds several revisions of its draft; ``--draft-rev`` picks
+one (the latest by default) and exactly one document of that revision is read.
 
 ``--llm no-llm`` runs the No-LLM Baseline (#193) instead of the model: every prompt is
 answered by rules over the request text, from the ingest cache in ``--recordings``, with no
@@ -77,6 +79,11 @@ def main(argv: list[str] | None = None) -> int:
         "--package-recordings",
         type=Path,
         help="where a Review Package run records (--recordings is then only read)",
+    )
+    p.add_argument(
+        "--draft-rev",
+        type=int,
+        help="the revision of the Review Package's draft to read (default: the latest)",
     )
     p.add_argument(
         "--no-vendor-reuse",
@@ -160,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
             max_usd=args.max_usd,
             vendor_reuse=args.vendor_reuse,
             review_package=args.review_package,
+            draft_rev=args.draft_rev,
             package_recordings=args.package_recordings,
             answers=answers,
         )

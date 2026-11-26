@@ -67,6 +67,21 @@ class Recorder:
     def model(self) -> str:
         return self._model
 
+    def stage(self, pipeline_version: str) -> Recorder:
+        """This recorder keyed on another pipeline version: a stage with a version of its own.
+        Same stores, live adapter and budget, and the same call log, so one run counts every
+        call and its cost."""
+        other = Recorder(
+            self.store,
+            self._model,
+            pipeline_version,
+            live=self.live,
+            budget=self.budget,
+            reads=self.reads,
+        )
+        other.calls = self.calls
+        return other
+
     def key(self, r: Request) -> str:
         fields: dict[str, Any] = {
             "doc": r.doc_sha256,

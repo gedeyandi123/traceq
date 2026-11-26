@@ -60,7 +60,14 @@ from traceq.protocols import PROMPTS as DRAFT_PROMPTS
 from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
 from traceq.review import review
-from traceq.review.draft import DRAFT_PROMPT, DraftReading, DraftRow, draft_rows, read_draft
+from traceq.review.draft import (
+    DRAFT_PROMPT,
+    DRAFT_STAGE_VERSION,
+    DraftReading,
+    DraftRow,
+    draft_rows,
+    read_draft,
+)
 from traceq.review.draft_rules import DraftFinding, draft_findings
 from traceq.runs.completeness import COMPLETENESS_FILE, completeness
 from traceq.runs.drafts import drafts
@@ -119,22 +126,23 @@ class _Draft:
 
 
 def _read_package(
-    package: ReviewPackage, corpus: Corpus, traced: Traceability, llm: LLM, store: Path
+    package: ReviewPackage,
+    draft_rev: int | None,
+    corpus: Corpus,
+    traced: Traceability,
+    llm: LLM,
+    store: Path,
 ) -> _Draft:
-    """Read the package's Protocol Draft from a corpus of its own, after the Equipment
-    stages: the draft never enters them. Its ingest goes to the package store."""
-    if len(package.documents) != 1:
-        raise ValueError(
-            f"Review Package {package.package} holds {len(package.documents)} documents;"
-            " one Protocol Draft is expected"
-        )
+    """Read the chosen revision of the package's Protocol Draft from a corpus of its own,
+    after the Equipment stages: the draft never enters them. Its ingest goes to the package
+    store."""
+    doc = package.draft(draft_rev)
     drafts = Corpus(
         root=package.root,
         equipment=corpus.equipment,
-        documents=package.documents,
+        documents=(doc,),
         cache=IngestCache(store / INGEST_DIR),
     )
-    doc = package.documents[0]
     ingested = drafts.ingest(doc)
     reading = read_draft(doc, ingested.pages, llm)
     urs = corpus.current("urs")
@@ -180,11 +188,14 @@ def run(
     review_package: Path | None = None,
     package_recordings: Path | None = None,
     answers: LLM | None = None,
+    draft_rev: int | None = None,
 ) -> RunOutput:
     """``now``: the start time the run id and ``created`` carry. ``clock``: what the run's
     duration is measured with. ``review_package``: a released Review Package directory for
     this corpus and Equipment; its recordings and ingest cache go to ``package_recordings``,
-    while ``recordings`` is only read and the Equipment stages only replay."""
+    while ``recordings`` is only read and the Equipment stages only replay. ``draft_rev``: the
+    revision of the package's draft to read (the latest when none); the draft read is keyed on
+    ``DRAFT_STAGE_VERSION``, the Equipment stages on ``PIPELINE_VERSION``."""
     if answers is not None and (
         live is not None or review_package is not None or answers.model != model
     ):
@@ -202,6 +213,7 @@ def run(
                 f" recordings {recordings}, which it only reads"
             )
         package = ReviewPackage.load(review_package)
+        package.draft(draft_rev)  # refused before anything is read or written
         store, reads = package_recordings, (recordings,)
     corpus = Corpus.load(
         corpus_dir,
@@ -225,7 +237,13 @@ def run(
     reviewed = review(corpus, equipment_llm, traced)
     drafted = draft(corpus, equipment_llm, traced, vendor_reuse=vendor_reuse)
     equipment_calls = len(recorder.calls)
-    on_draft = None if package is None else _read_package(package, corpus, traced, recorder, store)
+    on_draft = (
+        None
+        if package is None
+        else _read_package(
+            package, draft_rev, corpus, traced, recorder.stage(DRAFT_STAGE_VERSION), store
+        )
+    )
 
     prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS, *DRAFT_PROMPTS)}
     if package is not None:
