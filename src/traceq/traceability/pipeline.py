@@ -30,6 +30,7 @@ from traceq.traceability.citations import Citation, verified
 from traceq.traceability.completeness import UrsCompleteness, check
 from traceq.traceability.evidence import Dropped, Linked, VendorFacts, link, read_vendor_facts
 from traceq.traceability.prompts import EXTRACT, SEGMENT
+from traceq.traceability.requirement_text import clean_requirement_text, has_kritis_column
 from traceq.traceability.values import Number, OneOf, Present, Range, Text, Value
 
 PIPELINE_VERSION = "0.3.0"
@@ -44,6 +45,8 @@ class Requirement:
     """Verified: the requirement as printed in the URS."""
     printed: bool
     """Whether the id is the number the URS prints, not one ``system_id`` made up."""
+    shown: str | None = None
+    """The text for output (id and Kritis cell dropped); ``text`` stays the LLM input."""
 
 
 @dataclass(frozen=True)
@@ -136,6 +139,7 @@ def trace(corpus: Corpus, llm: LLM) -> Traceability:
                 for n, text in enumerate(pages, 1)
             ]
         )
+        kritis = has_kritis_column(pages)
         found: list[Requirement] = []
         for n, answer in enumerate(segment_answers, 1):
             try:
@@ -151,7 +155,8 @@ def trace(corpus: Corpus, llm: LLM) -> Traceability:
                     unnumbered += 1
                     rid = system_id(doc.doc_id, n, unnumbered)
                 c = Citation(doc.doc_id, doc.rev, n, s.quote)
-                r = Requirement(rid, s.text, c, printed=printed)
+                shown = clean_requirement_text(s.text, rid if printed else None, kritis)
+                r = Requirement(rid, s.text, c, printed=printed, shown=shown)
                 returned.setdefault(doc.doc_id, []).append(r)
                 if any(k.id == rid for k in [*out.requirements, *found]):
                     out.dropped.append(Dropped("requirement", rid, "duplicate id"))
