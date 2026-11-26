@@ -1,6 +1,7 @@
-"""Review Package TP-201-OQ-draft 0.2.0, S1a: the defect type ``ac_outside_documented_capability``
-(spec #375, ticket #379): fixed and seeded placements, the render, the derived key and its
-Clean Traps, and the Datasheet-to-requirement link every planted defect relies on.
+"""Review Package TP-201-OQ-draft 0.2.0, S1a and S1b: the defect types
+``ac_outside_documented_capability`` (spec #375, ticket #379) and ``unit_error`` (ticket #380):
+fixed and seeded placements, the render, the derived key and its Clean Traps, and the
+Datasheet-to-requirement link every planted defect relies on.
 
 0.1.0 (``test_review_package.py``) keeps its world data, its key and its release manifest byte
 for byte; the 0.2.0 files live beside them."""
@@ -51,6 +52,9 @@ MODEL = "claude-haiku-5-5"
 CAPABILITY = "ac_outside_documented_capability"
 PLANTED = {"OQ-04": "URS-TP201-004", "OQ-11": "URS-TP201-016"}
 NEAR_CAPABILITY = {"OQ-05": "URS-TP201-005", "OQ-06": "URS-TP201-006"}
+UNIT = "unit_error"
+UNIT_PLANTED = {"OQ-07": "URS-TP201-007", "OQ-23": "URS-TP201-028"}
+EQUIVALENT_UNIT = {"OQ-25": "URS-TP201-030", "OQ-27": "URS-TP201-032"}
 
 
 @pytest.fixture(scope="module")
@@ -89,11 +93,22 @@ def test_placements_are_the_seeded_draw_over_what_the_world_data_fixes(
     assert drawn == package.draw.placements
     assert set(drawn.ac_outside_documented_capability) == set(PLANTED.values())
     assert set(NEAR_CAPABILITY.values()) <= set(drawn.clean_traps)
-    fixed = {*drawn.ac_outside_documented_capability, *NEAR_CAPABILITY.values()}
+    assert set(drawn.unit_error) == set(UNIT_PLANTED.values())
+    assert set(EQUIVALENT_UNIT.values()) <= set(drawn.clean_traps)
+    fixed = {
+        *drawn.ac_outside_documented_capability,
+        *drawn.unit_error,
+        *NEAR_CAPABILITY.values(),
+        *EQUIVALENT_UNIT.values(),
+    }
     # The draw never takes a fixed requirement for another placement.
     assert not fixed & set(drawn.ac_deviates_from_urs)
     assert not fixed & set(drawn.requirement_not_tested)
-    assert len(drawn.clean_traps) == package.draw.clean_traps == 5
+    assert not set(drawn.unit_error) & set(drawn.clean_traps)
+    # No old-type defect is cut: 0.1.0's five deviations and two missing tests stay.
+    assert len(drawn.ac_deviates_from_urs) == package.draw.ac_deviates_from_urs == 5
+    assert len(drawn.requirement_not_tested) == package.draw.requirement_not_tested == 2
+    assert len(drawn.clean_traps) == package.draw.clean_traps == 4
 
 
 def test_the_draw_is_reproducible_from_the_recorded_seed(
@@ -119,6 +134,16 @@ def test_a_fixed_placement_needs_its_printed_variant(
         draw(package.model_copy(update={"steps": steps}), tp201_requirements)
 
 
+def test_a_fixed_unit_error_needs_its_printed_variant(
+    package: Package, tp201_requirements: list[dict[str, Any]]
+) -> None:
+    steps = tuple(
+        s.model_copy(update={"unit_slip": None}) if s.id == "OQ-07" else s for s in package.steps
+    )
+    with pytest.raises(RenderError, match="URS-TP201-007: fixed as a unit error"):
+        draw(package.model_copy(update={"steps": steps}), tp201_requirements)
+
+
 # --- Render -------------------------------------------------------------------------
 
 
@@ -138,6 +163,10 @@ def test_the_planted_steps_print_their_outside_variant(draft: DraftRender) -> No
     assert draft.placed["OQ-11.acceptance"].text == "maks. ± 0,5 % FS"
     assert draft.placed["OQ-05.acceptance"].text == "≥ 20 kN"
     assert draft.placed["OQ-06.acceptance"].text == "≤ 25 mm"
+    assert draft.placed["OQ-07.acceptance"].text == "maks. 18 cm"
+    assert draft.placed["OQ-23.acceptance"].text == "minimal 300 m²/jam"
+    assert draft.placed["OQ-25.acceptance"].text == "tinggi maks. 3 m"
+    assert draft.placed["OQ-27.acceptance"].text == "maks. 2 jam"
     assert len([k for k in draft.placed if k.endswith(".acceptance")]) == 26
 
 
@@ -169,10 +198,42 @@ def test_two_defects_of_the_new_type_each_flagged_not_reviewed(key: dict[str, An
     planted = [d for d in key["defects.yaml"] if d["type"] == CAPABILITY]
     assert [(d["test_step"], d["requirement"]) for d in planted] == list(PLANTED.items())
     assert all(d[NOT_REVIEWED_FIELD] is True and d["layer"] == "rule" for d in planted)
-    others = [d for d in key["defects.yaml"] if d["type"] != CAPABILITY]
+    others = [d for d in key["defects.yaml"] if d["type"] not in (CAPABILITY, UNIT)]
     assert {d["type"] for d in others} == {"ac_deviates_from_urs", "requirement_not_tested"}
     assert not any(NOT_REVIEWED_FIELD in d for d in others)
     assert len(others) == 7
+
+
+def test_two_unit_errors_each_flagged_not_reviewed(key: dict[str, Any]) -> None:
+    """One SI prefix factor and one dimension slip; n = 2 is a dev-only smoke count. The number
+    printed is the URS number and only the unit differs."""
+    planted = [d for d in key["defects.yaml"] if d["type"] == UNIT]
+    assert [(d["test_step"], d["requirement"]) for d in planted] == list(UNIT_PLANTED.items())
+    assert all(d[NOT_REVIEWED_FIELD] is True and d["layer"] == "rule" for d in planted)
+    assert [d["unit"] for d in planted] == [
+        {"kind": "prefix", "urs": "mm", "printed": "cm"},
+        {"kind": "dimension", "urs": "m3/h", "printed": "m²/jam"},
+    ]
+    steps = {s["id"]: s["acceptance"] for s in key["test_steps.yaml"]}
+    assert steps["OQ-07"] == {"type": "range", "max": 18, "unit": "cm"}  # URS: at most 18 mm
+    assert steps["OQ-23"] == {"type": "range", "min": 300, "unit": "m²/jam"}  # URS: 300 m3/h
+    assert [d["locations"][0]["text"] for d in planted] == ["maks. 18 cm", "minimal 300 m²/jam"]
+    # No `ac_deviates_from_urs` is expected on a unit error: the type takes the Test Step.
+    assert not {d["test_step"] for d in planted} & {
+        d["test_step"] for d in key["defects.yaml"] if d["type"] == "ac_deviates_from_urs"
+    }
+
+
+def test_equivalent_units_are_clean_traps_and_not_defects(key: dict[str, Any]) -> None:
+    """2 jam = 120 menit stays a Clean Trap (OQ-27); 3 m = 3,000 mm joins it (OQ-25)."""
+    traps = {t["test_step"]: t for t in key["clean_traps.yaml"]}
+    for step, requirement in EQUIVALENT_UNIT.items():
+        assert traps[step]["requirement"] == requirement
+        assert "another unit" in traps[step]["why"]
+    steps = {s["id"]: s["acceptance"] for s in key["test_steps.yaml"]}
+    assert steps["OQ-25"] == {"type": "range", "max": 3, "unit": "m"}  # URS: at most 3,000 mm
+    assert steps["OQ-27"] == {"type": "range", "max": 2, "unit": "jam"}  # URS: at most 120 min
+    assert not set(EQUIVALENT_UNIT) & {d.get("test_step") for d in key["defects.yaml"]}
 
 
 def test_oq_04_is_the_planted_defect_and_no_longer_a_clean_trap(key: dict[str, Any]) -> None:
@@ -198,7 +259,7 @@ def test_clean_traps_of_the_type_sit_at_the_capability_without_passing_it(
     key: dict[str, Any],
 ) -> None:
     traps = {t["test_step"]: t for t in key["clean_traps.yaml"]}
-    assert len(traps) == 5
+    assert len(traps) == 4
     for step, requirement in NEAR_CAPABILITY.items():
         trap = traps[step]
         assert trap["requirement"] == requirement
@@ -210,8 +271,10 @@ def test_clean_traps_of_the_type_sit_at_the_capability_without_passing_it(
 
 
 def test_key_counts_are_in_the_design_range(key: dict[str, Any]) -> None:
-    assert len(key["defects.yaml"]) == 9
-    assert len(key["clean_traps.yaml"]) == 5
+    # The design range is 6 to 14 defects (owner, 26 Nov 2026); 11 here: 5 deviations, 2 missing
+    # tests, 2 outside the capability, 2 unit errors. No old-type defect was cut.
+    assert len(key["defects.yaml"]) == 11
+    assert len(key["clean_traps.yaml"]) == 4
     assert len(key["injection_probes.yaml"]) == 2
     assert len(key["test_steps.yaml"]) == 26
 
@@ -315,11 +378,13 @@ def test_the_oracle_scores_full_marks_and_labels_the_new_type(
         "dev only",
         "labels not reviewed",
         f"{CAPABILITY}: not reviewed by a practitioner",
+        f"{UNIT}: not reviewed by a practitioner",
     ]
-    assert rp["not_reviewed_types"] == [CAPABILITY]
+    assert rp["not_reviewed_types"] == [CAPABILITY, UNIT]
     c = rp["counts"]
-    assert c["recall"] == {"k": 9, "n": 9, "rate": 1.0}
+    assert c["recall"] == {"k": 11, "n": 11, "rate": 1.0}
     assert c[f"recall_by_type.{CAPABILITY}"] == {"k": 2, "n": 2, "rate": 1.0}
+    assert c[f"recall_by_type.{UNIT}"] == {"k": 2, "n": 2, "rate": 1.0}
     assert c["recall_by_type.ac_deviates_from_urs"] == {"k": 5, "n": 5, "rate": 1.0}
-    assert c["clean_traps_without_finding"] == {"k": 5, "n": 5, "rate": 1.0}
+    assert c["clean_traps_without_finding"] == {"k": 4, "n": 4, "rate": 1.0}
     assert rp["metrics"]["wrong_findings"] == 0
