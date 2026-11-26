@@ -1,0 +1,46 @@
+{
+  "dataset": "traceq-review-package",
+  "package": "TP-201-OQ-draft",
+  "version": "0.2.0",
+  "label": "dev only; ac_outside_documented_capability not reviewed by a practitioner",
+  "equipment": "TP-201",
+  "corpus": {
+    "release": "corpus-v0.1.1",
+    "version": "0.1.1",
+    "manifest_sha256": "cc800d0679e49ef9a925d9dcf25e8261ce1586b839de3ba5df1931fd5372d5ca",
+    "documents": [
+      {
+        "doc": "URS-TP201",
+        "rev": 1,
+        "sha256": "430602892cdd48c05ccc507bba38edce0d4e3ebfa66ae47e4f5d100396f1245b"
+      },
+      {
+        "doc": "DS-TP201",
+        "rev": 0,
+        "sha256": "29a9d9b14cba61edf5cb2bd17337ff8d7c2ecedbda2c7b6fa644c23237c9c75e"
+      }
+    ]
+  },
+  "generator": {
+    "typst": "0.15.2"
+  },
+  "documents": [
+    {
+      "path": "TP-201-OQ-draft/OQ-TP201_rev0.pdf",
+      "doc_id": "OQ-TP201",
+      "rev": 0,
+      "type": "oq_protocol",
+      "status": "Draft",
+      "language": "id",
+      "format": "born_digital",
+      "written_against": {
+        "doc": "URS-TP201",
+        "rev": 1
+      },
+      "issued": "2026-05-25",
+      "pages": 8,
+      "bytes": 164830,
+      "sha256": "104d1e82186bbd0fd75b1bd3be948d04b2f02737f42337f04a3e7839e1da3384"
+    }
+  ]
+}
