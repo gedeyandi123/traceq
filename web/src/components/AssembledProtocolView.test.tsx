@@ -1,7 +1,7 @@
 // The Protocol page (spec #247, ADR 0012, ADR 0014): Sticky Submission Readiness Bar,
 // Radix Tabs, Opsi A compact table + 640px Slide-Over Drawer, Confirmation Modals,
 // FrozenCopy + ApprovalForms (Dewi), MissedNumbers, and ADR 0012 Limits.
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -15,6 +15,7 @@ import {
 } from "./AssembledProtocolView";
 import type { DecisionView } from "./Decisions";
 import { decision, RUN_ID } from "./decisions.fixture";
+import { openBlockingModal, openDialogCount } from "./modal.fixture";
 import { approved, protocolView, ready, returned, rows, submitted, withdrawn } from "./protocol.fixture";
 import { RunShellProvider } from "./RunShellContext";
 
@@ -716,4 +717,13 @@ test("a reauth_required error keeps the dialog open and shows it inside", async 
   rerender(pageFor(protocol, { decisions: decider, error: "reauth_required" }));
   const dialog = within(screen.getByRole("dialog"));
   expect(dialog.getByRole("alert").textContent).toContain("Autentikasi ulang diperlukan");
+});
+
+test("J/K shortcuts do nothing while a modal dialog is open (#349)", () => {
+  renderPage(protocolView());
+  const button = openBlockingModal();
+  fireEvent.keyDown(button, { key: "j" });
+  fireEvent.keyDown(button, { key: "k" });
+  expect(openDialogCount()).toBe(1);
+  expect(document.activeElement).toBe(button);
 });

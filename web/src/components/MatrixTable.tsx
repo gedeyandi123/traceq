@@ -11,6 +11,7 @@ import { MatrixDrawer } from "@/components/MatrixDrawer";
 import { formatValue, RequiredObservedUnit } from "@/components/RequiredObservedUnit";
 import { useRunShell } from "@/components/RunShellContext";
 import { FilterBar, type FilterPillOption } from "@/components/ui/FilterBar";
+import { shouldIgnoreRowShortcut } from "@/lib/keyboard";
 import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
 
 export { formatValue };
@@ -48,15 +49,6 @@ function buildMatrixUrl(
   if (selected) qs.set("selected", selected);
   const query = qs.toString();
   return query ? `${base}?${query}` : base;
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.closest(
-      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
-    ) !== null
-  );
 }
 
 export function MatrixTable({
@@ -198,9 +190,7 @@ export function MatrixTable({
   // J/K keyboard shortcuts (disabled inside inputs/menus/combos or with modifier keys)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key !== "j" && e.key !== "J" && e.key !== "k" && e.key !== "K") return;
-      if (isTypingTarget(e.target)) return;
+      if (shouldIgnoreRowShortcut(e)) return;
       if (filteredRows.length === 0) return;
 
       e.preventDefault();

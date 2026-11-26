@@ -10,6 +10,7 @@ import messages from "../../messages/id.json";
 import fixture from "../../../tests/fixtures/run/runs/20261113T090000Z-f1a2b3/matrix.json";
 import type { DecisionView } from "./Decisions";
 import { counts, decision, BIMA, RUN_ID } from "./decisions.fixture";
+import { openBlockingModal, openDialogCount } from "./modal.fixture";
 import { MatrixTable } from "./MatrixTable";
 import { RunShellProvider, useRunShell } from "./RunShellContext";
 
@@ -308,4 +309,13 @@ test("J/K keyboard shortcuts navigate rows and are disabled inside inputs/combos
   });
   fireEvent.keyDown(coverageSelect, { key: "j" });
   expect(screen.getByRole("dialog", { name: "URS-TP201-002" })).toBeDefined();
+});
+
+test("J/K shortcuts do nothing while a modal dialog is open (#349)", () => {
+  renderMatrix({ proposals, counts, access: { mode: "decide", action } });
+  const button = openBlockingModal();
+  fireEvent.keyDown(button, { key: "j" });
+  fireEvent.keyDown(button, { key: "k" });
+  expect(openDialogCount()).toBe(1);
+  expect(document.activeElement).toBe(button);
 });
