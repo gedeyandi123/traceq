@@ -405,8 +405,9 @@ def outside_body(draft: DraftRender) -> list[str]:
 
 KEY_FILES = ("defects.yaml", "clean_traps.yaml", "injection_probes.yaml", "test_steps.yaml")
 LAYER = "rule"
-"""Both defect types of 0.1.0 are decided by rules (spec #196); the taxonomy change of design
-section 7 lands with its scorer."""
+"""Every defect type of a Review Package key is decided by a rule (spec #196, spec #375).
+This differs on purpose from the Equipment taxonomy in answer_key.py, where outdated_reference
+stays layer llm."""
 SEVERITY = "major"
 DEFECT_TYPES = (
     "ac_deviates_from_urs",
