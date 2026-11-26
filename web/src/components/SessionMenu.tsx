@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { switchPersonaAction } from "@/auth/actions";
 import type { Session } from "@/auth/session";
 import {
   DropdownMenu,
@@ -72,11 +73,13 @@ export function SessionMenu({
           <span className="text-[11px] font-normal text-ink-muted">{roleLabel}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={signInHref} className="no-underline">
-            <UserRoundCog className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{ui("switchPersona")}</span>
-          </Link>
+        <DropdownMenuItem
+          onSelect={() => {
+            void switchPersonaAction(pathname ?? "/");
+          }}
+        >
+          <UserRoundCog className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{ui("switchPersona")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {

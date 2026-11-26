@@ -241,4 +241,63 @@ describe("OIDC auth routes, session, and signature bearer headers", () => {
       "http://127.0.0.1:3000/signin",
     );
   });
+
+  const discoveryFetch = () =>
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            issuer: "http://127.0.0.1:8080/realms/traceq",
+            authorization_endpoint: "http://127.0.0.1:8080/realms/traceq/protocol/openid-connect/auth",
+            token_endpoint: "http://127.0.0.1:8080/realms/traceq/protocol/openid-connect/token",
+            end_session_endpoint: "http://127.0.0.1:8080/realms/traceq/protocol/openid-connect/logout",
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+
+  it("switchPersonaAction in OIDC mode ends the Keycloak session and returns to /signin?next=", async () => {
+    cookieStore.set("traceq_token", "access");
+    cookieStore.set("traceq_id_token", "id-tok-123");
+    globalThis.fetch = discoveryFetch();
+
+    const { switchPersonaAction } = await import("./actions");
+    await expect(switchPersonaAction("/runs/r1/protocol")).rejects.toThrow("NEXT_REDIRECT:");
+    const logoutUrl = new URL(redirectCalls[0]!);
+    expect(logoutUrl.pathname).toContain("/protocol/openid-connect/logout");
+    expect(logoutUrl.searchParams.get("id_token_hint")).toBe("id-tok-123");
+    expect(logoutUrl.searchParams.get("post_logout_redirect_uri")).toBe(
+      "http://127.0.0.1:3000/signin?next=%2Fruns%2Fr1%2Fprotocol",
+    );
+    expect(deletedCookies).toContain("traceq_token");
+    expect(deletedCookies).toContain("traceq_id_token");
+  });
+
+  it.each(["//evil.example/x", "https://evil.example", "/\\evil.example", "javascript:alert(1)"])(
+    "switchPersonaAction neutralises hostile next %s to /",
+    async (hostile) => {
+      cookieStore.set("traceq_id_token", "id-tok-123");
+      globalThis.fetch = discoveryFetch();
+
+      const { switchPersonaAction } = await import("./actions");
+      await expect(switchPersonaAction(hostile)).rejects.toThrow("NEXT_REDIRECT:");
+      const logoutUrl = new URL(redirectCalls[0]!);
+      expect(logoutUrl.searchParams.get("post_logout_redirect_uri")).toBe(
+        "http://127.0.0.1:3000/signin?next=%2F",
+      );
+    },
+  );
+
+  it("switchPersonaAction in demo mode only goes to /signin?next= and keeps the session", async () => {
+    process.env.TRACEQ_OIDC_CLIENT_ID = "";
+    cookieStore.set("traceq_token", "demo-token");
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("no network in demo mode");
+    }) as typeof fetch;
+
+    const { switchPersonaAction } = await import("./actions");
+    await expect(switchPersonaAction("/runs/r1")).rejects.toThrow("NEXT_REDIRECT:");
+    expect(redirectCalls[0]).toBe("/signin?next=%2Fruns%2Fr1");
+    expect(deletedCookies).toEqual([]);
+  });
 });
