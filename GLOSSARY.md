@@ -48,7 +48,7 @@ An authorised person, never the Preparer, who approves a submitted Protocol or r
 _Avoid_: reviewer, signer
 
 **Protocol Approval**:
-The recorded act that makes a submitted Protocol an approved one, bound by an Electronic Signature (`approved`) or a recorded status in demo mode.
+The recorded act that makes a submitted Protocol an approved one, bound by an Electronic Signature (`approved`) or a Demo signature in demo mode.
 _Avoid_: sign-off, signature
 
 **Test Step**:
@@ -91,7 +91,7 @@ The action that removes the cause of a Deviation and keeps it from recurring.
 _Avoid_: action item, fix
 
 **Deviation Closure**:
-The recorded act by which an authorised person, never an author of the Investigation, closes a Deviation, bound by an Electronic Signature (`approved`) or a recorded status in demo mode.
+The recorded act by which an authorised person, never an author of the Investigation, closes a Deviation, bound by an Electronic Signature (`approved`) or a Demo signature in demo mode.
 _Avoid_: sign-off, approval (for a Deviation)
 
 **Qualification Report**:
