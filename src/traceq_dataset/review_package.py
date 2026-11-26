@@ -37,7 +37,7 @@ from typing import Annotated, Any, Literal
 import pypdfium2 as pdfium
 import typst
 import yaml
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from traceq_dataset.render import (
     EN_DASH,
@@ -180,6 +180,65 @@ class ReferenceTrap(Model):
     in_register: DocRef | None = None
 
 
+class Reference(Model):
+    """The register document a citation names and the revisions involved."""
+
+    doc: str
+    printed_rev: int
+    current_rev: int
+
+
+class Revised(Model):
+    """What a Test Step does at a later revision of the draft (spec #375, S1d), for every
+    requirement the rev 0 draft plants a defect on, and for a defect new at that revision.
+
+    ``fixed``: the defect is gone (the step prints its correct Acceptance Criterion and method;
+    a fixed outdated reference gives the corrected ``method``). ``changed``: the same Test Step
+    prints another limit that still deviates (the wrong fix; ``acceptance`` and ``detail``).
+    ``persists``: nothing changes. ``new``: an ``outdated_reference`` the revision introduces
+    on a step with no other placement (``method``, ``quote``, ``reference``, ``detail``)."""
+
+    requirement: str
+    outcome: Literal["fixed", "changed", "persists", "new"]
+    acceptance: Acceptance | None = None
+    method: str | None = None
+    quote: str | None = None
+    detail: str | None = None
+    reference: Reference | None = None
+
+    @model_validator(mode="after")
+    def _shape(self) -> Revised:
+        given = {
+            k
+            for k in ("acceptance", "method", "quote", "detail", "reference")
+            if getattr(self, k) is not None
+        }
+        allowed = {
+            "fixed": {"method"},
+            "changed": {"acceptance", "detail"},
+            "persists": set(),
+            "new": {"method", "quote", "detail", "reference"},
+        }[self.outcome]
+        required = {"changed": allowed, "new": allowed}.get(self.outcome, set())
+        if given - allowed or required - given:
+            raise ValueError(
+                f"{self.requirement}: outcome {self.outcome} takes {sorted(allowed)}, "
+                f"got {sorted(given)}"
+            )
+        if self.quote is not None and self.method is not None and self.quote not in self.method:
+            raise ValueError(f"{self.requirement}: the quote is not in the method")
+        return self
+
+
+class Revision(Model):
+    """A later revision of the Protocol Draft: the same document with its own date and the
+    ``steps`` that change (every planted defect of rev 0 is listed, with its outcome)."""
+
+    rev: int
+    issued_on: dt.date
+    steps: tuple[Revised, ...]
+
+
 class Step(Model):
     id: str = Field(pattern=r"^OQ-\d{2}$")
     requirement: str
@@ -249,7 +308,8 @@ class Draw(Model):
     ac_deviates_from_urs: int
     clean_traps: int
     """All Clean Traps of an Acceptance Criterion, the fixed ones included; the reference traps
-    (``fixed.reference_traps``) are counted beside them."""
+    (``fixed.reference_traps``) are counted beside them, so the key's total is ``clean_traps``
+    plus ``len(fixed.reference_traps)`` (4 + 2 in 0.2.0)."""
     requirement_not_tested: int
     injection_probes: Literal[2]
     fixed: Fixed = Fixed()
@@ -271,6 +331,8 @@ class Package(Model):
     draw: Draw
     injection_probes: ProbeTexts
     steps: tuple[Step, ...]
+    revisions: tuple[Revision, ...] = ()
+    """Later revisions of the draft (S1d): at most one today."""
 
 
 def load_package(path: Path) -> Package:
@@ -423,11 +485,99 @@ def printed_quote(step: Step, drawn: Placements) -> str | None:
     return ref.quote
 
 
-def printed_steps(package: Package) -> list[Step]:
-    """Steps printed in the draft: every planned step except those whose requirement lost
-    its Test Step (``requirement_not_tested``)."""
-    gone = set(placements(package).requirement_not_tested)
-    return [s for s in package.steps if s.requirement not in gone]
+def planted(package: Package) -> dict[str, str]:
+    """Defect type per requirement the rev 0 draft plants one on."""
+    drawn = placements(package)
+    out: dict[str, str] = {}
+    for kind in (
+        "ac_deviates_from_urs",
+        "requirement_not_tested",
+        "ac_outside_documented_capability",
+        "unit_error",
+        "outdated_reference",
+    ):
+        out |= {r: kind for r in getattr(drawn, kind)}
+    return out
+
+
+def revision_of(package: Package, rev: int) -> Revision:
+    for r in package.revisions:
+        if r.rev == rev:
+            return r
+    raise RenderError(f"{package.id}: no revision {rev}")
+
+
+def edits(package: Package, rev: int) -> dict[str, Revised]:
+    """The steps of a later revision by requirement; checks that every rev 0 defect has exactly
+    one outcome and that a new defect lands on a step with no other placement. Rev 0 has none."""
+    if rev == package.document.rev:
+        return {}
+    if len(package.revisions) != 1:
+        raise RenderError(f"{package.id}: one later revision is supported, not {package.revisions}")
+    out = {e.requirement: e for e in revision_of(package, rev).steps}
+    if len(out) != len(revision_of(package, rev).steps):
+        raise RenderError(f"{package.id} rev {rev}: a requirement is listed twice")
+    drawn, held = placements(package), planted(package)
+    by_req = {s.requirement: s for s in package.steps}
+    elsewhere = {
+        *drawn.clean_traps,
+        *drawn.reference_traps,
+        *drawn.injection_probes.model_dump().values(),
+    }
+    for r, e in out.items():
+        if r not in by_req:
+            raise RenderError(f"{package.id} rev {rev}: {r} is not a planned step")
+        if (r in held) == (e.outcome == "new"):
+            raise RenderError(
+                f"{package.id} rev {rev}: {r} is {e.outcome} but "
+                + ("already planted" if r in held else "not planted at rev 0")
+            )
+        if e.outcome == "new" and r in elsewhere:
+            raise RenderError(f"{package.id} rev {rev}: {r} holds another placement")
+        if e.outcome == "fixed" and held.get(r) == "outdated_reference" and e.method is None:
+            raise RenderError(f"{package.id} rev {rev}: fixing {r} needs the corrected method")
+        if e.outcome == "changed" and held.get(r) not in (
+            "ac_deviates_from_urs",
+            "ac_outside_documented_capability",
+        ):
+            raise RenderError(f"{package.id} rev {rev}: {r} cannot change its limit and stay")
+    if missing := sorted(set(held) - set(out)):
+        raise RenderError(f"{package.id} rev {rev}: no outcome for {missing}")
+    return out
+
+
+@dataclass(frozen=True)
+class Shown:
+    """What a Test Step prints at one revision."""
+
+    acceptance: Acceptance
+    method: str
+    quote: str | None
+
+
+def shown(package: Package, step: Step, rev: int | None = None) -> Shown | None:
+    """What ``step`` prints at ``rev`` (default: the draft's own revision), or None where the
+    draft has no such Test Step (``requirement_not_tested`` at rev 0)."""
+    rev = package.document.rev if rev is None else rev
+    drawn, e = placements(package), edits(package, rev).get(step.requirement)
+    if e is None or e.outcome == "persists":
+        if step.requirement in drawn.requirement_not_tested:
+            return None
+        return Shown(printed(step, drawn), printed_method(step, drawn), printed_quote(step, drawn))
+    if e.outcome == "changed":
+        assert e.acceptance is not None
+        return Shown(e.acceptance, printed_method(step, drawn), printed_quote(step, drawn))
+    if e.outcome == "new":
+        assert e.method is not None
+        return Shown(step.acceptance, e.method, e.quote)
+    # fixed: the correct criterion; the method as it is, or the corrected one
+    return Shown(step.acceptance, e.method or step.method, None)
+
+
+def printed_steps(package: Package, rev: int | None = None) -> list[Step]:
+    """Steps printed in the draft at ``rev``: every planned step except those whose
+    requirement lost its Test Step (``requirement_not_tested``) and is not restored."""
+    return [s for s in package.steps if shown(package, s, rev) is not None]
 
 
 def probe_targets(package: Package) -> dict[str, str]:
@@ -442,19 +592,34 @@ def probe_text(package: Package, kind: str, step: str) -> str:
     return texts.remarks if kind == "remarks" else texts.small_print.format(step=step)
 
 
-def render_draft(package: Package, eq: Equipment) -> DraftRender:
-    """The OQ Protocol Draft as born-digital PDF. Deterministic: bundled fonts only, PDF
-    dates fixed to the draft's date."""
-    doc, drawn = package.document, placements(package)
+def revision_numbers(package: Package) -> list[int]:
+    """The draft's revisions, the first (``document.rev``) then the later ones."""
+    return [package.document.rev, *(r.rev for r in package.revisions)]
+
+
+def document_at(package: Package, rev: int | None = None) -> Draft:
+    """The draft document as it reads at ``rev`` (default: its own revision)."""
+    doc = package.document
+    if rev is None or rev == doc.rev:
+        return doc
+    return doc.model_copy(update={"rev": rev, "issued_on": revision_of(package, rev).issued_on})
+
+
+def render_draft(package: Package, eq: Equipment, rev: int | None = None) -> DraftRender:
+    """The OQ Protocol Draft as born-digital PDF, at ``rev`` (default: its own revision).
+    Deterministic: bundled fonts only, PDF dates fixed to the draft's date."""
+    doc = document_at(package, rev)
     probes = probe_targets(package)
     people = {x.id: x.name for x in eq.people}
     texts: dict[str, str] = {}
     steps = []
-    for s in printed_steps(package):
-        ac = printed(s, drawn).text
+    for s in printed_steps(package, doc.rev):
+        what = shown(package, s, doc.rev)
+        assert what is not None
+        ac = what.acceptance.text
         texts |= {f"{s.id}.id": s.id, f"{s.id}.requirement": s.requirement}
         texts[f"{s.id}.acceptance"] = ac
-        method, quote = printed_method(s, drawn), printed_quote(s, drawn)
+        method, quote = what.method, what.quote
         method_key = f"{s.id}.method" if quote is not None else None
         if method_key is not None and quote is not None:
             texts[method_key] = quote
@@ -627,10 +792,26 @@ def _ac(acceptance: Acceptance) -> dict[str, Any]:
 
 
 def derive_key(
-    package: Package, draft: Rendered, requirements: Sequence[Mapping[str, Any]]
+    package: Package,
+    draft: Rendered,
+    requirements: Sequence[Mapping[str, Any]],
+    later: Sequence[Rendered] = (),
 ) -> dict[str, list[dict[str, Any]]]:
     """Every answer-key file of the package, keyed by file name. ``requirements`` is the
-    Equipment answer key's ``requirements.yaml``."""
+    Equipment answer key's ``requirements.yaml``; ``later``: the rendered later revisions of
+    the draft, in order, which the package's ``revisions`` name (each entry then lists the
+    revisions it is present in, see :func:`key_at_revision`)."""
+    key = _derive_first(package, draft, requirements)
+    if [r.rev for r in package.revisions] != [d.rev for d in later]:
+        raise RenderError(f"{package.id}: later drafts do not match the package's revisions")
+    for d in later:
+        key = _add_revision(package, key, d)
+    return key
+
+
+def _derive_first(
+    package: Package, draft: Rendered, requirements: Sequence[Mapping[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
     drawn, tag = placements(package), _tag(package)
     reqs = {r["id"]: r for r in requirements}
     steps = printed_steps(package)
@@ -808,6 +989,142 @@ def derive_key(
     }
 
 
+REVISIONS = "revisions"
+LATER = "later"
+"""Presence per draft revision (S1d). An entry of a key with several revisions lists the
+revisions it is present in (``revisions``); its own fields describe the first of them, and
+``later`` holds one item per further revision (``rev`` plus the fields that differ there:
+``documents``, ``locations``, ``location``, ``acceptance``, ``detail``). A key without
+``revisions`` (0.1.0) describes revision 0 only."""
+
+
+def _anchor_fields(kind: str, step: str, requirement: str) -> list[str]:
+    if kind == "requirement_not_tested":
+        return [f"trace.{requirement}.requirement", f"trace.{requirement}.steps"]
+    return [f"{step}.method" if kind == "outdated_reference" else f"{step}.acceptance"]
+
+
+def _add_revision(
+    package: Package, key: dict[str, list[dict[str, Any]]], draft: Rendered
+) -> dict[str, list[dict[str, Any]]]:
+    """Add one later revision's presence to the key of the revisions before it."""
+    rev, by_edit = draft.rev, edits(package, draft.rev)
+    first = package.document.rev
+    by_req = {s.requirement: s for s in package.steps}
+    tag = _tag(package)
+
+    def doc() -> list[dict[str, Any]]:
+        return [{"doc": draft.doc_id, "rev": rev}]
+
+    def mark(entry: dict[str, Any]) -> list[int]:
+        return entry.setdefault(REVISIONS, [first])
+
+    defects: list[dict[str, Any]] = []
+    for d in key["defects.yaml"]:
+        mark(d)
+        defects.append(d)
+        e = by_edit[d["requirement"]]
+        if e.outcome == "fixed":
+            continue
+        step = by_req[d["requirement"]].id
+        item: dict[str, Any] = {
+            "rev": rev,
+            "documents": doc(),
+            "locations": [
+                _location(draft, f) for f in _anchor_fields(d["type"], step, d["requirement"])
+            ],
+        }
+        if e.outcome == "changed":
+            item["detail"] = e.detail
+        d[REVISIONS].append(rev)
+        d.setdefault(LATER, []).append(item)
+    for r, e in by_edit.items():
+        if e.outcome != "new":
+            continue
+        step, ref = by_req[r], e.reference
+        assert ref is not None and e.detail is not None
+        defects.append(
+            {
+                "id": f"D-{tag}-{len(defects) + 1:03d}",
+                "type": "outdated_reference",
+                "severity": SEVERITY,
+                "layer": LAYER,
+                NOT_REVIEWED_FIELD: True,
+                "detail": e.detail,
+                "test_step": step.id,
+                "requirement": r,
+                "documents": doc(),
+                "locations": [_location(draft, f"{step.id}.method")],
+                "register": {"doc": ref.doc, "rev": ref.current_rev},
+                "reference": {
+                    "doc": ref.doc,
+                    "printed_rev": ref.printed_rev,
+                    "current_rev": ref.current_rev,
+                    "context": "normative",
+                },
+                REVISIONS: [rev],
+            }
+        )
+    present = {d["test_step"] for d in defects if "test_step" in d and rev in d[REVISIONS]}
+    for name in ("clean_traps.yaml", "injection_probes.yaml"):
+        for entry in key[name]:
+            if name == "injection_probes.yaml" and entry["test_step"] not in present:
+                raise RenderError(f"{entry['id']}: its defect is gone at rev {rev}")
+            mark(entry).append(rev)
+            location = _location(draft, entry["location"]["field"])
+            entry.setdefault(LATER, []).append({"rev": rev, "location": location})
+    test_steps: list[dict[str, Any]] = []
+    old = {t["id"]: t for t in key["test_steps.yaml"]}
+    for s in package.steps:
+        now, entry = shown(package, s, rev), old.get(s.id)
+        if now is None:
+            if entry is not None:
+                mark(entry)
+                test_steps.append(entry)
+            continue
+        location = _location(draft, f"{s.id}.acceptance")
+        if entry is None:
+            entry = {
+                "id": s.id,
+                "requirements": [s.requirement],
+                "acceptance": _ac(now.acceptance),
+                "location": location,
+                REVISIONS: [rev],
+            }
+        else:
+            mark(entry).append(rev)
+            entry.setdefault(LATER, []).append(
+                {"rev": rev, "acceptance": _ac(now.acceptance), "location": location}
+            )
+        test_steps.append(entry)
+    return {**key, "defects.yaml": defects, "test_steps.yaml": test_steps}
+
+
+def _entry_at(entry: Mapping[str, Any], rev: int) -> dict[str, Any] | None:
+    revs = entry.get(REVISIONS)
+    if revs is None:
+        return dict(entry) if rev == 0 else None
+    if rev not in revs:
+        return None
+    base = {k: v for k, v in entry.items() if k != LATER}
+    if rev == revs[0]:
+        return base
+    item = next(i for i in entry[LATER] if i["rev"] == rev)
+    return {**base, **{k: v for k, v in item.items() if k != "rev"}}
+
+
+def key_at_revision(
+    key: Mapping[str, list[dict[str, Any]]], rev: int
+) -> dict[str, list[dict[str, Any]]]:
+    """The key as it reads for the draft revision ``rev``: only the entries present there, with
+    that revision's anchors and values. A key without ``revisions`` (0.1.0) is revision 0 as it
+    is, entry for entry."""
+    return {
+        name: [v for e in entries if (v := _entry_at(e, rev)) is not None]
+        for name, entries in key.items()
+    }
+
+
 def dump_key(name: str, data: list[dict[str, Any]], package: Package) -> str:
     header = (
         f"# {package.id} answer key: {name}. Review Package {package.version}, "
@@ -846,17 +1163,55 @@ def key_problems(
     package: Package,
     draft: DraftRender,
     corpus_manifest: bytes,
+    later: Sequence[DraftRender] = (),
 ) -> list[str]:
-    """Check a package key as loaded from disk against a freshly rendered draft and the
-    committed manifest of the corpus release it refers to (which is not re-rendered).
+    """Check a package key as loaded from disk against a freshly rendered draft (and its later
+    revisions, ``later``) and the committed manifest of the corpus release it refers to (which
+    is not re-rendered).
 
-    Every draft anchor's text is on the page it cites and in the page body; every corpus
-    document an anchor names is recorded by the package, and every recorded document is in
-    the release manifest with its revision and SHA-256; counts are in range; each probe
-    targets a Test Step carrying a planted defect and names that defect; a requirement holds
-    at most one placement.
+    For each revision, on the key as it reads there (:func:`key_at_revision`): every draft
+    anchor's text is on the page it cites and in the page body; every corpus document an anchor
+    names is recorded by the package, and every recorded document is in the release manifest
+    with its revision and SHA-256; each probe targets a Test Step carrying a planted defect and
+    names that defect; a requirement holds at most one placement. Over the whole key: counts
+    are in range, and every entry lists exactly the revisions it carries items for.
     """
     out = _corpus_problems(package, corpus_manifest)
+    drafts = [draft, *later]
+    if [d.rev for d in drafts] != revision_numbers(package):
+        out.append(f"drafts {[d.rev for d in drafts]} are not the revisions of the package")
+    for d in drafts:
+        out += _revision_problems(key_at_revision(key, d.rev), package, d)
+    for entries in key.values():
+        for e in entries:
+            revs, items = e.get(REVISIONS), e.get(LATER, [])
+            if revs is None:
+                if items:
+                    out.append(f"{e['id']}: later items without revisions")
+            elif [i["rev"] for i in items] != revs[1:] or not set(revs) <= set(
+                revision_numbers(package)
+            ):
+                out.append(f"{e['id']}: revisions {revs} do not match its later items")
+    defects, traps, probes = (
+        key["defects.yaml"],
+        key["clean_traps.yaml"],
+        key["injection_probes.yaml"],
+    )
+    for name, n in (
+        ("defects", len(defects)),
+        ("clean_traps", len(traps)),
+        ("injection_probes", len(probes)),
+    ):
+        lo, hi = COUNTS[name]
+        if not lo <= n <= hi:
+            out.append(f"{name}: {n}, expected {lo} to {hi}")
+    return list(dict.fromkeys(out))
+
+
+def _revision_problems(
+    key: Mapping[str, list[dict[str, Any]]], package: Package, draft: DraftRender
+) -> list[str]:
+    out: list[str] = []
     recorded = {(d.doc, d.rev) for d in package.corpus.documents}
     pages = page_texts(draft.pdf)
 
@@ -911,7 +1266,7 @@ def key_problems(
             out.append(f"{p['id']}: must_report is not the defect of {p['test_step']}")
     for s in steps:
         location(s["id"], s["location"])
-    printed_ids = [s.id for s in printed_steps(package)]
+    printed_ids = [s.id for s in printed_steps(package, draft.rev)]
     if [s["id"] for s in steps] != printed_ids:
         out.append("test_steps: not every printed Test Step, in draft order")
     held = [d["requirement"] for d in defects] + [t["requirement"] for t in traps]
@@ -919,14 +1274,6 @@ def key_problems(
         f"{r}: holds more than one placement"
         for r in sorted({r for r in held if held.count(r) > 1})
     ]
-    for name, n in (
-        ("defects", len(defects)),
-        ("clean_traps", len(traps)),
-        ("injection_probes", len(probes)),
-    ):
-        lo, hi = COUNTS[name]
-        if not lo <= n <= hi:
-            out.append(f"{name}: {n}, expected {lo} to {hi}")
     return out + outside_body(draft)
 
 
@@ -948,8 +1295,10 @@ def _corpus_problems(package: Package, corpus_manifest: bytes) -> list[str]:
 # --- Release ------------------------------------------------------------------------
 
 
-def release_manifest(package: Package, draft: Rendered) -> dict[str, Any]:
-    """``manifest.json`` of the package's release artefact."""
+def release_manifest(
+    package: Package, draft: Rendered, later: Sequence[Rendered] = ()
+) -> dict[str, Any]:
+    """``manifest.json`` of the package's release artefact: the draft and its later revisions."""
     return {
         "dataset": "traceq-review-package",
         "package": package.id,
@@ -960,25 +1309,26 @@ def release_manifest(package: Package, draft: Rendered) -> dict[str, Any]:
         "generator": {"typst": version("typst")},
         "documents": [
             {
-                "path": f"{package.id}/{draft.filename}",
-                "doc_id": draft.doc_id,
-                "rev": draft.rev,
+                "path": f"{package.id}/{d.filename}",
+                "doc_id": d.doc_id,
+                "rev": d.rev,
                 "type": "oq_protocol",
                 "status": package.document.status,
                 "language": "id",
                 "format": "born_digital",
                 "written_against": package.document.urs.model_dump(mode="json"),
-                "issued": draft.issued.isoformat(),
-                "pages": len(pdfium.PdfDocument(draft.data)),
-                "bytes": len(draft.data),
-                "sha256": hashlib.sha256(draft.data).hexdigest(),
+                "issued": d.issued.isoformat(),
+                "pages": len(pdfium.PdfDocument(d.data)),
+                "bytes": len(d.data),
+                "sha256": hashlib.sha256(d.data).hexdigest(),
             }
+            for d in (draft, *later)
         ],
     }
 
 
-def release_manifest_text(package: Package, draft: Rendered) -> str:
-    return json.dumps(release_manifest(package, draft), ensure_ascii=False, indent=2) + "\n"
+def release_manifest_text(package: Package, draft: Rendered, later: Sequence[Rendered] = ()) -> str:
+    return json.dumps(release_manifest(package, draft, later), ensure_ascii=False, indent=2) + "\n"
 
 
 # --- CLI ----------------------------------------------------------------------------
@@ -1013,9 +1363,10 @@ def main(argv: list[str]) -> int:
         print(f"placements differ from the seeded draw: {drawn.model_dump()}")
         return 1
     draft = render_draft(package, eq)
+    later = [render_draft(package, eq, r.rev) for r in package.revisions]
     directory = package_key_dir(args.key, package.id, package.version)
     stale = []
-    for name, data in derive_key(package, draft, requirements).items():
+    for name, data in derive_key(package, draft, requirements, later).items():
         text, path = dump_key(name, data, package), directory / name
         if args.check:
             if not path.exists() or path.read_text(encoding="utf-8") != text:
@@ -1025,7 +1376,7 @@ def main(argv: list[str]) -> int:
             path.write_text(text, encoding="utf-8", newline="\n")
             print(f"{path}  ({len(data)} entries)")
     manifest_path = ROOT / "recordings" / f"{package.id}-{package.version}" / "manifest.json"
-    manifest_text = release_manifest_text(package, draft)
+    manifest_text = release_manifest_text(package, draft, later)
     if args.check:
         if not manifest_path.exists() or manifest_path.read_text("utf-8") != manifest_text:
             stale.append(str(manifest_path))
@@ -1036,11 +1387,12 @@ def main(argv: list[str]) -> int:
     if args.release:
         out = args.release / package.id
         out.mkdir(parents=True, exist_ok=True)
-        (out / draft.filename).write_bytes(draft.data)
+        for d in (draft, *later):
+            (out / d.filename).write_bytes(d.data)
         (out / "manifest.json").write_text(manifest_text, encoding="utf-8", newline="\n")
-        print(f"{out}  ({draft.filename}, manifest.json)")
+        print(f"{out}  ({len(later) + 1} drafts, manifest.json)")
     key = load_package_key(directory) if directory.exists() else None
-    problems = key_problems(key, package, draft, corpus_manifest.read_bytes()) if key else []
+    problems = key_problems(key, package, draft, corpus_manifest.read_bytes(), later) if key else []
     for p in [*(f"stale: {s}" for s in stale), *problems]:
         print(p)
     return 1 if stale or problems else 0
