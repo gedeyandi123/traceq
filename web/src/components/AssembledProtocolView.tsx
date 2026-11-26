@@ -17,19 +17,11 @@ import { ProtocolRowsTable } from "./ProtocolRowsTable";
 import { ProtocolHistory, ProtocolStatusPanel, StartForm } from "./ProtocolStatusPanel";
 import { useRunShell } from "./RunShellContext";
 import { FilterBar } from "./ui/FilterBar";
+import { shouldIgnoreRowShortcut } from "@/lib/keyboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
 import { EmptyState } from "./ui/ui";
 
 type RowFilter = "all" | "blocking" | "vendor" | "testStep";
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.closest(
-      'input, textarea, select, [contenteditable], [contenteditable="true"], [role="listbox"], [role="menu"], [role="combobox"]',
-    ) !== null
-  );
-}
 
 /** Why the API refused a start or a withdrawal, as the page reports it. */
 export type ProtocolError =
@@ -210,9 +202,7 @@ export function AssembledProtocolView({
   useEffect(() => {
     if (rows === null) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key !== "j" && e.key !== "J" && e.key !== "k" && e.key !== "K") return;
-      if (isTypingTarget(e.target)) return;
+      if (shouldIgnoreRowShortcut(e)) return;
       if (filteredRows.length === 0) return;
 
       e.preventDefault();
