@@ -385,8 +385,11 @@ def test_the_r4_run_replays_at_tolerance_0(tmp_path: Path) -> None:
     assert out.metadata["prompts"]["protocol_draft"] == DRAFT_PROMPT_V2.hash
     assert out.metadata["dropped"] == recorded["dropped"]
     got, rec = out.metadata["review_package"], recorded["review_package"]
-    keys = ("tokens", "cost_usd", "test_steps", "trace_rows", "not_compared")
+    keys = ("tokens", "cost_usd", "test_steps", "trace_rows")
     assert {k: got[k] for k in keys} == {k: rec[k] for k in keys}
+    # The unit table (S2b, spec #375) compares two Test Steps the recorded run left out: OQ-24
+    # (`dB(A)` for `dBA`) and OQ-27 (`2 jam` for 120 menit): 19 not compared become 17.
+    assert (rec["not_compared"], got["not_compared"]) == (19, 17)
     # The same draft and the same rules: the scorer's section is r3's (the schema moves the
     # read, never a rule), scored with the 0.1.0 key.
     r3 = json.loads((PACKAGE_RUN / "report-TP-201-OQ-draft.json").read_text(encoding="utf-8"))

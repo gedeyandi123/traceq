@@ -17,6 +17,7 @@ import {
   notTested,
   outsideCapability,
   proposal,
+  unitError,
 } from "./protocolDraft.fixture";
 import { ProtocolDraftView } from "./ProtocolDraftView";
 import { RunShellProvider, useRunShell } from "./RunShellContext";
@@ -252,6 +253,15 @@ test("a finding of a type no practitioner has reviewed carries its label in the 
   const dialog = await screen.findByRole("dialog", { name: "OQ-03" });
   expect(within(dialog).getByText("Belum ditinjau praktisi")).toBeDefined();
   expect(within(dialog).getByText(outsideCapability.detail)).toBeDefined();
+});
+
+test("a unit error is named and labelled as not reviewed by a practitioner", () => {
+  renderDraft(draftView([{ finding: unitError, proposal: null }]), {
+    access: { mode: "readOnly", why: "notImported" },
+  });
+  const row = within(stepRows()[2]!);
+  expect(row.getByText("Satuan kriteria penerimaan salah")).toBeDefined();
+  expect(row.getByText("Belum ditinjau praktisi")).toBeDefined();
 });
 
 test("a finding of a reviewed type carries no such label", () => {

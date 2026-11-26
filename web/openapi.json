@@ -3560,7 +3560,8 @@
             "enum": [
               "ac_deviates_from_urs",
               "requirement_not_tested",
-              "ac_outside_documented_capability"
+              "ac_outside_documented_capability",
+              "unit_error"
             ],
             "title": "Type"
           },

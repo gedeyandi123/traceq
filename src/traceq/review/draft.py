@@ -35,7 +35,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from traceq.ai import LLM, Prompt, Request
 from traceq.documents import CorpusDocument, Page, normalise
-from traceq.review.compare import compare
+from traceq.review.compare import UnitError, compare
 from traceq.review.printed import PrintedValue, read_printed, read_quoted
 from traceq.traceability import (
     Ambiguous,
@@ -411,6 +411,8 @@ class Comparison:
     deviates: bool = False
     not_compared: str | None = None
     comparators: tuple[Comparator, ...] = ()
+    unit_error: UnitError | None = None
+    """The AC prints the URS number in a wrong unit (``unit_error``, spec #375)."""
 
 
 @dataclass(frozen=True)
@@ -657,7 +659,7 @@ def _compared(step: StepReading, urs: UrsLimit, before: str | None) -> Compariso
         return Comparison(urs, not_compared=f"URS limit: {urs.not_parsed}")
     assert step.value is not None and not isinstance(step.value, Ambiguous)
     outcome = compare(step.value, urs.value)
-    return Comparison(urs, outcome.deviates, outcome.not_compared)
+    return Comparison(urs, outcome.deviates, outcome.not_compared, unit_error=outcome.unit_error)
 
 
 def draft_rows(reading: DraftReading, traced: Traceability, urs_language: str) -> list[DraftRow]:

@@ -141,6 +141,123 @@ def test_urs_single_number_compares_only_a_single_number_ac(
     assert [f.type for f in found] == (["ac_deviates_from_urs"] if finding else [])
 
 
+# --- Equivalent units compare (the one unit table) ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("urs", "ac", "finding"),
+    [
+        ("Changeover maksimal 120 menit.", "maks. 2 jam", False),  # 2 jam = 120 menit
+        ("Changeover maksimal 120 menit.", "maks. 3 jam", True),
+        ("Changeover maksimal 120 menit.", "maks. 120 menit", False),
+        ("Kebisingan maksimal 85 dBA.", "maks. 85 dB(A)", False),
+        ("Kebisingan maksimal 85 dBA.", "maks. 90 dB(A)", True),
+        ("Tinggi plafon maksimal 3.000 mm.", "maks. 3 m", False),
+        ("Tinggi plafon maksimal 3.000 mm.", "maks. 3,2 m", True),
+        ("Diameter maksimal 15 mm.", "maks. 1,5 cm", False),  # 1.5 cm = 15 mm
+        ("Diameter maksimal 15 mm.", "maks. 1,6 cm", True),
+        ("Gaya tekan minimal 80 kN.", "minimal 80.000 N", False),
+        ("Gaya tekan minimal 80 kN.", "minimal 70.000 N", True),
+        ("Aliran minimal 300 m³/jam.", "minimal 300 m³/h", False),
+        ("Output minimal 120.000 tablet/jam.", "minimal 120.000 tablets/h", False),
+        ("Output minimal 120.000 tablet/jam.", "minimal 110.000 tablets/h", True),
+    ],
+)  # fmt: skip
+def test_equivalent_units_compare_and_are_no_unit_error(urs: str, ac: str, finding: bool) -> None:
+    row, found = _judge(urs, ac)
+    assert row.not_compared is None
+    assert [f.type for f in found] == (["ac_deviates_from_urs"] if finding else [])
+
+
+# --- unit_error ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("urs", "ac", "how"),
+    [
+        ("Tinggi maksimal 18 mm.", "maks. 18 cm", "off by a factor of 10"),
+        ("Gaya tekan minimal 100 kN.", "minimal 100 N", "off by a factor of 1/1000"),
+        ("Diameter maksimal 5 mm.", "maks. 5 µm", "off by a factor of 1/1000"),
+        ("Tegangan 380 V.", "380 kV", "off by a factor of 1000"),
+        ("Kecepatan maksimal 70 rpm.", "maks. 70 Hz", "other dimensions"),
+        ("Aliran minimal 300 m³/jam.", "minimal 300 m²/jam", "other dimensions"),
+        ("Tekanan maksimal 6 bar.", "maks. 6 mm", "other dimensions"),
+        ("Gaya tekan minimal 100 kN.", "100 N", "off by a factor of 1/1000"),
+    ],
+)  # fmt: skip
+def test_the_urs_number_in_a_unit_off_by_a_prefix_or_a_dimension_is_a_unit_error(
+    urs: str, ac: str, how: str
+) -> None:
+    row, found = _judge(urs, ac)
+    (f,) = found  # unit_error takes the step: no ac_deviates_from_urs beside it
+    assert f.type == "unit_error" and f.test_step == "OQ-01" and f.requirement == "URS-XY100-004"
+    assert how in f.detail and f.label == "not reviewed by a practitioner"
+    assert [c.doc for c in f.citations] == ["OQ-XY100", "URS-XY100"]
+    assert row.traced[0].unit_error is not None
+
+
+@pytest.mark.parametrize(
+    ("urs", "ac"),
+    [
+        ("Tinggi maksimal 18 mm.", "maks. 19 cm"),  # another number: a plain deviation
+        ("Changeover maksimal 120 menit.", "maks. 120 jam"),  # factor 60, not a power of ten
+        ("Changeover maksimal 120 menit.", "maks. 2 jam"),  # equivalent
+        ("Tinggi plafon maksimal 3.000 mm.", "maks. 3 m"),  # equivalent
+        ("Diameter maksimal 15 mm.", "maks. 1,5 cm"),
+        ("Kebisingan maksimal 85 dBA.", "maks. 85 dB(A)"),  # one unit, two spellings
+        ("Output minimal 120.000 tablet/jam.", "minimal 120.000 tablets/h"),
+        ("Tinggi maksimal 18 mm.", "maks. 18 mm"),
+        ("Mesin memiliki 36 stasiun punch.", "36 stasiun"),
+        ("Tinggi maksimal 18 mm.", "maks. 18"),  # no unit: not this rule's
+        ("Mesin memiliki 36 stasiun punch.", "36 buah"),  # unknown unit: never another dimension
+    ],
+)  # fmt: skip
+def test_no_unit_error_without_the_same_number_and_a_known_unit_slip(urs: str, ac: str) -> None:
+    _, found = _judge(urs, ac)
+    assert "unit_error" not in [f.type for f in found]
+
+
+def test_a_unit_error_and_a_deviation_on_one_step_raise_the_unit_error_only() -> None:
+    """18 cm accepts 180 mm, which the URS limit 18 mm rejects: both apply, one is raised."""
+    row, found = _judge("Tinggi maksimal 18 mm.", "maks. 18 cm")
+    assert row.traced[0].deviates and row.traced[0].unit_error is not None
+    assert [f.type for f in found] == ["unit_error"]
+
+
+def test_a_unit_error_in_the_smaller_direction_is_a_unit_error_too() -> None:
+    """5 µm is stricter than 5 mm: no deviation, still the wrong unit."""
+    row, found = _judge("Diameter maksimal 5 mm.", "maks. 5 µm")
+    assert not row.traced[0].deviates
+    assert [f.type for f in found] == ["unit_error"]
+
+
+def test_a_dimension_slip_is_not_compared_but_is_a_unit_error() -> None:
+    row, found = _judge("Aliran minimal 300 m³/jam.", "minimal 300 m²/jam")
+    assert row.not_compared == "units do not compare (m²/jam and m³/jam)"
+    assert [f.type for f in found] == ["unit_error"]
+
+
+def test_the_unit_error_is_appended_after_the_older_findings() -> None:
+    """Numbering of the older findings never moves (as for the capability type)."""
+    reading = _reading(
+        [
+            _step("OQ-01", "maks. 18 cm", "URS-XY100-004"),
+            _step("OQ-02", "minimal 70 kN", "URS-XY100-005"),
+        ],
+        [_row("URS-XY100-004", "OQ-01"), _row("URS-XY100-005", "OQ-02")],
+    )
+    reqs = [
+        _req("URS-XY100-004", "Tinggi maksimal 18 mm."),
+        _req("URS-XY100-005", "Gaya tekan minimal 80 kN."),
+    ]
+    rows = draft_rows(reading, Traceability(requirements=reqs), "id")
+    found = draft_findings(reading, rows)
+    assert [(f.type, f.test_step) for f in found] == [
+        ("ac_deviates_from_urs", "OQ-02"),
+        ("unit_error", "OQ-01"),
+    ]
+
+
 # --- Not compared, with the reason -------------------------------------------------------
 
 SINGLE = "the URS states a single number; the acceptance criterion does not"
@@ -163,8 +280,7 @@ FORCE_80 = "Gaya tekan minimal 80 kN."
         (FORCE_80, "minimal 1,500 kN", "acceptance criterion: number reads two ways"),
         ("Bagian kontak dari SS 316L.", "minimal 80 kN", "URS limit: no number"),
         ("Kecepatan maks. 1,500 rpm.", "maks. 1000 rpm", "URS limit: number reads two ways"),
-        ("Changeover maksimal 120 menit.", "maks. 2 jam", "units do not compare (jam and menit)"),
-        ("Kebisingan maksimal 85 dBA.", "maks. 85 dB(A)", "units do not compare (dB(A) and dBA)"),
+        ("Changeover maksimal 120 menit.", "maks. 2 kali", "units do not compare (kali and menit)"),
         (
             "Gaya tekan minimal 80 kN.",
             "80 kN ± 5 kN",
