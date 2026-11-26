@@ -69,6 +69,21 @@ def _graded(section: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _with_units_compared(section: dict[str, Any]) -> dict[str, Any]:
+    """The recorded section of 0.1.0 as the one unit table (S2b, spec #375) reads it: OQ-24
+    (`dB(A)` for `dBA`) and OQ-27 (`2 jam` for 120 menit) are compared now, so 17 Test Steps
+    are not compared instead of 19; no finding, no score moves."""
+    steps = [
+        {**t, "compared": True, "not_compared": None} if t["id"] in {"OQ-24", "OQ-27"} else t
+        for t in section["test_steps"]
+    ]
+    return {
+        **section,
+        "test_steps": steps,
+        "metrics": {**section["metrics"], "not_compared": section["metrics"]["not_compared"] - 2},
+    }
+
+
 @pytest.mark.parametrize("tag", sorted(WORLDS))
 @pytest.mark.parametrize("name", RUNS)
 def test_recorded_live_run_replays_to_its_live_scores(name: str, tag: str, tmp_path: Path) -> None:
@@ -160,9 +175,11 @@ def test_review_package_run_replays_the_equipment_run_unchanged(
         "cost_usd": ANY,
         "test_steps": 26,
         "trace_rows": 28,
-        # compared: OQ-03..08 and OQ-23 (one-sided URS limits in the same unit); every Test
-        # Step is read and both pages of the traceability table are read
-        "not_compared": 19,
+        # compared: OQ-03..08 and OQ-23 (one-sided URS limits in the same unit), and OQ-24 and
+        # OQ-27, whose unit the one unit table converts (`dB(A)` for `dBA`, `2 jam` for 120
+        # menit; S2b, spec #375); every Test Step is read and both pages of the traceability
+        # table are read
+        "not_compared": 17,
         "ingest": ANY,
     }
     assert "review_package" not in plain.metadata
@@ -221,14 +238,14 @@ def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOut
     assert out.metadata["calls"]["live"] == 0
     assert out.metadata["cost_usd"] == recorded["cost_usd"]
     rp, rec = out.metadata["review_package"], recorded["review_package"]
-    assert {k: rp[k] for k in ("tokens", "cost_usd", "not_compared")} == {
-        k: rec[k] for k in ("tokens", "cost_usd", "not_compared")
-    }
+    assert {k: rp[k] for k in ("tokens", "cost_usd")} == {k: rec[k] for k in ("tokens", "cost_usd")}
+    # S2b (spec #375): the unit table compares OQ-24 and OQ-27, which the recorded run left out.
+    assert (rec["not_compared"], rp["not_compared"]) == (19, 17)
     assert rp["calls"] == {"total": 8, "replayed": 8, "live": 0}
     assert out.metadata["prompts"] == recorded["prompts"]
     assert out.metadata["dropped"] == recorded["dropped"]
     assert got["gates"] == expected["gates"]
-    assert _graded(got["review_package"]) == expected["review_package"]
+    assert _graded(got["review_package"]) == _with_units_compared(expected["review_package"])
     # The capability rule raises one finding on 0.1.0's draft (OQ-04, "minimal 105 kN" against
     # the Datasheet's 100 kN maximum, a Clean Trap of 0.1.0): its key declares no such type, so
     # it is neither a match, nor wrong, nor on a trap, and no number of 0.1.0 moves.
