@@ -14,6 +14,12 @@ verified citation. The LLM reads; it never judges a limit.
   operating span (a range reaching outside the stated span) or an accuracy floor (tighter than
   the stated accuracy). Cites the AC in the draft and the Datasheet row.
   ``ac_outside_documented_capability`` says what counts as a link and what is left out.
+- ``unit_error`` (spec #375): a Test Step's AC prints the number of the URS limit it is traced to
+  in a wrong unit: an SI prefix factor off (``18 cm`` for ``18 mm``) or another dimension
+  (``300 m²/jam`` for ``300 m³/jam``). Equivalent units are not an error (``2 jam`` for
+  ``120 menit``): the system's one unit table (``traceq.traceability.units``) converts them
+  before the limit is compared. Where a unit error and ``ac_deviates_from_urs`` both apply to a
+  Test Step, ``unit_error`` takes it. Cites the AC in the draft and the URS sentence.
 
 A finding names its Test Step id (or, for a table row, the row's requirement id). Its detail
 is written from the values as parsed, never from quote text, so a re-run whose quote differs
@@ -28,6 +34,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from traceq.documents import normalise
+from traceq.review.compare import UnitError
 from traceq.review.draft import (
     Comparison,
     DraftReading,
@@ -42,14 +49,17 @@ from traceq.traceability.coverage import comparable
 from traceq.traceability.values import Number, Text
 
 DraftType = Literal[
-    "ac_deviates_from_urs", "requirement_not_tested", "ac_outside_documented_capability"
+    "ac_deviates_from_urs",
+    "requirement_not_tested",
+    "ac_outside_documented_capability",
+    "unit_error",
 ]
 
 NOT_REVIEWED_LABEL = "not reviewed by a practitioner"
-NOT_REVIEWED_TYPES: frozenset[str] = frozenset({"ac_outside_documented_capability"})
+NOT_REVIEWED_TYPES: frozenset[str] = frozenset({"ac_outside_documented_capability", "unit_error"})
 """Finding types no practitioner has reviewed (ADR 0010, amended 26 Nov 2026): each of their
-findings carries ``NOT_REVIEWED_LABEL`` wherever it is shown. ``unit_error`` and
-``outdated_reference`` join when their rules land."""
+findings carries ``NOT_REVIEWED_LABEL`` wherever it is shown. ``outdated_reference`` joins when
+its rule lands."""
 
 
 @dataclass(frozen=True)
@@ -114,8 +124,8 @@ def ac_deviates_from_urs(rows: list[DraftRow]) -> list[DraftFinding]:
     out: list[DraftFinding] = []
     for r in rows:
         for c in r.traced:
-            if not c.deviates:
-                continue
+            if not c.deviates or c.unit_error is not None:
+                continue  # a unit error takes the Test Step (spec #375)
             ac, urs = r.step.value, c.urs.value
             assert ac is not None and urs is not None and c.urs.citation is not None
             assert not isinstance(ac, Ambiguous)
@@ -355,6 +365,48 @@ def ac_outside_documented_capability(
     return out
 
 
+# --- unit_error --------------------------------------------------------------------------------
+
+
+def _unit_detail(
+    step: str, requirement: str, ac: PrintedValue, urs: PrintedValue, e: UnitError
+) -> str:
+    how = (
+        f"the unit is off by a factor of {e.factor}"
+        if e.kind == "prefix"
+        else "the unit has other dimensions"
+    )
+    return (
+        f"{step} prints {describe(ac)} where {requirement} says {describe(urs)}: the number is"
+        f" the URS number and {how}."
+    )
+
+
+def unit_error(rows: list[DraftRow]) -> list[DraftFinding]:
+    """A Test Step whose AC prints the number of its URS limit in a unit off by a power of ten
+    or of another dimension (``traceq.review.compare``); equivalent units raise nothing."""
+    out: list[DraftFinding] = []
+    for r in rows:
+        for c in r.traced:
+            if c.unit_error is None:
+                continue
+            ac, urs = r.step.value, c.urs.value
+            assert ac is not None and urs is not None and c.urs.citation is not None
+            assert not isinstance(ac, Ambiguous)
+            out.append(
+                DraftFinding(
+                    "unit_error",
+                    _unit_detail(r.step.id, c.urs.requirement, ac, urs, c.unit_error),
+                    (r.step.citation, c.urs.citation),
+                    c.urs.requirement,
+                    test_step=r.step.id,
+                    ac=ac,
+                    urs=urs,
+                )
+            )
+    return out
+
+
 def _as_number(v: PrintedValue) -> Number | Limit:
     assert isinstance(v, Number | Limit)
     return v
@@ -371,4 +423,5 @@ def draft_findings(
         *ac_deviates_from_urs(rows),
         *requirement_not_tested(reading),
         *ac_outside_documented_capability(rows, datasheets),
+        *unit_error(rows),
     ]

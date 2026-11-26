@@ -46,6 +46,20 @@ export const outsideCapability: DraftFindingView["finding"] = {
   citations: [cite(DRAFT, 2, "OQ-03 minimal 105 kN"), cite({ doc: "DS-TP201", rev: 0 }, 1, "Maximum main compression force 100 kN")],
 };
 
+/** A unit error (spec #375, S2b): the URS number in a unit off by a power of ten; the label comes from the API. */
+export const unitError: DraftFindingView["finding"] = {
+  type: "unit_error",
+  layer: "rule",
+  test_step: "OQ-03",
+  row: null,
+  requirement: "URS-TP201-020",
+  detail: "OQ-03 prints at most 18 cm where URS-TP201-020 says at most 18 mm: the number is the URS number and the unit is off by a factor of 10.",
+  ac: { ...noiseLimit, max: 18, unit: "cm" },
+  urs_limit: { ...noiseLimit, max: 18, unit: "mm" },
+  label: "not reviewed by a practitioner",
+  citations: [cite(DRAFT, 2, "OQ-03 maks. 18 cm"), cite(URS, 2, "Tinggi maksimal 18 mm.")],
+};
+
 export const notTested: DraftFindingView["finding"] = {
   type: "requirement_not_tested",
   layer: "rule",

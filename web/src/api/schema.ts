@@ -1381,7 +1381,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "ac_deviates_from_urs" | "requirement_not_tested" | "ac_outside_documented_capability";
+            type: "ac_deviates_from_urs" | "requirement_not_tested" | "ac_outside_documented_capability" | "unit_error";
             /**
              * Layer
              * @constant

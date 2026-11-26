@@ -492,7 +492,8 @@
     "types": {
       "ac_deviates_from_urs": "Kriteria penerimaan lebih longgar dari URS",
       "requirement_not_tested": "Persyaratan tanpa langkah uji",
-      "ac_outside_documented_capability": "Kriteria penerimaan di luar kemampuan yang tercantum di datasheet"
+      "ac_outside_documented_capability": "Kriteria penerimaan di luar kemampuan yang tercantum di datasheet",
+      "unit_error": "Satuan kriteria penerimaan salah"
     },
     "notReviewed": "Belum ditinjau praktisi",
     "values": {
