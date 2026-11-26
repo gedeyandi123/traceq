@@ -146,7 +146,7 @@
       "canDecide": "Dapat memutuskan matriks, temuan, draf, menyusun dan mengajukan protokol, serta melaksanakan eksekusi dan mencatat hasil.",
       "canApprove": "Dapat meninjau salinan beku, menyetujui atau mengembalikan protokol, serta menutup atau mengembalikan deviasi.",
       "canExecute": "Dapat memulai eksekusi protokol, mencatat hasil langkah uji, serta mengajukan deviasi dan investigasi.",
-      "canWitness": "Dapat mengonfirmasi hasil eksekusi sebagai Saksi (status tercatat, bukan Tanda Tangan Elektronik).",
+      "canWitness": "Dapat mengonfirmasi hasil eksekusi sebagai Saksi.",
       "readOnly": "Hanya dapat membaca seluruh layar tanpa mengubah keputusan, protokol, atau eksekusi."
     }
   },
@@ -528,13 +528,12 @@
     "title": "Protokol (disusun di TraceQ)",
     "intro": "Protokol IQ/OQ peralatan ini yang disusun di TraceQ dari keputusan manusia atas run ini: satu baris per persyaratan. Bukan draf protokol lokasi yang ditinjau di layar Draf protokol.",
     "approval": {
-      "note": "Menyetujui mencatat status Disetujui yang terikat pada salinan beku dan hash di bawah. Ini status yang dicatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2).",
       "approve": "Setujui protokol",
       "return": "Kembalikan ke Draft",
       "returnReason": "Alasan pengembalian",
       "returnModalTitle": "Kembalikan protokol ke Draft?",
       "returnModalDesc": "Protokol akan kembali ke status Draft agar Penyusun dapat memperbaikinya.",
-      "approvedNote": "Disetujui: status yang dicatat atas salinan beku dan hash di bawah, bukan Tanda Tangan Elektronik (ADR 0007 fase 2). Versi baru protokol ini adalah langkah 6."
+      "approvedNote": "Versi baru protokol ini adalah langkah 6."
     },
     "cancel": "Batal",
     "withdrawModalTitle": "Tarik protokol?",
@@ -561,7 +560,7 @@
       "oneStep": "Satu langkah uji per persyaratan.",
       "combined": "IQ dan OQ digabung dalam satu protokol.",
       "noPrint": "Tidak ada protokol cetak atau ekspor.",
-      "notSignature": "Persetujuan adalah status yang dicatat, bukan Tanda Tangan Elektronik.",
+      "notSignature": "Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007).",
       "noNewVersion": "Belum ada versi baru setelah protokol disetujui (langkah 6)."
     },
     "none": "Belum ada protokol yang dimulai dari run ini",
@@ -876,7 +875,6 @@
     "witnessVoidedBadge": "Dibatalkan oleh versi baru",
     "witnessedBy": "Disaksikan oleh {name}, {when}",
     "witnessNotConfirmed": "Belum dikonfirmasi Saksi (tidak ada langkah uji yang mewajibkan Saksi).",
-    "witnessNotSignatureNote": "Status tercatat, bukan Tanda Tangan Elektronik (ADR 0007 fase 2).",
     "witnessPerformerRefused": "Pelaksana hasil ini tidak dapat menjadi Saksi.",
     "witnessAlreadyConfirmed": "Anda sudah mengonfirmasi versi ini.",
     "notPerformableDisplay": "Tidak dapat dilaksanakan: {reason}",
@@ -932,7 +930,6 @@
     "deviationReturnButton": "Kembalikan ke Terbuka",
     "deviationReturnReason": "Alasan pengembalian",
     "deviationReturnReasonPlaceholder": "Jelaskan hal yang perlu diperbaiki...",
-    "deviationClosureNote": "Penutupan deviasi adalah status tercatat, bukan Tanda Tangan Elektronik.",
     "witnessRequiredBadge": "Wajib Saksi",
     "completion": {
       "title": "Daftar periksa penyelesaian eksekusi",
@@ -975,7 +972,7 @@
       "liveOnly": "Hasil dicatat secara langsung; transkripsi dari kertas tidak didukung.",
       "oneExecution": "Satu eksekusi per protokol yang disetujui dan tidak dapat dibatalkan.",
       "combined": "IQ dan OQ digabung dalam satu eksekusi.",
-      "notSignature": "Konfirmasi dan penutupan adalah status tercatat, bukan tanda tangan elektronik."
+      "notSignature": "Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007). Penyelesaian eksekusi dan penutupan ronde adalah status tercatat tanpa tanda tangan."
     }
   },
   "rounds": {
@@ -1108,8 +1105,8 @@
     },
     "stagePassFail": "{passed} lulus · {failed} gagal",
     "totalSummary": "{rows} total baris · {deviations} deviasi",
-    "adrNoticeTitle": "Catatan Status Tercatat (ADR 0007)",
-    "adrNoticeBody": "Persetujuan Laporan Kualifikasi adalah status tercatat dengan jejak audit, bukan Tanda Tangan Elektronik.",
+    "adrNoticeTitle": "Tanda tangan (ADR 0007)",
+    "adrNoticeBody": "Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007).",
     "issueTitle": "Terbitkan Laporan Kualifikasi (PDF)",
     "latestRevision": "Revisi terakhir: Rev {rev}",
     "noExportYet": "Belum ada ekspor PDF yang diterbitkan",

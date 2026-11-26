@@ -34,14 +34,14 @@ function reportFixture(
       total_deviations: 1,
     },
     approval_note:
-      "Persetujuan Laporan Kualifikasi adalah status tercatat, bukan Tanda Tangan Elektronik (ADR 0007).",
+      "Label dari backend: ekspor 1",
     latest_export: {
       id: 9,
       revision_number: 1,
       technical_conclusion: "qualified_with_deviations",
       conclusion_note: "Catatan QA",
       next_requalification_date: "2027-11-25",
-      approval_note: "bukan Tanda Tangan Elektronik",
+      approval_note: "Label dari backend: ekspor 1",
       snapshot_hash: "c".repeat(64),
       pdf_sha256: "d".repeat(64),
       template_version: "1",
@@ -58,7 +58,7 @@ function reportFixture(
         technical_conclusion: "qualified_with_deviations",
         conclusion_note: "Catatan QA",
         next_requalification_date: "2027-11-25",
-        approval_note: "bukan Tanda Tangan Elektronik",
+        approval_note: "Label dari backend: ekspor 1",
         snapshot_hash: "c".repeat(64),
         pdf_sha256: "d".repeat(64),
         template_version: "1",
@@ -210,7 +210,11 @@ test("renders conclusion, stage counts, ADR 0007 notice, retest lineage, exports
   );
 
   expect(screen.getAllByText("Memenuhi Syarat dengan Deviasi").length).toBeGreaterThan(0);
-  expect(screen.getAllByText(/bukan Tanda Tangan Elektronik/).length).toBeGreaterThanOrEqual(1);
+  // After an export the notice shows the backend label of the latest export, not the pre-export hedge.
+  expect(screen.getByText("Tanda tangan (ADR 0007)")).toBeDefined();
+  expect(screen.getAllByText("Label dari backend: ekspor 1").length).toBeGreaterThanOrEqual(1);
+  expect(screen.queryByText(/dirancang untuk 21 CFR Part 11/)).toBeNull();
+  expect(screen.queryByText(/Catatan Status Tercatat/)).toBeNull();
   expect(screen.getByText("1 lulus · 0 gagal")).toBeDefined();
   expect(screen.getByText("2 lulus · 0 gagal")).toBeDefined();
   expect(screen.getByText("Percobaan #1 (Deviasi #4)")).toBeDefined();
@@ -245,6 +249,9 @@ test("hides approver form for non-approver and hides requalification date when n
   expect(
     screen.getByText("Hanya peran penyetuju (qualification-approver) yang dapat menerbitkan Laporan Kualifikasi."),
   ).toBeDefined();
+  // Before any export the backend label is the legacy unsigned status; the hedge sentence shows instead.
+  expect(screen.getByText("Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007).")).toBeDefined();
+  expect(screen.queryByText(/bukan Tanda Tangan Elektronik/)).toBeNull();
   unmount();
 
   render(

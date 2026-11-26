@@ -91,7 +91,6 @@ function WitnessConfirmForm({
       <Button type="button" variant="soft" onClick={() => setDialogOpen(true)}>
         {t("witnessConfirmButton")}
       </Button>
-      <p className="m-0 text-[10px] text-ink-muted">{t("witnessNotSignatureNote")}</p>
       {!state.ok && state.error && (
         <div
           role="alert"
@@ -383,9 +382,6 @@ export function ExecutionRowDrawer({
                                                 when: formatWhen(when, w.at),
                                               })}
                                             </span>
-                                          </div>
-                                          <div className="text-[10px] text-ink-muted">
-                                            {t("witnessNotSignatureNote")}
                                           </div>
                                           <SignatureBadge
                                             signature={w.electronic_signature}
