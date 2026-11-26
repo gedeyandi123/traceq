@@ -8,7 +8,7 @@ Status: the synthetic dataset v0 (the TP-201 package and a held-out TP-202 slice
 - [`docs/adr/`](docs/adr/): architecture decisions
 - [`AGENTS.md`](AGENTS.md): development protocol for coding agents
 - [`docs/design/synthetic-dataset.md`](docs/design/synthetic-dataset.md): dataset design
-- [`docs/pilot-readiness.md`](docs/pilot-readiness.md): what running at a real plant would take (skeleton)
+- [`docs/pilot-readiness.md`](docs/pilot-readiness.md): what running at a real plant would take (partial)
 - [`DATASHEET.md`](DATASHEET.md), [`CHANGELOG.md`](CHANGELOG.md): dataset documentation and versions
 
 ## Licence
