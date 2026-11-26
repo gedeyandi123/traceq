@@ -44,12 +44,19 @@ function renderPage(
           runId={RUN_ID}
           decisions={decisions}
           controls={decisions.access.mode === "decide" ? controls : null}
+          signingAuth={SIGNING_AUTH}
           error={error}
         />
       </RunShellProvider>
     </NextIntlClientProvider>,
   );
 }
+
+const SIGNING_AUTH = {
+  oidcMode: false,
+  reauthAuthTime: null,
+  signer: { name: "Dewi Lestari", username: "dewi" },
+};
 
 function row(requirement: string) {
   return within(screen.getByTestId(requirement));
@@ -341,6 +348,7 @@ test("the submit dialog posts the draft hash of the page the Preparer reads", as
   await user.click(screen.getByRole("button", { name: "Ajukan protokol" }));
   const dialog = within(await screen.findByRole("dialog", { name: "Ajukan protokol untuk persetujuan?" }));
   const form = dialog.getByRole("button", { name: "Ajukan protokol" }).closest("form") as HTMLFormElement;
+  expect(dialog.getByTestId("signature-signer").textContent).toBe("Dewi Lestari(dewi)");
   expect((form.elements.namedItem("expected_draft_hash") as HTMLInputElement).value).toBe(hash);
   expect((form.elements.namedItem("protocol_id") as HTMLInputElement).value).toBe("7");
 });
@@ -463,6 +471,7 @@ function renderForApprover(protocol: ProtocolView) {
           decisions={reader}
           controls={null}
           approval={approvalControls}
+          signingAuth={SIGNING_AUTH}
         />
       </RunShellProvider>
     </NextIntlClientProvider>,
@@ -476,6 +485,7 @@ test("the approving role approves the submission shown, bound to its event id an
   await user.click(screen.getByRole("button", { name: "Setujui protokol" }));
   const approveModal = within(await screen.findByRole("dialog", { name: "Setujui protokol" }));
   const form = approveModal.getByRole("button", { name: "Setujui protokol" }).closest("form") as HTMLFormElement;
+  expect(approveModal.getByTestId("signature-signer").textContent).toBe("Dewi Lestari(dewi)");
   expect((form.elements.namedItem("submission_event_id") as HTMLInputElement).value).toBe("12");
   expect((form.elements.namedItem("hash") as HTMLInputElement).value).toBe("a".repeat(64));
   await user.click(approveModal.getByRole("button", { name: "Batal" }));

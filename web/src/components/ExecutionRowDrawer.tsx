@@ -109,6 +109,7 @@ function WitnessConfirmForm({
         signatureMeaning="witnessed"
         contentHash={versionHash}
         signingAuth={signingAuth}
+        signer={signingAuth.signer}
         reauthNextUrl={`/runs/${encodeURIComponent(runId)}/execution?reauth_target=${encodeURIComponent(targetKey)}`}
         action={formAction}
         confirmLabel={t("witnessConfirmButton")}
@@ -136,7 +137,7 @@ export function ExecutionRowDrawer({
   canCorrect,
   canRetest,
   witnessAction,
-  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
   open,
   onOpenChange,

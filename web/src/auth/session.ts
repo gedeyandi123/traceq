@@ -38,11 +38,16 @@ export type Session = {
   mayWitness: boolean;
 };
 
+/** Who will sign, as the session shows them: the printed name (21 CFR Part 11.50) and username. */
+export type Signer = { name: string; username?: string };
+
 /** Server-derived OIDC / re-authentication state passed to client signing dialogs. */
 export type SigningAuthState = {
   oidcMode: boolean;
   /** Epoch seconds (`auth_time`) from the single-use `traceq_reauth_token` cookie if present and unexpired. */
   reauthAuthTime: number | null;
+  /** The signed-in identity from the same session cookie; null when there is no readable session. */
+  signer: Signer | null;
 };
 
 /** The claim holding the roles, a dotted path for a nested claim; the same setting as the
@@ -172,16 +177,18 @@ export async function currentSession(): Promise<Session | null> {
 /** Reads OIDC mode and any valid `traceq_reauth_token` `auth_time` for `ElectronicSignatureDialog`. */
 export async function signingAuthState(): Promise<SigningAuthState> {
   const oidcMode = isOidcMode();
+  const session = await currentSession();
+  const signer: Signer | null = session ? { name: session.name, username: session.username } : null;
   if (!oidcMode) {
-    return { oidcMode: false, reauthAuthTime: null };
+    return { oidcMode: false, reauthAuthTime: null, signer };
   }
   const reauthToken = (await cookies()).get(REAUTH_TOKEN_COOKIE)?.value;
   if (!reauthToken) {
-    return { oidcMode: true, reauthAuthTime: null };
+    return { oidcMode: true, reauthAuthTime: null, signer };
   }
   const payload = decodeJwtPayload(reauthToken);
   if (!payload || isTokenExpired(payload) || typeof payload.auth_time !== "number") {
-    return { oidcMode: true, reauthAuthTime: null };
+    return { oidcMode: true, reauthAuthTime: null, signer };
   }
-  return { oidcMode: true, reauthAuthTime: payload.auth_time };
+  return { oidcMode: true, reauthAuthTime: payload.auth_time, signer };
 }

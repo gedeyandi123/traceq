@@ -13,6 +13,8 @@ function wrap(ui: React.ReactNode) {
   );
 }
 
+const SIGNER = { name: "Dewi Lestari", username: "dewi" };
+
 describe("ElectronicSignatureDialog", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -29,7 +31,8 @@ describe("ElectronicSignatureDialog", () => {
           targetSummary="Protokol #7 · r7 TP/201"
           signatureMeaning="approved"
           contentHash={"f".repeat(64)}
-          signingAuth={{ oidcMode: false, reauthAuthTime: null }}
+          signingAuth={{ oidcMode: false, reauthAuthTime: null, signer: SIGNER }}
+          signer={SIGNER}
           reauthNextUrl="/runs/r7/protocol?reauth_target=protocol_approval"
           action={action}
           confirmLabel="Setujui"
@@ -57,7 +60,8 @@ describe("ElectronicSignatureDialog", () => {
           targetSummary="Laporan Kualifikasi · Eksekusi #12"
           signatureMeaning="approved"
           contentHash={"b".repeat(64)}
-          signingAuth={{ oidcMode: true, reauthAuthTime: null }}
+          signingAuth={{ oidcMode: true, reauthAuthTime: null, signer: SIGNER }}
+          signer={SIGNER}
           reauthNextUrl="/runs/r7/report?reauth_target=qualification_report"
           onBeforeReauth={onBeforeReauth}
           onReauthNavigate={onReauthNavigate}
@@ -95,7 +99,8 @@ describe("ElectronicSignatureDialog", () => {
           targetSummary="Laporan Kualifikasi · Eksekusi #12"
           signatureMeaning="approved"
           contentHash={"b".repeat(64)}
-          signingAuth={{ oidcMode: true, reauthAuthTime: authTime }}
+          signingAuth={{ oidcMode: true, reauthAuthTime: authTime, signer: SIGNER }}
+          signer={SIGNER}
           reauthNextUrl="/runs/r7/report?reauth_target=qualification_report"
           action={action}
           confirmLabel="Terbitkan Laporan"
@@ -132,7 +137,8 @@ describe("ElectronicSignatureDialog", () => {
           title="Tutup Deviasi"
           targetSummary="Deviasi #1"
           signatureMeaning="approved"
-          signingAuth={{ oidcMode: true, reauthAuthTime: null }}
+          signingAuth={{ oidcMode: true, reauthAuthTime: null, signer: SIGNER }}
+          signer={SIGNER}
           reauthNextUrl="/runs/r7/execution?reauth_target=deviation_closure"
           action={vi.fn()}
           confirmLabel="Tutup"
@@ -153,7 +159,8 @@ describe("ElectronicSignatureDialog", () => {
           title="Tutup Deviasi"
           targetSummary="Deviasi #1"
           signatureMeaning="approved"
-          signingAuth={{ oidcMode: false, reauthAuthTime: null }}
+          signingAuth={{ oidcMode: false, reauthAuthTime: null, signer: SIGNER }}
+          signer={SIGNER}
           reauthNextUrl="/runs/r7/execution?reauth_target=deviation_closure"
           action={vi.fn()}
           confirmLabel="Tutup"
@@ -165,5 +172,50 @@ describe("ElectronicSignatureDialog", () => {
 
     expect(screen.getByRole("alert").textContent).toContain("Sesi tidak sah (401)");
     expect(screen.queryByRole("button", { name: /Autentikasi Ulang dengan Keycloak/i })).toBeNull();
+  });
+
+  it("shows who is signing, before the confirm action, in both auth modes", () => {
+    for (const oidcMode of [false, true]) {
+      const { unmount } = render(
+        wrap(
+          <ElectronicSignatureDialog
+            open
+            onOpenChange={vi.fn()}
+            title="Setujui Protokol"
+            targetSummary="Protokol #7"
+            signatureMeaning="approved"
+            signingAuth={{ oidcMode, reauthAuthTime: null, signer: SIGNER }}
+            signer={SIGNER}
+            reauthNextUrl="/x"
+            action={vi.fn()}
+            confirmLabel="Setujui"
+          />,
+        ),
+      );
+      const signer = screen.getByTestId("signature-signer");
+      expect(signer.textContent).toBe("Dewi Lestari(dewi)");
+      expect(screen.getByText("Ditandatangani sebagai")).toBeTruthy();
+      unmount();
+    }
+  });
+
+  it("says the signer is unknown instead of showing a blank when there is no session", () => {
+    render(
+      wrap(
+        <ElectronicSignatureDialog
+          open
+          onOpenChange={vi.fn()}
+          title="Setujui Protokol"
+          targetSummary="Protokol #7"
+          signatureMeaning="approved"
+          signingAuth={{ oidcMode: false, reauthAuthTime: null, signer: null }}
+          signer={null}
+          reauthNextUrl="/x"
+          action={vi.fn()}
+          confirmLabel="Setujui"
+        />,
+      ),
+    );
+    expect(screen.getByTestId("signature-signer").textContent).toMatch(/tidak diketahui/);
   });
 });

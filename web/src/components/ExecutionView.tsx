@@ -135,7 +135,7 @@ export function ExecutionViewPanel({
   closeDeviationAction = null,
   returnDeviationAction = null,
   completeAction = null,
-  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
 }: {
   execution: ExecutionView | null;

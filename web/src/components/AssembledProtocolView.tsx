@@ -101,7 +101,7 @@ export function AssembledProtocolView({
   decisions,
   controls,
   approval = null,
-  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
   error,
   initialSelected = null,
