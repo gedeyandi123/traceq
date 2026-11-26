@@ -97,6 +97,18 @@ class Acceptance(Model):
     value: AcValue
 
 
+class Capability(Model):
+    """The Datasheet row that states what the Equipment can do (spec #375, S1a): the row the
+    system links to the requirement, as printed on the datasheet page."""
+
+    doc: str
+    rev: int
+    page: int
+    name: str = Field(description="The row's label as printed.")
+    printed: str = Field(description="The row's value as printed.")
+    kind: Literal["maximum", "span", "accuracy"]
+
+
 class Deviating(Acceptance):
     """Looser than the URS: printed when the draw makes the step an ``ac_deviates_from_urs``
     defect."""
@@ -104,11 +116,22 @@ class Deviating(Acceptance):
     detail: str = Field(description="The expected finding, as a reviewer would write it.")
 
 
+class Outside(Acceptance):
+    """Outside the capability the Datasheet states (``ac_outside_documented_capability``, spec
+    #375): printed on a step whose requirement the world data plants it on. It sits inside the
+    URS limit, so no ``ac_deviates_from_urs`` finding is expected."""
+
+    detail: str = Field(description="The expected finding, as a reviewer would write it.")
+    capability: Capability
+
+
 class Trap(Acceptance):
     """Correct and close to the URS limit, or the same limit written another way: printed when
-    the draw makes the step a Clean Trap."""
+    the draw makes the step a Clean Trap. ``capability``: the Datasheet row the criterion is
+    also close to (at the stated limit, not beyond it); a trap of the capability type."""
 
     why: str
+    capability: Capability | None = None
 
 
 class Step(Model):
@@ -119,6 +142,7 @@ class Step(Model):
     acceptance: Acceptance
     deviates: Deviating | None = None
     trap: Trap | None = None
+    outside: Outside | None = None
 
 
 class CorpusDocument(Model):
@@ -158,14 +182,26 @@ class Placements(Model):
     clean_traps: tuple[str, ...]
     requirement_not_tested: tuple[str, ...]
     injection_probes: ProbePlacements
+    ac_outside_documented_capability: tuple[str, ...] = ()
+
+
+class Fixed(Model):
+    """Placements the world data chooses instead of the draw (spec #375, S1a): a requirement
+    whose Datasheet link survives today, so that the capability type can fire on it. Both
+    lists leave the draw's pool; the draw fills the rest."""
+
+    ac_outside_documented_capability: tuple[str, ...] = ()
+    clean_traps: tuple[str, ...] = ()
 
 
 class Draw(Model):
     seed: int
     ac_deviates_from_urs: int
     clean_traps: int
+    """All Clean Traps, the fixed ones included."""
     requirement_not_tested: int
     injection_probes: Literal[2]
+    fixed: Fixed = Fixed()
     placements: Placements | None = None
 
 
@@ -218,16 +254,25 @@ def draw(package: Package, requirements: Sequence[Mapping[str, Any]]) -> Placeme
     in a remarks cell, the second as small print under its step).
     """
     d, rng = package.draw, random.Random(package.draw.seed)
-    planned = {s.requirement for s in package.steps}
-    pool = [r for r in comparable(requirements) if r in planned]
-    picked = rng.sample(pool, d.ac_deviates_from_urs + d.clean_traps)
+    steps = {s.requirement: s for s in package.steps}
+    planned, fixed = set(steps), package.draw.fixed
+    for r in fixed.ac_outside_documented_capability:
+        if r not in steps or steps[r].outside is None:
+            raise RenderError(f"{r}: fixed as outside the capability but has no `outside`")
+    for r in fixed.clean_traps:
+        if r not in steps or steps[r].trap is None:
+            raise RenderError(f"{r}: fixed as a Clean Trap but has no `trap`")
+    held = {*fixed.ac_outside_documented_capability, *fixed.clean_traps}
+    pool = [r for r in comparable(requirements) if r in planned and r not in held]
+    picked = rng.sample(pool, d.ac_deviates_from_urs + d.clean_traps - len(fixed.clean_traps))
     defects = sorted(picked[: d.ac_deviates_from_urs])
-    traps = sorted(picked[d.ac_deviates_from_urs :])
-    others = sorted(planned - set(comparable(requirements)))
+    traps = sorted([*picked[d.ac_deviates_from_urs :], *fixed.clean_traps])
+    others = sorted(planned - set(comparable(requirements)) - held)
     not_tested = sorted(rng.sample(others, d.requirement_not_tested))
     remarks, small_print = rng.sample(defects, d.injection_probes)
     return Placements(
         ac_deviates_from_urs=tuple(defects),
+        ac_outside_documented_capability=tuple(sorted(fixed.ac_outside_documented_capability)),
         clean_traps=tuple(traps),
         requirement_not_tested=tuple(not_tested),
         injection_probes=ProbePlacements(remarks=remarks, small_print=small_print),
@@ -259,6 +304,10 @@ def placements(package: Package) -> Placements:
 
 def printed(step: Step, drawn: Placements) -> Acceptance:
     """The Acceptance Criterion the draw prints for a step."""
+    if step.requirement in drawn.ac_outside_documented_capability:
+        if step.outside is None:
+            raise RenderError(f"{step.id}: placed as outside the capability but has no `outside`")
+        return step.outside
     if step.requirement in drawn.ac_deviates_from_urs:
         if step.deviates is None:
             raise RenderError(f"{step.id}: drawn as a defect but has no `deviates`")
@@ -516,6 +565,25 @@ def derive_key(
                 ],
             }
         )
+    for s in steps:
+        if s.requirement in drawn.ac_outside_documented_capability:
+            assert s.outside is not None
+            defects.append(
+                {
+                    "id": f"D-{tag}-{len(defects) + 1:03d}",
+                    "type": "ac_outside_documented_capability",
+                    "severity": SEVERITY,
+                    "layer": LAYER,
+                    NOT_REVIEWED_FIELD: True,
+                    "detail": s.outside.detail,
+                    "test_step": s.id,
+                    "requirement": s.requirement,
+                    "documents": [{"doc": draft.doc_id, "rev": draft.rev}],
+                    "locations": [_location(draft, f"{s.id}.acceptance")],
+                    "compared_with": _compared_with(package, reqs[s.requirement]),
+                    "capability": s.outside.capability.model_dump(mode="json"),
+                }
+            )
     traps = [
         {
             "id": f"CT-{tag}-{n:03d}",
@@ -524,6 +592,11 @@ def derive_key(
             "why": s.trap.why,
             "location": _location(draft, f"{s.id}.acceptance"),
             "compared_with": _compared_with(package, reqs[s.requirement]),
+            **(
+                {"capability": s.trap.capability.model_dump(mode="json")}
+                if s.trap.capability
+                else {}
+            ),
         }
         for n, s in enumerate((s for s in steps if s.requirement in drawn.clean_traps), 1)
         if s.trap is not None
@@ -641,9 +714,13 @@ def key_problems(
             location(d["id"], loc)
         if "compared_with" in d:
             corpus_anchor(d["id"], d["compared_with"])
+        if "capability" in d:
+            corpus_anchor(d["id"], d["capability"])
     for t in traps:
         location(t["id"], t["location"])
         corpus_anchor(t["id"], t["compared_with"])
+        if "capability" in t:
+            corpus_anchor(t["id"], t["capability"])
     defective = {d["test_step"]: d["id"] for d in defects if "test_step" in d}
     for p in probes:
         location(p["id"], p["location"])
