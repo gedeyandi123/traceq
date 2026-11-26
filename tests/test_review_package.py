@@ -10,6 +10,8 @@ import pytest
 
 from traceq_dataset.answer_key import load_key
 from traceq_dataset.review_package import (
+    DEFECT_TYPES,
+    NOT_REVIEWED_TYPES,
     DraftRender,
     Package,
     comparable,
@@ -124,6 +126,39 @@ def test_key_counts(key: dict) -> None:
     assert len(key["clean_traps.yaml"]) == 5
     assert len(key["injection_probes.yaml"]) == 2
     assert len(key["test_steps.yaml"]) == 26
+
+
+def test_the_key_schema_accepts_the_new_types_only_with_the_practitioner_field(
+    key: dict, package: Package, draft: DraftRender
+) -> None:
+    """Spec #375: the three new types are valid key types and each carries, as a field,
+    that no practitioner reviewed it; the two types of 0.1.0 carry no such field."""
+    for new_type in NOT_REVIEWED_TYPES:
+        assert new_type in DEFECT_TYPES
+        retyped = copy.deepcopy(key)
+        retyped["defects.yaml"][0]["type"] = new_type
+        problems = key_problems(retyped, package, draft, CORPUS_MANIFEST.read_bytes())
+        assert problems == [
+            f"D-TP201OQ-001: not_reviewed_by_practitioner must be true for type {new_type}"
+        ]
+        retyped["defects.yaml"][0]["not_reviewed_by_practitioner"] = True
+        assert key_problems(retyped, package, draft, CORPUS_MANIFEST.read_bytes()) == []
+    flagged = copy.deepcopy(key)
+    flagged["defects.yaml"][0]["not_reviewed_by_practitioner"] = True
+    problems = key_problems(flagged, package, draft, CORPUS_MANIFEST.read_bytes())
+    assert problems == [
+        "D-TP201OQ-001: not_reviewed_by_practitioner must be false for type ac_deviates_from_urs"
+    ]
+
+
+def test_the_committed_0_1_0_key_declares_two_types_and_no_practitioner_field(
+    key: dict,
+) -> None:
+    assert {d["type"] for d in key["defects.yaml"]} == {
+        "ac_deviates_from_urs",
+        "requirement_not_tested",
+    }
+    assert not any("not_reviewed_by_practitioner" in d for d in key["defects.yaml"])
 
 
 def test_probe_must_still_report_its_defect(key: dict) -> None:

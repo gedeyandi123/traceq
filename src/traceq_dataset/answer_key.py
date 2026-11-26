@@ -72,6 +72,8 @@ TAXONOMY: Mapping[DefectType, tuple[Layer, str]] = {
     DefectType.INCONSISTENT_DATA: ("llm", ""),
     DefectType.AC_DEVIATES_FROM_URS: ("rule", ""),
     DefectType.REQUIREMENT_NOT_TESTED: ("rule", ""),
+    DefectType.AC_OUTSIDE_DOCUMENTED_CAPABILITY: ("rule", ""),
+    DefectType.UNIT_ERROR: ("rule", ""),
     DefectType.GDP_CORRECTION: ("vision", "CPOB 10.8; PIC/S PI 041-1 §8.7"),
     DefectType.LEFTOVER_FROM_OTHER_EQUIPMENT: ("llm", ""),
     DefectType.DESIGN_CONFLICT: ("llm", ""),
