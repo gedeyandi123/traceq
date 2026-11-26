@@ -4233,7 +4233,14 @@
             "title": "Label"
           },
           "verified": {
-            "type": "boolean",
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Verified"
           }
         },
@@ -4251,8 +4258,7 @@
           "signer_name",
           "auth_time",
           "is_demo",
-          "label",
-          "verified"
+          "label"
         ],
         "title": "ElectronicSignatureView",
         "description": "Public API view of an Electronic Signature binding."

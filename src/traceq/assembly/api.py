@@ -357,7 +357,9 @@ def _event(
         issuer=e.actor.issuer,
         name=e.actor.name,
         at=e.at,
-        electronic_signature=audit.signature_view(sig, expected_content_hash=expected_hash),
+        electronic_signature=audit.signature_view(
+            sig, verified=audit.verified_against(sig, expected_hash)
+        ),
     )
 
 
@@ -480,6 +482,7 @@ def _submission(
     p: lifecycle.AssembledProtocol,
     sigs: dict[int, audit.ElectronicSignature],
 ) -> SubmissionView:
+    """``outcome`` signatures are checked against the hash recomputed from ``frozen_copy``."""
     after = (e for e in p.events if e.id > x.event_id and e.event in ("approved", "returned"))
     outcome = next(after, None)
     return SubmissionView(
@@ -493,7 +496,7 @@ def _submission(
             else _event(
                 outcome,
                 sigs.get(outcome.id),
-                x.hash if outcome.event == "approved" else None,
+                x.recomputed_hash if outcome.event == "approved" else None,
             )
         ),
     )
@@ -524,7 +527,7 @@ def create_router(
         urs = missed.missed_of(session, p.id, check_of(session, p.run_id)) if draft else None
         raw_subs = submission.submissions_of(session, p.id)
         sigs = audit.signatures_by_protocol_events(session, [e.id for e in p.events])
-        sub_hashes = {s.event_id: s.hash for s in raw_subs}
+        sub_hashes = {s.event_id: s.recomputed_hash for s in raw_subs}
         submissions = [_submission(x, p, sigs) for x in raw_subs]
         frozen = p.status in ("submitted", "approved") and bool(submissions)
         event_views: list[ProtocolEvent] = []

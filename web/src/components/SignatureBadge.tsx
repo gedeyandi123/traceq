@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Info, ShieldCheck, ShieldOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, HelpCircle, Info, ShieldCheck, ShieldOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { ElectronicSignatureView } from "@/api/client";
@@ -8,8 +8,10 @@ import { formatWhen } from "./formatWhen";
 import { CopyHashButton } from "./ui/CopyHashButton";
 
 /** Displays an Electronic Signature binding (or honest pre-Step-8 recorded-status fallback)
- * with signer name, UTC timestamp, Signature Meaning, content_hash, verified status, and
- * ADR 0007 Demo vs Electronic Signature label. */
+ * with signer name, UTC timestamp, Signature Meaning, content_hash, verification status, and
+ * ADR 0007 Demo vs Electronic Signature label. `verified` is three-valued: `true` (the bound
+ * hash matches the hash recomputed from the stored data), `false` (it does not) and
+ * `null`/absent ("not checked": nothing was compared, never shown as verified). */
 export function SignatureBadge({
   signature,
   voided = false,
@@ -34,13 +36,21 @@ export function SignatureBadge({
     );
   }
 
+  const check = signature.verified === true ? "verified" : signature.verified === false ? "failed" : "notChecked";
+
   const badgeTone = voided
     ? "border-warn-edge bg-warn-soft text-warn"
     : signature.is_demo
       ? "border-info-edge bg-info-soft text-info"
-      : signature.verified
+      : check === "verified"
         ? "border-pass-edge bg-pass-soft text-pass"
-        : "border-fail-edge bg-fail-soft text-fail";
+        : check === "failed"
+          ? "border-fail-edge bg-fail-soft text-fail"
+          : "border-border bg-surface text-ink-muted";
+
+  // A voided signature is not a valid signature: its check mark is never green.
+  const checkTone =
+    check === "failed" ? "text-fail" : check === "verified" && !voided ? "text-pass" : "text-ink-muted";
 
   return (
     <div
@@ -52,10 +62,12 @@ export function SignatureBadge({
         >
           {voided ? (
             <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
-          ) : signature.verified ? (
+          ) : check === "verified" ? (
             <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
-          ) : (
+          ) : check === "failed" ? (
             <ShieldOff className="h-3 w-3 shrink-0" aria-hidden="true" />
+          ) : (
+            <HelpCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
           )}
           <span>{signature.is_demo ? t("demoBadge") : t("electronicBadge")}</span>
         </span>
@@ -70,13 +82,21 @@ export function SignatureBadge({
           {t(`meanings.${signature.signature_meaning}`)}
         </span>
 
-        <span
-          className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
-            signature.verified ? "text-pass" : "text-fail"
-          }`}
-        >
-          {signature.verified && <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden="true" />}
-          <span>{signature.verified ? t("verified") : t("unverified")}</span>
+        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${checkTone}`}>
+          {check === "verified" && !voided && (
+            <CheckCircle2
+              className="h-3 w-3 shrink-0"
+              aria-hidden="true"
+              data-testid="signature-verified-check"
+            />
+          )}
+          <span>
+            {check === "verified"
+              ? t("verified")
+              : check === "failed"
+                ? t("unverified")
+                : t("notChecked")}
+          </span>
         </span>
       </div>
 

@@ -20,6 +20,7 @@ from traceq.audit.signatures import (
     signatures_by_protocol_events,
     signatures_by_report_exports,
     signatures_by_witness_confirmations,
+    verified_against,
     verify_signature,
 )
 from traceq.audit.trail import Actor, Entry, JsonValue, actor_of_row, append, entries
@@ -46,5 +47,6 @@ __all__ = [
     "signatures_by_protocol_events",
     "signatures_by_report_exports",
     "signatures_by_witness_confirmations",
+    "verified_against",
     "verify_signature",
 ]

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -83,4 +86,25 @@ test("renders Equipment Registry links using each nested summary run_id and requ
 
   expect(screen.getByText("2027-11-25")).toBeDefined();
   expect(screen.getByText("Belum dijadwalkan")).toBeDefined();
+});
+
+// `/equipment` is rendered under the root layout only, whose client provider carries just
+// `clientMessages` (no `equipment` namespace). A client component calling
+// `useTranslations("equipment")` there throws in the browser; so the view must stay a Server
+// Component (audit #341, H2), reading messages on the server.
+describe("EquipmentRegistryView is a Server Component", () => {
+  const read = (rel: string) => readFileSync(join(__dirname, rel), "utf8");
+
+  test("has no 'use client' directive", () => {
+    const source = read("./EquipmentRegistryView.tsx");
+    expect(source).toMatch(/useTranslations\("equipment"\)/);
+    expect(source).not.toMatch(/^\s*["']use client["']/m);
+  });
+
+  test("the root layout's client messages do not include its namespace", () => {
+    const layout = read("../app/layout.tsx");
+    const block = /const clientMessages = \{([^}]*)\}/.exec(layout);
+    expect(block).not.toBeNull();
+    expect(block?.[1]).not.toMatch(/\bequipment\b/);
+  });
 });

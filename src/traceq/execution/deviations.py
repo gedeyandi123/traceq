@@ -7,6 +7,7 @@ Deviation status inside the transaction.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 
@@ -118,6 +119,23 @@ def deviation_closure_payload(dev: Deviation) -> dict[str, Any]:
 def deviation_closure_hash(dev: Deviation) -> str:
     """SHA-256 hex digest of ``deviation_closure_payload(dev)``."""
     return digest(deviation_closure_payload(dev))
+
+
+def recomputed_closure_hash(dev: Deviation, event_id: int) -> str | None:
+    """The closure hash of ``dev`` as it stood just before its event ``event_id`` (the closure),
+    recomputed from the stored Deviation and Investigations; ``None`` when ``dev`` has no such
+    event or nothing precedes it. Differs from the signed ``content_hash`` when what was signed
+    was altered afterwards."""
+    index = next((i for i, e in enumerate(dev.events) if e.id == event_id), None)
+    if index is None or index == 0:
+        return None
+    closure = dev.events[index]
+    before = replace(
+        dev,
+        events=dev.events[:index],
+        investigations=tuple(i for i in dev.investigations if i.at <= closure.at),
+    )
+    return digest(deviation_closure_payload(before))
 
 
 def _require_in_progress_execution(session: Session, execution_id: int) -> lifecycle.Execution:

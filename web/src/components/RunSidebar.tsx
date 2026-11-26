@@ -152,6 +152,9 @@ function SidebarNavList({
         key={item.key}
         href={item.href}
         aria-current={isActive ? "page" : undefined}
+        aria-label={
+          collapsed ? (badgeLabel ? `${item.label} (${badgeLabel})` : item.label) : undefined
+        }
         onClick={onNavigate}
         className={`group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium no-underline transition-colors ${
           isActive
