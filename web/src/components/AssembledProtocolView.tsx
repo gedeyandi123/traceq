@@ -294,6 +294,7 @@ export function AssembledProtocolView({
                   items={protocol.checklist}
                   runId={runId}
                   protocolId={protocol.id}
+                  draftHash={protocol.draft_hash}
                   controls={controls}
                   signingAuth={signingAuth}
                   initialReauthTarget={initialReauthTarget}

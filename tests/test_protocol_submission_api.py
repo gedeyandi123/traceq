@@ -103,8 +103,24 @@ def submit_url(protocol: Any) -> str:
     return f"/protocols/{protocol['id']}/submit"
 
 
+def draft_hash_of(client: TestClient, headers: dict[str, str]) -> Any:
+    """The hash of what the page shows a Preparer: ``null`` while a check blocks."""
+    return read(client, headers)["draft_hash"]
+
+
+def post_submit(
+    client: TestClient, headers: dict[str, str], protocol: Any, expected: Any = None
+) -> Any:
+    """Submits with ``expected`` or, by default, the hash of the draft as the page shows it."""
+    if expected is None:
+        expected = draft_hash_of(client, headers) or "0" * 64
+    return client.post(
+        submit_url(protocol), headers=headers, json={"expected_draft_hash": expected}
+    )
+
+
 def submit(client: TestClient, headers: dict[str, str], protocol: Any) -> Any:
-    r = client.post(submit_url(protocol), headers=headers)
+    r = post_submit(client, headers, protocol)
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -215,18 +231,19 @@ def test_submitting_needs_a_token_the_deciding_role_and_a_known_protocol(
     client: TestClient, decider: dict[str, str], reader: dict[str, str], protocol: Any
 ) -> None:
     make_ready(client, decider, protocol)
-    assert client.post(submit_url(protocol)).status_code == 401
-    r = client.post(submit_url(protocol), headers=reader)
+    body = {"expected_draft_hash": draft_hash_of(client, decider)}
+    assert client.post(submit_url(protocol), json=body).status_code == 401
+    r = client.post(submit_url(protocol), headers=reader, json=body)
     assert r.status_code == 403
     assert "deciding role" in r.json()["detail"]
-    assert client.post("/protocols/999999/submit", headers=decider).status_code == 404
+    assert client.post("/protocols/999999/submit", headers=decider, json=body).status_code == 404
     assert read(client, decider)["status"] == "draft"
 
 
 def test_submitting_is_refused_while_a_check_blocks(
     client: TestClient, decider: dict[str, str], protocol: Any, fresh_database: Databases
 ) -> None:
-    r = client.post(submit_url(protocol), headers=decider)
+    r = post_submit(client, decider, protocol)
     assert r.status_code == 409
     assert "coverage_undecided (3)" in r.json()["detail"]
     assert "missed_undecided (2)" in r.json()["detail"]
@@ -235,7 +252,7 @@ def test_submitting_is_refused_while_a_check_blocks(
     # Its accepted draft rejected: the row has no Test Step again.
     ps = proposals(client, decider)
     decide(client, decider, place(ps, "test_step", R002), decision="rejected", reason="wrong range")
-    r = client.post(submit_url(protocol), headers=decider)
+    r = post_submit(client, decider, protocol)
     assert r.status_code == 409
     assert "no_test_step (1)" in r.json()["detail"]
     assert read(client, decider)["status"] == "draft"
@@ -413,7 +430,7 @@ def test_while_submitted_written_steps_and_dispositions_are_refused(
     )
     assert r.status_code == 409
     # Submitted once: refused again.
-    r = client.post(submit_url(protocol), headers=decider)
+    r = post_submit(client, decider, protocol, expected="0" * 64)
     assert r.status_code == 409
     assert "submitted" in r.json()["detail"]
 
@@ -459,14 +476,141 @@ def test_the_hash_is_stable_and_changes_with_a_row(
     assert [v["version"] for v in frozen_rows(read(client, decider))[R026]["written"]] == [1, 2]
 
 
+# --- The draft hash: what the Preparer confirms (audit #341 M1, ticket #347) -----------
+
+
+def test_the_draft_hash_is_null_while_a_check_blocks_and_stable_once_ready(
+    client: TestClient,
+    decider: dict[str, str],
+    reader: dict[str, str],
+    demo_issuer: DemoIssuer,
+    protocol: Any,
+) -> None:
+    assert draft_hash_of(client, decider) is None
+    make_ready(client, decider, protocol)
+    first = draft_hash_of(client, decider)
+    assert isinstance(first, str)
+    assert len(first) == 64
+    # Same on every read, whoever reads: it is the draft's, not the reader's.
+    assert draft_hash_of(client, decider) == first
+    assert draft_hash_of(client, reader) == first
+    assert draft_hash_of(client, bearer(token(demo_issuer, decider=True))) == first
+
+    got = submit(client, decider, protocol)
+    assert got["draft_hash"] is None
+    # What the Preparer confirmed is the copy without its Preparer: not the copy's own hash.
+    assert got["submission"]["hash"] != first
+    copy = got["submission"]["frozen_copy"]
+    assert canonical_sha256({k: v for k, v in copy.items() if k != "preparer"}) == first
+
+
+def test_the_draft_hash_changes_with_a_test_step_a_decision_a_disposition_or_an_attribute(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    make_ready(client, decider, protocol)
+    seen = [draft_hash_of(client, decider)]
+
+    def changed() -> None:
+        now = draft_hash_of(client, decider)
+        assert isinstance(now, str)
+        assert now not in seen
+        seen.append(now)
+
+    write(client, decider, protocol, R026, {**STEP, "method": "Read the tachometer twice."})
+    changed()
+    dispose(client, decider, protocol, number=N003, kind="not_tested_here")
+    changed()
+    decide(
+        client,
+        decider,
+        place(proposals(client, decider), "coverage", R030),
+        decision="edited",
+        coverage="gap",
+        reason="a second look",
+    )
+    changed()
+    r = client.put(
+        f"/protocols/{protocol['id']}/rows/{R026}/attributes",
+        headers=decider,
+        json={"stage": "OQ", "witness_required": True},
+    )
+    assert r.status_code == 200, r.text
+    changed()
+
+
+def test_a_stale_draft_hash_is_refused_and_writes_nothing(
+    client: TestClient,
+    decider: dict[str, str],
+    demo_issuer: DemoIssuer,
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    make_ready(client, decider, protocol)
+    seen_by_preparer = draft_hash_of(client, decider)
+    # Another decider edits a Test Step after the Preparer loaded the page.
+    other = bearer(token(demo_issuer, decider=True))
+    write(client, other, protocol, R026, {**STEP, "method": "Read the tachometer twice."})
+
+    r = post_submit(client, decider, protocol, expected=seen_by_preparer)
+    assert r.status_code == 409
+    assert "changed since" in r.json()["detail"]
+    got = read(client, decider)
+    assert (got["status"], [e["event"] for e in got["events"]]) == ("draft", ["started"])
+    with transaction(engine(fresh_database.app)) as s:
+        assert not [e for e in entries(s) if e.action == "protocol submitted"]
+        assert s.execute(text("SELECT count(*) FROM electronic_signatures")).scalar_one() == 0
+
+    # Reloaded: the new hash goes through, and the signature binds the copy's own hash.
+    done = submit(client, decider, protocol)
+    with transaction(engine(fresh_database.app)) as s:
+        content = s.execute(
+            text(
+                "SELECT content_hash FROM electronic_signatures"
+                " WHERE signature_meaning = 'prepared'"
+            )
+        ).scalar_one()
+    assert content == done["submission"]["hash"]
+
+
+def test_a_stale_draft_hash_after_a_decision_is_refused(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    make_ready(client, decider, protocol)
+    seen_by_preparer = draft_hash_of(client, decider)
+    decide(
+        client,
+        decider,
+        place(proposals(client, decider), "coverage", R030),
+        decision="edited",
+        coverage="gap",
+        reason="a second look",
+    )
+    r = post_submit(client, decider, protocol, expected=seen_by_preparer)
+    assert r.status_code == 409
+    assert read(client, decider)["status"] == "draft"
+
+
+def test_submitting_needs_the_expected_draft_hash(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    make_ready(client, decider, protocol)
+    assert client.post(submit_url(protocol), headers=decider).status_code == 422
+    r = client.post(submit_url(protocol), headers=decider, json={})
+    assert r.status_code == 422
+    r = client.post(submit_url(protocol), headers=decider, json={"expected_draft_hash": ""})
+    assert r.status_code == 422
+    assert read(client, decider)["status"] == "draft"
+
+
 def test_two_submissions_at_once_give_one(
     client: TestClient, decider: dict[str, str], protocol: Any
 ) -> None:
     make_ready(client, decider, protocol)
+    expected = draft_hash_of(client, decider)
     with ThreadPoolExecutor(2) as pool:
         codes = sorted(
             pool.map(
-                lambda _: client.post(submit_url(protocol), headers=decider).status_code,
+                lambda _: post_submit(client, decider, protocol, expected).status_code,
                 range(2),
             )
         )

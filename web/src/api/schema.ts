@@ -369,8 +369,10 @@ export interface paths {
          *     Preparer. Stores the frozen copy and its hash in the ``submitted`` event, with its
          *     Audit Trail entry; from then on the Protocol shows that copy, and written Test Steps
          *     and missed-number dispositions are refused. Refused (409) unless in Draft status, and
-         *     while any check of ``checklist`` blocks (the reason lists them with their counts).
-         *     Needs the deciding role.
+         *     while any check of ``checklist`` blocks (the reason lists them with their counts), and
+         *     when ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another
+         *     decider changed it after the Preparer read it); 422 without one. Needs the deciding
+         *     role.
          */
         post: operations["submitProtocol"];
         delete?: never;
@@ -2772,6 +2774,8 @@ export interface components {
             urs: components["schemas"]["ProtocolUrs"][] | null;
             /** Checklist */
             checklist: components["schemas"]["ChecklistItem"][] | null;
+            /** Draft Hash */
+            draft_hash: string | null;
             submission: components["schemas"]["SubmissionView"] | null;
             /** Submissions */
             submissions: components["schemas"]["SubmissionView"][];
@@ -3255,6 +3259,14 @@ export interface components {
             at: string;
             frozen_copy: components["schemas"]["ProtocolCopy"];
             outcome: components["schemas"]["ProtocolEvent"] | null;
+        };
+        /**
+         * SubmitRequest
+         * @description What the Preparer read: submission is bound to that draft and its hash.
+         */
+        SubmitRequest: {
+            /** Expected Draft Hash */
+            expected_draft_hash: string;
         };
         /** @enum {string} */
         TechnicalConclusion: "qualified" | "qualified_with_deviations" | "not_qualified";
@@ -4011,7 +4023,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

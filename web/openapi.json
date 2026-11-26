@@ -809,7 +809,7 @@
     "/protocols/{protocol_id}/submit": {
       "post": {
         "summary": "Submit Protocol",
-        "description": "Submits a Protocol in Draft status that no check blocks; the submitter becomes its\nPreparer. Stores the frozen copy and its hash in the ``submitted`` event, with its\nAudit Trail entry; from then on the Protocol shows that copy, and written Test Steps\nand missed-number dispositions are refused. Refused (409) unless in Draft status, and\nwhile any check of ``checklist`` blocks (the reason lists them with their counts).\nNeeds the deciding role.",
+        "description": "Submits a Protocol in Draft status that no check blocks; the submitter becomes its\nPreparer. Stores the frozen copy and its hash in the ``submitted`` event, with its\nAudit Trail entry; from then on the Protocol shows that copy, and written Test Steps\nand missed-number dispositions are refused. Refused (409) unless in Draft status, and\nwhile any check of ``checklist`` blocks (the reason lists them with their counts), and\nwhen ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another\ndecider changed it after the Preparer read it); 422 without one. Needs the deciding\nrole.",
         "operationId": "submitProtocol",
         "security": [
           {
@@ -827,6 +827,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -7511,6 +7521,17 @@
             ],
             "title": "Checklist"
           },
+          "draft_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Hash"
+          },
           "submission": {
             "anyOf": [
               {
@@ -7540,6 +7561,7 @@
           "rows",
           "urs",
           "checklist",
+          "draft_hash",
           "submission",
           "submissions"
         ],
@@ -8911,6 +8933,22 @@
         ],
         "title": "SubmissionView",
         "description": "A submission of the Protocol: the frozen copy it stored and that copy's hash."
+      },
+      "SubmitRequest": {
+        "properties": {
+          "expected_draft_hash": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Expected Draft Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_draft_hash"
+        ],
+        "title": "SubmitRequest",
+        "description": "What the Preparer read: submission is bound to that draft and its hash."
       },
       "TechnicalConclusion": {
         "type": "string",

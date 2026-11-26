@@ -157,9 +157,13 @@ def _ensure_approved_protocol(
             raise RuntimeError(
                 f"Protocol {protocol_id} has blockers preventing submission: {blockers}"
             )
+        draft_hash = proto.get("draft_hash")
+        if not draft_hash:
+            raise RuntimeError(f"Protocol {protocol_id} has no draft hash: a check blocks it")
         sub = client.post(
             f"{api_url}/protocols/{protocol_id}/submit",
             headers=_token(client, issuer_url, "ayu", idp=idp),
+            json={"expected_draft_hash": str(draft_hash)},
         )
         sub.raise_for_status()
         proto = sub.json()

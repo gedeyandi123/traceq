@@ -27,7 +27,7 @@ from test_execution_results_api import _start_execution
 from test_missed_numbers_api import COMPLETENESS
 from test_proposals_api import RUN_ID, bearer, configured, token
 from test_protocol_approval_api import persona_token
-from test_protocol_submission_api import make_ready
+from test_protocol_submission_api import make_ready, post_submit
 from test_test_step_proposals import add_drafted_run
 
 from traceq.audit import DEMO_SIGNATURE_LABEL, UNSIGNED_STATUS_LABEL, entries
@@ -205,7 +205,7 @@ def test_protocol_v2_step_attributes_and_approval_sod(
     assert updated_ts["test_step"]["witness_required"] is True
 
     # Submit & verify frozen copy
-    sub = client.post(f"/protocols/{pid}/submit", headers=decider)
+    sub = post_submit(client, decider, proto)
     assert sub.status_code == 200
     frozen_rows = sub.json()["submission"]["frozen_copy"]["rows"]
     frozen_ts = next(r for r in frozen_rows if r["requirement"] == ts_row["requirement"])
@@ -454,7 +454,7 @@ def test_witness_blocker_and_retest_persistence_on_execution(
         == 200
     )
     # Submit & approve
-    sub = client.post(f"/protocols/{pid}/submit", headers=decider).json()
+    sub = post_submit(client, decider, proto).json()
     client.post(
         f"/protocols/{pid}/approve",
         headers=approver,

@@ -678,7 +678,7 @@
     "unavailable": "Protokol tidak dapat dimuat",
     "unavailableBody": "API tidak menerima token atau tidak memiliki basis data. Masuk lagi, atau jalankan API dengan penerbit dan basis data.",
     "errors": {
-      "conflict": "Ditolak API: protokol lain untuk peralatan ini masih terbuka atau sudah disetujui, protokol ini bukan lagi Draft, baris ini sudah memiliki langkah uji lain, run ini diimpor sebelum langkah uji rancangan menjadi usulan, masih ada yang memblokir pengajuan, atau persetujuan ditolak: Anda Penyusun atau penulis isi salinan, atau salinan yang dibaca bukan lagi pengajuan saat ini.",
+      "conflict": "Ditolak API: protokol lain untuk peralatan ini masih terbuka atau sudah disetujui, protokol ini bukan lagi Draft, baris ini sudah memiliki langkah uji lain, run ini diimpor sebelum langkah uji rancangan menjadi usulan, masih ada yang memblokir pengajuan, isi protokol sudah diubah sejak halaman ini dimuat (muat ulang dan periksa lagi sebelum mengajukan), atau persetujuan ditolak: Anda Penyusun atau penulis isi salinan, atau salinan yang dibaca bukan lagi pengajuan saat ini.",
       "refused": "Ditolak API: alasan atau justifikasi wajib diisi, atau isi langkah uji tidak lengkap.",
       "forbidden": "Ditolak API: identitas ini tidak memiliki peran yang diperlukan (memutuskan, atau menyetujui).",
       "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",

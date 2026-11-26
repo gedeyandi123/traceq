@@ -239,7 +239,9 @@ def test_signing_endpoints_fresh_auth_replay_and_antitoctou(
         auth_time=stale_time,
     )
     # 403 must fire BEFORE 401 stale auth_time
-    r403 = client.post("/protocols/1/submit", headers=wrong_role_stale)
+    r403 = client.post(
+        "/protocols/1/submit", headers=wrong_role_stale, json={"expected_draft_hash": "a" * 64}
+    )
     assert r403.status_code == 403
 
     r403_app = client.post(
@@ -258,7 +260,9 @@ def test_signing_endpoints_fresh_auth_replay_and_antitoctou(
         jti="jti-dec-stale",
         auth_time=stale_time,
     )
-    r401 = client.post("/protocols/1/submit", headers=decider_stale)
+    r401 = client.post(
+        "/protocols/1/submit", headers=decider_stale, json={"expected_draft_hash": "a" * 64}
+    )
     assert r401.status_code == 401
     assert r401.headers.get("www-authenticate") == (
         'Bearer error="insufficient_user_authentication", max_age=60'
