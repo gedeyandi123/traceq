@@ -1,0 +1,90 @@
+{
+  "generated_at": "2026-11-25T12:00:00Z",
+  "equipment": "TP-201",
+  "run_id": "run-golden",
+  "protocol_id": 1,
+  "execution_id": 1,
+  "revision_number": 1,
+  "protocol_submission_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "execution_copy_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "completed_at": "2026-11-25T12:00:00Z",
+  "completer_name": "Ayu",
+  "approver_name": "Dewi",
+  "approver_subject": "demo-dewi",
+  "approver_issuer": "https://issuer.local",
+  "approval_note": "Electronic Signature (demo)",
+  "technical_conclusion": "qualified_with_deviations",
+  "conclusion_note": "Catatan sintetis.",
+  "next_requalification_date": null,
+  "counts": {
+    "iq_total": 1,
+    "iq_passed": 1,
+    "iq_failed": 0,
+    "oq_total": 1,
+    "oq_passed": 0,
+    "oq_failed": 1,
+    "unsplit_total": 0,
+    "unsplit_passed": 0,
+    "unsplit_failed": 0,
+    "vendor_reference_count": 1,
+    "total_rows": 3,
+    "total_deviations": 1
+  },
+  "rows": [
+    {
+      "requirement": "R-01",
+      "text": "Suhu ruang uji dijaga 20-25 C.",
+      "kind": "test_step",
+      "stage_label": "IQ",
+      "witness_required": false,
+      "latest_verdict": "pass",
+      "attempt_count": 1,
+      "witness_names": []
+    },
+    {
+      "requirement": "R-02",
+      "text": "Alarm pintu berbunyi.",
+      "kind": "test_step",
+      "stage_label": "OQ",
+      "witness_required": true,
+      "latest_verdict": "fail",
+      "attempt_count": 2,
+      "witness_names": [
+        "Citra"
+      ]
+    },
+    {
+      "requirement": "R-03",
+      "text": "Sertifikat kalibrasi vendor.",
+      "kind": "vendor_reference",
+      "stage_label": "IQ",
+      "witness_required": false,
+      "latest_verdict": null,
+      "attempt_count": 0,
+      "witness_names": []
+    }
+  ],
+  "deviations": [
+    {
+      "deviation_number": 1,
+      "requirement": "R-02",
+      "cause": "manual",
+      "deviation_class": "minor",
+      "status": "open",
+      "description": "Alarm tertunda 3 detik."
+    }
+  ],
+  "electronic_signature": {
+    "record_type": "qualification_report",
+    "signature_meaning": "approved",
+    "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "hash_scheme_version": 1,
+    "signer_subject": "demo-dewi",
+    "signer_issuer": "https://issuer.local",
+    "signer_name": "Dewi",
+    "auth_time": "2026-11-25T12:00:00Z",
+    "signed_at": "2026-11-25T12:00:00Z",
+    "is_demo": true,
+    "label": "Electronic Signature (demo)"
+  }
+}

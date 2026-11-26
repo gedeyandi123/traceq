@@ -28,11 +28,13 @@ from test_missed_numbers_api import COMPLETENESS
 from test_proposals_api import RUN_ID, bearer, configured, token
 from test_protocol_approval_api import persona_token
 from test_protocol_submission_api import make_ready, post_submit
+from test_rounds_api import copy_export_with
 from test_test_step_proposals import add_drafted_run
 
 from traceq.audit import DEMO_SIGNATURE_LABEL, UNSIGNED_STATUS_LABEL, entries
 from traceq.db import engine, transaction
 from traceq.db.database import HERE as DB_HERE
+from traceq.reports import TYPST_VERSION
 
 
 @pytest.fixture
@@ -429,6 +431,26 @@ def test_execution_v2_witness_blocker_retest_and_qualification_report(
     assert db_only["run_count"] == 0
     assert db_only["latest_run"] is None
     assert db_only["latest_round"]["run_id"] == "db-only-run-1"
+
+    # A stored export that cannot be reproduced is a 409 that names the cause, never a 500.
+    def pdf_of(export_id: int) -> Any:
+        return client.get(
+            f"/executions/{eid}/qualification-reports/{export_id}/pdf", headers=reader
+        )
+
+    other_typst = copy_export_with(fresh_database.owner, exp1["id"], typst_version="0.0.1")
+    r = pdf_of(other_typst)
+    assert r.status_code == 409, r.text
+    assert "0.0.1" in r.json()["detail"]
+    assert TYPST_VERSION in r.json()["detail"]
+    other_template = copy_export_with(fresh_database.owner, exp1["id"], template_version="7.0.0")
+    r = pdf_of(other_template)
+    assert r.status_code == 409, r.text
+    assert "template version 7.0.0" in r.json()["detail"]
+    bad_sha = copy_export_with(fresh_database.owner, exp1["id"], pdf_sha256="0" * 64)
+    r = pdf_of(bad_sha)
+    assert r.status_code == 409, r.text
+    assert "SHA-256" in r.json()["detail"]
 
 
 @pytest.mark.db

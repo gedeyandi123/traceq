@@ -10,8 +10,40 @@ from typing import Any
 import pytest
 from conftest import Databases, DemoIssuer
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.engine import URL
 from test_proposals_api import OTHER_RUN, RUN_ID, add_run, bearer, configured, import_run, token
 from test_protocol_approval_api import persona_token
+
+from traceq.db import engine, transaction
+from traceq.reports import TYPST_VERSION
+
+
+def copy_export_with(owner: URL, export_id: int, **overrides: str) -> int:
+    """Inserts a copy of a stored export with some columns replaced: a row as an older release,
+    an upgraded Typst or an edited template would have left it (exports are append-only)."""
+    columns = [
+        "round_id",
+        "execution_id",
+        "report_kind",
+        "subject",
+        "issuer",
+        "name",
+        "snapshot_json",
+        "snapshot_hash",
+        "pdf_sha256",
+        "template_version",
+        "typst_version",
+    ]
+    picked = ", ".join(f"CAST(:{c} AS text)" if c in overrides else c for c in columns)
+    with transaction(engine(owner)) as session:
+        return session.execute(
+            text(
+                f"INSERT INTO report_exports ({', '.join(columns)}) "
+                f"SELECT {picked} FROM report_exports WHERE id = :source RETURNING id"
+            ),
+            {"source": export_id, **overrides},
+        ).scalar_one()
 
 
 @pytest.fixture
@@ -176,6 +208,45 @@ def test_export_pre_review_pdf_rbac_and_byte_identical_download(
     assert pdf_resp.headers["content-type"] == "application/pdf"
     assert pdf_resp.content.startswith(b"%PDF-")
     assert hashlib.sha256(pdf_resp.content).hexdigest() == exp_data["pdf_sha256"]
+
+
+def test_stored_pre_review_export_that_cannot_be_reproduced_is_409_with_its_cause(
+    client: TestClient,
+    decider: dict[str, str],
+    reader: dict[str, str],
+    fresh_database: Databases,
+) -> None:
+    import_run(client, decider, RUN_ID)
+    round_id = client.get(f"/runs/{RUN_ID}/rounds", headers=decider).json()["current_round_id"]
+    made = client.post(f"/rounds/{round_id}/exports", headers=decider)
+    assert made.status_code == 201, made.text
+    stored = made.json()
+    assert stored["typst_version"] == TYPST_VERSION
+
+    def download(export_id: int) -> Any:
+        return client.get(f"/rounds/{round_id}/exports/{export_id}/pdf", headers=reader)
+
+    # The same export, stored by a release that ran another Typst.
+    other_typst = copy_export_with(fresh_database.owner, stored["id"], typst_version="0.0.1")
+    r = download(other_typst)
+    assert r.status_code == 409, r.text
+    assert "0.0.1" in r.json()["detail"]
+    assert TYPST_VERSION in r.json()["detail"]
+
+    # A template version this release no longer carries.
+    other_template = copy_export_with(fresh_database.owner, stored["id"], template_version="7.0.0")
+    r = download(other_template)
+    assert r.status_code == 409, r.text
+    assert "template version 7.0.0" in r.json()["detail"]
+
+    # Versions agree but the bytes do not: the integrity check still refuses.
+    bad_sha = copy_export_with(fresh_database.owner, stored["id"], pdf_sha256="0" * 64)
+    r = download(bad_sha)
+    assert r.status_code == 409, r.text
+    assert "SHA-256" in r.json()["detail"]
+
+    # The untouched export still downloads.
+    assert download(stored["id"]).status_code == 200
 
 
 def test_rounds_are_non_blocking_toward_protocol_assembly(

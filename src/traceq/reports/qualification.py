@@ -20,6 +20,7 @@ _TEMPLATE_PATHS = {
     QUALIFICATION_TEMPLATE_VERSION_V1: _TEMPLATE_V1_PATH,
     QUALIFICATION_TEMPLATE_VERSION: _TEMPLATE_V2_PATH,
 }
+QUALIFICATION_TEMPLATE_VERSIONS: tuple[str, ...] = tuple(_TEMPLATE_PATHS)
 
 type TechnicalConclusion = Literal["qualified", "qualified_with_deviations", "not_qualified"]
 
