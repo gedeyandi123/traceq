@@ -49,7 +49,7 @@ from traceq.execution.results import (
     RetestRowRequest,
     Verdict,
 )
-from traceq.identity import Principal
+from traceq.identity import Principal, reauthentication_required
 from traceq.proposals.api import actor_of
 from traceq.reports import QualificationCounts, ReportNotReproducible, TechnicalConclusion
 from traceq.runs.schemas import Cite, EvidenceStep
@@ -437,7 +437,7 @@ def create_router(
     db: Engine | None,
     principal: Callable[..., Principal],
     *,
-    fresh_auth: Callable[[Principal], Principal] | None = None,
+    fresh_auth: Callable[[Principal], Principal],
 ) -> APIRouter:
     """``db``: the database as the application role; none with default settings, when
     ``principal`` refuses every request."""
@@ -599,6 +599,8 @@ def create_router(
             raise HTTPException(422, str(e)) from e
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
+        except audit.SignatureAuthRequired as e:
+            raise reauthentication_required(str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
@@ -672,8 +674,7 @@ def create_router(
         """Closes a ``submitted`` Deviation with Anti-TOCTOU and 4-way Separation of Duties."""
         if not who.may_approve:
             raise HTTPException(403, "closing a Deviation needs the approving role")
-        if fresh_auth is not None:
-            who = fresh_auth(who)
+        who = fresh_auth(who)
         return run_execution_write(
             execution_id,
             lambda s: deviations.close_deviation(
@@ -723,8 +724,7 @@ def create_router(
         """Records a Witness confirmation bound to the latest version's ``version_hash``."""
         if not who.may_witness:
             raise HTTPException(403, "confirming a Result as Witness needs the witnessing role")
-        if fresh_auth is not None:
-            who = fresh_auth(who)
+        who = fresh_auth(who)
         return run_execution_write(
             execution_id,
             lambda s: results.confirm_witness(
@@ -835,8 +835,7 @@ def create_router(
         Investigation authors, manual Deviation openers, Deviation submitters, and Witnesses."""
         if not who.may_approve:
             raise HTTPException(403, "approving a Qualification Report needs the approving role")
-        if fresh_auth is not None:
-            who = fresh_auth(who)
+        who = fresh_auth(who)
         try:
             with transaction(database()) as session:
                 comp, exports = reports.approve_qualification_report(
@@ -854,6 +853,8 @@ def create_router(
                 return _qual_report_view(session, comp, exports)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
+        except audit.SignatureAuthRequired as e:
+            raise reauthentication_required(str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
         except reports.Refused as e:

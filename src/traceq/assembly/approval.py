@@ -63,12 +63,14 @@ def approve(
     event_id: int,
     hashed: str,
     *,
-    auth_time: datetime | None = None,
-    jti: str | None = None,
+    auth_time: datetime | None,
+    jti: str | None,
     is_demo: bool = False,
 ) -> lifecycle.AssembledProtocol:
     """Approves the Submitted Protocol whose current submission is ``event_id`` with copy hash
-    ``hashed``: what the Approver read."""
+    ``hashed``: what the Approver read. Signs it: ``SignatureAuthRequired`` without a fresh
+    ``auth_time`` and ``jti``, before anything is written."""
+    auth_time, jti = audit.require_signing_claims(auth_time, jti)
     current, latest = _submitted(session, protocol_id)
     if event_id != latest.event_id:
         raise Conflict(
@@ -92,28 +94,24 @@ def approve(
             " an Approver did not"
         )
     done = lifecycle.append(session, actor, protocol_id, "approved", None)
-    sig_id: int | None = None
-    if auth_time is not None and jti is not None:
-        sig = audit.record_signature(
-            session,
-            actor,
-            record_type="protocol_approval",
-            signature_meaning="approved",
-            content_hash=latest.hash,
-            auth_time=auth_time,
-            jti=jti,
-            is_demo=is_demo,
-            protocol_event_id=done.id,
-        )
-        sig_id = sig.id
+    sig = audit.record_signature(
+        session,
+        actor,
+        record_type="protocol_approval",
+        signature_meaning="approved",
+        content_hash=latest.hash,
+        auth_time=auth_time,
+        jti=jti,
+        is_demo=is_demo,
+        protocol_event_id=done.id,
+    )
     new_audit: dict[str, audit.JsonValue] = {
         "status": done.status,
         "event_id": done.id,
         "submission_event_id": latest.event_id,
         "hash": latest.hash,
+        "signature_id": sig.id,
     }
-    if sig_id is not None:
-        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,

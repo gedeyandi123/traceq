@@ -1431,8 +1431,8 @@ def confirm_witness(
     attempt_number: int,
     req: ConfirmWitnessRequest,
     *,
-    auth_time: datetime | None = None,
-    jti: str | None = None,
+    auth_time: datetime | None,
+    jti: str | None,
     is_demo: bool = False,
 ) -> WitnessConfirmation:
     """Records a Witness confirmation bound to the latest version's ``version_hash`` of an
@@ -1441,8 +1441,10 @@ def confirm_witness(
     Refuses (409) when the Execution is not ``in_progress``, when ``version_number`` or
     ``version_hash`` does not match the attempt's latest version, when the Witness is the
     Performer of that version (same ``subject`` and ``issuer``), or when the same Witness has
-    already confirmed that version.
+    already confirmed that version. Signs the confirmation: ``SignatureAuthRequired`` without a
+    fresh ``auth_time`` and ``jti``, before anything is written.
     """
+    auth_time, jti = audit.require_signing_claims(auth_time, jti)
     lifecycle.lock_execution(session, execution_id)
     ex = lifecycle.get(session, execution_id)
     if ex is None:
@@ -1523,20 +1525,17 @@ def confirm_witness(
         .one()
     )
     confirmation = _witness_from_row(inserted, voided=False)
-    sig_id: int | None = None
-    if auth_time is not None and jti is not None:
-        sig = audit.record_signature(
-            session,
-            actor,
-            record_type="witness_confirmation",
-            signature_meaning="witnessed",
-            content_hash=latest.version_hash,
-            auth_time=auth_time,
-            jti=jti,
-            is_demo=is_demo,
-            witness_confirmation_id=confirmation.id,
-        )
-        sig_id = sig.id
+    sig = audit.record_signature(
+        session,
+        actor,
+        record_type="witness_confirmation",
+        signature_meaning="witnessed",
+        content_hash=latest.version_hash,
+        auth_time=auth_time,
+        jti=jti,
+        is_demo=is_demo,
+        witness_confirmation_id=confirmation.id,
+    )
 
     new_audit: dict[str, audit.JsonValue] = {
         "execution_id": execution_id,
@@ -1546,12 +1545,9 @@ def confirm_witness(
         "version": latest.version,
         "version_hash": latest.version_hash,
         "confirmation_id": confirmation.id,
-        "note": audit.ELECTRONIC_SIGNATURE_LABEL
-        if (sig_id is not None and not is_demo)
-        else (audit.DEMO_SIGNATURE_LABEL if sig_id is not None else audit.UNSIGNED_STATUS_LABEL),
+        "note": audit.DEMO_SIGNATURE_LABEL if is_demo else audit.ELECTRONIC_SIGNATURE_LABEL,
+        "signature_id": sig.id,
     }
-    if sig_id is not None:
-        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,

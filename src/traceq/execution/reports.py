@@ -18,7 +18,6 @@ from traceq.execution import completion, lifecycle
 from traceq.execution.completion import Completion, ExecutionCopy
 from traceq.proposals.keys import digest
 from traceq.reports import (
-    QUALIFICATION_APPROVAL_NOTE,
     QUALIFICATION_TEMPLATE_VERSION,
     QUALIFICATION_TEMPLATE_VERSIONS,
     TYPST_VERSION,
@@ -392,11 +391,14 @@ def approve_qualification_report(
     next_requalification_date: date | None = None,
     expected_revision_number: int | None = None,
     expected_execution_copy_hash: str | None = None,
-    auth_time: datetime | None = None,
-    jti: str | None = None,
+    auth_time: datetime | None,
+    jti: str | None,
     is_demo: bool = False,
 ) -> tuple[Completion, list[QualificationExport]]:
-    """Approves a Qualification Report for a completed Execution, creating an immutable export."""
+    """Approves a Qualification Report for a completed Execution, creating an immutable export.
+    Signs it: ``SignatureAuthRequired`` without a fresh ``auth_time`` and ``jti``, before anything
+    is written."""
+    auth_time, jti = audit.require_signing_claims(auth_time, jti)
     lifecycle.lock_execution(session, execution_id)
     ex = lifecycle.get(session, execution_id)
     if ex is None:
@@ -452,24 +454,20 @@ def approve_qualification_report(
         next_requalification_date=next_requalification_date,
     )
     content_hash = digest(substance_payload)
-    if auth_time is not None and jti is not None:
-        approval_note = audit.DEMO_SIGNATURE_LABEL if is_demo else audit.ELECTRONIC_SIGNATURE_LABEL
-        sig_claim: SignatureSnapshotClaim | None = SignatureSnapshotClaim(
-            record_type="qualification_report",
-            signature_meaning="approved",
-            content_hash=content_hash,
-            hash_scheme_version=1,
-            signer_subject=actor.subject,
-            signer_issuer=actor.issuer,
-            signer_name=actor.name,
-            auth_time=auth_time,
-            signed_at=db_now,
-            is_demo=is_demo,
-            label=approval_note,
-        )
-    else:
-        approval_note = QUALIFICATION_APPROVAL_NOTE
-        sig_claim = None
+    approval_note = audit.DEMO_SIGNATURE_LABEL if is_demo else audit.ELECTRONIC_SIGNATURE_LABEL
+    sig_claim = SignatureSnapshotClaim(
+        record_type="qualification_report",
+        signature_meaning="approved",
+        content_hash=content_hash,
+        hash_scheme_version=1,
+        signer_subject=actor.subject,
+        signer_issuer=actor.issuer,
+        signer_name=actor.name,
+        auth_time=auth_time,
+        signed_at=db_now,
+        is_demo=is_demo,
+        label=approval_note,
+    )
 
     snapshot = _build_snapshot(
         generated_at=db_now,
@@ -511,21 +509,18 @@ def approve_qualification_report(
         .one()
     )
     export = _export_of(inserted)
-    sig_id: int | None = None
-    if auth_time is not None and jti is not None:
-        sig = audit.record_signature(
-            session,
-            actor,
-            record_type="qualification_report",
-            signature_meaning="approved",
-            content_hash=content_hash,
-            auth_time=auth_time,
-            jti=jti,
-            is_demo=is_demo,
-            report_export_id=export.id,
-            content_payload=substance_payload,
-        )
-        sig_id = sig.id
+    sig = audit.record_signature(
+        session,
+        actor,
+        record_type="qualification_report",
+        signature_meaning="approved",
+        content_hash=content_hash,
+        auth_time=auth_time,
+        jti=jti,
+        is_demo=is_demo,
+        report_export_id=export.id,
+        content_payload=substance_payload,
+    )
     new_audit: dict[str, audit.JsonValue] = {
         "export_id": export.id,
         "execution_id": execution_id,
@@ -541,9 +536,8 @@ def approve_qualification_report(
         "pdf_sha256": pdf_sha,
         "template_version": QUALIFICATION_TEMPLATE_VERSION,
         "typst_version": TYPST_VERSION,
+        "signature_id": sig.id,
     }
-    if sig_id is not None:
-        new_audit["signature_id"] = sig_id
     audit.append(
         session,
         actor,
