@@ -324,8 +324,8 @@ def test_the_oracle_scores_each_revision_on_the_key_as_it_reads_there(
 ) -> None:
     equipment = load_key(TP201_KEY)
     for draft, defects in ((rev0, 13), (rev1, 3)):
-        view = key_at_revision(full_key, draft.rev)
-        review = ReviewPackage.of(package, draft, view)
+        review = ReviewPackage.of(package, draft, full_key)  # the scorer views it at draft.rev
+        assert review.key == key_at_revision(full_key, draft.rev)
         report = score(
             perfect_review(equipment, review),
             equipment,

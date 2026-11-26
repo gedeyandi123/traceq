@@ -1381,7 +1381,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "ac_deviates_from_urs" | "requirement_not_tested";
+            type: "ac_deviates_from_urs" | "requirement_not_tested" | "ac_outside_documented_capability";
             /**
              * Layer
              * @constant
@@ -1399,6 +1399,10 @@ export interface components {
             ac: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
             /** Urs Limit */
             urs_limit: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
+            /** Capability */
+            capability?: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
+            /** Label */
+            label?: string | null;
             /** Citations */
             citations: components["schemas"]["Cite"][];
         };

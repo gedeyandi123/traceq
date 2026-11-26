@@ -394,6 +394,9 @@ export function DraftStepDrawer({
                   <div className="text-xs font-bold text-fail">
                     {t(`types.${f.finding.type}`)}
                   </div>
+                  {f.finding.label && (
+                    <div className="text-xs text-ink-muted">{t("notReviewed")}</div>
+                  )}
                   <p className="m-0 text-xs leading-relaxed text-ink">{f.finding.detail}</p>
                 </div>
                 <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">

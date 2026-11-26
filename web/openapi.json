@@ -3559,7 +3559,8 @@
             "type": "string",
             "enum": [
               "ac_deviates_from_urs",
-              "requirement_not_tested"
+              "requirement_not_tested",
+              "ac_outside_documented_capability"
             ],
             "title": "Type"
           },
@@ -3671,6 +3672,54 @@
               }
             ],
             "title": "Urs Limit"
+          },
+          "capability": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Limit"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Tolerance"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AmbiguousValue"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "ambiguous": "#/components/schemas/AmbiguousValue",
+                    "number": "#/components/schemas/Number",
+                    "range": "#/components/schemas/Limit",
+                    "text": "#/components/schemas/Text",
+                    "tolerance": "#/components/schemas/Tolerance"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capability"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "citations": {
             "items": {

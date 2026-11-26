@@ -69,7 +69,7 @@ from traceq.review.draft import (
     draft_rows,
     read_draft,
 )
-from traceq.review.draft_rules import DraftFinding, draft_findings
+from traceq.review.draft_rules import Datasheet, DraftFinding, draft_findings
 from traceq.runs.completeness import COMPLETENESS_FILE, completeness
 from traceq.runs.drafts import drafts
 from traceq.runs.findings import findings
@@ -150,7 +150,12 @@ def _read_package(
     urs = corpus.current("urs")
     language = urs[0].language if urs else "en"
     rows = draft_rows(reading, traced, language)
-    return _Draft(reading, rows, draft_findings(reading, rows), ingested)
+    datasheets = [
+        Datasheet(d.doc_id, d.rev, d.language, tuple(corpus.pages(d)))
+        for d in corpus.current("datasheet")
+        if corpus.readable(d)
+    ]
+    return _Draft(reading, rows, draft_findings(reading, rows, datasheets), ingested)
 
 
 class _Asked:

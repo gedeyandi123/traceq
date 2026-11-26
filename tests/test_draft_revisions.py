@@ -36,7 +36,7 @@ DRAFT_KEY = "746c7067b63d191b5f6a434ccef56e11def0b40553a92667389f891b3c0a21af"
 """Recording keys of a fixed request, computed before this ticket: the first of the first
 Equipment prompt, the second of the draft prompt, both under pipeline 0.3.0."""
 KEY_0_1_0 = "163c9675271ae3b23f7fdffc1235eb18a32904da584863cc58ea46a6d9310bd8"
-"""SHA-256 over 0.1.0's answer-key files, as ``baselines/TP-201-OQ-draft.json`` records it."""
+"""SHA-256 over 0.1.0's answer-key files, as ``baselines/TP-201-OQ-draft-0.1.0.json`` records it."""
 
 
 def _recorder(version: str) -> Recorder:
@@ -74,7 +74,7 @@ def test_0_1_0_answer_key_keeps_its_bytes() -> None:
     assert directory == ROOT / "answer_key" / "TP-201-OQ-draft"
     assert key_sha256(directory, KEY_FILES) == KEY_0_1_0
     baseline: dict[str, Any] = json.loads(
-        (ROOT / "baselines" / "TP-201-OQ-draft.json").read_text(encoding="utf-8")
+        (ROOT / "baselines" / "TP-201-OQ-draft-0.1.0.json").read_text(encoding="utf-8")
     )
     assert baseline["review_package"]["answer_key_sha256"] == KEY_0_1_0
 

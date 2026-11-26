@@ -53,6 +53,22 @@ def _json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+CAPABILITY = "ac_outside_documented_capability"
+
+
+def _graded(section: dict[str, Any]) -> dict[str, Any]:
+    """0.1.0's Review Package section as its key grades it: the rules that came after 0.1.0
+    (spec #375) raise findings of types its key does not declare, which the scorer leaves
+    ungraded (``not_graded``), so the replay compares only the findings of the key's types."""
+    return {
+        **section,
+        "findings": [f for f in section["findings"] if f["status"] != "not_graded"],
+        "metrics": {
+            k: v for k, v in section["metrics"].items() if k != "findings_of_types_not_in_key"
+        },
+    }
+
+
 @pytest.mark.parametrize("tag", sorted(WORLDS))
 @pytest.mark.parametrize("name", RUNS)
 def test_recorded_live_run_replays_to_its_live_scores(name: str, tag: str, tmp_path: Path) -> None:
@@ -212,7 +228,13 @@ def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOut
     assert out.metadata["prompts"] == recorded["prompts"]
     assert out.metadata["dropped"] == recorded["dropped"]
     assert got["gates"] == expected["gates"]
-    assert got["review_package"] == expected["review_package"]
+    assert _graded(got["review_package"]) == expected["review_package"]
+    # The capability rule raises one finding on 0.1.0's draft (OQ-04, "minimal 105 kN" against
+    # the Datasheet's 100 kN maximum, a Clean Trap of 0.1.0): its key declares no such type, so
+    # it is neither a match, nor wrong, nor on a trap, and no number of 0.1.0 moves.
+    (extra,) = [f for f in got["review_package"]["findings"] if f["status"] == "not_graded"]
+    assert (extra["type"], extra["test_step"], extra["clean_traps"]) == (CAPABILITY, "OQ-04", [])
+    assert got["review_package"]["metrics"]["findings_of_types_not_in_key"] == 1
     assert got["review_package"]["metrics"]["ac_read_right"] == 26
     assert [d["id"] for d in out.metadata["dropped"] if d["claim"] == "draft_step"] == []
 
@@ -246,7 +268,9 @@ def test_review_package_run_reports_its_draft_findings(
     """Rule findings on the live run's readings, each with its Test Step id or table row; the
     scorer's Review Package section grades them against the package key."""
     _, out = runs
-    on_draft = [f for f in out.submission.findings if f.test_step or f.row]
+    all_on_draft = [f for f in out.submission.findings if f.test_step or f.row]
+    assert [(f.type, f.test_step or f.row) for f in all_on_draft][-1] == (CAPABILITY, "OQ-04")
+    on_draft = [f for f in all_on_draft if f.type != CAPABILITY]  # 0.1.0's key does not grade it
     assert [(f.type, f.test_step or f.row) for f in on_draft] == [
         ("ac_deviates_from_urs", "OQ-03"),
         ("ac_deviates_from_urs", "OQ-05"),
@@ -269,8 +293,9 @@ def test_review_package_run_reports_its_draft_findings(
 
     rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
     assert [(f["type"], f.get("test_step") or f.get("row")) for f in rows["findings"]] == [
-        (f.type, f.test_step or f.row) for f in on_draft
+        (f.type, f.test_step or f.row) for f in all_on_draft
     ]
+    assert [f["label"] for f in rows["findings"]] == [None] * 5 + ["not reviewed by a practitioner"]
     oq05 = next(s for s in rows["test_steps"] if s["id"] == "OQ-05")
     (traced,) = oq05["traced"]
     assert (traced["compared"], traced["deviates"], oq05["compared"]) == (True, True, True)
@@ -300,12 +325,15 @@ def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
         ProtocolDraft.model_validate(_json(out.folder / "protocol_draft.json")),
         DraftedTestSteps.model_validate(_json(out.folder / "drafts.json")),
     )
-    earlier = [p for p in proposed if p.kind != "test_step"]
+    # The capability finding on OQ-04 (spec #375) is new; the 50 before it keep their keys.
+    new = [p for p in proposed if p.subject.get("type") == CAPABILITY]
+    assert [(p.subject["test_step"], p.ordinal) for p in new] == [("OQ-04", 0)]
+    earlier = [p for p in proposed if p.kind != "test_step" and p not in new]
     assert len(earlier) == 50
     assert digest([[p.kind, p.subject_hash, p.ordinal, p.content_hash] for p in earlier]) == (
         PROPOSAL_KEYS
     )
-    steps = proposed[len(earlier) :]
+    steps = [p for p in proposed if p.kind == "test_step"]
     assert all(p.kind == "test_step" and p.position is None for p in steps)
     assert len(steps) == len({p.subject_hash for p in steps}) == 31
     without_ac = [p for p in steps if p.proposed["acceptance"] is None]

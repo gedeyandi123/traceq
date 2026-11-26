@@ -170,6 +170,8 @@ def _draft(
         "rule": f.type,
         "ac": _read(f.ac),
         "urs_limit": _read(f.urs_limit),
+        # Only a finding that has one, so the hash of an older finding does not move.
+        **({"capability": _read(f.capability)} if f.capability is not None else {}),
     }
     return subject, content
 
