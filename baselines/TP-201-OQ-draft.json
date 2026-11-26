@@ -17,7 +17,7 @@
     "name": "traceq",
     "model": "claude-haiku-5-5",
     "prompt": "0dc6b64f04fc",
-    "run_id": "20261126T172244Z-abf8f7"
+    "run_id": "20261126T224509Z-d16c1e"
   },
   "metrics": {
     "fabrication.rate": 0.0,
@@ -25,10 +25,10 @@
     "citations.by_status.value_not_in_quote": 0.0,
     "citations.by_status.too_long": 0.0,
     "review_package.ac_reading_rate": 1.0,
-    "review_package.recall": 0.7692,
+    "review_package.recall": 0.9231,
     "review_package.recall_by_type.ac_deviates_from_urs": 0.8,
     "review_package.recall_by_type.ac_outside_documented_capability": 1.0,
-    "review_package.recall_by_type.outdated_reference": 0.0,
+    "review_package.recall_by_type.outdated_reference": 1.0,
     "review_package.recall_by_type.requirement_not_tested": 1.0,
     "review_package.recall_by_type.unit_error": 1.0,
     "review_package.precision": 1.0,
