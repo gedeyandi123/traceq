@@ -353,6 +353,11 @@ class DraftCheckFinding(_Model):
     detail: str
     ac: PrintedRead | None
     urs_limit: PrintedRead | None
+    capability: PrintedRead | None = None
+    """The capability the Datasheet states, for ``ac_outside_documented_capability``."""
+    label: str | None = None
+    """"not reviewed by a practitioner" on a type no practitioner has reviewed (spec #375);
+    ``None`` on the others."""
     citations: tuple[Cite, ...]
 
 

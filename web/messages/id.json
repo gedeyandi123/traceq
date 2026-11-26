@@ -491,8 +491,10 @@
     "vendorKinds": { "datasheet": "Datasheet", "FAT": "FAT", "SAT": "SAT" },
     "types": {
       "ac_deviates_from_urs": "Kriteria penerimaan lebih longgar dari URS",
-      "requirement_not_tested": "Persyaratan tanpa langkah uji"
+      "requirement_not_tested": "Persyaratan tanpa langkah uji",
+      "ac_outside_documented_capability": "Kriteria penerimaan di luar kemampuan yang tercantum di datasheet"
     },
+    "notReviewed": "Belum ditinjau praktisi",
     "values": {
       "atLeast": "≥ {min} {unit}",
       "atMost": "≤ {max} {unit}",

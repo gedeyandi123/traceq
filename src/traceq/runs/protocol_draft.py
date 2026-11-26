@@ -87,6 +87,8 @@ def _finding(f: DraftFinding) -> DraftCheckFinding:
         detail=f.detail,
         ac=_value(f.ac),
         urs_limit=_value(f.urs),
+        capability=_value(f.capability),
+        label=f.label,
         citations=tuple(_cite(c) for c in f.citations),
     )
 

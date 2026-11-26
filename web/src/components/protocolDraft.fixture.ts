@@ -31,6 +31,21 @@ export const deviates: DraftFindingView["finding"] = {
   ],
 };
 
+/** A finding of a type no practitioner has reviewed (spec #375): the API carries its label. */
+export const outsideCapability: DraftFindingView["finding"] = {
+  type: "ac_outside_documented_capability",
+  layer: "rule",
+  test_step: "OQ-03",
+  row: null,
+  requirement: "URS-TP201-020",
+  detail: "OQ-03 requires at least 105 kN, above the maximum 100 kN the Datasheet DS-TP201 states",
+  ac: { ...noiseLimit, min: 105, max: null, unit: "kN" },
+  urs_limit: null,
+  capability: { type: "number", value: 100, unit: "kN" },
+  label: "not reviewed by a practitioner",
+  citations: [cite(DRAFT, 2, "OQ-03 minimal 105 kN"), cite({ doc: "DS-TP201", rev: 0 }, 1, "Maximum main compression force 100 kN")],
+};
+
 export const notTested: DraftFindingView["finding"] = {
   type: "requirement_not_tested",
   layer: "rule",
