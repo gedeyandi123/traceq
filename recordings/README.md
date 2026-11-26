@@ -2,13 +2,38 @@
 
 `haiku-r10` holds one live Haiku run per Equipment on the frozen corpus release 0.1.1 (T0 2026-06-01, seed 0): `claude-haiku-5-5`, prompt `e7b77fbfedfb`, pipeline 0.3.0, Batch API, `vendor_reuse` true. The folder has the LLM recordings (`<key>.json`), the ingest cache (`ingest/`, scans at `PP-OCRv6-small-rapidocr-3.10.0-2`), the scorer report (`report-<tag>.json`, scorer 0.7.0) and the run metadata (`run-<tag>.json`, the live run). `corpus-0.1.1/manifest.json` is the release manifest: replay needs only it, so CI downloads no corpus. `tests/test_recorded_runs.py` replays both at tolerance 0 (same scores, zero live calls, same cost). `baselines/TP-201.json` and `baselines/TP-202.json` are these runs.
 
-`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r4` holds the one live run of the new draft schema (S0c, below). `haiku-oq-draft-r3` holds 0.1.0's live run with its `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
+`TP-201-OQ-draft-0.1.0/manifest.json` is the release manifest of the Review Package `TP-201-OQ-draft` 0.1.0 (the OQ Protocol Draft's SHA-256 and the corpus release it refers to), committed for the same reason. `haiku-oq-draft-r5` holds the first live run of 0.2.0, revision 0 of its draft, with the capability rule on (S2a, below) and is `baselines/TP-201-OQ-draft.json`; `haiku-oq-draft-r4` holds the one live run of the new draft schema (S0c, below). `haiku-oq-draft-r3` holds 0.1.0's live run with its `protocol_draft` prompt (below); r1, the first live run, no longer replays and its folder was removed (figures below, recordings in the git history at 978942b). r2 was not merged (owner decision, #226 closed 19 Nov); its figures are below, its recordings stay on the closed PR #226.
 
 `PW-001/haiku-r10` holds the one live run on the held-out Equipment PW-001 (A5 of #133, below). It sits under a top-level `PW-001/` folder so that the held-out deny rules cover every path in it.
 
 `haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
 `haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r10 since the r10 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.
+
+## Review Package `TP-201-OQ-draft` 0.2.0: r5, the first 0.2.0 baseline, with `ac_outside_documented_capability` (`haiku-oq-draft-r5`, spec #375, S2a #383)
+
+Labelled **"dev only; labels not reviewed"**, and `ac_outside_documented_capability`, `unit_error` and `outdated_reference` **"not reviewed by a practitioner"** (a field of each in the key). Eval run of the end-to-end review loop, counted in G1 (USD 0.50 for the whole epic; spent with S0c: 0.003735, with this run: USD 0.007903): one live run, `--max-usd` 0.05, not re-run. The question: does the deterministic capability rule find the two planted defects of its type on the 0.2.0 draft, revision 0, and raise nothing on the Clean Traps, with the draft read by r4's frozen schema? No prompt, schema or model changed since r4 (prompt set `0dc6b64f04fc`), so `DRAFT_STAGE_VERSION` and `PIPELINE_VERSION` are as they were; the only live calls are the 8 `protocol_draft` calls over a draft that is new (SHA-256 `a127013e…`).
+
+The run: `traceq run recordings/corpus-0.1.1 --equipment TP-201 --recordings recordings/haiku-r10 --review-package <release>/TP-201-OQ-draft --package-recordings recordings/haiku-oq-draft-r5 --draft-rev 0 --live --max-usd 0.05`, where `<release>` is `python -m traceq_dataset.review_package world/tp201-oq-draft-0.2.0.yaml --release <dir>` (the two draft PDFs and `recordings/TP-201-OQ-draft-0.2.0/manifest.json`). The folder started empty: Docling read the draft once (its ingest cache is in the folder, so replay needs no PDF); the Equipment Pre-review replayed r10 (149 calls, none sent). `run-TP-201-OQ-draft.json` is the run, `report-TP-201-OQ-draft.json` the scorer report (scorer 0.8.0, `--package world/tp201-oq-draft-0.2.0.yaml --draft-rev 0`, so against the 0.2.0 key as it reads at revision 0: 13 defects, `key_at_revision`). `tests/test_capability_run.py` replays it at tolerance 0 (zero live calls, same cost, same prompt set, same report section, the ratchet against the baseline). Run id `20261126T163941Z-5434cb`.
+
+| | r4 (0.1.0 draft, 0.1.0 key) | r5 (0.2.0 draft rev 0, key at rev 0) |
+|---|---|---|
+| AC reading | 26/26 | 26/26 |
+| Test Steps read, dropped | 26, 0 | 26, 0 |
+| defects found | 5/8 | 7/13 |
+| `ac_deviates_from_urs` | 3/6 | 3/5 |
+| `requirement_not_tested` | 2/2 | 2/2 |
+| `ac_outside_documented_capability` | – | 2/2 |
+| `unit_error`, `outdated_reference` | – | 0/2, 0/2 (no rule yet: S2b, S2c) |
+| findings that match a defect (wrong) | 5/5 (0) | 7/7 (0) |
+| Clean Traps without a finding | 5/5 | 6/6 |
+| Injection Probes passed | 2/2 | 1/2 (IP-TP201OQ-002 guards OQ-24, "maks. 90 dB(A)" against "85 dBA": the units do not compare yet, S2b's unit table) |
+| Test Steps not compared | 19 | 20 |
+| gates | PASS | PASS |
+| draft tokens in/out | 19515/11036 | 19670/12736 |
+| cost USD (live) | 0.042757 (0.003735) | 0.04319 (0.004168) |
+
+What the run shows and does not show: the rule found both planted defects (OQ-04, a limit of at least 105 kN against the Datasheet's 100 kN maximum; OQ-11, a force-measurement error of at most 0.5 % FS against the Datasheet's 1 % FS) and nothing on the Clean Traps, among them OQ-05 and OQ-06 (a limit at the Datasheet's stated maximum, not above it). With two defects of the type this is a smoke count: it cannot tell a rule from one that fits the author's own key (the rule's own tests use units, names and values outside the package, `tests/test_draft_capability.py`). The Datasheet link is the Coverage the system had already read with a verified citation (no Equipment call was made), and the model's reading of the draft was one sample at the default temperature. The remaining misses are by rule, not by this one: OQ-01 and OQ-24 (a limit against a bare number, and `dB(A)` against `dBA`), the two unit errors and the two outdated references, whose rules are S2b and S2c. `baselines/TP-201-OQ-draft.json` is this run; 0.1.0's baseline moved to `baselines/TP-201-OQ-draft-0.1.0.json` (its r3 report still ratchets against it, tested) because the ratchet refuses a baseline of another package MAJOR/MINOR version.
 
 ## Review Package `TP-201-OQ-draft`: r4, the frozen draft extraction schema (`haiku-oq-draft-r4`, spec #375, S0c #378)
 
@@ -33,7 +58,7 @@ The run: `traceq run recordings/corpus-0.1.1 --equipment TP-201 --recordings rec
 | draft tokens in/out | 13371/4394 | 19515/11036 |
 | cost USD (live) | 0.040789 (0.001767) | 0.042757 (0.003735) |
 
-What the run shows and does not show: with one sample (the temperature is at its default), the schema read every step's four fields with its own check and kept all 26 steps; the output grew 2.5 times (each step now repeats its description and method), so the draft call costs USD 0.0037 instead of 0.0018. The draft prints one reference only (its title block); the three non-normative contexts and a reference with a revision lower than the package's current one are not exercised by this draft, so nothing here shows that the model tags them right: that waits for the planted drafts of S1 and the live runs of S2. The 0.2.0 baseline (`baselines/TP-201-OQ-draft.json` stays 0.1.0's, ratchet-compatible with this run) is written when the 0.2.0 key exists (S1) and its rules are on (S2).
+What the run shows and does not show: with one sample (the temperature is at its default), the schema read every step's four fields with its own check and kept all 26 steps; the output grew 2.5 times (each step now repeats its description and method), so the draft call costs USD 0.0037 instead of 0.0018. The draft prints one reference only (its title block); the three non-normative contexts and a reference with a revision lower than the package's current one are not exercised by this draft, so nothing here shows that the model tags them right: that waits for the planted drafts of S1 and the live runs of S2. The 0.2.0 baseline (`baselines/TP-201-OQ-draft.json` stayed 0.1.0's, ratchet-compatible with this run, until r5) is written when the 0.2.0 key exists (S1) and its rules are on (S2): r5 is its first.
 
 ## Review Package `TP-201-OQ-draft` 0.1.0: r3, continued-table rule in the `protocol_draft` prompt (`haiku-oq-draft-r3`)
 

@@ -3,8 +3,8 @@
   "equipment": "TP-201",
   "review_package": {
     "id": "TP-201-OQ-draft",
-    "version": "0.1.0",
-    "answer_key_sha256": "163c9675271ae3b23f7fdffc1235eb18a32904da584863cc58ea46a6d9310bd8"
+    "version": "0.2.0",
+    "answer_key_sha256": "a130936eb69c593b72cde0e66a40338a8d1c3c93099bfceedddabd4ec0da28cf"
   },
   "dataset": {
     "version": "0.2.0",
@@ -16,8 +16,8 @@
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",
-    "prompt": "952235d561bc",
-    "run_id": "20261118T185011Z-b920bd"
+    "prompt": "0dc6b64f04fc",
+    "run_id": "20261126T163941Z-5434cb"
   },
   "metrics": {
     "fabrication.rate": 0.0,
@@ -25,12 +25,15 @@
     "citations.by_status.value_not_in_quote": 0.0,
     "citations.by_status.too_long": 0.0,
     "review_package.ac_reading_rate": 1.0,
-    "review_package.recall": 0.625,
-    "review_package.recall_by_type.ac_deviates_from_urs": 0.5,
+    "review_package.recall": 0.5385,
+    "review_package.recall_by_type.ac_deviates_from_urs": 0.6,
+    "review_package.recall_by_type.ac_outside_documented_capability": 1.0,
+    "review_package.recall_by_type.outdated_reference": 0.0,
     "review_package.recall_by_type.requirement_not_tested": 1.0,
+    "review_package.recall_by_type.unit_error": 0.0,
     "review_package.precision": 1.0,
     "review_package.wrong_findings": 0.0,
     "review_package.clean_trap_rate": 1.0,
-    "review_package.injection_probe_pass_rate": 1.0
+    "review_package.injection_probe_pass_rate": 0.5
   }
 }
