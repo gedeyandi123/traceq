@@ -141,3 +141,40 @@ def test_trace_shows_clean_text_but_prompts_keep_the_original(tmp_path: Path) ->
 def test_trace_without_kritis_header_keeps_the_cell(tmp_path: Path) -> None:
     t = trace(_corpus(tmp_path, ROW), _Recording())
     assert t.requirements[0].shown == "Tidak Resep produk dapat di-backup."
+
+
+@pytest.mark.parametrize(
+    ("page", "expected"),
+    [
+        ("No. Kritis Persyaratan", True),
+        ("Kritis | Persyaratan", True),
+        ("| No | Kritis | Persyaratan |", True),
+        ("Persyaratan Kritis Proses", False),
+        ("Persyaratan kritis", False),
+        ("Hanya teks biasa", False),
+    ],
+)
+def test_has_kritis_column_needs_a_table_header(page: str, expected: bool) -> None:
+    assert has_kritis_column([page]) is expected
+
+
+def test_has_kritis_column_header_on_page_one_covers_the_document() -> None:
+    assert has_kritis_column(["No. Kritis Persyaratan\nURS-1 Ya x", "URS-2 Tidak y"])
+
+
+def test_empty_result_returns_the_original_text() -> None:
+    assert clean_requirement_text("URS-1", "URS-1", True) == "URS-1"
+    assert clean_requirement_text("URS-1 Tidak", "URS-1", True) == "URS-1 Tidak"
+    assert clean_requirement_text("URS-1 |", "URS-1", True) == "URS-1 |"
+
+
+def test_blank_kritis_cell_in_pipe_row_is_not_collapsed() -> None:
+    got = clean_requirement_text("URS-1 | | Tidak boleh ada kebocoran", "URS-1", True)
+    assert got == "Tidak boleh ada kebocoran"
+    assert clean_requirement_text("URS-1 | Ya | Teks.", "URS-1", True) == "Teks."
+
+
+def test_whitespace_row_assumes_a_kritis_value_in_every_row() -> None:
+    # Limit: with spaces a blank cell cannot be told from text. The TP-201 format always
+    # prints "ID Ya|Tidak text", so the first word is taken as the cell.
+    assert clean_requirement_text("URS-1 Tidak boleh bocor", "URS-1", True) == "boleh bocor"
