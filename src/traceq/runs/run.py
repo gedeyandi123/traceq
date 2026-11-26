@@ -155,7 +155,10 @@ def _read_package(
         for d in corpus.current("datasheet")
         if corpus.readable(d)
     ]
-    return _Draft(reading, rows, draft_findings(reading, rows, datasheets), ingested)
+    register: dict[str, int] = {}
+    for d in corpus.documents:  # the current revision of every document of the corpus
+        register[d.doc_id] = max(d.rev, register.get(d.doc_id, d.rev))
+    return _Draft(reading, rows, draft_findings(reading, rows, datasheets, register), ingested)
 
 
 class _Asked:

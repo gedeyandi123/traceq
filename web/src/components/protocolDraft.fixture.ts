@@ -60,6 +60,20 @@ export const unitError: DraftFindingView["finding"] = {
   citations: [cite(DRAFT, 2, "OQ-03 maks. 18 cm"), cite(URS, 2, "Tinggi maksimal 18 mm.")],
 };
 
+/** An outdated reference (spec #375, S2c): a normative citation of a revision lower than the register's; the label comes from the API. */
+export const outdatedReference: DraftFindingView["finding"] = {
+  type: "outdated_reference",
+  layer: "rule",
+  test_step: "OQ-03",
+  row: null,
+  requirement: "URS-TP201-020",
+  detail: "OQ-03 cites SOP-VAL-002 Rev. 1 in its method, but the register holds SOP-VAL-002 at Rev. 2: the citation may be superseded.",
+  ac: null,
+  urs_limit: null,
+  label: "not reviewed by a practitioner",
+  citations: [cite(DRAFT, 2, "Koreksi catatan sesuai SOP-VAL-002 Rev. 1.")],
+};
+
 export const notTested: DraftFindingView["finding"] = {
   type: "requirement_not_tested",
   layer: "rule",

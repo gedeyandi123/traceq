@@ -20,6 +20,15 @@ verified citation. The LLM reads; it never judges a limit.
   ``120 menit``): the system's one unit table (``traceq.traceability.units``) converts them
   before the limit is compared. Where a unit error and ``ac_deviates_from_urs`` both apply to a
   Test Step, ``unit_error`` takes it. Cites the AC in the draft and the URS sentence.
+- ``outdated_reference`` (spec #375): a Test Step cites, in its description, method, instrument or
+  Acceptance Criterion, a document of the package's register at a revision lower than the
+  register's current one. The read tags each citation's context (``normative``, ``revision
+  history``, ``external standard``, ``unversioned``); only a ``normative`` one is judged, so a
+  mention in revision history or supersession text, an external standard and a reference with no
+  revision raise nothing. Code decides only the revision comparison. Cites the reference in the
+  draft, by the sentence of the Test Step the reference stands in (not by the words the model
+  quoted). A reference outside every Test Step (the title block) is not a finding: a finding
+  sits on a Test Step or a table row.
 
 A finding names its Test Step id (or, for a table row, the row's requirement id). Its detail
 is written from the values as parsed, never from quote text, so a re-run whose quote differs
@@ -29,7 +38,7 @@ only in length gives the same finding.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -39,12 +48,15 @@ from traceq.review.draft import (
     Comparison,
     DraftReading,
     DraftRow,
+    Reference,
+    StepReading,
     TraceRow,
     outside_table,
     printed_at,
 )
 from traceq.review.printed import Limit, PrintedValue, Tolerance, read_printed
 from traceq.traceability import Ambiguous, Citation
+from traceq.traceability.citations import MAX_QUOTE
 from traceq.traceability.coverage import comparable
 from traceq.traceability.values import Number, Text
 
@@ -53,13 +65,15 @@ DraftType = Literal[
     "requirement_not_tested",
     "ac_outside_documented_capability",
     "unit_error",
+    "outdated_reference",
 ]
 
 NOT_REVIEWED_LABEL = "not reviewed by a practitioner"
-NOT_REVIEWED_TYPES: frozenset[str] = frozenset({"ac_outside_documented_capability", "unit_error"})
+NOT_REVIEWED_TYPES: frozenset[str] = frozenset(
+    {"ac_outside_documented_capability", "unit_error", "outdated_reference"}
+)
 """Finding types no practitioner has reviewed (ADR 0010, amended 26 Nov 2026): each of their
-findings carries ``NOT_REVIEWED_LABEL`` wherever it is shown. ``outdated_reference`` joins when
-its rule lands."""
+findings carries ``NOT_REVIEWED_LABEL`` wherever it is shown."""
 
 
 @dataclass(frozen=True)
@@ -407,21 +421,146 @@ def unit_error(rows: list[DraftRow]) -> list[DraftFinding]:
     return out
 
 
+# --- outdated_reference ------------------------------------------------------------------------
+
+_NOT_ALNUM = re.compile(r"[\W_]+")
+
+
+def _canonical(document: str) -> str:
+    """A document id as compared: case, spaces and punctuation do not tell two ids apart
+    (``SOP-017`` and ``sop 017``)."""
+    return _NOT_ALNUM.sub("", normalise(document)).casefold()
+
+
+def _fields(step: StepReading) -> tuple[tuple[str, str, int], ...]:
+    """The text of a Test Step the draft prints, by field, with its page: where a reference to
+    another document can sit."""
+    out = [
+        (name, f.text, f.citation.page)
+        for name, f in (
+            ("description", step.description),
+            ("method", step.method),
+            ("instrument", step.instrument),
+        )
+        if f is not None
+    ]
+    out.append(("acceptance criterion", normalise(step.citation.quote), step.citation.page))
+    return tuple(out)
+
+
+_SENTENCE_END = re.compile(r"(?<![Rr]ev)(?<![Nn]o)[.;!?](?=\s|$)")
+"""Where a sentence of a Test Step's text ends; ``Rev.`` and ``No.`` are abbreviations."""
+
+
+def _sentence(text: str, quote: str) -> str:
+    """The sentence(s) of ``text`` that hold ``quote``, so that a reference is cited by the
+    sentence it stands in, never by the few words the model chose to quote (the reviewer reads
+    the sentence; a citation's length does not decide whether it names the place). Fallback:
+    ``quote`` itself, as the model gave it, when it is not in ``text`` or the sentence would
+    pass ``MAX_QUOTE`` (a citation may not be longer); a scorer that matches by location may
+    then miss the finding, which is the price of the cap (tested)."""
+    at = text.find(quote)
+    if at < 0:
+        return quote
+    ends = [m.end() for m in _SENTENCE_END.finditer(text)]
+    start = max((e for e in ends if e <= at), default=0)
+    end = min((e for e in ends if e >= at + len(quote)), default=len(text))
+    sentence = text[start:end].strip()
+    return sentence if quote in sentence and len(sentence) <= MAX_QUOTE else quote
+
+
+def _requirement(row: DraftRow) -> str:
+    """The requirement the draft's table lists the Test Step under, else the one it names."""
+    if row.traced:
+        return row.traced[0].urs.requirement
+    return row.step.requirements[0] if row.step.requirements else ""
+
+
+def outdated_reference(
+    reading: DraftReading, rows: list[DraftRow], register: Mapping[str, int]
+) -> list[DraftFinding]:
+    """A Test Step that cites, as a normative reference, a document of the register at a
+    revision lower than the register's current one. ``register``: the current revision of
+    every document of the package's corpus, by document id. The read tags the context of each
+    reference and code only compares revisions: a reference that is not ``normative``, one
+    that prints no number, one to a document the register does not hold, and one at the
+    current or a higher revision raise nothing. A reference sits on the Test Step whose
+    description, method, instrument or Acceptance Criterion holds its quote."""
+    current = {_canonical(doc): (doc, rev) for doc, rev in register.items()}
+    stale: list[tuple[Reference, str, int]] = []
+    seen: set[tuple[str, int, str, str]] = set()
+    for ref in reading.references:
+        if ref.context != "normative" or ref.revision is None:
+            continue
+        known = current.get(_canonical(ref.document))
+        key = (
+            ref.citation.quote,
+            ref.citation.page,
+            _canonical(ref.document),
+            ref.printed_revision,
+        )
+        if known is None or ref.revision >= known[1] or key in seen:
+            continue
+        seen.add(key)
+        stale.append((ref, *known))
+    out: list[DraftFinding] = []
+    for r in rows:
+        for ref, doc, rev in stale:
+            quote = normalise(ref.citation.quote)
+            held = next(
+                (
+                    (name, text)
+                    for name, text, page in _fields(r.step)
+                    if page == ref.citation.page and quote in text
+                ),
+                None,
+            )
+            if held is None:
+                continue
+            where, text = held
+            cited = Citation(
+                ref.citation.doc,
+                ref.citation.rev,
+                ref.citation.page,
+                _sentence(text, quote),
+            )
+            detail = (
+                f"{r.step.id} cites {doc} Rev. {ref.printed_revision} in its {where}, but the"
+                f" register holds {doc} at Rev. {rev}: the citation may be superseded."
+            )
+            out.append(
+                DraftFinding(
+                    "outdated_reference",
+                    detail,
+                    (cited,),
+                    _requirement(r),
+                    test_step=r.step.id,
+                )
+            )
+    return out
+
+
 def _as_number(v: PrintedValue) -> Number | Limit:
     assert isinstance(v, Number | Limit)
     return v
 
 
 def draft_findings(
-    reading: DraftReading, rows: list[DraftRow], datasheets: Sequence[Datasheet] = ()
+    reading: DraftReading,
+    rows: list[DraftRow],
+    datasheets: Sequence[Datasheet] = (),
+    register: Mapping[str, int] | None = None,
 ) -> list[DraftFinding]:
     """Every Check Finding on the draft: ``ac_deviates_from_urs`` by Test Step in draft order,
     then ``requirement_not_tested`` by table row, then the types added since (spec #375), each
     by Test Step in draft order, so the numbering of the older findings never moves.
-    ``datasheets``: the corpus's Datasheets, for ``ac_outside_documented_capability``."""
+    ``datasheets``: the corpus's Datasheets, for ``ac_outside_documented_capability``.
+    ``register``: the current revision of every document of the corpus, for
+    ``outdated_reference`` (none: the rule has nothing to compare with)."""
     return [
         *ac_deviates_from_urs(rows),
         *requirement_not_tested(reading),
         *ac_outside_documented_capability(rows, datasheets),
         *unit_error(rows),
+        *outdated_reference(reading, rows, register or {}),
     ]
