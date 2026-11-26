@@ -15,6 +15,7 @@ import {
   draftView,
   notReadStep,
   notTested,
+  outdatedReference,
   outsideCapability,
   proposal,
   unitError,
@@ -261,6 +262,15 @@ test("a unit error is named and labelled as not reviewed by a practitioner", () 
   });
   const row = within(stepRows()[2]!);
   expect(row.getByText("Satuan kriteria penerimaan salah")).toBeDefined();
+  expect(row.getByText("Belum ditinjau praktisi")).toBeDefined();
+});
+
+test("an outdated reference is named and labelled as not reviewed by a practitioner", () => {
+  renderDraft(draftView([{ finding: outdatedReference, proposal: null }]), {
+    access: { mode: "readOnly", why: "notImported" },
+  });
+  const row = within(stepRows()[2]!);
+  expect(row.getByText("Acuan dokumen dengan revisi lebih lama dari revisi terkini")).toBeDefined();
   expect(row.getByText("Belum ditinjau praktisi")).toBeDefined();
 });
 
