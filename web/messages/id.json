@@ -1182,6 +1182,8 @@
       "witnessed": "Disaksikan (witnessed)"
     },
     "targetLabel": "Rekaman Target",
+    "signerLabel": "Ditandatangani sebagai",
+    "signerUnknown": "Penandatangan tidak diketahui. Masuk kembali sebelum menandatangani.",
     "contentHashLabel": "Hash Konten",
     "verified": "Terverifikasi",
     "unverified": "Verifikasi Gagal (hash tidak cocok)",

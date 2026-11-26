@@ -22,7 +22,7 @@ export function ProtocolChecklistPanel({
   protocolId,
   draftHash,
   controls,
-  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
   onNavigateToRow,
   onNavigateToMissed,
@@ -98,6 +98,7 @@ export function ProtocolChecklistPanel({
                 targetSummary={t("submitModalDesc")}
                 signatureMeaning="prepared"
                 signingAuth={signingAuth}
+                signer={signingAuth.signer}
                 reauthNextUrl={`/runs/${encodeURIComponent(runId)}/protocol?reauth_target=protocol_submission`}
                 action={controls.submit}
                 confirmLabel={t("submit")}

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 
 import type { SignatureMeaning } from "@/api/client";
-import type { SigningAuthState } from "@/auth/session";
+import type { Signer, SigningAuthState } from "@/auth/session";
 import { Modal } from "./ui/Modal";
 import { SubmitButton } from "./ui/SubmitButton";
 
@@ -24,6 +24,7 @@ export function ElectronicSignatureDialog({
   signatureMeaning,
   contentHash,
   signingAuth,
+  signer,
   reauthNextUrl,
   onBeforeReauth,
   onReauthNavigate,
@@ -41,6 +42,8 @@ export function ElectronicSignatureDialog({
   signatureMeaning: SignatureMeaning;
   contentHash?: string | null;
   signingAuth: SigningAuthState;
+  /** Who will sign (required so no surface can omit it; null renders an explicit unknown-signer row). */
+  signer: Signer | null;
   reauthNextUrl: string;
   onBeforeReauth?: () => void;
   onReauthNavigate?: (url: string) => void;
@@ -114,6 +117,21 @@ export function ElectronicSignatureDialog({
           <div>
             <dt className="text-[11px] font-semibold text-ink-muted">{t("targetLabel")}</dt>
             <dd className="m-0 mt-0.5 font-medium text-ink">{targetSummary}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-semibold text-ink-muted">{t("signerLabel")}</dt>
+            <dd className="m-0 mt-0.5 font-semibold text-ink" data-testid="signature-signer">
+              {signer ? (
+                <>
+                  {signer.name}
+                  {signer.username && (
+                    <span className="ml-1 font-normal text-ink-muted">({signer.username})</span>
+                  )}
+                </>
+              ) : (
+                <span className="font-normal text-warn">{t("signerUnknown")}</span>
+              )}
+            </dd>
           </div>
           <div>
             <dt className="text-[11px] font-semibold text-ink-muted">{t("meaningLabel")}</dt>

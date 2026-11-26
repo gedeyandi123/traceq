@@ -51,7 +51,7 @@ export function QualificationReportWorkbench({
   report,
   execution,
   session,
-  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
   approveAction,
 }: {
@@ -337,6 +337,7 @@ export function QualificationReportWorkbench({
               signatureMeaning="approved"
               contentHash={report.execution_copy_hash}
               signingAuth={signingAuth}
+              signer={signingAuth.signer}
               reauthNextUrl={`/runs/${encodeURIComponent(runId)}/report?reauth_target=qualification_report`}
               onBeforeReauth={saveFormBeforeReauth}
               action={formAction}

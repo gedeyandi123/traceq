@@ -33,7 +33,7 @@ export function DeviationDetailDrawer({
   executionId,
   executionInProgress,
   deviation,
-  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
   open,
   onOpenChange,
@@ -380,6 +380,7 @@ export function DeviationDetailDrawer({
                   signatureMeaning="approved"
                   contentHash={deviation.closure_content_hash ?? null}
                   signingAuth={signingAuth}
+                  signer={signingAuth.signer}
                   reauthNextUrl={
                     runId
                       ? `/runs/${encodeURIComponent(runId)}/execution?reauth_target=${encodeURIComponent(`deviation_closure:${deviation.id}`)}`

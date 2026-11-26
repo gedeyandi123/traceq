@@ -463,6 +463,11 @@ test("executor sees manual deviation button and can open investigation form; app
         startAction={null}
         closeDeviationAction={noop}
         returnDeviationAction={noop}
+        signingAuth={{
+          oidcMode: false,
+          reauthAuthTime: null,
+          signer: { name: "Dewi Lestari", username: "dewi" },
+        }}
       />
     </NextIntlClientProvider>,
   );
@@ -476,6 +481,8 @@ test("executor sees manual deviation button and can open investigation form; app
   expect(
     screen.getByText("Penutupan deviasi adalah status tercatat, bukan Tanda Tangan Elektronik."),
   ).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Tutup deviasi" }));
+  expect((await screen.findByTestId("signature-signer")).textContent).toBe("Dewi Lestari(dewi)");
   unmountApprover();
 
   // Reader view
@@ -543,6 +550,11 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
         currentUser={{ subject: "demo-0005", issuer: "http://127.0.0.1:9000" }}
         startAction={null}
         witnessAction={noop}
+        signingAuth={{
+          oidcMode: false,
+          reauthAuthTime: null,
+          signer: { name: "Dewi Lestari", username: "dewi" },
+        }}
       />
     </NextIntlClientProvider>,
   );
@@ -554,7 +566,8 @@ test("displays Witness status and restricts Konfirmasi sebagai Saksi by role and
   expect(
     await screen.findByText("Belum dikonfirmasi Saksi (tidak ada langkah uji yang mewajibkan Saksi)."),
   ).toBeDefined();
-  expect(screen.getByRole("button", { name: "Konfirmasi sebagai Saksi" })).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Konfirmasi sebagai Saksi" }));
+  expect((await screen.findByTestId("signature-signer")).textContent).toBe("Dewi Lestari(dewi)");
   unmountEko();
 
   // 2. Non-witness (Ayu / Citra / Dewi) sees no confirm button

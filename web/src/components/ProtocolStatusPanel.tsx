@@ -129,6 +129,7 @@ function ApprovalForms({
         signatureMeaning="approved"
         contentHash={shown.hash}
         signingAuth={signingAuth}
+        signer={signingAuth.signer}
         reauthNextUrl={`/runs/${encodeURIComponent(runId)}/protocol?reauth_target=protocol_approval`}
         action={approval.approve}
         confirmLabel={t("approval.approve")}
@@ -187,7 +188,7 @@ export function ProtocolStatusPanel({
   runId,
   controls,
   approval,
-  signingAuth = { oidcMode: false, reauthAuthTime: null },
+  signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
 }: {
   t: T;

@@ -284,7 +284,11 @@ test("restores conclusion_note and next_requalification_date from sessionStorage
         report={reportFixture()}
         execution={null}
         session={approverSession}
-        signingAuth={{ oidcMode: true, reauthAuthTime: authTime }}
+        signingAuth={{
+          oidcMode: true,
+          reauthAuthTime: authTime,
+          signer: { name: "Citra Approver", username: "citra" },
+        }}
         initialReauthTarget="qualification_report"
         approveAction={vi.fn(async () => ({ ok: true }))}
       />
@@ -299,6 +303,7 @@ test("restores conclusion_note and next_requalification_date from sessionStorage
   ).toBe("2027-12-01");
   expect(screen.getByRole("dialog")).toBeDefined();
   expect(screen.getByText(/detik tersisa/i)).toBeDefined();
+  expect(screen.getByTestId("signature-signer").textContent).toBe("Citra Approver(citra)");
 });
 
 test("pressing Enter in the requalification date field does not issue the report without the signature dialog", async () => {
