@@ -27,3 +27,11 @@ A Proposal Decision is not an Electronic Signature.
 ## Amended 19 November 2026 (ADR 0013)
 
 Control 4 waits for step 6 of ADR 0010. From step 5b a Witness confirms a Result while signed in, and code refuses a Witness who is the Performer, but no Test Step requires a Witness: which ones do is a flag on the Protocol, and the owner has not yet adopted the practitioner's rule for it.
+
+## Amended 26 November 2026 (step 8)
+
+Step 8 of ADR 0010 is built, so the second phase above no longer describes the product. Protocol submission (`prepared`), Protocol Approval, Witness confirmation, Deviation Closure and Qualification Report approval (all `approved` or `witnessed`) are signed, each bound to the hash of the record's content. The label is "Electronic Signature" when the identity provider is Keycloak (OIDC, with re-authentication), and "Demo signature" in demo mode, which uses a demo identity without password re-authentication and is not an Electronic Signature.
+
+A "recorded status" now applies only to records written before step 8 (labelled "a recorded status, not an Electronic Signature", which the Qualification Report snapshot and its PDF keep verbatim), to Execution completion and round closing, and to Proposal Decisions.
+
+The claim stays "designed for, not validated". Nothing in the product says it complies with 21 CFR Part 11, CPOB Annex 7 or the draft EU GMP Annex 11 (2025).
