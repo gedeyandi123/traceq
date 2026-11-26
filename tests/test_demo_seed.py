@@ -189,3 +189,237 @@ def test_resolve_target_reads_idp_from_ready_file_and_uses_pkce_in_keycloak_mode
     headers = ds._token(None, issuer_url, "dewi", idp="keycloak")
     assert headers == {"Authorization": "Bearer pkce-dewi"}
     assert called == [("http://127.0.0.1:8080/realms/traceq", "dewi")]
+
+
+# --- Protocol with rows blocked by acceptance_not_shaped (issue #353) -------------------------
+
+
+class _FakeResp:
+    def __init__(self, status_code: int, body: Any) -> None:
+        self.status_code = status_code
+        self._body = body
+        self.text = json.dumps(body)
+
+    def json(self) -> Any:
+        return self._body
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+def _proposal(proposal_id: int, kind: str) -> dict[str, Any]:
+    return {
+        "id": proposal_id,
+        "kind": kind,
+        "requirement": None,
+        "position": None,
+        "content_hash": "c" * 64,
+        "state": "decided",
+        "decisions": [],
+        "previous": None,
+        "previous_class": None,
+    }
+
+
+def _row(
+    requirement: str, text: str, acceptance: dict[str, Any] | None, proposal_id: int
+) -> dict[str, Any]:
+    """A Test Step row as ``ProtocolRowView`` has it: an accepted draft with ``acceptance``."""
+    shaped = acceptance is not None and acceptance.get("type") != "text"
+    return {
+        "requirement": requirement,
+        "text": text,
+        "source": {"doc": "URS", "rev": 1, "page": 1, "quote": text},
+        "coverage": _proposal(proposal_id + 100, "coverage"),
+        "decided_class": "site_only",
+        "kind": "test_step",
+        "evidence": [],
+        "test_step": {
+            "origin": "accepted_draft",
+            "proposal_id": proposal_id,
+            "version": None,
+            "description": f"Check {requirement}",
+            "method": "Measure on site",
+            "instrument": "Tachometer",
+            "acceptance": acceptance,
+            "acceptance_flag": None,
+        },
+        "drafts": [],
+        "written": [],
+        "prefill": None,
+        "blockers": [] if shaped else ["acceptance_not_shaped"],
+    }
+
+
+def _view(rows: list[dict[str, Any]], status: str = "draft") -> dict[str, Any]:
+    """A Protocol view built through the real response model, so a shape drift fails here."""
+    from traceq.assembly.api import ProtocolView
+
+    blocked = [r["requirement"] for r in rows if r["blockers"]]
+    view = {
+        "id": 7,
+        "equipment": "TP-201",
+        "run_id": "r1",
+        "status": status,
+        "events": [],
+        "rows": rows,
+        "urs": [],
+        "checklist": [
+            {
+                "check": "acceptance_not_shaped",
+                "count": len(blocked),
+                "requirements": blocked,
+                "numbers": [],
+            }
+        ],
+        "draft_hash": None if blocked else "d" * 64,
+        "submission": None,
+        "submissions": [],
+    }
+    return ProtocolView.model_validate(view).model_dump(mode="json")
+
+
+class _SeedClient:
+    """A fake API holding one Protocol with rows, behaving like the routes it stands for."""
+
+    def __init__(self, rows: list[dict[str, Any]], submit_status: int = 200) -> None:
+        self.rows = rows
+        self.submit_status = submit_status
+        self.posts: list[tuple[str, Any]] = []
+
+    def get(self, url: str, headers: Any = None) -> _FakeResp:
+        if url.endswith("/proposals"):
+            return _FakeResp(200, [])
+        if url.endswith("/protocol"):
+            return _FakeResp(200, _view(self.rows))
+        raise AssertionError(f"unexpected GET {url}")
+
+    def post(self, url: str, headers: Any = None, json: Any = None) -> _FakeResp:
+        self.posts.append((url, json))
+        if url.endswith("/import"):
+            return _FakeResp(200, {"run_id": "r1", "already_imported": False})
+        if url.endswith("/decisions"):
+            return _FakeResp(201, {"id": 1})
+        if "/drafts/" in url and url.endswith("/edit"):
+            from traceq.assembly.api import DraftEdit
+
+            body = DraftEdit.model_validate(json)
+            proposal_id = int(url.split("/drafts/")[1].split("/")[0])
+            for i, row in enumerate(self.rows):
+                if row["test_step"]["proposal_id"] == proposal_id:
+                    self.rows[i] = _row(
+                        row["requirement"],
+                        row["text"],
+                        body.test_step.acceptance.model_dump(mode="json"),
+                        proposal_id,
+                    )
+            return _FakeResp(201, _view(self.rows))
+        if url.endswith("/submit"):
+            if self.submit_status != 200:
+                return _FakeResp(
+                    self.submit_status, {"detail": "blocked: acceptance_not_shaped (1)"}
+                )
+            return _FakeResp(
+                200,
+                {"id": 7, "status": "submitted", "submission": {"event_id": 5, "hash": "h"}},
+            )
+        if url.endswith("/demo/token"):
+            return _FakeResp(200, {"access_token": f"tok-{json['username']}"})
+        if url.endswith("/approve"):
+            return _FakeResp(200, {"id": 7, "status": "approved"})
+        raise AssertionError(f"unexpected POST {url}")
+
+
+def test_demo_acceptance_reads_range_from_requirement_text_else_present() -> None:
+    from traceq.assembly.written import WrittenContent
+
+    ds = _load_demo_seed()
+    texts = {
+        "Speed shall be 20–70 rpm.": {"type": "range", "min": 20.0, "max": 70.0, "unit": "rpm"},
+        "Speed shall be 20-70 rpm": {"type": "range", "min": 20.0, "max": 70.0, "unit": "rpm"},
+        "The panel shall show an alarm.": {"type": "present"},
+    }
+    for text, expected in texts.items():
+        got = ds._demo_acceptance(text)
+        assert got == expected
+        WrittenContent.model_validate(
+            {"description": "d", "method": "m", "instrument": None, "acceptance": got}
+        )
+
+
+def test_blocked_rows_are_rejected_then_edited_with_a_shaped_acceptance_then_submitted() -> None:
+    ds = _load_demo_seed()
+    rows = [
+        _row("URS-1", "Speed shall be 20–70 rpm.", None, 11),
+        _row("URS-2", "An alarm shall sound.", {"type": "text", "value": "see manual"}, 12),
+        _row("URS-3", "Done already.", {"type": "present", "value": None}, 13),
+    ]
+    client = _SeedClient(rows)
+    proto = ds._ensure_approved_protocol(client, "http://api", "http://iss", "r1", {"a": "1"})
+    assert proto["status"] == "approved"
+
+    urls = [u for u, _ in client.posts]
+    # Only the blocked rows are touched; each is rejected before it is edited.
+    assert not any("/drafts/13/" in u or "/proposals/13/" in u for u in urls)
+    for pid in (11, 12):
+        reject = urls.index(f"http://api/runs/r1/proposals/{pid}/decisions")
+        edit = urls.index(f"http://api/protocols/7/drafts/{pid}/edit")
+        assert reject < edit
+    edits = {u: b for u, b in client.posts if u.endswith("/edit")}
+    first = edits["http://api/protocols/7/drafts/11/edit"]
+    assert first["test_step"]["acceptance"]["type"] == "range"
+    assert first["reason"].startswith("Demo seed")
+    assert edits["http://api/protocols/7/drafts/12/edit"]["test_step"]["acceptance"] == {
+        "type": "present"
+    }
+    # The draft hash read after the edits is the one submitted.
+    assert ("http://api/protocols/7/submit", {"expected_draft_hash": "d" * 64}) in client.posts
+
+
+def test_unblocked_protocol_is_not_edited_again() -> None:
+    ds = _load_demo_seed()
+    client = _SeedClient([_row("URS-1", "x", {"type": "present", "value": None}, 11)])
+    ds._ensure_approved_protocol(client, "http://api", "http://iss", "r1", {"a": "1"})
+    assert not any(u.endswith("/edit") for u, _ in client.posts)
+
+
+def test_a_409_on_submit_surfaces_its_detail() -> None:
+    ds = _load_demo_seed()
+    client = _SeedClient([_row("URS-1", "x", {"type": "present", "value": None}, 11)], 409)
+    with pytest.raises(RuntimeError, match=r"409.*acceptance_not_shaped"):
+        ds._ensure_approved_protocol(client, "http://api", "http://iss", "r1", {"a": "1"})
+
+
+def test_a_blocked_row_that_cannot_be_edited_names_the_row() -> None:
+    ds = _load_demo_seed()
+    row = _row("URS-1", "x", None, 11)
+    row["test_step"]["origin"] = "written"
+    client = _SeedClient([row])
+    with pytest.raises(RuntimeError, match="URS-1"):
+        ds._ensure_approved_protocol(client, "http://api", "http://iss", "r1", {"a": "1"})
+
+
+def test_keycloak_defaults_the_issuer_url_and_demo_keeps_its_own() -> None:
+    import argparse
+
+    ds = _load_demo_seed()
+
+    def _args(idp: str | None) -> argparse.Namespace:
+        return argparse.Namespace(
+            ready_file=None,
+            api_url=None,
+            issuer_url=None,
+            idp=idp,
+            run_id="r1",
+            review_package=False,
+        )
+
+    api, issuer, _, idp = ds._resolve_target(_args("keycloak"), None)
+    assert (api, issuer, idp) == (
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8080/realms/traceq",
+        "keycloak",
+    )
+    api, issuer, _, idp = ds._resolve_target(_args(None), None)
+    assert (issuer, idp) == ("http://127.0.0.1:9000", "demo")

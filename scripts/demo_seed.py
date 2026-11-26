@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,20 @@ from traceq.app.demo import keycloak_pkce_token
 
 DEFAULT_API_URL = "http://127.0.0.1:8000"
 DEFAULT_ISSUER_URL = "http://127.0.0.1:9000"
+KEYCLOAK_ISSUER_URL = "http://127.0.0.1:8080/realms/traceq"
+"""The Keycloak realm URL of docs/demo-runbook.md section 15 (``Settings.keycloak_url``)."""
+
+_RANGE = re.compile(
+    r"(?P<lo>-?\d+(?:[.,]\d+)?)\s*(?:[-–—]|to)\s*(?P<hi>-?\d+(?:[.,]\d+)?)"
+    r"\s*(?P<unit>[A-Za-z%°µ][A-Za-z0-9%°µ/.]*)"
+)
+
+
+def _checked(resp: Any, what: str) -> Any:
+    """The response when it succeeded; otherwise an error naming the call and the body."""
+    if resp.status_code >= 400:
+        raise RuntimeError(f"{what} failed: {resp.status_code} {resp.text}")
+    return resp
 
 
 def _token(
@@ -36,8 +51,10 @@ def _token(
 
 def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str, str, str, str]:
     api_url: str = args.api_url or DEFAULT_API_URL
-    issuer_url: str = args.issuer_url or DEFAULT_ISSUER_URL
     idp: str = getattr(args, "idp", None) or "demo"
+    issuer_url: str = args.issuer_url or (
+        KEYCLOAK_ISSUER_URL if idp == "keycloak" else DEFAULT_ISSUER_URL
+    )
     run_id: str | None = args.run_id
     if args.ready_file is not None:
         meta = json.loads(Path(args.ready_file).read_text(encoding="utf-8"))
@@ -45,6 +62,8 @@ def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str
         issuer_url = args.issuer_url or str(meta["issuer_url"])
         if getattr(args, "idp", None) is None and meta.get("idp"):
             idp = str(meta["idp"])
+        if not args.issuer_url and not meta.get("issuer_url") and idp == "keycloak":
+            issuer_url = KEYCLOAK_ISSUER_URL
         if not getattr(args, "review_package", False):
             run_id = run_id or str(meta["run_id"])
     if run_id is None:
@@ -103,6 +122,71 @@ def _witness_payload(latest_ver: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _demo_acceptance(requirement_text: str) -> dict[str, Any]:
+    """An Acceptance Criterion for a demo row: the ``a-b unit`` range its requirement text
+    prints, otherwise ``present``."""
+    m = _RANGE.search(requirement_text)
+    if m is not None:
+        lo = float(m["lo"].replace(",", "."))
+        hi = float(m["hi"].replace(",", "."))
+        if lo <= hi:
+            return {"type": "range", "min": lo, "max": hi, "unit": m["unit"].rstrip(".")}
+    return {"type": "present"}
+
+
+def _shape_acceptances(
+    client: Any, api_url: str, protocol_id: int, proto: dict[str, Any], ayu: dict[str, str]
+) -> dict[str, Any]:
+    """Sets a shaped Acceptance Criterion, as a person does, on every row blocked by
+    ``acceptance_not_shaped``: its accepted draft is rejected, then edited (the edit route
+    is refused while that draft stays accepted). Returns the latest Protocol view."""
+    for row in proto.get("rows") or []:
+        if "acceptance_not_shaped" not in (row.get("blockers") or []):
+            continue
+        step = row["test_step"]
+        proposal_id = step.get("proposal_id")
+        if step.get("origin") != "accepted_draft" or proposal_id is None:
+            raise RuntimeError(f"Row {row['requirement']} is not an accepted draft: cannot edit")
+        rej = client.post(
+            f"{api_url}/runs/{proto['run_id']}/proposals/{proposal_id}/decisions",
+            headers=ayu,
+            json={
+                "decision": "rejected",
+                "reason": "Demo seed: rejected to edit the draft with a shaped acceptance",
+            },
+        )
+        _checked(rej, f"Rejecting draft {proposal_id} of {row['requirement']}")
+        edit = client.post(
+            f"{api_url}/protocols/{protocol_id}/drafts/{proposal_id}/edit",
+            headers=ayu,
+            json={
+                "reason": "Demo seed: acceptance criterion set so the row can be executed",
+                "test_step": {
+                    "description": step["description"],
+                    "method": step["method"],
+                    "instrument": step.get("instrument"),
+                    "acceptance": _demo_acceptance(str(row["text"])),
+                },
+            },
+        )
+        _checked(edit, f"Editing draft {proposal_id} of {row['requirement']}")
+        proto = edit.json()
+    return proto
+
+
+def _blocking(proto: dict[str, Any]) -> str:
+    """What still blocks submission: the non-zero checks of the checklist, the rows' blockers."""
+    checks = [
+        f"{c['check']} ({c['count']}): {c.get('requirements') or c.get('numbers')}"
+        for c in proto.get("checklist") or []
+        if c["count"]
+    ]
+    rows = [
+        f"{r['requirement']}: {r['blockers']}" for r in proto.get("rows") or [] if r["blockers"]
+    ]
+    return "; ".join([*checks, *rows])
+
+
 def _ensure_approved_protocol(
     client: Any,
     api_url: str,
@@ -152,21 +236,18 @@ def _ensure_approved_protocol(
     protocol_id = int(proto["id"])
 
     if proto["status"] == "draft":
-        blockers = proto.get("blockers") or []
-        if blockers:
-            raise RuntimeError(
-                f"Protocol {protocol_id} has blockers preventing submission: {blockers}"
-            )
+        proto = _shape_acceptances(client, api_url, protocol_id, proto, ayu)
         draft_hash = proto.get("draft_hash")
         if not draft_hash:
-            raise RuntimeError(f"Protocol {protocol_id} has no draft hash: a check blocks it")
+            raise RuntimeError(
+                f"Protocol {protocol_id} cannot be submitted, a check blocks it: {_blocking(proto)}"
+            )
         sub = client.post(
             f"{api_url}/protocols/{protocol_id}/submit",
             headers=_token(client, issuer_url, "ayu", idp=idp),
             json={"expected_draft_hash": str(draft_hash)},
         )
-        sub.raise_for_status()
-        proto = sub.json()
+        proto = _checked(sub, f"Submitting Protocol {protocol_id}").json()
 
     if proto["status"] == "submitted":
         submission = proto["submission"]
@@ -178,8 +259,7 @@ def _ensure_approved_protocol(
                 "hash": str(submission["hash"]),
             },
         )
-        app.raise_for_status()
-        proto = app.json()
+        proto = _checked(app, f"Approving Protocol {protocol_id}").json()
     return proto
 
 
