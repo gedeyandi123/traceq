@@ -646,3 +646,74 @@ test("ProtocolRowDrawer shows stage and witness_required controls when updateAtt
     expect(updateAttributesInline).toHaveBeenCalledTimes(1);
   });
 });
+
+// --- A failed signing must tell the signer (issue #348) -----------------------------------
+
+function pageFor(
+  protocol: ProtocolView,
+  props: { decisions: DecisionView; error?: ProtocolError; asApprover?: boolean },
+) {
+  return (
+    <NextIntlClientProvider locale="id" messages={messages} timeZone="UTC">
+      <RunShellProvider>
+        <AssembledProtocolView
+          protocol={protocol}
+          runId={RUN_ID}
+          decisions={props.decisions}
+          controls={props.decisions.access.mode === "decide" ? controls : null}
+          approval={props.asApprover ? approvalControls : null}
+          signingAuth={SIGNING_AUTH}
+          error={props.error}
+        />
+      </RunShellProvider>
+    </NextIntlClientProvider>
+  );
+}
+
+test("a stale-draft conflict closes the submit dialog and moves focus to the page alert", async () => {
+  const user = userEvent.setup();
+  const protocol = protocolView({ checklist: ready });
+  const { rerender } = render(pageFor(protocol, { decisions: decider }));
+  await user.click(screen.getByRole("button", { name: "Ajukan protokol" }));
+  await screen.findByRole("dialog", { name: "Ajukan protokol untuk persetujuan?" });
+
+  rerender(pageFor(protocol, { decisions: decider, error: "conflict" }));
+
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const alert = screen.getByRole("alert");
+  expect(alert.textContent).toContain("muat ulang dan periksa lagi");
+  await waitFor(() => expect(document.activeElement).toBe(alert));
+});
+
+test("reopening the dialog while the conflict is unresolved shows it inside the dialog", async () => {
+  const user = userEvent.setup();
+  const protocol = protocolView({ checklist: ready });
+  const { rerender } = render(pageFor(protocol, { decisions: decider }));
+  await user.click(screen.getByRole("button", { name: "Ajukan protokol" }));
+  await screen.findByRole("dialog");
+  rerender(pageFor(protocol, { decisions: decider, error: "conflict" }));
+  await user.click(screen.getByRole("button", { name: "Ajukan protokol" }));
+  const dialog = within(await screen.findByRole("dialog"));
+  expect(dialog.getByRole("alert").textContent).toContain("muat ulang dan periksa lagi");
+});
+
+test("a failed approval closes the approve dialog and shows the alert", async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(pageFor(submitted, { decisions: reader, asApprover: true }));
+  await user.click(screen.getByRole("button", { name: "Setujui protokol" }));
+  await screen.findByRole("dialog", { name: "Setujui protokol" });
+  rerender(pageFor(submitted, { decisions: reader, asApprover: true, error: "forbidden" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("alert").textContent).toContain("tidak memiliki peran");
+});
+
+test("a reauth_required error keeps the dialog open and shows it inside", async () => {
+  const user = userEvent.setup();
+  const protocol = protocolView({ checklist: ready });
+  const { rerender } = render(pageFor(protocol, { decisions: decider }));
+  await user.click(screen.getByRole("button", { name: "Ajukan protokol" }));
+  await screen.findByRole("dialog");
+  rerender(pageFor(protocol, { decisions: decider, error: "reauth_required" }));
+  const dialog = within(screen.getByRole("dialog"));
+  expect(dialog.getByRole("alert").textContent).toContain("Autentikasi ulang diperlukan");
+});

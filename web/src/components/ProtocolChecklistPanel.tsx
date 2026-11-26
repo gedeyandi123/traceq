@@ -6,8 +6,9 @@ import { useState } from "react";
 
 import type { ChecklistItem } from "@/api/client";
 import type { SigningAuthState } from "@/auth/session";
-import type { ProtocolControls } from "./AssembledProtocolView";
+import type { ProtocolControls, ProtocolError } from "./AssembledProtocolView";
 import { ElectronicSignatureDialog } from "./ElectronicSignatureDialog";
+import { useSigningDialog } from "./useSigningDialog";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
 
@@ -24,6 +25,7 @@ export function ProtocolChecklistPanel({
   controls,
   signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
+  error,
   onNavigateToRow,
   onNavigateToMissed,
 }: {
@@ -36,13 +38,16 @@ export function ProtocolChecklistPanel({
   controls: ProtocolControls;
   signingAuth?: SigningAuthState;
   initialReauthTarget?: string | null;
+  /** The page's refused-action error: shown inside the dialog, which it also closes (`useSigningDialog`). */
+  error?: ProtocolError;
   onNavigateToRow?: (requirement: string) => void;
   onNavigateToMissed?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const blocked = items.some((i) => i.count > 0);
-  const [submitOpen, setSubmitOpen] = useState(
-    () => initialReauthTarget === "protocol_submission" && !blocked && controls !== null,
+  const { open: submitOpen, setOpen: setSubmitOpen } = useSigningDialog(
+    error,
+    initialReauthTarget === "protocol_submission" && !blocked && controls !== null,
   );
 
   return (
@@ -103,6 +108,8 @@ export function ProtocolChecklistPanel({
                 action={controls.submit}
                 confirmLabel={t("submit")}
                 cancelLabel={t("cancel")}
+                error={error ? t(`errors.${error}`) : null}
+                isReauthError={error === "reauth_required"}
               >
                 <input type="hidden" name="run_id" value={runId} />
                 <input type="hidden" name="protocol_id" value={protocolId} />
