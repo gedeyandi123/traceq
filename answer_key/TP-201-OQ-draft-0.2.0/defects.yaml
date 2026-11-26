@@ -1,4 +1,4 @@
-# TP-201-OQ-draft answer key: defects.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability not reviewed by a practitioner.
+# TP-201-OQ-draft answer key: defects.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability and unit_error not reviewed by a practitioner.
 # Generated, do not edit:
 #   uv run python -m traceq_dataset.review_package world/<file>.yaml
 # Refers to corpus-v0.1.1. Never sent to an LLM (design section 6).
@@ -72,19 +72,6 @@
   type: requirement_not_tested
   severity: major
   layer: rule
-  detail: 'The traceability table lists URS-TP201-017 under OQ-12, but the draft has no Test Step OQ-12:
-    the requirement is not tested.'
-  row: URS-TP201-017
-  requirement: URS-TP201-017
-  documents:
-  - {doc: OQ-TP201, rev: 0}
-  locations:
-  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-017.requirement, text: URS-TP201-017}
-  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-017.steps, text: OQ-12}
-- id: D-TP201OQ-007
-  type: requirement_not_tested
-  severity: major
-  layer: rule
   detail: 'The traceability table lists URS-TP201-023 under OQ-18, but the draft has no Test Step OQ-18:
     the requirement is not tested.'
   row: URS-TP201-023
@@ -94,6 +81,19 @@
   locations:
   - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-023.requirement, text: URS-TP201-023}
   - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-023.steps, text: OQ-18}
+- id: D-TP201OQ-007
+  type: requirement_not_tested
+  severity: major
+  layer: rule
+  detail: 'The traceability table lists URS-TP201-027 under OQ-22, but the draft has no Test Step OQ-22:
+    the requirement is not tested.'
+  row: URS-TP201-027
+  requirement: URS-TP201-027
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-027.requirement, text: URS-TP201-027}
+  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-027.steps, text: OQ-22}
 - id: D-TP201OQ-008
   type: ac_outside_documented_capability
   severity: major
@@ -129,3 +129,35 @@
       gaya tekan maksimal ±1% dari skala penuh.}
   capability: {doc: DS-TP201, rev: 0, page: 1, name: Compression force measurement accuracy (max. ±),
     printed: 1 % FS, kind: accuracy}
+- id: D-TP201OQ-010
+  type: unit_error
+  severity: major
+  layer: rule
+  not_reviewed_by_practitioner: true
+  detail: 'OQ-07 prints 18 cm where URS-TP201-007 says 18 mm: the number is the URS number and the unit
+    is off by a factor of ten.'
+  test_step: OQ-07
+  requirement: URS-TP201-007
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 3, field: OQ-07.acceptance, text: maks. 18 cm}
+  compared_with: {doc: URS-TP201, rev: 1, page: 1, requirement: URS-TP201-007, text: Kedalaman pengisian
+      maksimal 18 mm.}
+  unit: {kind: prefix, urs: mm, printed: cm}
+- id: D-TP201OQ-011
+  type: unit_error
+  severity: major
+  layer: rule
+  not_reviewed_by_practitioner: true
+  detail: 'OQ-23 prints 300 m²/jam where URS-TP201-028 says 300 m³/h: the number is the URS number but
+    an area per hour is not a flow.'
+  test_step: OQ-23
+  requirement: URS-TP201-028
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 6, field: OQ-23.acceptance, text: minimal 300 m²/jam}
+  compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-028, text: Sambungan dust extraction
+      kompatibel dengan sistem pabrik minimal 300 m³/jam.}
+  unit: {kind: dimension, urs: m3/h, printed: m²/jam}

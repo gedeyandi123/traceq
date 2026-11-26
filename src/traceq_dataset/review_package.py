@@ -125,6 +125,17 @@ class Outside(Acceptance):
     capability: Capability
 
 
+class UnitSlip(Acceptance):
+    """The URS number printed in a wrong unit (``unit_error``, spec #375): the number equals the
+    URS number and the unit differs by an SI prefix factor (``kind`` ``prefix``) or has other
+    dimensions (``kind`` ``dimension``). It is placed on a requirement the world data fixes."""
+
+    detail: str = Field(description="The expected finding, as a reviewer would write it.")
+    kind: Literal["prefix", "dimension"]
+    urs_unit: str = Field(description="The unit as the URS prints it.")
+    printed_unit: str = Field(description="The unit as the draft prints it.")
+
+
 class Trap(Acceptance):
     """Correct and close to the URS limit, or the same limit written another way: printed when
     the draw makes the step a Clean Trap. ``capability``: the Datasheet row the criterion is
@@ -143,6 +154,7 @@ class Step(Model):
     deviates: Deviating | None = None
     trap: Trap | None = None
     outside: Outside | None = None
+    unit_slip: UnitSlip | None = None
 
 
 class CorpusDocument(Model):
@@ -183,6 +195,7 @@ class Placements(Model):
     requirement_not_tested: tuple[str, ...]
     injection_probes: ProbePlacements
     ac_outside_documented_capability: tuple[str, ...] = ()
+    unit_error: tuple[str, ...] = ()
 
 
 class Fixed(Model):
@@ -191,6 +204,7 @@ class Fixed(Model):
     lists leave the draw's pool; the draw fills the rest."""
 
     ac_outside_documented_capability: tuple[str, ...] = ()
+    unit_error: tuple[str, ...] = ()
     clean_traps: tuple[str, ...] = ()
 
 
@@ -259,10 +273,13 @@ def draw(package: Package, requirements: Sequence[Mapping[str, Any]]) -> Placeme
     for r in fixed.ac_outside_documented_capability:
         if r not in steps or steps[r].outside is None:
             raise RenderError(f"{r}: fixed as outside the capability but has no `outside`")
+    for r in fixed.unit_error:
+        if r not in steps or steps[r].unit_slip is None:
+            raise RenderError(f"{r}: fixed as a unit error but has no `unit_slip`")
     for r in fixed.clean_traps:
         if r not in steps or steps[r].trap is None:
             raise RenderError(f"{r}: fixed as a Clean Trap but has no `trap`")
-    held = {*fixed.ac_outside_documented_capability, *fixed.clean_traps}
+    held = {*fixed.ac_outside_documented_capability, *fixed.unit_error, *fixed.clean_traps}
     pool = [r for r in comparable(requirements) if r in planned and r not in held]
     picked = rng.sample(pool, d.ac_deviates_from_urs + d.clean_traps - len(fixed.clean_traps))
     defects = sorted(picked[: d.ac_deviates_from_urs])
@@ -273,6 +290,7 @@ def draw(package: Package, requirements: Sequence[Mapping[str, Any]]) -> Placeme
     return Placements(
         ac_deviates_from_urs=tuple(defects),
         ac_outside_documented_capability=tuple(sorted(fixed.ac_outside_documented_capability)),
+        unit_error=tuple(sorted(fixed.unit_error)),
         clean_traps=tuple(traps),
         requirement_not_tested=tuple(not_tested),
         injection_probes=ProbePlacements(remarks=remarks, small_print=small_print),
@@ -308,6 +326,10 @@ def printed(step: Step, drawn: Placements) -> Acceptance:
         if step.outside is None:
             raise RenderError(f"{step.id}: placed as outside the capability but has no `outside`")
         return step.outside
+    if step.requirement in drawn.unit_error:
+        if step.unit_slip is None:
+            raise RenderError(f"{step.id}: placed as a unit error but has no `unit_slip`")
+        return step.unit_slip
     if step.requirement in drawn.ac_deviates_from_urs:
         if step.deviates is None:
             raise RenderError(f"{step.id}: drawn as a defect but has no `deviates`")
@@ -473,7 +495,7 @@ NOT_REVIEWED_TYPES = ("ac_outside_documented_capability", "unit_error", "outdate
 """Types no practitioner has reviewed (ADR 0010, amended 26 Nov 2026). Every defect of these
 types carries ``not_reviewed_by_practitioner: true`` in the key, a field and not prose; the
 scorer carries it into its labels. 0.1.0's two types carry no such field."""
-COUNTS = {"defects": (6, 10), "clean_traps": (4, 6), "injection_probes": (2, 2)}
+COUNTS = {"defects": (6, 14), "clean_traps": (4, 6), "injection_probes": (2, 2)}
 """Design section 11, "Size"."""
 
 
@@ -582,6 +604,29 @@ def derive_key(
                     "locations": [_location(draft, f"{s.id}.acceptance")],
                     "compared_with": _compared_with(package, reqs[s.requirement]),
                     "capability": s.outside.capability.model_dump(mode="json"),
+                }
+            )
+    for s in steps:
+        if s.requirement in drawn.unit_error:
+            assert s.unit_slip is not None
+            defects.append(
+                {
+                    "id": f"D-{tag}-{len(defects) + 1:03d}",
+                    "type": "unit_error",
+                    "severity": SEVERITY,
+                    "layer": LAYER,
+                    NOT_REVIEWED_FIELD: True,
+                    "detail": s.unit_slip.detail,
+                    "test_step": s.id,
+                    "requirement": s.requirement,
+                    "documents": [{"doc": draft.doc_id, "rev": draft.rev}],
+                    "locations": [_location(draft, f"{s.id}.acceptance")],
+                    "compared_with": _compared_with(package, reqs[s.requirement]),
+                    "unit": {
+                        "kind": s.unit_slip.kind,
+                        "urs": s.unit_slip.urs_unit,
+                        "printed": s.unit_slip.printed_unit,
+                    },
                 }
             )
     traps = [
