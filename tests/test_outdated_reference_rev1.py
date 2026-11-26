@@ -1,6 +1,6 @@
 """Revision 1 of the 0.2.0 draft read live once with the rule ``outdated_reference`` on (spec
 #375, ticket S2c): the two citations revision 0 got wrong are fixed (OQ-02, OQ-26) and one new
-stale citation is added (OQ-12). The recordings are in ``recordings/haiku-oq-draft-r7`` beside
+stale citation is added (OQ-12). The recordings are in ``recordings/haiku-oq-draft-r8`` beside
 revision 0's; no baseline is written for revision 1 (the baseline is revision 0's). Dev only;
 the type is not reviewed by a practitioner."""
 
@@ -28,7 +28,7 @@ from traceq_eval.submission import Submission
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORDINGS = ROOT / "recordings"
-R7 = RECORDINGS / "haiku-oq-draft-r7"
+R8 = RECORDINGS / "haiku-oq-draft-r8"
 TAG = "TP-201-OQ-draft"
 OUTDATED = "outdated_reference"
 
@@ -46,7 +46,7 @@ def replayed(tmp_path_factory: pytest.TempPathFactory) -> RunOutput:
         "claude-haiku-5-5",
         equipment="TP-201",
         review_package=RECORDINGS / "TP-201-OQ-draft-0.2.0",
-        package_recordings=R7,
+        package_recordings=R8,
         draft_rev=1,
     )
 
@@ -72,10 +72,10 @@ def report(replayed: RunOutput, tp201_corpus: Corpus) -> dict[str, Any]:
 
 
 def test_the_run_replays_at_tolerance_0(replayed: RunOutput, report: dict[str, Any]) -> None:
-    recorded = _json(R7 / f"run-{TAG}-rev1.json")
-    expected = _json(R7 / f"report-{TAG}-rev1.json")
+    recorded = _json(R8 / f"run-{TAG}-rev1.json")
+    expected = _json(R8 / f"report-{TAG}-rev1.json")
     assert recorded["mode"] == "live" and recorded["review_package"]["calls"]["live"] == 9
-    assert recorded["live_cost_usd"] == 0.004642
+    assert recorded["live_cost_usd"] == 0.004277
     assert replayed.metadata["calls"] == {"total": 158, "replayed": 158, "live": 0}
     assert replayed.metadata["cost_usd"] == recorded["cost_usd"]
     assert replayed.metadata["prompts"] == recorded["prompts"]

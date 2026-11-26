@@ -15,7 +15,7 @@
     "name": "traceq",
     "model": "claude-haiku-5-5",
     "prompt": "0dc6b64f04fc",
-    "run_id": "20261126T224509Z-d16c1e"
+    "run_id": "20261126T232055Z-9d5f17"
   },
   "scorer_version": "0.8.0",
   "equipment": "TP-201",
@@ -26,32 +26,25 @@
     "labels": [
       "dev only",
       "labels not reviewed",
-      "ac_outside_documented_capability: not reviewed by a practitioner",
-      "outdated_reference: not reviewed by a practitioner",
-      "unit_error: not reviewed by a practitioner"
+      "outdated_reference: not reviewed by a practitioner"
     ],
     "not_reviewed_types": [
-      "ac_outside_documented_capability",
-      "outdated_reference",
-      "unit_error"
+      "outdated_reference"
     ],
-    "draft_rev": 0,
+    "draft_rev": 1,
     "metrics": {
-      "test_steps": 26,
-      "ac_read_right": 26,
+      "test_steps": 28,
+      "ac_read_right": 28,
       "ac_reading_rate": 1.0,
-      "not_compared": 17,
+      "not_compared": 18,
       "unknown_draft_steps": [],
-      "defects": 13,
-      "recall": 0.9231,
+      "defects": 3,
+      "recall": 1.0,
       "recall_by_type": {
-        "ac_deviates_from_urs": 0.8,
-        "ac_outside_documented_capability": 1.0,
-        "outdated_reference": 1.0,
-        "requirement_not_tested": 1.0,
-        "unit_error": 1.0
+        "ac_deviates_from_urs": 1.0,
+        "outdated_reference": 1.0
       },
-      "findings": 12,
+      "findings": 3,
       "wrong_findings": 0,
       "precision": 1.0,
       "findings_on_clean_traps": 0,
@@ -66,43 +59,28 @@
     },
     "counts": {
       "ac_reading": {
-        "k": 26,
-        "n": 26,
+        "k": 28,
+        "n": 28,
         "rate": 1.0
       },
       "recall": {
-        "k": 12,
-        "n": 13,
-        "rate": 0.9231
+        "k": 3,
+        "n": 3,
+        "rate": 1.0
       },
       "recall_by_type.ac_deviates_from_urs": {
-        "k": 4,
-        "n": 5,
-        "rate": 0.8
-      },
-      "recall_by_type.ac_outside_documented_capability": {
         "k": 2,
         "n": 2,
         "rate": 1.0
       },
       "recall_by_type.outdated_reference": {
-        "k": 2,
-        "n": 2,
-        "rate": 1.0
-      },
-      "recall_by_type.requirement_not_tested": {
-        "k": 2,
-        "n": 2,
-        "rate": 1.0
-      },
-      "recall_by_type.unit_error": {
-        "k": 2,
-        "n": 2,
+        "k": 1,
+        "n": 1,
         "rate": 1.0
       },
       "precision": {
-        "k": 12,
-        "n": 12,
+        "k": 3,
+        "n": 3,
         "rate": 1.0
       },
       "clean_traps_without_finding": {
@@ -121,8 +99,8 @@
         "id": "OQ-01",
         "read_right": true,
         "citation": "verified",
-        "compared": false,
-        "not_compared": "the URS states a single number; the acceptance criterion does not"
+        "compared": true,
+        "not_compared": null
       },
       {
         "id": "OQ-02",
@@ -216,6 +194,13 @@
         "not_compared": "acceptance criterion: no number"
       },
       {
+        "id": "OQ-15",
+        "read_right": true,
+        "citation": "verified",
+        "compared": false,
+        "not_compared": "acceptance criterion: no number"
+      },
+      {
         "id": "OQ-16",
         "read_right": true,
         "citation": "verified",
@@ -254,15 +239,22 @@
         "id": "OQ-21",
         "read_right": true,
         "citation": "verified",
-        "compared": true,
-        "not_compared": null
+        "compared": false,
+        "not_compared": "the URS states a single number; the acceptance criterion does not"
+      },
+      {
+        "id": "OQ-22",
+        "read_right": true,
+        "citation": "verified",
+        "compared": false,
+        "not_compared": "the URS states a two-sided range"
       },
       {
         "id": "OQ-23",
         "read_right": true,
         "citation": "verified",
-        "compared": false,
-        "not_compared": "units do not compare (m²/jam and m³/jam)"
+        "compared": true,
+        "not_compared": null
       },
       {
         "id": "OQ-24",
@@ -302,15 +294,6 @@
     ],
     "defects": [
       {
-        "id": "D-TP201OQ-001",
-        "type": "ac_deviates_from_urs",
-        "test_step": "OQ-01",
-        "row": null,
-        "requirement": "URS-TP201-001",
-        "found_by": [],
-        "urs_value_read_right": false
-      },
-      {
         "id": "D-TP201OQ-002",
         "type": "ac_deviates_from_urs",
         "test_step": "OQ-03",
@@ -322,128 +305,24 @@
         "urs_value_read_right": false
       },
       {
-        "id": "D-TP201OQ-003",
-        "type": "ac_deviates_from_urs",
-        "test_step": "OQ-08",
-        "row": null,
-        "requirement": "URS-TP201-010",
-        "found_by": [
-          11
-        ],
-        "urs_value_read_right": true
-      },
-      {
-        "id": "D-TP201OQ-004",
-        "type": "ac_deviates_from_urs",
-        "test_step": "OQ-21",
-        "row": null,
-        "requirement": "URS-TP201-026",
-        "found_by": [
-          12
-        ],
-        "urs_value_read_right": false
-      },
-      {
         "id": "D-TP201OQ-005",
         "type": "ac_deviates_from_urs",
         "test_step": "OQ-24",
         "row": null,
         "requirement": "URS-TP201-029",
         "found_by": [
-          13
+          11
         ],
         "urs_value_read_right": true
       },
       {
-        "id": "D-TP201OQ-006",
-        "type": "requirement_not_tested",
-        "test_step": null,
-        "row": "URS-TP201-020",
-        "requirement": "URS-TP201-020",
-        "found_by": [
-          14
-        ],
-        "urs_value_read_right": true
-      },
-      {
-        "id": "D-TP201OQ-007",
-        "type": "requirement_not_tested",
-        "test_step": null,
-        "row": "URS-TP201-027",
-        "requirement": "URS-TP201-027",
-        "found_by": [
-          15
-        ],
-        "urs_value_read_right": true
-      },
-      {
-        "id": "D-TP201OQ-008",
-        "type": "ac_outside_documented_capability",
-        "test_step": "OQ-04",
-        "row": null,
-        "requirement": "URS-TP201-004",
-        "found_by": [
-          16
-        ],
-        "urs_value_read_right": true,
-        "not_reviewed_by_practitioner": true
-      },
-      {
-        "id": "D-TP201OQ-009",
-        "type": "ac_outside_documented_capability",
-        "test_step": "OQ-11",
-        "row": null,
-        "requirement": "URS-TP201-016",
-        "found_by": [
-          17
-        ],
-        "urs_value_read_right": false,
-        "not_reviewed_by_practitioner": true
-      },
-      {
-        "id": "D-TP201OQ-010",
-        "type": "unit_error",
-        "test_step": "OQ-07",
-        "row": null,
-        "requirement": "URS-TP201-007",
-        "found_by": [
-          18
-        ],
-        "urs_value_read_right": false,
-        "not_reviewed_by_practitioner": true
-      },
-      {
-        "id": "D-TP201OQ-011",
-        "type": "unit_error",
-        "test_step": "OQ-23",
-        "row": null,
-        "requirement": "URS-TP201-028",
-        "found_by": [
-          19
-        ],
-        "urs_value_read_right": true,
-        "not_reviewed_by_practitioner": true
-      },
-      {
-        "id": "D-TP201OQ-012",
+        "id": "D-TP201OQ-014",
         "type": "outdated_reference",
-        "test_step": "OQ-02",
+        "test_step": "OQ-12",
         "row": null,
-        "requirement": "URS-TP201-002",
+        "requirement": "URS-TP201-017",
         "found_by": [
-          20
-        ],
-        "urs_value_read_right": true,
-        "not_reviewed_by_practitioner": true
-      },
-      {
-        "id": "D-TP201OQ-013",
-        "type": "outdated_reference",
-        "test_step": "OQ-26",
-        "row": null,
-        "requirement": "URS-TP201-031",
-        "found_by": [
-          21
+          12
         ],
         "urs_value_read_right": true,
         "not_reviewed_by_practitioner": true
@@ -518,28 +397,6 @@
       {
         "n": 11,
         "type": "ac_deviates_from_urs",
-        "test_step": "OQ-08",
-        "row": null,
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-003"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 12,
-        "type": "ac_deviates_from_urs",
-        "test_step": "OQ-21",
-        "row": null,
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-004"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 13,
-        "type": "ac_deviates_from_urs",
         "test_step": "OQ-24",
         "row": null,
         "status": "match",
@@ -549,90 +406,13 @@
         "clean_traps": []
       },
       {
-        "n": 14,
-        "type": "requirement_not_tested",
-        "test_step": null,
-        "row": "URS-TP201-020",
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-006"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 15,
-        "type": "requirement_not_tested",
-        "test_step": null,
-        "row": "URS-TP201-027",
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-007"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 16,
-        "type": "ac_outside_documented_capability",
-        "test_step": "OQ-04",
-        "row": null,
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-008"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 17,
-        "type": "ac_outside_documented_capability",
-        "test_step": "OQ-11",
-        "row": null,
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-009"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 18,
-        "type": "unit_error",
-        "test_step": "OQ-07",
-        "row": null,
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-010"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 19,
-        "type": "unit_error",
-        "test_step": "OQ-23",
-        "row": null,
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-011"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 20,
+        "n": 12,
         "type": "outdated_reference",
-        "test_step": "OQ-02",
+        "test_step": "OQ-12",
         "row": null,
         "status": "match",
         "defects": [
-          "D-TP201OQ-012"
-        ],
-        "clean_traps": []
-      },
-      {
-        "n": 21,
-        "type": "outdated_reference",
-        "test_step": "OQ-26",
-        "row": null,
-        "status": "match",
-        "defects": [
-          "D-TP201OQ-013"
+          "D-TP201OQ-014"
         ],
         "clean_traps": []
       }
@@ -667,15 +447,15 @@
     }
   },
   "fabrication": {
-    "claims": 226,
+    "claims": 213,
     "fabricated": 0,
     "rate": 0.0
   },
   "citations": {
-    "total": 163,
+    "total": 150,
     "verified_rate": 1.0,
     "by_status": {
-      "verified": 163,
+      "verified": 150,
       "value_not_in_quote": 0,
       "too_long": 0,
       "unknown_document": 0,

@@ -455,8 +455,10 @@ _SENTENCE_END = re.compile(r"(?<![Rr]ev)(?<![Nn]o)[.;!?](?=\s|$)")
 def _sentence(text: str, quote: str) -> str:
     """The sentence(s) of ``text`` that hold ``quote``, so that a reference is cited by the
     sentence it stands in, never by the few words the model chose to quote (the reviewer reads
-    the sentence; a citation's length does not decide whether it names the place). ``quote``
-    itself when it is not in ``text`` or the sentence would pass ``MAX_QUOTE``."""
+    the sentence; a citation's length does not decide whether it names the place). Fallback:
+    ``quote`` itself, as the model gave it, when it is not in ``text`` or the sentence would
+    pass ``MAX_QUOTE`` (a citation may not be longer); a scorer that matches by location may
+    then miss the finding, which is the price of the cap (tested)."""
     at = text.find(quote)
     if at < 0:
         return quote

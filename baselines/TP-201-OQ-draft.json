@@ -17,7 +17,7 @@
     "name": "traceq",
     "model": "claude-haiku-5-5",
     "prompt": "0dc6b64f04fc",
-    "run_id": "20261126T224509Z-d16c1e"
+    "run_id": "20261126T231828Z-2c631e"
   },
   "metrics": {
     "fabrication.rate": 0.0,

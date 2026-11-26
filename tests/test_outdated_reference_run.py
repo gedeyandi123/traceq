@@ -1,13 +1,14 @@
 """The 0.2.0 baseline of ``TP-201-OQ-draft`` with ``outdated_reference`` (spec #375, ticket S2c,
-run r7).
+run r8).
 
 One live run of the frozen draft schema over the 0.2.0 draft (revision 0) with the rules
 ``ac_outside_documented_capability`` (S2a), ``unit_error`` (S2b) and ``outdated_reference`` (S2c)
 on: the Equipment stages replay r10, the 8 draft calls went live once
-(``recordings/haiku-oq-draft-r7``). Replay needs only the release manifest and the ingest cache.
+(``recordings/haiku-oq-draft-r8``). Replay needs only the release manifest and the ingest cache.
 The run is scored against the 0.2.0 key as it reads at revision 0 (``key_at_revision``), so 13
-defects, not 14. r7 takes the place of r6 (S2b), whose report the new rule changes; r6's
-recordings are in the history at 1c6253f. Revision 1 of the draft was read live once as well
+defects, not 14. r8 takes the place of r6 (S2b), whose report the new rule changes; r6's
+recordings are in the history at 1c6253f (an interim r7, read under the first form of the rule,
+was removed too). Revision 1 of the draft was read live once as well
 (``tests/test_outdated_reference_rev1.py``).
 
 0.1.0 keeps its own baseline, ``baselines/TP-201-OQ-draft-0.1.0.json``, and its r3 report still
@@ -43,16 +44,13 @@ RECORDINGS = ROOT / "recordings"
 MANIFEST = RECORDINGS / "corpus-0.1.1"
 R10 = RECORDINGS / "haiku-r10"
 PACKAGE = RECORDINGS / "TP-201-OQ-draft-0.2.0"
-R7 = RECORDINGS / "haiku-oq-draft-r7"
+R8 = RECORDINGS / "haiku-oq-draft-r8"
 R3 = RECORDINGS / "haiku-oq-draft-r3"
 MODEL = "claude-haiku-5-5"
 TAG = "TP-201-OQ-draft"
 CAPABILITY = "ac_outside_documented_capability"
 UNIT = "unit_error"
-LIVE_RUN_ID = "20261126T215315Z-0fa7c9"
-RUN_ID = "20261126T224509Z-d16c1e"
-"""The baseline's run: a replay of the live run's recordings (``LIVE_RUN_ID``) after the rule
-cited the sentence of the reference instead of the model's few words (``recordings/README.md``)."""
+RUN_ID = "20261126T231828Z-2c631e"
 OUTDATED = "outdated_reference"
 
 
@@ -69,7 +67,7 @@ def replayed(tmp_path_factory: pytest.TempPathFactory) -> RunOutput:
         MODEL,
         equipment="TP-201",
         review_package=PACKAGE,
-        package_recordings=R7,
+        package_recordings=R8,
         draft_rev=0,
     )
 
@@ -96,11 +94,11 @@ def report(replayed: RunOutput, tp201_corpus: Corpus) -> dict[str, Any]:
 
 def test_the_run_replays_at_tolerance_0(replayed: RunOutput, report: dict[str, Any]) -> None:
     """Same submission, same scores, zero live calls, same cost as the live run."""
-    recorded = _json(R7 / f"run-{TAG}.json")
-    expected = _json(R7 / f"report-{TAG}.json")
-    assert (recorded["mode"], recorded["run_id"]) == ("live", LIVE_RUN_ID)
+    recorded = _json(R8 / f"run-{TAG}.json")
+    expected = _json(R8 / f"report-{TAG}.json")
+    assert (recorded["mode"], recorded["run_id"]) == ("live", RUN_ID)
     assert recorded["review_package"]["calls"]["live"] == 8
-    assert recorded["live_cost_usd"] == 0.004011
+    assert recorded["live_cost_usd"] == 0.004034
     assert replayed.metadata["calls"] == {"total": 157, "replayed": 157, "live": 0}
     assert replayed.metadata["cost_usd"] == recorded["cost_usd"]
     assert replayed.metadata["prompts"] == recorded["prompts"]
@@ -174,8 +172,9 @@ def test_the_findings_carry_the_label_on_every_surface_the_run_writes(
 def test_the_citation_is_the_sentence_so_a_short_quote_still_matches_the_key(
     replayed: RunOutput,
 ) -> None:
-    """The first scoring of this run (before the rule cited the sentence) counted OQ-02 wrong:
-    the model had quoted `sesuai VMP-001 Rev. 2.`, too short for the key's location."""
+    """An earlier live sample (r7, the rule citing the model's quote) counted OQ-02 wrong: the
+    model had quoted `sesuai VMP-001 Rev. 2.`, too short for the key's location. The rule now
+    cites the whole sentence, whatever the model quoted."""
     draft = _json(replayed.folder / "protocol_draft.json")
     quotes = {
         f["test_step"]: f["citations"][0]["quote"]
