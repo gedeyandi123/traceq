@@ -49,6 +49,31 @@ def _token(
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
+_SECOND_RUN_HINT = (
+    "Create it as in docs/demo-runbook.md section 13: uv run traceq run <corpus> "
+    "--equipment TP-201 --out runs-demo --recordings recordings/haiku-r10"
+)
+
+
+def _pick_two_rounds(client: Any, api_url: str, args: argparse.Namespace) -> str:
+    """Round 1 = the older of the two oldest runs by ``created``, round 2 = the newer.
+
+    Sets ``args.second_run_id`` unless given explicitly; returns the round 1 run id.
+    """
+    resp = client.get(f"{api_url}/runs")
+    resp.raise_for_status()
+    ordered = sorted(resp.json(), key=lambda r: str(r["created"]))
+    if args.second_run_id is not None:
+        others = [str(r["run_id"]) for r in ordered if str(r["run_id"]) != args.second_run_id]
+        if not others:
+            raise RuntimeError(f"No run besides {args.second_run_id} found. {_SECOND_RUN_HINT}")
+        return others[0]
+    if len(ordered) < 2:
+        raise RuntimeError(f"--stage two-rounds needs two runs on the API. {_SECOND_RUN_HINT}")
+    args.second_run_id = str(ordered[1]["run_id"])
+    return str(ordered[0]["run_id"])
+
+
 def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str, str, str, str]:
     api_url: str = args.api_url or DEFAULT_API_URL
     idp: str = getattr(args, "idp", None) or "demo"
@@ -66,6 +91,8 @@ def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str
             issuer_url = KEYCLOAK_ISSUER_URL
         if not getattr(args, "review_package", False):
             run_id = run_id or str(meta["run_id"])
+    if run_id is None and getattr(args, "stage", None) == "two-rounds":
+        run_id = _pick_two_rounds(client, api_url, args)
     if run_id is None:
         runs = client.get(f"{api_url}/runs")
         runs.raise_for_status()
@@ -371,7 +398,8 @@ def _ensure_two_rounds(
         items = [str(i["run_id"]) for i in runs.json() if str(i["run_id"]) != first_run_id]
         if not items:
             raise RuntimeError(
-                "Need a second run on API for --stage two-rounds (or pass --second-run-id)."
+                "Need a second run on API for --stage two-rounds (or pass --second-run-id). "
+                + _SECOND_RUN_HINT
             )
         second_run_id = items[0]
 
