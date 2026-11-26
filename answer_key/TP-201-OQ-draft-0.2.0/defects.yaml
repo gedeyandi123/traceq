@@ -1,4 +1,4 @@
-# TP-201-OQ-draft answer key: defects.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability and unit_error not reviewed by a practitioner.
+# TP-201-OQ-draft answer key: defects.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability, unit_error and outdated_reference not reviewed by a practitioner.
 # Generated, do not edit:
 #   uv run python -m traceq_dataset.review_package world/<file>.yaml
 # Refers to corpus-v0.1.1. Never sent to an LLM (design section 6).
@@ -72,15 +72,15 @@
   type: requirement_not_tested
   severity: major
   layer: rule
-  detail: 'The traceability table lists URS-TP201-023 under OQ-18, but the draft has no Test Step OQ-18:
+  detail: 'The traceability table lists URS-TP201-020 under OQ-15, but the draft has no Test Step OQ-15:
     the requirement is not tested.'
-  row: URS-TP201-023
-  requirement: URS-TP201-023
+  row: URS-TP201-020
+  requirement: URS-TP201-020
   documents:
   - {doc: OQ-TP201, rev: 0}
   locations:
-  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-023.requirement, text: URS-TP201-023}
-  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-023.steps, text: OQ-18}
+  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-020.requirement, text: URS-TP201-020}
+  - {doc: OQ-TP201, rev: 0, page: 8, field: trace.URS-TP201-020.steps, text: OQ-15}
 - id: D-TP201OQ-007
   type: requirement_not_tested
   severity: major
@@ -150,7 +150,7 @@
   severity: major
   layer: rule
   not_reviewed_by_practitioner: true
-  detail: 'OQ-23 prints 300 m²/jam where URS-TP201-028 says 300 m³/h: the number is the URS number but
+  detail: 'OQ-23 prints 300 m²/jam where URS-TP201-028 says 300 m³/jam: the number is the URS number but
     an area per hour is not a flow.'
   test_step: OQ-23
   requirement: URS-TP201-028
@@ -160,4 +160,36 @@
   - {doc: OQ-TP201, rev: 0, page: 6, field: OQ-23.acceptance, text: minimal 300 m²/jam}
   compared_with: {doc: URS-TP201, rev: 1, page: 2, requirement: URS-TP201-028, text: Sambungan dust extraction
       kompatibel dengan sistem pabrik minimal 300 m³/jam.}
-  unit: {kind: dimension, urs: m3/h, printed: m²/jam}
+  unit: {kind: dimension, urs: m³/jam, printed: m²/jam}
+- id: D-TP201OQ-012
+  type: outdated_reference
+  severity: major
+  layer: rule
+  not_reviewed_by_practitioner: true
+  detail: 'OQ-02 cites VMP-001 Rev. 2 in its method, but the register holds VMP-001 at Rev. 3: the citation
+    may be superseded.'
+  test_step: OQ-02
+  requirement: URS-TP201-002
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 1, field: OQ-02.method, text: Dokumen yang dipersyaratkan untuk pengujian
+      ini sesuai VMP-001 Rev. 2.}
+  register: {doc: VMP-001, rev: 3}
+  reference: {doc: VMP-001, printed_rev: 2, current_rev: 3, context: normative}
+- id: D-TP201OQ-013
+  type: outdated_reference
+  severity: major
+  layer: rule
+  not_reviewed_by_practitioner: true
+  detail: 'OQ-26 cites SOP-VAL-002 Rev. 1 in its method, but the register holds SOP-VAL-002 at Rev. 2:
+    the citation may be superseded.'
+  test_step: OQ-26
+  requirement: URS-TP201-031
+  documents:
+  - {doc: OQ-TP201, rev: 0}
+  locations:
+  - {doc: OQ-TP201, rev: 0, page: 7, field: OQ-26.method, text: Koreksi catatan sesuai SOP-VAL-002 Rev.
+      1.}
+  register: {doc: SOP-VAL-002, rev: 2}
+  reference: {doc: SOP-VAL-002, printed_rev: 1, current_rev: 2, context: normative}
