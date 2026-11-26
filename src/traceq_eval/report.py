@@ -14,6 +14,7 @@ from traceq_dataset.answer_key import FILES
 from traceq_dataset.corpus import Corpus
 from traceq_dataset.review_package import KEY_FILES as PACKAGE_KEY_FILES
 from traceq_eval.ratchet import FAILING
+from traceq_eval.score import NOT_REVIEWED_LABEL
 from traceq_eval.submission import Submission
 
 
@@ -162,6 +163,11 @@ def _review_package(report: dict[str, Any]) -> list[str]:
     """The package section: every figure as k of n, under the package's labels."""
     rp, cit = report["review_package"], report["citations"]
     m, counts = rp["metrics"], rp["counts"]
+    unreviewed = set(rp.get("not_reviewed_types", ()))
+
+    def named(t: str) -> str:
+        return f"{t} ({NOT_REVIEWED_LABEL})" if t in unreviewed else t
+
     out = [
         "",
         f"## Review Package {rp['id']} {rp['version']} ({'; '.join(rp['labels'])})",
@@ -173,7 +179,7 @@ def _review_package(report: dict[str, Any]) -> list[str]:
         out.append(f"| {label} | {_k_of_n(counts[name])} | {_fmt(counts[name]['rate'])} |")
         if name == "recall":
             out += [
-                f"| {label}: {t.split('.', 1)[1]} | {_k_of_n(c)} | {_fmt(c['rate'])} |"
+                f"| {label}: {named(t.split('.', 1)[1])} | {_k_of_n(c)} | {_fmt(c['rate'])} |"
                 for t, c in counts.items()
                 if t.startswith("recall_by_type.")
             ]
@@ -182,14 +188,20 @@ def _review_package(report: dict[str, Any]) -> list[str]:
         f"Test Steps not compared: {m['not_compared']}. Wrong findings: {m['wrong_findings']}"
         f" ({m['findings_on_clean_traps']} on Clean Traps). Exempt (probe text only): "
         f"{m['probe_exempt_findings']}. Findings without a citation in the draft (not scored "
-        f"here): {m['findings_without_draft_citation']}.",
+        f"here): {m['findings_without_draft_citation']}."
+        + (
+            f" Findings of types the key does not declare (not graded): "
+            f"{m['findings_of_types_not_in_key']}."
+            if "findings_of_types_not_in_key" in m
+            else ""
+        ),
         "",
         "| Defect | Type | Test Step or row | Found by | URS value read right |",
         "|---|---|---|---|---|",
     ]
     out += [
-        f"| {d['id']} | {d['type']} | {d['test_step'] or d['row']} | {_fmt(d['found_by'])} | "
-        f"{_fmt(d['urs_value_read_right'])} |"
+        f"| {d['id']} | {named(d['type'])} | {d['test_step'] or d['row']} | "
+        f"{_fmt(d['found_by'])} | {_fmt(d['urs_value_read_right'])} |"
         for d in rp["defects"]
     ]
     out += [

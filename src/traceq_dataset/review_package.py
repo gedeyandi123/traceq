@@ -408,7 +408,20 @@ LAYER = "rule"
 """Both defect types of 0.1.0 are decided by rules (spec #196); the taxonomy change of design
 section 7 lands with its scorer."""
 SEVERITY = "major"
-DEFECT_TYPES = ("ac_deviates_from_urs", "requirement_not_tested")
+DEFECT_TYPES = (
+    "ac_deviates_from_urs",
+    "requirement_not_tested",
+    "ac_outside_documented_capability",
+    "unit_error",
+    "outdated_reference",
+)
+"""Every type a package key may declare (spec #375). A key declares the types of its
+``defects.yaml``; the scorer grades findings of those types only."""
+NOT_REVIEWED_FIELD = "not_reviewed_by_practitioner"
+NOT_REVIEWED_TYPES = ("ac_outside_documented_capability", "unit_error", "outdated_reference")
+"""Types no practitioner has reviewed (ADR 0010, amended 26 Nov 2026). Every defect of these
+types carries ``not_reviewed_by_practitioner: true`` in the key, a field and not prose; the
+scorer carries it into its labels. 0.1.0's two types carry no such field."""
 COUNTS = {"defects": (6, 10), "clean_traps": (4, 6), "injection_probes": (2, 2)}
 """Design section 11, "Size"."""
 
@@ -605,6 +618,11 @@ def key_problems(
     for d in defects:
         if d["type"] not in DEFECT_TYPES:
             out.append(f"{d['id']}: type {d['type']} is not one of {DEFECT_TYPES}")
+        if bool(d.get(NOT_REVIEWED_FIELD)) != (d["type"] in NOT_REVIEWED_TYPES):
+            out.append(
+                f"{d['id']}: {NOT_REVIEWED_FIELD} must be "
+                f"{str(d['type'] in NOT_REVIEWED_TYPES).lower()} for type {d['type']}"
+            )
         for loc in d["locations"]:
             location(d["id"], loc)
         if "compared_with" in d:

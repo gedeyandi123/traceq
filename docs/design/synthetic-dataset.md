@@ -276,6 +276,8 @@ Weights per type are set once discovery confirms which review errors are most co
 | Inconsistent data across documents | IQ serial ≠ nameplate | LLM | — |
 | AC deviates from URS | Protocol ±10%, URS ±5% | Rule (scorer 0.8.0; LLM before) | — |
 | Requirement not tested | Traceability row whose Test Steps the protocol does not print | Rule | — |
+| AC outside documented capability | AC demands 105 kN, the Datasheet states a 100 kN maximum (Review Package 0.2.0, spec #375; not reviewed by a practitioner) | Rule | — |
+| Unit error | Printed number equals the URS number, the unit is off by an SI prefix factor or another dimension (spec #375; not reviewed by a practitioner) | Rule | — |
 | GDP correction, three variants (overwrite without initials/date, missing reason, obliterated original) | Scanned SAT entry | LLM/vision | PIC/S PI 041-1 §8.7, CPOB 10.8 |
 | Leftover from another Equipment **[D]** | Another tag left in a copied protocol | LLM | — |
 
