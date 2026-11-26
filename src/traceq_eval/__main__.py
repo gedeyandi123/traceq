@@ -12,7 +12,8 @@ Usage::
 ``--baseline`` adds the ratchet against an accepted baseline; ``--write-baseline`` writes
 this run as a baseline candidate (refused when a gate fails), to be accepted through a PR.
 ``--package``: the Review Package a submission answers (it must name the same one); its key
-is ``<key>/<package id>`` and its baseline ``baselines/<package id>.json``.
+is ``<key>/<package id>`` (a release after 0.1.0: ``<key>/<package id>-<version>``) and its
+baseline ``baselines/<package id>.json``.
 
 Exit code 0 when every gate (and the ratchet, if asked) passes, 1 when a gate or the ratchet
 fails, 2 when the submission or the baseline is invalid.
@@ -28,7 +29,12 @@ from pydantic import ValidationError
 
 from traceq_dataset.answer_key import load_key
 from traceq_dataset.corpus import build_corpus
-from traceq_dataset.review_package import load_package, load_package_key, render_draft
+from traceq_dataset.review_package import (
+    load_package,
+    load_package_key,
+    package_key_dir,
+    render_draft,
+)
 from traceq_dataset.world import load
 from traceq_eval import ratchet
 from traceq_eval.citations import PageTexts
@@ -71,13 +77,13 @@ def main(argv: list[str]) -> int:
         return 2
     corpus = build_corpus(eq)
     key_dir = args.key / eq.tag
-    review, package_key_dir, extra = None, None, []
+    review, package_key, extra = None, None, []
     if package:
-        package_key_dir = args.key / package.id
+        package_key = package_key_dir(args.key, package.id, package.version)
         draft = render_draft(package, eq)
-        review, extra = ReviewPackage.of(package, draft, load_package_key(package_key_dir)), [draft]
+        review, extra = ReviewPackage.of(package, draft, load_package_key(package_key)), [draft]
     scored = score(sub, load_key(key_dir), PageTexts(corpus, extra), package=review)
-    report = with_metadata(scored, sub, corpus, key_dir, package_key_dir)
+    report = with_metadata(scored, sub, corpus, key_dir, package_key)
     if baseline:
         try:
             report["ratchet"] = ratchet.compare(baseline, report)

@@ -4,8 +4,9 @@
 The package refers to a corpus release by version and the SHA-256 of its committed manifest
 and never changes a byte of it. Its world data is a file of its own
 (``world/tp201-oq-draft.yaml``); its answer key a folder of its own
-(``answer_key/TP-201-OQ-draft/``); its rendered draft and ``manifest.json`` form its release
-artefact, with a SemVer line of its own starting at 0.1.0 (design section 10).
+(``answer_key/TP-201-OQ-draft/``, see :func:`package_key_dir`); its rendered draft and
+``manifest.json`` form its release artefact, with a SemVer line of its own starting at 0.1.0
+(design section 10).
 
 Placements are drawn, not chosen: which comparable URS requirement carries an
 ``ac_deviates_from_urs`` defect and which a Clean Trap, which requirements lose their Test Step
@@ -572,6 +573,18 @@ def dump_key(name: str, data: list[dict[str, Any]], package: Package) -> str:
     return header + body
 
 
+FIRST_VERSION = "0.1.0"
+"""The first release of a package: its key sits in the folder named by the package id alone."""
+
+
+def package_key_dir(key_root: Path, package_id: str, version: str) -> Path:
+    """Where a package release keeps its answer key (spec #375). The first release keeps
+    ``<key>/<id>/``, byte for byte where it always was; a later release has a folder of its own,
+    ``<key>/<id>-<version>/``, the naming of its ``recordings/`` folder, so a new key never
+    overwrites or moves an older one, and a baseline's key hash stays checkable."""
+    return key_root / (package_id if version == FIRST_VERSION else f"{package_id}-{version}")
+
+
 def load_package_key(directory: Path) -> dict[str, list[dict[str, Any]]]:
     return {n: yaml.safe_load((directory / n).read_text(encoding="utf-8")) for n in KEY_FILES}
 
@@ -742,7 +755,7 @@ def main(argv: list[str]) -> int:
         print(f"placements differ from the seeded draw: {drawn.model_dump()}")
         return 1
     draft = render_draft(package, eq)
-    directory = args.key / package.id
+    directory = package_key_dir(args.key, package.id, package.version)
     stale = []
     for name, data in derive_key(package, draft, requirements).items():
         text, path = dump_key(name, data, package), directory / name

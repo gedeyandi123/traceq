@@ -57,6 +57,13 @@ def _object(required: dict[str, Any]) -> dict[str, Any]:
 _STR = {"type": "string"}
 _IDS = {"type": "array", "items": _STR}
 
+DRAFT_STAGE_VERSION = "0.3.0"
+"""The version the draft read is recorded under (spec #375): the recording key of a draft call
+holds it where an Equipment call holds ``PIPELINE_VERSION``. It starts equal to the value
+``PIPELINE_VERSION`` had when 0.1.0 was recorded, so 0.1.0's recordings replay, and it moves
+only with a change to the draft's prompt, schema or model, never with a draft rule: rules are
+deterministic code after the read and enter no key."""
+
 DRAFT_PROMPT = Prompt(
     name="protocol_draft",
     system=(
