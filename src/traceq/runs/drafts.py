@@ -27,7 +27,9 @@ def drafts(d: Drafts, *, model: str, prompt: str, created: str) -> dict[str, Any
             {
                 "id": x.id,
                 "requirement": x.requirement.id,
-                "requirement_text": x.requirement.text,
+                "requirement_text": x.requirement.shown
+                if x.requirement.shown is not None
+                else x.requirement.text,
                 "coverage": x.coverage,
                 "saved_by_reuse": x.saved_by_reuse,
                 "description": x.description,

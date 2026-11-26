@@ -91,7 +91,10 @@ def _row(t: Traceability, rid: str, text: str, source: Citation) -> MatrixRow:
 
 def matrix(t: Traceability) -> Matrix:
     return Matrix(
-        requirements=tuple(_row(t, r.id, r.text, r.citation) for r in t.requirements),
+        requirements=tuple(
+            _row(t, r.id, r.shown if r.shown is not None else r.text, r.citation)
+            for r in t.requirements
+        ),
         not_read=tuple(
             NotRead(doc_id=d.doc_id, rev=d.rev, format=d.format) for d in t.vendor.not_read
         ),
