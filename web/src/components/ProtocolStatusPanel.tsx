@@ -302,7 +302,7 @@ export function ProtocolStatusPanel({
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass">
             <div className="flex items-start gap-2">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{t("approval.approvedNote")}</span>
+              <span>{t("limits.noNewVersion")}</span>
             </div>
             <Link
               href={`/runs/${encodeURIComponent(runId)}/execution`}

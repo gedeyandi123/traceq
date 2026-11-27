@@ -2,7 +2,7 @@
 
 import { AlertCircle, AlertTriangle, CheckCircle2, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import type {
   DraftMappingView,
@@ -10,6 +10,7 @@ import type {
   ProtocolView,
   RowCandidate,
   RowFindingView,
+  Value,
 } from "@/api/client";
 import type { ProtocolFormActionState } from "@/protocol/actions";
 import type { ProtocolControls } from "./AssembledProtocolView";
@@ -24,6 +25,16 @@ import { DecisionStateBadge } from "./ui/StatusBadge";
 import { SubmitButton } from "./ui/SubmitButton";
 
 type T = ReturnType<typeof useTranslations<"protocol">>;
+
+/** The drafted Acceptance Criterion as the edit form can start from it: only a shape a Test
+ * Step can hold; a reading the form cannot hold (tolerance, free text, ambiguous) is set by a
+ * human. Starting from null would drop a criterion the draft read. */
+function formShape(v: { type: string } | null | undefined): Value | null {
+  if (v === null || v === undefined) return null;
+  return v.type === "range" || v.type === "number" || v.type === "one_of" || v.type === "present"
+    ? (v as Value)
+    : null;
+}
 
 const PILL = "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold";
 
@@ -99,12 +110,27 @@ type InlineAction = (
   formData: FormData,
 ) => Promise<ProtocolFormActionState>;
 
-function Feedback({ t, state, saved }: { t: T; state: ProtocolFormActionState; saved: string }) {
+function Feedback({
+  t,
+  state,
+  saved,
+  scope,
+}: {
+  t: T;
+  state: ProtocolFormActionState;
+  saved: string;
+  scope?: "map" | "reason";
+}) {
   if (!state.ok && state.error) {
+    // The map and reason forms have their own words for 409 and 422; the rest is generic.
+    const own =
+      scope !== undefined && (state.error === "conflict" || state.error === "refused")
+        ? t(`draftFlow.errors.${scope}.${state.error}`)
+        : null;
     return (
       <p role="alert" className="m-0 flex items-start gap-1.5 text-xs text-fail">
         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span>{t(`errors.${state.error}`)}</span>
+        <span>{own ?? t(`errors.${state.error}`)}</span>
       </p>
     );
   }
@@ -146,6 +172,10 @@ function MapForm({
   action: InlineAction;
 }) {
   const [state, formAction] = useActionState(action, { ok: false });
+  // The form goes once the step is mapped: focus moves to the step's own card, which stays.
+  useEffect(() => {
+    if (state.ok && state.submittedAt) document.getElementById(`draft-step-${step}`)?.focus();
+  }, [state, step]);
   return (
     <form action={formAction} className="space-y-2" aria-label={t("draftFlow.steps.mapTo")}>
       <input type="hidden" name="protocol_id" value={protocolId} />
@@ -161,7 +191,7 @@ function MapForm({
           ))}
         </select>
       </label>
-      <Feedback t={t} state={state} saved={t("form.saved")} />
+      <Feedback t={t} state={state} saved={t("form.saved")} scope="map" />
       <SubmitButton variant="soft">{t("draftFlow.steps.save")}</SubmitButton>
     </form>
   );
@@ -197,6 +227,8 @@ export function DraftStepsPanel({
           {steps.map((e) => (
             <li
               key={e.proposal.id}
+              id={`draft-step-${e.step.id}`}
+              tabIndex={-1}
               data-testid={`draft-step-${e.step.id}`}
               className={`space-y-2 rounded-lg border p-3 text-xs ${
                 e.resolved ? "border-border bg-surface" : "border-fail-edge bg-fail-soft/30"
@@ -315,7 +347,7 @@ function ReasonForm({
           placeholder={t("draftFlow.findings.reasonLabel")}
           className={`w-full text-xs ${FIELD_BASE_CLASS}`}
         />
-        <Feedback t={t} state={state} saved={t("form.saved")} />
+        <Feedback t={t} state={state} saved={t("form.saved")} scope="reason" />
         <SubmitButton variant="soft">{t("draftFlow.findings.reasonSave")}</SubmitButton>
       </form>
     </div>
@@ -431,7 +463,7 @@ function Candidate({
             description: c.step.description,
             method: c.step.method,
             instrument: c.step.instrument,
-            acceptance: null,
+            acceptance: formShape(c.criterion?.value),
           }}
           runId={runId}
           protocolId={protocolId}
@@ -482,7 +514,9 @@ function Finding({
             {t("draftFlow.findings.location", { step: f.finding.test_step })}
           </div>
         )}
-        <p className="m-0 text-xs leading-relaxed text-ink">{f.finding.detail}</p>
+        <p lang="en" className="m-0 text-xs leading-relaxed text-ink">
+          {f.finding.detail}
+        </p>
         <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
           {f.finding.citations.map((c, i) => (
             <li key={`${c.doc}/${c.rev}/${c.page}/${i}`}>

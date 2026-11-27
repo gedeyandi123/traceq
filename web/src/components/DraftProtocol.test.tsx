@@ -367,3 +367,37 @@ test("the flow from the draft to a signed copy, page by page", async () => {
   expect(screen.getByTestId("copy-draft")).toBeDefined();
   expect(screen.getByRole("button", { name: "Setujui protokol" })).toBeDefined();
 });
+
+test("the edit form of a draft step starts from the drafted criterion, so an edit does not drop it", async () => {
+  const u = user();
+  render(page(fromDraft, { decisions: decider, controls }));
+  const drawer = await openRow(u, "URS-TP201-002");
+  const form = within(drawer.getByTestId("candidate-OQ-02")).getByRole("form", {
+    name: "Sunting rancangan",
+  });
+  expect(form.querySelector<HTMLSelectElement>("[name=ac_type]")?.value).toBe("range");
+  expect(form.querySelector<HTMLInputElement>("[name=ac_min]")?.value).toBe("20");
+  expect(form.querySelector<HTMLInputElement>("[name=ac_max]")?.value).toBe("70");
+});
+
+test("a map refusal says why in words of its own", async () => {
+  const u = user();
+  const mapInline = vi.fn<Inline>(async () => ({ ok: false, error: "refused" }));
+  render(page(fromDraft, { decisions: decider, controls: { ...controls, mapInline } }));
+  await u.click(screen.getByRole("tab", { name: /Langkah draf/ }));
+  const step = within(await screen.findByTestId("draft-step-OQ-40"));
+  await u.selectOptions(step.getByRole("combobox", { name: "Petakan ke persyaratan" }), "URS-TP201-030");
+  await u.click(step.getByRole("button", { name: "Simpan pemetaan" }));
+  expect((await step.findByRole("alert")).textContent).toMatch(/tepat satu persyaratan/);
+});
+
+test("after a mapping is saved, focus moves to the step, not to the document", async () => {
+  const u = user();
+  const mapInline = vi.fn<Inline>(async () => ({ ok: true, submittedAt: 1 }));
+  render(page(fromDraft, { decisions: decider, controls: { ...controls, mapInline } }));
+  await u.click(screen.getByRole("tab", { name: /Langkah draf/ }));
+  const step = within(await screen.findByTestId("draft-step-OQ-40"));
+  await u.selectOptions(step.getByRole("combobox", { name: "Petakan ke persyaratan" }), "URS-TP201-030");
+  await u.click(step.getByRole("button", { name: "Simpan pemetaan" }));
+  await waitFor(() => expect(document.activeElement?.id).toBe("draft-step-OQ-40"));
+});

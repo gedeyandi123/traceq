@@ -42,9 +42,8 @@ export function SignatureBadge({
     ? "border-warn-edge bg-warn-soft text-warn"
     : signature.is_demo
       ? "border-info-edge bg-info-soft text-info"
-      : check === "verified"
-        ? "border-pass-edge bg-pass-soft text-pass"
-        : check === "failed"
+      : // A matching hash is not an approval: the outer pill is neutral, only a failure is red.
+        check === "failed"
           ? "border-fail-edge bg-fail-soft text-fail"
           : "border-border bg-surface text-ink-muted";
 

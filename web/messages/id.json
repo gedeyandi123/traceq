@@ -538,8 +538,7 @@
       "return": "Kembalikan ke Draft",
       "returnReason": "Alasan pengembalian",
       "returnModalTitle": "Kembalikan protokol ke Draft?",
-      "returnModalDesc": "Protokol akan kembali ke status Draft agar Penyusun dapat memperbaikinya.",
-      "approvedNote": "Versi baru protokol ini adalah langkah 6."
+      "returnModalDesc": "Protokol akan kembali ke status Draft agar Penyusun dapat memperbaikinya."
     },
     "cancel": "Batal",
     "withdrawModalTitle": "Tarik protokol?",
@@ -686,6 +685,16 @@
     "draftFlow": {
       "start": "Mulai protokol dari draf yang ditinjau",
       "startNote": "Baris yang dicakup draf memakai langkah uji draf; sisanya (misalnya IQ) memakai rancangan TraceQ. Protokol terpaku pada revisi draf yang dibaca.",
+      "errors": {
+        "map": {
+          "conflict": "Pemetaan ditolak: langkah ini sudah dipetakan, atau protokol bukan lagi Draft. Muat ulang halaman dan periksa lagi.",
+          "refused": "Pemetaan ditolak: pilih tepat satu persyaratan yang ada di protokol ini."
+        },
+        "reason": {
+          "conflict": "Alasan tidak dapat dicatat: temuan atau protokol sudah berubah (bukan lagi Draft). Muat ulang halaman dan periksa lagi.",
+          "refused": "Alasan tidak dicatat: alasan wajib diisi dan tidak boleh kosong."
+        }
+      },
       "devOnly": "Hanya pengembangan (dev only)",
       "awaiting": "Menunggu jawaban praktisi (#245)",
       "notReviewed": "Belum ditinjau praktisi",
@@ -1119,6 +1128,7 @@
       "diffFindingsPersisted": "Bertahan",
       "diffFindingsPersistedChanged": "Bertahan, berubah",
       "diffFindingsListTitle": "Temuan yang perlu dilihat dulu",
+      "devOnly": "Hanya data pengembangan (dev only): angka k/n berasal dari set data sintetis TP-201. Jenis temuan baru belum ditinjau praktisi. Ini bukan klaim waktu yang dihemat atau kepatuhan.",
       "diffFindingChange": {
         "resolved": "Selesai",
         "persisted": "Bertahan",
@@ -1276,8 +1286,12 @@
       "budget": "Anggaran panggilan langsung tidak cukup untuk unggahan ini.",
       "forbidden": "Mengunggah memerlukan peran penentu untuk Equipment ini.",
       "unauthorized": "Sesi tidak valid. Masuk kembali.",
+      "conflict": "Unggahan ditolak: revisi draf ini tidak dapat dibuat sekarang. Muat ulang halaman; jika berulang, hubungi pengelola.",
       "failed": "Unggahan gagal. Coba lagi."
     },
+    "devOnly": "Hanya data pengembangan (dev only): angka k/n berasal dari set data sintetis TP-201. Jenis temuan baru belum ditinjau praktisi. Ini bukan klaim waktu yang dihemat atau kepatuhan.",
+    "revLabel": "Revisi {rev}",
+    "jobFailed": "Pra-tinjauan gagal untuk unggahan ini. Unggah ulang berkasnya; jika tetap gagal, hubungi pengelola (detail ada di log server).",
     "colRev": "Revisi",
     "colFile": "Berkas",
     "colStatus": "Status",
