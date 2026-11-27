@@ -296,11 +296,178 @@ def test_a_utilities_heading_on_an_earlier_page_covers_the_rows_after_it() -> No
     assert _types(found) == []
 
 
-@pytest.mark.parametrize("heading", ["Utilitas dan lingkungan", "5. Utilitas", "UTILITIES"])
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Utilitas dan lingkungan",
+        "5. Utilitas",
+        "UTILITIES",
+        "Site utilities",
+        "Utilities and services",
+        "Utilities & services",
+        "Utilities:",
+        "5.1 Utilities",
+        "5.1. Utilitas:",
+        "  utilities  ",
+        "Utilitas site",
+        "Utility connections",
+        "Electrical utilities",
+    ],
+)
 def test_utilities_headings_in_other_phrasings(heading: str) -> None:
     sheet = Datasheet("DS-XY100", 1, "en", (f"{heading}\nMaximum power draw 15 kW\n",))
     _, found = _judge("minimal 20 kW", _fact("Maximum power draw", "15 kW"), sheets=[sheet])
     assert _types(found) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "All utilities must be provided by the site before installation.",
+        "Utilities are supplied by the site.",
+        "The maximum utilities load is stated below",
+        "Maximum utilities load",
+        "See the utilities drawing 12",
+    ],
+)
+def test_a_line_that_only_mentions_utilities_is_not_a_heading(line: str) -> None:
+    sheet = Datasheet("DS-XY100", 1, "en", (f"Performance\n{line}\nMaximum power draw 15 kW\n",))
+    _, found = _judge("minimal 20 kW", _fact("Maximum power draw", "15 kW"), sheets=[sheet])
+    assert _types(found) == ["ac_outside_documented_capability"]
+
+
+def test_the_utilities_section_ends_at_the_next_heading() -> None:
+    """Rows after the section, under another heading, are judged like any other row."""
+    sheet = Datasheet(
+        "DS-XY100",
+        1,
+        "en",
+        (
+            "Performance\nTurret speed 20-70 rpm\nUtilities\nMaximum power draw 15 kW\n"
+            "Compressed air 6-7 bar\nControl and safety\nMaximum main compression force 100 kN\n",
+        ),
+    )
+    power = _fact("Maximum power draw", "15 kW")
+    _, inside = _judge("minimal 20 kW", power, sheets=[sheet])
+    assert _types(inside) == []
+    _, after = _judge("minimal 105 kN", MAX_FORCE, sheets=[sheet])
+    assert _types(after) == ["ac_outside_documented_capability"]
+
+
+@pytest.mark.parametrize("next_heading", ["Control and safety", "6. Control", "Safety:", "General"])
+def test_a_numbered_or_plain_heading_ends_the_section(next_heading: str) -> None:
+    sheet = Datasheet(
+        "DS-XY100",
+        1,
+        "en",
+        (
+            f"Utilities\nCompressed air 6-7 bar\n{next_heading}\n"
+            "Maximum main compression force 100 kN\n",
+        ),
+    )
+    _, found = _judge("minimal 105 kN", MAX_FORCE, sheets=[sheet])
+    assert _types(found) == ["ac_outside_documented_capability"]
+
+
+def test_a_second_utilities_section_excludes_its_own_rows_only() -> None:
+    sheet = Datasheet(
+        "DS-XY100",
+        1,
+        "en",
+        (
+            "Utilities\nMaximum power draw 15 kW\nPerformance\n"
+            "Maximum main compression force 100 kN\nSite utilities\n"
+            "Maximum water flow 5 m3/h\n",
+        ),
+    )
+    _, force = _judge("minimal 105 kN", MAX_FORCE, sheets=[sheet])
+    assert _types(force) == ["ac_outside_documented_capability"]
+    _, flow = _judge("minimal 6 m3/h", _fact("Maximum water flow", "5 m3/h"), sheets=[sheet])
+    assert _types(flow) == []
+
+
+def test_a_utilities_section_runs_over_a_page_until_a_heading() -> None:
+    def on_page_2(fact: RowFact) -> RowFact:
+        return RowFact(fact.id, fact.name, fact.printed, fact.fact, Citation("DS-XY100", 1, 2, "x"))
+
+    sheet = Datasheet(
+        "DS-XY100",
+        1,
+        "en",
+        (
+            "Utilities\nCompressed air 6-7 bar\n",
+            "Maximum power draw 15 kW\nPerformance\nMaximum main compression force 100 kN\n",
+        ),
+    )
+    power = on_page_2(_fact("Maximum power draw", "15 kW"))
+    _, inside = _judge("minimal 20 kW", power, sheets=[sheet])
+    assert _types(inside) == []
+    _, after = _judge("minimal 105 kN", on_page_2(MAX_FORCE), sheets=[sheet])
+    assert _types(after) == ["ac_outside_documented_capability"]
+
+
+def test_the_row_being_judged_is_never_taken_for_a_heading() -> None:
+    """A row line with no digit looks like a heading; the row itself must not end its section."""
+    sheet = Datasheet("DS-XY100", 1, "en", ("Utilities\nMaximum power draw\n15 kW\n",))
+    _, found = _judge("minimal 20 kW", _fact("Maximum power draw", "15 kW"), sheets=[sheet])
+    assert _types(found) == []
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "Parameter Value Unit",
+        "Parameter Specification",
+        "Item Description",
+        "No. Item Remarks",
+        "PARAMETER  SATUAN  NILAI",
+        "Parameter Spesifikasi Keterangan",
+        "Requirement Range Limit",
+    ],
+)
+def test_a_table_column_header_under_utilities_does_not_end_the_section(header: str) -> None:
+    """A column-header line holds no value, as a heading does not; its words are the table's."""
+    sheet = Datasheet("DS-XY100", 1, "en", (f"Utilities\n{header}\nMaximum power draw 15 kW\n",))
+    _, found = _judge("minimal 20 kW", _fact("Maximum power draw", "15 kW"), sheets=[sheet])
+    assert _types(found) == []
+
+
+def test_a_running_page_header_does_not_end_a_utilities_section() -> None:
+    """Chosen behaviour: a first line that opens two or more pages is a running header, never a
+    heading, so the section of page 1 runs on into page 2 past it."""
+    pages = (
+        "Technical Datasheet\nUtilities\nCompressed air 6-7 bar\n",
+        "Technical Datasheet\nMaximum power draw 15 kW\n",
+    )
+    sheet = Datasheet("DS-XY100", 1, "en", pages)
+    power = _fact("Maximum power draw", "15 kW")
+    row = RowFact(power.id, power.name, power.printed, power.fact, Citation("DS-XY100", 1, 2, "x"))
+    _, found = _judge("minimal 20 kW", row, sheets=[sheet])
+    assert _types(found) == []
+
+
+def test_a_first_line_of_one_page_only_is_a_heading_like_any_other() -> None:
+    """A first line that no other page repeats is not a running header: it is a heading."""
+    pages = (
+        "Utilities\nCompressed air 6-7 bar\n",
+        "Control and safety\nMaximum power draw 15 kW\n",
+    )
+    sheet = Datasheet("DS-XY100", 1, "en", pages)
+    power = _fact("Maximum power draw", "15 kW")
+    row = RowFact(power.id, power.name, power.printed, power.fact, Citation("DS-XY100", 1, 2, "x"))
+    _, found = _judge("minimal 20 kW", row, sheets=[sheet])
+    assert _types(found) == ["ac_outside_documented_capability"]
+
+
+def test_a_text_valued_row_under_utilities_ends_the_section_a_known_limit() -> None:
+    """Pinned limit: a row with a text value and no digit ("Power supply Three phase") cannot be
+    told from a heading by its text, so it ends the section and the rows after it are judged.
+    The CHANGELOG names this."""
+    sheet = Datasheet(
+        "DS-XY100", 1, "en", ("Utilities\nPower supply Three phase\nMaximum power draw 15 kW\n",)
+    )
+    _, found = _judge("minimal 20 kW", _fact("Maximum power draw", "15 kW"), sheets=[sheet])
+    assert _types(found) == ["ac_outside_documented_capability"]
 
 
 def test_a_row_that_only_mentions_utilities_in_its_name_is_not_excluded() -> None:

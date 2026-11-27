@@ -38,6 +38,7 @@ only in length gives the same finding.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -187,11 +188,18 @@ def requirement_not_tested(reading: DraftReading) -> list[DraftFinding]:
 
 # --- ac_outside_documented_capability ---------------------------------------------------------
 
-_UTILITIES = re.compile(
-    r"^(?:\d+(?:\.\d+)*[.)]?\s+)?(?:utilities|utility|utilitas)(?:\s+(?:and|dan|&)\s+\w+)?$",
-    re.IGNORECASE,
-)
-"""A line that is a Utilities heading: ``Utilities``, ``5. Utilitas dan lingkungan``."""
+_NUMBERING = re.compile(r"^\d+(?:\.\d+)*[.)]?\s+")
+_UTILITY_WORD = re.compile(r"utilities|utility|utilitas", re.IGNORECASE)
+_MAX_HEADING_WORDS = 5
+_TABLE_HEADER_WORDS = frozenset(
+    {
+        "no", "item", "parameter", "description", "value", "unit", "specification", "requirement",
+        "remarks", "range", "limit", "nilai", "satuan", "spesifikasi", "keterangan", "batas",
+        "uraian", "deskripsi", "persyaratan",
+    }
+)  # fmt: skip
+"""The words of a table's column-header line (English and Indonesian); a line of these alone is
+no heading."""
 _ACCURACY = re.compile(r"accuracy|akurasi", re.IGNORECASE)
 _MAXIMUM = re.compile(r"maximum|maksimum|maksimal|\bmax\b|\bmaks\b", re.IGNORECASE)
 
@@ -256,26 +264,66 @@ def _tighter(ac: Number | Limit, floor: float) -> bool:
     return ac.max < floor or (ac.max == floor and ac.max_exclusive)
 
 
+def _heading(line: str, running: frozenset[str] = frozenset()) -> bool | None:
+    """``None`` for a normalised page line that is no heading; else whether it is a Utilities
+    heading. A heading is a short line (at most ``_MAX_HEADING_WORDS`` words, without its
+    numbering and a trailing colon) that starts with a letter, holds no digit and does not end
+    a sentence: a row prints its value, and a sentence runs longer or ends with a stop. A
+    Utilities heading has ``utilities``, ``utility`` or ``utilitas`` as its first or last word
+    (``Site utilities``, ``Utilities and services``, ``5. Utilitas dan lingkungan:``); a line
+    that only mentions utilities is not one. Two lines that have the shape of a heading are
+    not headings: a table's column-header line (every word in ``_TABLE_HEADER_WORDS``:
+    ``Parameter Value Unit``) and, when not a Utilities heading, a running page header (a line
+    that opens two or more pages, ``running``)."""
+    text = _NUMBERING.sub("", line).rstrip(":").strip()
+    words = text.split()
+    if not words or len(words) > _MAX_HEADING_WORDS or not text[0].isalpha():
+        return None
+    if any(ch.isdigit() for ch in text) or text[-1] in ".;,!?":
+        return None
+    if all(w.rstrip(".:").casefold() in _TABLE_HEADER_WORDS for w in words):
+        return None
+    utilities = any(_UTILITY_WORD.fullmatch(w) for w in (words[0], words[-1]))
+    return None if line in running and not utilities else utilities
+
+
 def _under_utilities(sheet: Datasheet, page: int, name: str) -> bool:
-    """Whether the row ``name`` of ``page`` sits under a Utilities heading, by the page text: a
-    Utilities heading line before it on the page, or on an earlier page. Conservative: once
-    the heading is seen every later row of the document is left out (the page does not tell
-    where a section ends), and a name the page prints twice is under it when either place is."""
+    """Whether the row ``name`` of ``page`` sits in a Utilities section, by the page text. A
+    section runs from a Utilities heading to the next heading of any kind (``_heading``),
+    across pages, so a row under another heading is not left out. The line that holds the row's
+    name is the row, never a heading. A name the page prints twice is in a section when either
+    place is. Headings are read from the text alone: a section with no heading after it runs on."""
     needle = normalise(name)
+    firsts = Counter(
+        next((ln for ln in (normalise(x) for x in t.splitlines()) if ln), "") for t in sheet.pages
+    )
+    running = frozenset(ln for ln, count in firsts.items() if ln and count >= 2)
+    inside = False  # the state the earlier pages leave
     for n, text in enumerate(sheet.pages[:page], 1):
-        flat, headings = "", list[int]()
+        flat = ""
+        marks: list[tuple[int, int, bool]] = []  # (start, end, is Utilities) in ``flat``
         for line in (normalise(x) for x in text.splitlines()):
             if not line:
                 continue
-            if _UTILITIES.match(line):
-                headings.append(len(flat))
+            start = len(flat) + 1 if flat else 0
+            utilities = _heading(line, running)
+            if utilities is not None:
+                marks.append((start, start + len(line), utilities))
             flat = f"{flat} {line}" if flat else line
         if n < page:
-            if headings:
-                return True
+            if marks:
+                inside = marks[-1][2]
             continue
-        starts = [m.start() for m in re.finditer(re.escape(needle), flat)]
-        return any(h <= s for h in headings for s in starts)
+        for m in re.finditer(re.escape(needle), flat):
+            state = inside
+            for start, end, utilities in marks:
+                if start > m.start():
+                    break
+                if end > m.start():
+                    continue  # the row's own line, not a heading
+                state = utilities
+            if state:
+                return True
     return False
 
 
@@ -336,8 +384,9 @@ def ac_outside_documented_capability(
     The value is parsed from the row's printed text, not from the stored fact (whose unit
     loses the full-scale qualifier), and only where the units compare (``coverage.comparable``):
     a prefix or dimension slip is ``unit_error``'s. The row's name is the model's, so it must
-    be on the page its citation names; a row under a Utilities heading is excluded by the page
-    text. A step whose header names another requirement than the table lists is not judged."""
+    be on the page its citation names; a row in a Utilities section (from its heading to the
+    next heading) is excluded by the page text. A step whose header names another requirement
+    than the table lists is not judged."""
     sheets = {(d.doc, d.rev): d for d in datasheets}
     out: list[DraftFinding] = []
     for r in rows:
