@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, CircleDot, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { Cite, MatrixRow, ObservedValue, Value } from "@/api/client";
+import type { components } from "@/api/schema";
 import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
 
 type MatrixT = ReturnType<typeof useTranslations<"matrix">>;
@@ -12,8 +13,20 @@ export type Evidence = MatrixRow["evidence"][number];
 const numberFormat = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
 
 /** A required or observed value in a few characters. */
-export function formatValue(t: MatrixT, v: Value | ObservedValue, observed = false): string {
+export function formatValue(
+  t: MatrixT,
+  v: Value | ObservedValue | components["schemas"]["Acceptance"],
+  observed = false,
+): string {
   switch (v.type) {
+    case "exclusive_range": {
+      const parts: string[] = [];
+      if (v.min != null) parts.push(`${v.min_exclusive ? ">" : "≥"} ${numberFormat.format(v.min)}`);
+      if (v.max != null) parts.push(`${v.max_exclusive ? "<" : "≤"} ${numberFormat.format(v.max)}`);
+      return `${parts.join(" ")} ${v.unit}`;
+    }
+    case "tolerance":
+      return `${numberFormat.format(v.nominal)} ${v.unit} ± ${numberFormat.format(v.tolerance)} ${v.tolerance_unit}`;
     case "range":
       if (v.min != null && v.max != null) {
         return `${numberFormat.format(v.min)}–${numberFormat.format(v.max)} ${v.unit}`;

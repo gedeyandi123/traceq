@@ -16,7 +16,7 @@ and its drafted Test Steps (``test_step`` Proposals) and where each stands. A ro
 
 Each row also says what its write form starts from (``prefill``): the written Test Step in
 force, else the latest version of it in the most recent withdrawn Protocol of the Equipment,
-else the first drafted Test Step (its Acceptance Criterion only when in one of the four shapes).
+else the first drafted Test Step (its Acceptance Criterion only when in an Acceptance shape).
 
 A Protocol started from the site's Protocol Draft (spec #375, S4a1; ADR 0012, amended 26
 November 2026) adds, per row:
@@ -49,6 +49,7 @@ from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.proposals.decisions import Decision, Standing, standings
 from traceq.proposals.store import RUN_PROPOSALS
 from traceq.review.printed import Limit
+from traceq.review.printed import Tolerance as PrintedTolerance
 from traceq.runs.schemas import (
     DraftCheckFinding,
     DraftCriterionProposal,
@@ -58,7 +59,15 @@ from traceq.runs.schemas import (
     PrintedRead,
 )
 from traceq.traceability.coverage import CoverageClass
-from traceq.traceability.values import Number, Range, Text, Value
+from traceq.traceability.values import (
+    ExclusiveRange,
+    Number,
+    Range,
+    Text,
+    ToleranceBand,
+    Value,
+    tolerance_judgeable,
+)
 
 type PrefillOrigin = Literal["written", "withdrawn", "draft"]
 
@@ -108,7 +117,7 @@ class Prefill:
     method: str
     instrument: str | None
     acceptance: Acceptance | None
-    """``None`` when the source has none in one of the four shapes: the human sets it."""
+    """``None`` when the source has none in an Acceptance shape: the human sets it."""
 
 
 @dataclass(frozen=True)
@@ -276,7 +285,7 @@ class RowStep:
     description: str
     method: str
     instrument: str | None
-    acceptance: Value | None
+    acceptance: Value | Acceptance | None
     acceptance_flag: str | None
     stage: Stage | None = None
     witness_required: bool = False
@@ -300,13 +309,28 @@ def _edited(r: ProtocolRow, v: WrittenVersion) -> Decision | None:
 
 def exact_acceptance(value: PrintedRead | None) -> Acceptance | None:
     """The Acceptance Criterion a draft prints, as a shape Execution judges exactly, or
-    ``None``: a lone limit or range with inclusive bounds, or a number. An exclusive bound, a
-    tolerance, text or a form code did not read is never coerced to a range: it is not shaped
-    (spec #375, S4a3 settles those)."""
+    ``None``: a limit or range (a strict bound is an exclusive range, never an inclusive one),
+    a tolerance in percent or in the nominal's unit, or a number. A tolerance in another unit,
+    text or a form code did not read is not shaped (spec #375, S4a3)."""
     if isinstance(value, Limit):
         if value.min_exclusive or value.max_exclusive:
-            return None
+            return ExclusiveRange(
+                min=value.min,
+                max=value.max,
+                min_exclusive=value.min_exclusive,
+                max_exclusive=value.max_exclusive,
+                unit=value.unit,
+            )
         return Range(min=value.min, max=value.max, unit=value.unit)
+    if isinstance(value, PrintedTolerance):
+        if not tolerance_judgeable(value.tolerance_unit, value.unit):
+            return None
+        return ToleranceBand(
+            nominal=value.nominal,
+            tolerance=value.tolerance,
+            tolerance_unit=value.tolerance_unit.strip(),
+            unit=value.unit,
+        )
     if isinstance(value, Range | Number):
         return value
     return None
@@ -430,8 +454,9 @@ def _test_step_blockers(
     return tuple(out)
 
 
-def shaped(acceptance: Value | None) -> TypeGuard[Acceptance]:
-    """An Acceptance Criterion in one of the four shapes: range, number, one of, present.
+def shaped(acceptance: Value | Acceptance | None) -> TypeGuard[Acceptance]:
+    """An Acceptance Criterion in one of the shapes: range, exclusive range, tolerance, number,
+    one of, present.
 
     A range whose lower bound is above its upper bound is no shape (as a written Test Step's)."""
     if acceptance is None or isinstance(acceptance, Text):

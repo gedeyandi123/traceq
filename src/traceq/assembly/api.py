@@ -117,7 +117,7 @@ class RowTestStep(_Model):
     description: str
     method: str
     instrument: str | None
-    acceptance: Value | None
+    acceptance: Value | Acceptance | None
     """The Acceptance Criterion; ``null`` while it is "to be set by a human"."""
     acceptance_flag: str | None
     stage: Stage | None = None
@@ -160,7 +160,7 @@ class RowPrefill(_Model):
     method: str
     instrument: str | None
     acceptance: Acceptance | None
-    """``null`` when the source has no Acceptance Criterion in one of the four shapes."""
+    """``null`` when the source has no Acceptance Criterion in an Acceptance shape."""
 
 
 class DraftMappingView(_Model):
