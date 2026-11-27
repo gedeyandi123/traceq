@@ -444,7 +444,7 @@ def shaped(acceptance: Value | None) -> TypeGuard[Acceptance]:
     )
 
 
-def _proposed_of(session: Session, run_id: str) -> dict[int, dict[str, Any]]:
+def proposed_of(session: Session, run_id: str) -> dict[int, dict[str, Any]]:
     return {
         r.proposal_id: r.proposed
         for r in session.execute(
@@ -467,7 +467,7 @@ def draft_listing(
     if protocol.draft is None:
         return [], {}
     stood = standings(session, protocol.run_id) or [] if stood is None else stood
-    proposed = _proposed_of(session, protocol.run_id) if proposed is None else proposed
+    proposed = proposed_of(session, protocol.run_id) if proposed is None else proposed
     versions = written.versions_of(session, protocol.id) if versions is None else versions
     mappings = draft_source.mappings_of(session, protocol.id)
     edits = {
@@ -546,7 +546,7 @@ def rows_of(session: Session, protocol: AssembledProtocol) -> list[ProtocolRow]:
     attrs = attributes.attributes_of(session, protocol.id)
     carried = written.carried_over(session, protocol)
     stood = standings(session, run_id) or []
-    proposed = _proposed_of(session, run_id)
+    proposed = proposed_of(session, run_id)
     from_draft = protocol.draft is not None
     _, covering = draft_listing(session, protocol, stood, proposed, versions)
     found = _findings_by_requirement(session, protocol, stood, proposed)

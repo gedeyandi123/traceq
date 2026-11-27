@@ -14,22 +14,26 @@ with its author; the missed numbers with every version of their dispositions in 
 and the one in force; the unquoted text. Its hash is the SHA-256 of its canonical
 JSON, the canonicalisation of Proposal hashes. The ``submitted`` event stores both, so a
 decision recorded later (decisions are shared across runs) never changes what the Approver
-reads. Submitting takes the per-Protocol lock and checks the status inside it, and has its
-Audit Trail entry in the same transaction.
+reads. A Protocol started from the Protocol Draft (spec #375, S4a2) is frozen as a **version 2**
+copy (``schema_version`` 2), which also records the draft it was pinned to, the source of each
+row, every finding with its decisions and reasons, and every draft Test Step with its mapping
+and decisions; a stored version 1 copy is read by the unchanged version 1 model and its hash is
+never recomputed from a version 2 model. Submitting takes the per-Protocol lock and checks the
+status inside it, and has its Audit Trail entry in the same transaction.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from traceq import audit
-from traceq.assembly import lifecycle
+from traceq.assembly import draft_source, lifecycle
 from traceq.assembly.attributes import Stage, StepAttribute
 from traceq.assembly.lifecycle import EVENTS, Conflict
 from traceq.assembly.missed import (
@@ -40,11 +44,29 @@ from traceq.assembly.missed import (
     UrsMissed,
     missed_of,
 )
-from traceq.assembly.rows import ProtocolRow, rows_of, shaped, step_of, unresolved_steps
+from traceq.assembly.rows import (
+    DraftCandidate,
+    ProtocolRow,
+    RowSource,
+    draft_listing,
+    proposed_of,
+    rows_of,
+    shaped,
+    step_of,
+    unresolved_steps,
+)
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
-from traceq.proposals.decisions import Decision, Verdict
+from traceq.proposals.decisions import Decision, Standing, Verdict, standings
 from traceq.proposals.keys import digest
-from traceq.runs.schemas import Cite, Completeness, EvidenceStep, UnquotedText
+from traceq.review.draft_rules import DraftType
+from traceq.runs.schemas import (
+    Cite,
+    Completeness,
+    DraftCheckFinding,
+    DraftCriterionProposal,
+    EvidenceStep,
+    UnquotedText,
+)
 from traceq.traceability.coverage import CoverageClass
 
 type Check = Literal[
@@ -261,6 +283,115 @@ class ProtocolCopy(_Frozen):
     dispositions, and the unquoted text; ``null`` for a run written before the check existed."""
 
 
+class FrozenCandidate(_Frozen):
+    """A draft Test Step that stands for the row's requirement, and who decided it."""
+
+    proposal_id: int
+    step: str
+    step_decision: FrozenDecision | None
+    """The decision in force on the step in this Protocol; ``null`` while undecided."""
+    criterion_proposal_id: int | None
+    criterion_decision: FrozenDecision | None
+    mapping_version: int | None
+    """The human mapping in force, for a step the traceability table maps to none or to
+    several requirements; ``null`` when the table maps it to exactly one."""
+
+
+class FrozenFindingReason(_Frozen):
+    version: int
+    reason: str
+    author: Author
+    at: datetime
+
+
+class FrozenFinding(_Frozen):
+    """A finding of the Protocol Draft in the run: every decision on it with its author and
+    reason (rejections too), and the reasons written for submitting its row. Findings tied to
+    no row of the Protocol are here too."""
+
+    proposal_id: int
+    type: DraftType
+    requirement: str
+    test_step: str | None
+    row: str | None
+    detail: str
+    label: str | None
+    decisions: tuple[FrozenDecision, ...]
+    """Every decision on this content, the one in force first; empty while undecided."""
+    reasons: tuple[FrozenFindingReason, ...]
+    """Every reason written in this Protocol, oldest first."""
+
+
+class FrozenMapping(_Frozen):
+    version: int
+    requirement: str
+    author: Author
+    at: datetime
+
+
+class FrozenDraftStep(_Frozen):
+    """A Test Step of the pinned Protocol Draft: mapped by a human, dropped by the citation
+    check or traced by the table, with every decision on it and on its criterion."""
+
+    step: str
+    proposal_id: int
+    traced_to: tuple[str, ...]
+    """The requirements the draft's traceability table traces it to."""
+    not_read: str | None
+    """Why the citation check dropped its reading, or ``null``."""
+    requirement: str | None
+    """The requirement it stands for in the Protocol; ``null``: none (it was rejected)."""
+    mappings: tuple[FrozenMapping, ...]
+    """Every human mapping of it in this Protocol, oldest first."""
+    decisions: tuple[FrozenDecision, ...]
+    criterion_decisions: tuple[FrozenDecision, ...]
+
+
+class FrozenSource(_Frozen):
+    """The Protocol Draft the Protocol was pinned to, and the run that read it."""
+
+    doc: str
+    rev: int
+    sha256: str
+    run_id: str
+
+
+class FrozenRowDetail(_Frozen):
+    """What a version 2 copy records about one row beyond a version 1 row."""
+
+    requirement: str
+    source: RowSource | None
+    """Where the row's Test Step comes from; ``null`` for a Vendor Reference."""
+    criterion_decision: FrozenDecision | None
+    """For an accepted draft step: the decision on its Acceptance Criterion."""
+    candidates: tuple[FrozenCandidate, ...]
+    findings: tuple[int, ...]
+    """The Proposal ids of the findings about the row's requirement (see ``findings`` of the
+    copy)."""
+
+
+class ProtocolCopyV2(ProtocolCopy):
+    """The frozen copy of a Protocol started from the Protocol Draft: the version 1 content
+    (``rows``, ``urs``, the Preparer) and what the draft adds."""
+
+    schema_version: Literal[2] = 2
+    source: FrozenSource
+    row_details: tuple[FrozenRowDetail, ...]
+    """One per row of ``rows``, in the same order."""
+    draft_steps: tuple[FrozenDraftStep, ...]
+    """Every Test Step of the pinned draft, in draft order."""
+    findings: tuple[FrozenFinding, ...]
+    """Every finding of the run, whatever row it concerns."""
+
+
+def parse_copy(raw: dict[str, Any]) -> ProtocolCopy:
+    """A stored copy through the model of its ``schema_version``: a copy without one is version
+    1 and is read by the unchanged version 1 model."""
+    if raw.get("schema_version") == 2:
+        return ProtocolCopyV2.model_validate(raw)
+    return ProtocolCopy.model_validate(raw)
+
+
 def _author(a: audit.Actor) -> Author:
     return Author(subject=a.subject, issuer=a.issuer, name=a.name)
 
@@ -410,6 +541,135 @@ def _copy(
     )
 
 
+def _decisions(s: Standing | None) -> tuple[FrozenDecision, ...]:
+    if s is None or s.state != "decided":
+        return ()
+    return tuple(_decision(d) for d in s.decisions)
+
+
+def _candidate(c: DraftCandidate) -> FrozenCandidate:
+    d, k = c.step_decision, c.criterion_decision
+    k_standing = c.criterion_standing
+    return FrozenCandidate(
+        proposal_id=c.standing.proposal_id,
+        step=c.step.id,
+        step_decision=None if d is None else _decision(d),
+        criterion_proposal_id=None if k_standing is None else k_standing.proposal_id,
+        criterion_decision=None if k is None else _decision(k),
+        mapping_version=None if c.mapping is None else c.mapping.version,
+    )
+
+
+def _row_detail(r: ProtocolRow) -> FrozenRowDetail:
+    crit = None
+    accepted = r.accepted_candidate
+    if accepted is not None and not r.changed and accepted.criterion_decision is not None:
+        crit = _decision(accepted.criterion_decision)
+    return FrozenRowDetail(
+        requirement=r.requirement.id,
+        source=r.source,
+        criterion_decision=crit,
+        candidates=tuple(_candidate(c) for c in r.candidates),
+        findings=tuple(f.standing.proposal_id for f in r.findings),
+    )
+
+
+def _finding(
+    s: Standing, f: DraftCheckFinding, reasons: tuple[draft_source.Reason, ...]
+) -> FrozenFinding:
+    return FrozenFinding(
+        proposal_id=s.proposal_id,
+        type=f.type,
+        requirement=f.requirement,
+        test_step=f.test_step,
+        row=f.row,
+        detail=f.detail,
+        label=f.label,
+        decisions=_decisions(s),
+        reasons=tuple(
+            FrozenFindingReason(
+                version=x.version, reason=x.reason, author=_author(x.actor), at=_utc(x.at)
+            )
+            for x in reasons
+        ),
+    )
+
+
+def _copy_v2(
+    session: Session,
+    current: lifecycle.AssembledProtocol,
+    rows: list[ProtocolRow],
+    urs: list[UrsMissed] | None,
+    preparer: Author,
+) -> ProtocolCopyV2:
+    pin = current.draft
+    if pin is None:
+        raise NotFrozen(f"Protocol {current.id} was not started from a Protocol Draft")
+    stood = standings(session, current.run_id) or []
+    proposed = proposed_of(session, current.run_id)
+    criteria: dict[str, Standing] = {}
+    for s in stood:
+        if s.kind == "draft_criterion":
+            c = DraftCriterionProposal.model_validate(proposed[s.proposal_id])
+            criteria.setdefault(c.id, s)
+    listing, _ = draft_listing(session, current, stood, proposed)
+    reasons = draft_source.reasons_of(session, current.id)
+    return ProtocolCopyV2(
+        protocol_id=current.id,
+        equipment=current.equipment,
+        run_id=current.run_id,
+        preparer=preparer,
+        rows=tuple(_row(r) for r in rows),
+        row_details=tuple(_row_detail(r) for r in rows),
+        urs=None if urs is None else tuple(_urs(u) for u in urs),
+        source=FrozenSource(doc=pin.doc, rev=pin.rev, sha256=pin.sha256, run_id=current.run_id),
+        draft_steps=tuple(
+            FrozenDraftStep(
+                step=e.step.id,
+                proposal_id=e.standing.proposal_id,
+                traced_to=e.step.mapped_to,
+                not_read=e.step.not_read,
+                requirement=e.requirement,
+                mappings=tuple(
+                    FrozenMapping(
+                        version=m.version,
+                        requirement=m.requirement,
+                        author=_author(m.actor),
+                        at=_utc(m.at),
+                    )
+                    for m in e.mappings
+                ),
+                decisions=_decisions(e.standing),
+                criterion_decisions=_decisions(criteria.get(e.step.id)),
+            )
+            for e in listing
+        ),
+        findings=tuple(
+            _finding(
+                s,
+                DraftCheckFinding.model_validate(proposed[s.proposal_id]),
+                reasons.get(s.proposal_id, ()),
+            )
+            for s in stood
+            if s.kind == "draft"
+        ),
+    )
+
+
+def build_copy(
+    session: Session,
+    current: lifecycle.AssembledProtocol,
+    rows: list[ProtocolRow],
+    urs: list[UrsMissed] | None,
+    preparer: Author,
+) -> ProtocolCopy:
+    """The copy a submission freezes: version 2 for a Protocol started from the Protocol
+    Draft, version 1 for any other."""
+    if current.draft is not None:
+        return _copy_v2(session, current, rows, urs, preparer)
+    return _copy(current, rows, urs, preparer)
+
+
 def draft_hash_of(copy: ProtocolCopy) -> str:
     """The SHA-256 of the copy's canonical JSON without its Preparer: what a Preparer confirms
     before submitting, whoever they are. Every row, decision, Test Step, step attribute and
@@ -421,27 +681,18 @@ _NO_ONE = Author(subject="", issuer="", name="")
 
 
 def draft_hash(
+    session: Session,
     current: lifecycle.AssembledProtocol,
     rows: list[ProtocolRow],
     urs: list[UrsMissed] | None,
     unresolved: tuple[str, ...] = (),
 ) -> str | None:
     """``draft_hash_of`` the copy a submission would freeze now; ``None`` while a check of
-    ``checklist`` blocks it (there is nothing to submit yet), and for a Protocol started from
-    the Protocol Draft, whose frozen copy is not built yet (``FROM_DRAFT_NOT_FROZEN``)."""
+    ``checklist`` blocks it (there is nothing to submit yet)."""
     from_draft = current.draft is not None
     if any(b.count for b in checklist(rows, urs, from_draft=from_draft, unresolved=unresolved)):
         return None
-    if from_draft:
-        return None
-    return draft_hash_of(_copy(current, rows, urs, _NO_ONE))
-
-
-FROM_DRAFT_NOT_FROZEN = (
-    "a Protocol started from the Protocol Draft is frozen as a version 2 copy, which records the"
-    " source of each row, the findings, their reasons and the mappings: it is built by the"
-    " next ticket (S4a2, #388), and a version 1 copy would lose them"
-)
+    return draft_hash_of(build_copy(session, current, rows, urs, _NO_ONE))
 
 
 # --- Submitting -----------------------------------------------------------------------
@@ -468,7 +719,7 @@ def submissions_of(session: Session, protocol_id: int) -> list[Submission]:
         .where(EVENTS.c.protocol_id == protocol_id, EVENTS.c.event == "submitted")
         .order_by(EVENTS.c.id)
     ).mappings():
-        copy = ProtocolCopy.model_validate(m["frozen_copy"])
+        copy = parse_copy(m["frozen_copy"])
         out.append(
             Submission(
                 event_id=m["id"],
@@ -491,17 +742,22 @@ def submit(
     auth_time: datetime | None,
     jti: str | None,
     is_demo: bool = False,
+    expected_latest_draft_rev: int | None = None,
 ) -> lifecycle.AssembledProtocol:
     """Submits a Protocol in Draft status that nothing blocks: freezes its copy and hash in
     the ``submitted`` event. ``check``: the completeness check of the Protocol's run.
     ``expected_draft_hash``: the ``draft_hash`` the Preparer read; ``Conflict`` when the draft
-    holds anything else now, so nobody signs content they did not see. Signs it:
+    holds anything else now, so nobody signs content they did not see.
+    ``expected_latest_draft_rev``: for a Protocol started from the Protocol Draft, the latest
+    revision of the draft the Preparer read; ``Conflict`` when a newer one arrived since,
+    ``Refused`` without it. Signs it:
     ``SignatureAuthRequired`` without a fresh ``auth_time`` and ``jti``, before anything is
     written."""
     auth_time, jti = audit.require_signing_claims(auth_time, jti)
     current = lifecycle.locked(
         session, protocol_id, "draft", "only a Protocol in Draft status can be submitted"
     )
+    latest = draft_source.check_latest(session, current, expected_latest_draft_rev)
     rows = rows_of(session, current)
     urs = missed_of(session, protocol_id, check)
     from_draft = current.draft is not None
@@ -512,9 +768,7 @@ def submit(
     if blocking:
         listed = ", ".join(f"{b.check} ({b.count})" for b in blocking)
         raise Conflict(f"Protocol {protocol_id} cannot be submitted while it is blocked: {listed}")
-    if from_draft:
-        raise Conflict(f"Protocol {protocol_id} cannot be submitted yet: {FROM_DRAFT_NOT_FROZEN}")
-    copy = _copy(current, rows, urs, _author(actor))
+    copy = build_copy(session, current, rows, urs, _author(actor))
     if draft_hash_of(copy) != expected_draft_hash:
         raise Conflict(
             f"Protocol {protocol_id} has changed since you read it: reload the page and review"
@@ -529,6 +783,7 @@ def submit(
         None,
         frozen_copy=copy.model_dump(mode="json"),
         copy_hash=hashed,
+        latest_draft_rev=latest,
     )
     sig = audit.record_signature(
         session,
@@ -547,6 +802,8 @@ def submit(
         "hash": hashed,
         "signature_id": sig.id,
     }
+    if latest is not None:
+        new_audit["latest_draft_rev"] = latest
     audit.append(
         session,
         actor,

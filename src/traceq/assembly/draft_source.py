@@ -31,6 +31,7 @@ from sqlalchemy import (
     RowMapping,
     Table,
     Text,
+    func,
     select,
 )
 from sqlalchemy.dialects.postgresql import insert
@@ -57,6 +58,17 @@ MAPPINGS = Table(
     Column("issuer", Text),
     Column("name", Text),
 )
+DOCUMENT_VERSIONS = Table(
+    "document_versions",
+    _META,
+    Column("id", BigInteger, primary_key=True),
+    Column("equipment", Text),
+    Column("doc_id", Text),
+    Column("rev", Integer),
+    Column("doc_type", Text),
+)
+"""The documents the Equipment's runs read (``rounds`` owns it; read here for the latest
+revision of the Protocol Draft)."""
 REASONS = Table(
     "protocol_finding_reasons",
     _META,
@@ -187,17 +199,60 @@ def accepted_steps(
     session: Session, protocol: AssembledProtocol, requirement: str, *, ignoring: int | None = None
 ) -> list[int]:
     """The draft Test Steps standing for the requirement in the Protocol that are accepted on
-    their content (``ignoring``: one Proposal left out)."""
-    stands = {p for p, r in steps_of(session, protocol).items() if r == requirement}
-    return [
-        s.proposal_id
-        for s in decisions.standings(session, protocol.run_id) or []
-        if s.kind == "draft_step"
-        and s.proposal_id in stands
-        and s.proposal_id != ignoring
-        and s.state == "decided"
-        and s.decisions[0].decision == "accepted"
-    ]
+    their content (``ignoring``: one Proposal left out). A step a human mapped decides nothing
+    before that mapping: an acceptance older than the mapping in force does not count, as on
+    the row."""
+    mappings = mappings_of(session, protocol.id)
+    stands: dict[int, datetime | None] = {}
+    for step, (proposal_id, payload) in draft_step_payloads(session, protocol.run_id).items():
+        human = mappings.get(step, ())
+        if effective_requirement(payload.mapped_to, human) == requirement:
+            stands[proposal_id] = human[-1].at if human and len(payload.mapped_to) != 1 else None
+    out: list[int] = []
+    for s in decisions.standings(session, protocol.run_id) or []:
+        if s.kind != "draft_step" or s.proposal_id not in stands or s.proposal_id == ignoring:
+            continue
+        if s.state != "decided" or s.decisions[0].decision != "accepted":
+            continue
+        mapped_at = stands[s.proposal_id]
+        if mapped_at is None or s.decisions[0].at > mapped_at:
+            out.append(s.proposal_id)
+    return out
+
+
+def latest_revision(session: Session, protocol: AssembledProtocol) -> int | None:
+    """The latest revision of the Protocol Draft the Protocol is pinned to that the
+    Equipment's runs have read; ``None`` for a Protocol not started from the draft."""
+    if protocol.draft is None:
+        return None
+    return session.execute(
+        select(func.max(DOCUMENT_VERSIONS.c.rev)).where(
+            DOCUMENT_VERSIONS.c.equipment == protocol.equipment,
+            DOCUMENT_VERSIONS.c.doc_id == protocol.draft.doc,
+            DOCUMENT_VERSIONS.c.doc_type == "protocol_draft",
+        )
+    ).scalar_one()
+
+
+def check_latest(session: Session, protocol: AssembledProtocol, expected: int | None) -> int | None:
+    """What a signature on a Protocol started from the draft needs: the latest draft revision
+    the caller read. Returns the latest revision now (``None`` for a Protocol not started from
+    the draft, which ignores ``expected``); ``Refused`` without ``expected``, ``Conflict`` when
+    a newer revision arrived since (the page is stale: reload before signing)."""
+    if protocol.draft is None:
+        return None
+    latest = latest_revision(session, protocol)
+    if expected is None:
+        raise Refused(
+            f"Protocol {protocol.id} was started from a Protocol Draft: name the latest draft"
+            " revision you read (expected_latest_draft_rev)"
+        )
+    if latest != expected:
+        raise Conflict(
+            f"a newer revision of the Protocol Draft arrived (revision {latest}, you read"
+            f" {expected}): reload before signing"
+        )
+    return latest
 
 
 def _requirements(session: Session, run_id: str) -> set[str]:
@@ -250,6 +305,8 @@ def map_step(
     if requirement not in _requirements(session, protocol.run_id):
         raise NotFound(f"run {protocol.run_id} has no requirement {requirement}")
     earlier = mappings_of(session, protocol_id).get(step, ())
+    if earlier and earlier[-1].requirement == requirement:
+        return earlier[-1]  # the same mapping again: no new version, nothing to decide again
     if earlier:
         lifecycle.lock_requirement(session, protocol.equipment, earlier[-1].requirement)
     lifecycle.lock_requirement(session, protocol.equipment, requirement)

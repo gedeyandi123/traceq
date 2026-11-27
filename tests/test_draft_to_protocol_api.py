@@ -314,7 +314,9 @@ def test_a_later_revision_never_clears_a_warning_on_a_protocol_pinned_to_revisio
     draft_run(runs, RUN_2, revision_1)  # revision 1 resolves the finding
     import_run(client, decider, RUN_2)
     after = read(client, decider)
-    assert after == before  # nothing re-syncs
+    # Nothing re-syncs: only the latest revision the Equipment has read moves.
+    assert (before["latest_draft_rev"], after["latest_draft_rev"]) == (0, 1)
+    assert {**after, "latest_draft_rev": 0} == before
     assert after["source"]["rev"] == 0
     assert after["rows"][0]["findings"][0]["finding"] == finding["finding"]
     assert "finding_undecided" in {b for r in after["rows"] for b in r["blockers"]}
@@ -649,7 +651,7 @@ def make_ready(client: TestClient, headers: dict[str, str], protocol: Any) -> No
     dispose(client, headers, protocol, number=N004, kind="not_tested_here")
 
 
-def test_every_check_clear_still_refuses_submission_until_the_v2_copy_exists(
+def test_every_check_clear_submits_a_version_2_copy(
     client: TestClient, decider: dict[str, str], protocol: Any
 ) -> None:
     got = read(client, decider)
@@ -660,14 +662,14 @@ def test_every_check_clear_still_refuses_submission_until_the_v2_copy_exists(
     edit(client, decider, protocol, place(ps, "test_step", R030), STEP)
     got = read(client, decider)
     assert [c for c in got["checklist"] if c["count"]] == [], got["checklist"]
-    assert got["draft_hash"] is None
+    assert got["draft_hash"] is not None
     r = client.post(
         f"/protocols/{protocol['id']}/submit",
         headers=decider,
-        json={"expected_draft_hash": "0" * 64},
+        json={"expected_draft_hash": got["draft_hash"], "expected_latest_draft_rev": 0},
     )
-    assert r.status_code == 409
-    assert "version 2 copy" in r.json()["detail"]
+    assert r.status_code == 200, r.text
+    assert r.json()["submission"]["frozen_copy"]["schema_version"] == 2
 
 
 def test_submit_names_the_draft_checks_that_block(
@@ -676,7 +678,7 @@ def test_submit_names_the_draft_checks_that_block(
     r = client.post(
         f"/protocols/{protocol['id']}/submit",
         headers=decider,
-        json={"expected_draft_hash": "0" * 64},
+        json={"expected_draft_hash": "0" * 64, "expected_latest_draft_rev": 0},
     )
     assert r.status_code == 409
     detail = r.json()["detail"]
