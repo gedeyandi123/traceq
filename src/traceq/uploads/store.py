@@ -1,0 +1,305 @@
+"""The upload queue and its live-spend ledger, in Postgres (migration 0021).
+
+``accept`` is the one place a job is created. In one transaction it takes the lock of the
+Equipment, reserves the budget with a single conditional UPDATE (so concurrent uploads can
+never reserve past the ceiling: Postgres re-checks the condition on the row the first
+committed), assigns the next revision number of the Equipment (under that lock, so two
+uploads never share one) and adds the job and its Audit Trail entry. Nothing is dispatched
+before the reservation holds.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import tempfile
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
+
+from sqlalchemy import RowMapping, text
+from sqlalchemy.orm import Session
+
+from traceq import audit
+
+_LOCK_NS = 0x7551  # the advisory-lock namespace of upload revision numbers
+WORKER_LOCK = (0x7551, 1)
+"""The session lock one worker holds while it processes a job: workers are serialised."""
+_SHA = re.compile(r"^[0-9a-f]{64}$")
+STATUSES = ("queued", "running", "succeeded", "failed")
+
+
+class BudgetRefused(Exception):
+    """The live budget does not cover what the upload may cost."""
+
+
+@dataclass(frozen=True)
+class Job:
+    id: int
+    at: datetime
+    equipment: str
+    rev: int
+    sha256: str
+    size_bytes: int
+    pages: int
+    status: str
+    reserved_usd: Decimal
+    cost_usd: Decimal | None
+    run_id: str | None
+    message: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    actor: audit.Actor
+
+
+_COLUMNS = (
+    "id, at, equipment, rev, sha256, size_bytes, pages, status, reserved_usd, cost_usd, run_id,"
+    " message, started_at, finished_at, subject, issuer, name"
+)
+
+
+def _job(m: RowMapping) -> Job:
+    return Job(
+        id=int(m["id"]),
+        at=m["at"],
+        equipment=str(m["equipment"]),
+        rev=int(m["rev"]),
+        sha256=str(m["sha256"]),
+        size_bytes=int(m["size_bytes"]),
+        pages=int(m["pages"]),
+        status=str(m["status"]),
+        reserved_usd=Decimal(m["reserved_usd"]),
+        cost_usd=None if m["cost_usd"] is None else Decimal(m["cost_usd"]),
+        run_id=m["run_id"],
+        message=m["message"],
+        started_at=m["started_at"],
+        finished_at=m["finished_at"],
+        actor=audit.actor_of_row(m),
+    )
+
+
+def usd(value: float | Decimal) -> Decimal:
+    """A money amount as the ledger stores it: six decimals."""
+    return Decimal(str(value)).quantize(Decimal("0.000001"))
+
+
+# --- Files ------------------------------------------------------------------------------
+
+
+def blob_path(directory: Path, sha256: str) -> Path:
+    """Where the bytes with this hash are kept: named by the hash alone."""
+    if not _SHA.match(sha256):
+        raise ValueError("not a SHA-256")
+    return directory / f"{sha256}.pdf"
+
+
+def save_blob(directory: Path, sha256: str, data: bytes) -> Path:
+    """Stores ``data`` under its hash, atomically; the same bytes again change nothing."""
+    path = blob_path(directory, sha256)
+    if path.is_file():
+        return path
+    directory.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=directory, suffix=".part")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+    return path
+
+
+# --- Queue ------------------------------------------------------------------------------
+
+
+def replayable(session: Session, sha256: str, recorded: bool) -> bool:
+    """Whether these bytes were read before: by a finished upload, or (``recorded``) because
+    the recordings hold their ingest. A re-upload of them replays and costs nothing live."""
+    done = session.execute(
+        text("SELECT 1 FROM upload_jobs WHERE sha256 = :sha AND status = 'succeeded' LIMIT 1"),
+        {"sha": sha256},
+    ).first()
+    return recorded or done is not None
+
+
+def accept(
+    session: Session,
+    actor: audit.Actor,
+    *,
+    equipment: str,
+    sha256: str,
+    size_bytes: int,
+    pages: int,
+    estimate: Decimal,
+    ceiling: Decimal,
+) -> Job:
+    """Reserves ``estimate`` of the ``ceiling`` and queues the job, in the caller's
+    transaction. ``BudgetRefused`` when ``reserved + spent + estimate`` would pass the
+    ceiling: the transaction then holds nothing."""
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(:ns, hashtext(:equipment))"),
+        {"ns": _LOCK_NS, "equipment": equipment},
+    )
+    reserved = session.execute(
+        text(
+            "UPDATE upload_budget SET reserved_usd = reserved_usd + :e"
+            " WHERE id = 1 AND reserved_usd + spent_usd + :e <= :ceiling RETURNING reserved_usd"
+        ),
+        {"e": estimate, "ceiling": ceiling},
+    ).first()
+    if reserved is None:
+        raise BudgetRefused(
+            f"the live budget of USD {ceiling} does not cover this upload (USD {estimate})"
+        )
+    m = (
+        session.execute(
+            text(
+                "INSERT INTO upload_jobs (equipment, rev, sha256, size_bytes, pages,"
+                " reserved_usd, subject, issuer, name)"
+                " VALUES (:equipment,"
+                " (SELECT COALESCE(MAX(rev) + 1, 0) FROM upload_jobs WHERE equipment = :equipment),"
+                " :sha, :size, :pages, :e, :subject, :issuer, :name)"
+                f" RETURNING {_COLUMNS}"
+            ),
+            {
+                "equipment": equipment,
+                "sha": sha256,
+                "size": size_bytes,
+                "pages": pages,
+                "e": estimate,
+                "subject": actor.subject,
+                "issuer": actor.issuer,
+                "name": actor.name,
+            },
+        )
+        .mappings()
+        .one()
+    )
+    job = _job(m)
+    audit.append(
+        session,
+        actor,
+        "draft uploaded",
+        "upload_job",
+        str(job.id),
+        new={
+            "equipment": equipment,
+            "rev": job.rev,
+            "sha256": sha256,
+            "size_bytes": size_bytes,
+            "pages": pages,
+            "reserved_usd": str(estimate),
+        },
+    )
+    return job
+
+
+def claim_next(session: Session) -> Job | None:
+    """The oldest queued job, now running; ``None`` when the queue is empty."""
+    m = (
+        session.execute(
+            text(
+                "UPDATE upload_jobs SET status = 'running', started_at = clock_timestamp()"
+                " WHERE id = (SELECT id FROM upload_jobs WHERE status = 'queued'"
+                " ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED)"
+                f" RETURNING {_COLUMNS}"
+            )
+        )
+        .mappings()
+        .first()
+    )
+    return None if m is None else _job(m)
+
+
+def finish(
+    session: Session,
+    job: Job,
+    *,
+    run_id: str | None,
+    cost: Decimal,
+    message: str | None,
+) -> None:
+    """A running job ends: ``succeeded`` when it produced ``run_id``, else ``failed``. Its
+    reservation is released and what it spent is added to the ledger, in one transaction."""
+    status = "succeeded" if run_id is not None else "failed"
+    done = session.execute(
+        text(
+            "UPDATE upload_jobs SET status = :status, run_id = :run_id, cost_usd = :cost,"
+            " message = :message, finished_at = clock_timestamp()"
+            " WHERE id = :id AND status = 'running' RETURNING id"
+        ),
+        {
+            "status": status,
+            "run_id": run_id,
+            "cost": cost,
+            "message": message,
+            "id": job.id,
+        },
+    ).first()
+    if done is None:
+        raise RuntimeError(f"upload job {job.id} is not running")
+    session.execute(
+        text(
+            "UPDATE upload_budget SET reserved_usd = reserved_usd - :reserved,"
+            " spent_usd = spent_usd + :cost WHERE id = 1"
+        ),
+        {"reserved": job.reserved_usd, "cost": cost},
+    )
+
+
+def interrupted(session: Session) -> list[Job]:
+    """Jobs still ``running`` while no worker holds the lock: a worker died. Each fails and
+    releases its reservation, so the queue and the ledger do not stay stuck."""
+    rows = (
+        session.execute(
+            text(f"SELECT {_COLUMNS} FROM upload_jobs WHERE status = 'running' ORDER BY id")
+        )
+        .mappings()
+        .all()
+    )
+    jobs = [_job(m) for m in rows]
+    for job in jobs:
+        finish(
+            session,
+            job,
+            run_id=None,
+            cost=Decimal(0),
+            message="the worker stopped before this upload finished; upload it again",
+        )
+    return jobs
+
+
+def get(session: Session, job_id: int) -> Job | None:
+    m = (
+        session.execute(text(f"SELECT {_COLUMNS} FROM upload_jobs WHERE id = :id"), {"id": job_id})
+        .mappings()
+        .first()
+    )
+    return None if m is None else _job(m)
+
+
+def for_equipment(session: Session, equipment: str) -> list[Job]:
+    """The Equipment's uploads, newest revision first."""
+    rows = (
+        session.execute(
+            text(
+                f"SELECT {_COLUMNS} FROM upload_jobs WHERE equipment = :equipment ORDER BY rev DESC"
+            ),
+            {"equipment": equipment},
+        )
+        .mappings()
+        .all()
+    )
+    return [_job(m) for m in rows]
+
+
+def budget(session: Session) -> tuple[Decimal, Decimal]:
+    """``(reserved, spent)`` of the ledger."""
+    m = (
+        session.execute(text("SELECT reserved_usd, spent_usd FROM upload_budget WHERE id = 1"))
+        .mappings()
+        .one()
+    )
+    return Decimal(m["reserved_usd"]), Decimal(m["spent_usd"])

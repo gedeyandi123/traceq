@@ -1255,7 +1255,49 @@
     "colRequal": "Rekualifikasi Berikutnya",
     "runCount": "{count} run",
     "openDeviations": "{count} deviasi terbuka",
-    "unscheduled": "Belum dijadwalkan"
+    "unscheduled": "Belum dijadwalkan",
+    "uploadLink": "Unggah draf"
+  },
+  "upload": {
+    "title": "Unggah Draf Protokol",
+    "lead": "Unggah draf protokol (PDF) sebagai revisi berikutnya. Pra-tinjauan berjalan di latar belakang; hasilnya muncul di halaman draf dan ronde tinjauan.",
+    "cloudTitle": "Hanya data sintetis",
+    "cloudNotice": "Mode Cloud mengirim teks dokumen ke penyedia model eksternal. Hanya data sintetis yang boleh diunggah (ADR 0001); jangan unggah dokumen pabrik yang sebenarnya.",
+    "fileLabel": "Berkas PDF",
+    "limits": "Maksimal {mb} MB dan {pages} halaman. Hanya PDF.",
+    "send": "Unggah",
+    "sending": "Mengunggah…",
+    "problem": {
+      "notPdf": "Berkas ditolak: bukan PDF yang dapat dibaca, atau melebihi batas halaman.",
+      "tooLarge": "Berkas melebihi batas ukuran.",
+      "budget": "Anggaran panggilan langsung tidak cukup untuk unggahan ini.",
+      "forbidden": "Mengunggah memerlukan peran penentu untuk Equipment ini.",
+      "unauthorized": "Sesi tidak valid. Masuk kembali.",
+      "failed": "Unggahan gagal. Coba lagi."
+    },
+    "colRev": "Revisi",
+    "colFile": "Berkas",
+    "colStatus": "Status",
+    "colResult": "Hasil",
+    "pages": "{count} hal.",
+    "replayNote": "diputar ulang dari rekaman, tanpa biaya langsung",
+    "status": {
+      "queued": "Antre",
+      "running": "Berjalan",
+      "succeeded": "Selesai",
+      "failed": "Gagal"
+    },
+    "openDraft": "Buka draf",
+    "openRounds": "Buka ronde tinjauan",
+    "emptyTitle": "Belum ada unggahan",
+    "empty": "Draf yang diunggah untuk Equipment ini muncul di sini.",
+    "signedOut": "Anda belum masuk. Masuk untuk mengunggah draf.",
+    "forbiddenTitle": "Tidak dapat mengunggah",
+    "forbidden": "Mengunggah dan memantau draf memerlukan peran penentu, untuk Equipment yang diaktifkan.",
+    "notEnabledTitle": "Unggahan tidak aktif",
+    "notEnabled": "Server ini tidak mengaktifkan unggahan draf.",
+    "unavailableTitle": "Halaman tidak dapat dimuat",
+    "unavailable": "API tidak dapat dihubungi atau sesi tidak valid."
   },
   "signature": {
     "meaningLabel": "Makna Tanda Tangan",

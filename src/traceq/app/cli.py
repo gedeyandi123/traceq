@@ -8,6 +8,8 @@ Usage::
         [--review-package PACKAGE_DIR --package-recordings DIR [--draft-rev N]]
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
         [--issuer URL --database URL [--audience traceq] [--role-claim roles]]
+        [--uploads DIR --upload-equipment TAG --recordings DIR --package-recordings DIR
+            [--model M] [--upload-budget-usd 0]]
     traceq demo-issuer [--port 9000] [--audience traceq] [--role-claim roles]
 
 Without ``--live`` every LLM call is replayed from ``--recordings`` and nothing is sent.
@@ -37,6 +39,13 @@ released corpus they read, so a citation opens its page. Without ``--issuer`` an
 that issuer opens the database routes (``--database``: a SQLAlchemy URL connecting as the
 application role). It refuses to start with only one of the two.
 
+``--uploads DIR`` (with ``--corpus``, ``--upload-equipment``, ``--recordings`` and
+``--package-recordings``) turns on the browser upload of a Protocol Draft for that Equipment
+and runs the one upload worker inside the server. Uploaded files and packages are kept in DIR.
+``--upload-budget-usd`` is the ceiling of live spend over all uploads: with 0 (the default)
+nothing is ever sent, and only bytes that already have a recording are accepted. Above 0 the
+Mode Cloud adapter is used for bytes with no recording, within the ceiling.
+
 ``traceq demo-issuer`` starts the demo OIDC issuer on ``http://127.0.0.1:PORT`` (never
 another interface): demo identities without a password, for the demo only.
 """
@@ -47,7 +56,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from traceq.ai import BudgetExceeded, MissingRecording
+from traceq.ai import LLM, BudgetExceeded, MissingRecording
 from traceq.documents import OcrUnavailable
 
 DEFAULT_MODEL = "claude-haiku-5-5"
@@ -100,6 +109,12 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--audience", default="traceq", help="what a token must be issued for")
     s.add_argument("--role-claim", default="roles", help="the claim holding the roles")
     s.add_argument("--database", help="database URL, connecting as the application role")
+    s.add_argument("--uploads", type=Path, help="directory for uploaded drafts; turns uploads on")
+    s.add_argument("--upload-equipment", help="the one Equipment uploads are accepted for")
+    s.add_argument("--recordings", type=Path, default=Path("recordings"))
+    s.add_argument("--package-recordings", type=Path, help="recordings and ingest of drafts")
+    s.add_argument("--model", default=DEFAULT_MODEL)
+    s.add_argument("--upload-budget-usd", type=float, default=0.0)
     i = commands.add_parser(
         "demo-issuer", help="start the demo OIDC issuer (demo identities, local machine only)"
     )
@@ -131,8 +146,45 @@ def main(argv: list[str] | None = None) -> int:
                 issuer=args.issuer, audience=args.audience, role_claim=args.role_claim
             )
         )
+        uploads = None
+        if args.uploads is not None:
+            if (
+                args.corpus is None
+                or args.upload_equipment is None
+                or args.package_recordings is None
+            ):
+                print(
+                    "traceq serve: --uploads needs --corpus, --upload-equipment and"
+                    " --package-recordings",
+                    file=sys.stderr,
+                )
+                return 2
+            from traceq.uploads import UploadSettings
+
+            def _cloud() -> LLM:
+                from traceq.ai.cloud import CloudLLM
+
+                return CloudLLM(args.model)
+
+            uploads = UploadSettings(
+                equipment=args.upload_equipment,
+                store=args.uploads,
+                corpus=args.corpus,
+                recordings=args.recordings,
+                package_recordings=args.package_recordings,
+                model=args.model,
+                budget_usd=args.upload_budget_usd,
+                live=_cloud if args.upload_budget_usd > 0 else None,
+            )
         try:
-            app = create_app(args.runs, args.corpus, identity=identity, database=args.database)
+            app = create_app(
+                args.runs,
+                args.corpus,
+                identity=identity,
+                database=args.database,
+                uploads=uploads,
+                run_worker=uploads is not None,
+            )
         except ValueError as e:
             print(f"traceq serve: {e}", file=sys.stderr)
             return 2

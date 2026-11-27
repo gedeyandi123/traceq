@@ -948,6 +948,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/equipment/{equipment}/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Uploads
+         * @description The Equipment's uploaded drafts and the limits an upload must keep.
+         */
+        get: operations["listDraftUploads"];
+        put?: never;
+        /**
+         * Upload
+         * @description Queues a Protocol Draft PDF as the Equipment's next revision. The body is the PDF.
+         *     Refused when it is not a PDF (415, 422), passes the size or page cap (413, 422), or
+         *     the live budget does not cover it (402).
+         */
+        post: operations["uploadDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Upload
+         * @description Where an upload stands: ``queued``, ``running``, ``succeeded`` (with its run) or
+         *     ``failed`` (with why).
+         */
+        get: operations["getDraftUpload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1662,6 +1709,23 @@ export interface components {
             not_compared: string | null;
             /** Comparators */
             comparators: components["schemas"]["DraftComparator"][];
+        };
+        /** DraftUploads */
+        DraftUploads: {
+            /** Equipment */
+            equipment: string;
+            /** Max Bytes */
+            max_bytes: number;
+            /** Max Pages */
+            max_pages: number;
+            /** Live Budget Usd */
+            live_budget_usd: number;
+            /** Live Remaining Usd */
+            live_remaining_usd: number;
+            /** Cloud Notice */
+            cloud_notice: string;
+            /** Jobs */
+            jobs: components["schemas"]["UploadJobView"][];
         };
         /**
          * DraftedTestStep
@@ -3822,6 +3886,45 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** UploadJobView */
+        UploadJobView: {
+            /** Id */
+            id: number;
+            /** Equipment */
+            equipment: string;
+            /** Rev */
+            rev: number;
+            /** Sha256 */
+            sha256: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Pages */
+            pages: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /** Reserved Usd */
+            reserved_usd: number;
+            /** Cost Usd */
+            cost_usd: number | null;
+            /** Run Id */
+            run_id: string | null;
+            /** Message */
+            message: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Name */
+            name: string;
+        };
         /**
          * UrsCompleteness
          * @description The completeness check of one URS the run read, built without an LLM.
@@ -5427,6 +5530,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EquipmentSummary"][];
+                };
+            };
+        };
+    };
+    listDraftUploads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equipment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftUploads"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    uploadDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equipment: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/pdf": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadJobView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDraftUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadJobView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

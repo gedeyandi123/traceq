@@ -3,6 +3,7 @@ import { cache } from "react";
 import {
   api,
   type DecisionCounts,
+  type DraftUploads,
   type EquipmentSummary,
   type ExecutionView,
   type ProtocolView,
@@ -122,6 +123,34 @@ export const fetchQualificationReport = cache(
       });
       if (res.data) return { kind: "ok", data: res.data };
       if (res.response.status === 404) return { kind: "not_found" };
+      return { kind: "unavailable" };
+    } catch {
+      return { kind: "unavailable" };
+    }
+  },
+);
+
+export type DraftUploadsFetchResult =
+  | { kind: "ok"; data: DraftUploads }
+  | { kind: "unauthorized" }
+  | { kind: "forbidden" }
+  | { kind: "not_enabled" }
+  | { kind: "unavailable" };
+
+/** The uploaded drafts of an Equipment and the limits an upload must keep. */
+export const fetchDraftUploads = cache(
+  async (equipment: string): Promise<DraftUploadsFetchResult> => {
+    const session = await currentSession();
+    if (session === null) return { kind: "unauthorized" };
+    try {
+      const res = await api.GET("/equipment/{equipment}/drafts", {
+        params: { path: { equipment } },
+        headers: await bearerHeaders(),
+      });
+      if (res.data) return { kind: "ok", data: res.data };
+      if (res.response.status === 401) return { kind: "unauthorized" };
+      if (res.response.status === 403) return { kind: "forbidden" };
+      if (res.response.status === 404) return { kind: "not_enabled" };
       return { kind: "unavailable" };
     } catch {
       return { kind: "unavailable" };

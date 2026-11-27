@@ -76,6 +76,8 @@ export type LatestQualificationReportSummary =
   components["schemas"]["LatestQualificationReportSummary"];
 export type ElectronicSignatureView = components["schemas"]["ElectronicSignatureView"];
 export type SignatureMeaning = components["schemas"]["SignatureMeaning"];
+export type DraftUploads = components["schemas"]["DraftUploads"];
+export type UploadJobView = components["schemas"]["UploadJobView"];
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */
 export const api = createClient<paths>({ baseUrl: API_URL, cache: "no-store" });

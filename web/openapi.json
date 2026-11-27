@@ -2320,6 +2320,150 @@
           }
         ]
       }
+    },
+    "/equipment/{equipment}/drafts": {
+      "get": {
+        "summary": "List Uploads",
+        "description": "The Equipment's uploaded drafts and the limits an upload must keep.",
+        "operationId": "listDraftUploads",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "equipment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Equipment"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftUploads"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Upload",
+        "description": "Queues a Protocol Draft PDF as the Equipment's next revision. The body is the PDF.\nRefused when it is not a PDF (415, 422), passes the size or page cap (413, 422), or\nthe live budget does not cover it (402).",
+        "operationId": "uploadDraft",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "equipment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Equipment"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{job_id}": {
+      "get": {
+        "summary": "Get Upload",
+        "description": "Where an upload stands: ``queued``, ``running``, ``succeeded`` (with its run) or\n``failed`` (with why).",
+        "operationId": "getDraftUpload",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4522,6 +4666,53 @@
         ],
         "title": "DraftTraced",
         "description": "A Test Step's AC compared with one requirement the traceability table traces it to."
+      },
+      "DraftUploads": {
+        "properties": {
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "max_bytes": {
+            "type": "integer",
+            "title": "Max Bytes"
+          },
+          "max_pages": {
+            "type": "integer",
+            "title": "Max Pages"
+          },
+          "live_budget_usd": {
+            "type": "number",
+            "title": "Live Budget Usd"
+          },
+          "live_remaining_usd": {
+            "type": "number",
+            "title": "Live Remaining Usd"
+          },
+          "cloud_notice": {
+            "type": "string",
+            "title": "Cloud Notice"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/UploadJobView"
+            },
+            "type": "array",
+            "title": "Jobs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "equipment",
+          "max_bytes",
+          "max_pages",
+          "live_budget_usd",
+          "live_remaining_usd",
+          "cloud_notice",
+          "jobs"
+        ],
+        "title": "DraftUploads"
       },
       "DraftedTestStep": {
         "properties": {
@@ -10509,6 +10700,134 @@
         ],
         "title": "UnquotedText",
         "description": "URS text that no kept requirement quotes: adjacent lines merged."
+      },
+      "UploadJobView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "reserved_usd": {
+            "type": "number",
+            "title": "Reserved Usd"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "equipment",
+          "rev",
+          "sha256",
+          "size_bytes",
+          "pages",
+          "status",
+          "reserved_usd",
+          "cost_usd",
+          "run_id",
+          "message",
+          "at",
+          "started_at",
+          "finished_at",
+          "name"
+        ],
+        "title": "UploadJobView"
       },
       "UrsCompleteness": {
         "properties": {
