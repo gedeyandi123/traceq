@@ -30,9 +30,9 @@ type Problem =
   | "forbidden"
   | "unauthorized"
   | "conflict"
-  | "pollLost"
-  | "pollTimeout"
   | "failed";
+/** Why automatic updates stopped; shown under the table, apart from upload errors. */
+type PollProblem = "unauthorized" | "pollLost" | "pollTimeout";
 
 /** The page shows only these codes, never the API `detail`: it is English and can name
  * server files. */
@@ -58,7 +58,10 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
   const [jobs, setJobs] = useState<UploadJobView[]>(initial.jobs);
   const [problem, setProblem] = useState<{ kind: Problem } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pollProblem, setPollProblem] = useState<PollProblem | null>(null);
   const [stopped, setStopped] = useState(false);
+  // Bumped by every accepted upload so the polling effect restarts with a fresh delay/deadline.
+  const [pollEpoch, setPollEpoch] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const jobsRef = useRef(jobs);
   useEffect(() => {
@@ -76,10 +79,10 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
     let delay = POLL_MS;
     let lostTicks = 0;
     const startedAt = Date.now();
-    const stop = (kind: Problem) => {
+    const stop = (kind: PollProblem) => {
       cancelled = true;
       setStopped(true);
-      setProblem({ kind });
+      setPollProblem(kind);
     };
     const tick = async () => {
       if (cancelled) return;
@@ -112,7 +115,8 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
           return;
         }
         const fresh = next.filter((n): n is UploadJobView => typeof n === "object");
-        // Re-render only when a status or run changed, so the table is not rebuilt each tick.
+        // Re-render only when a status or run changed (the only columns that depend on a poll;
+        // widen this check if another polled field is ever shown).
         setJobs((all) => {
           let changed = false;
           const merged = all.map((j) => {
@@ -134,7 +138,7 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [pending, stopped]);
+  }, [pending, stopped, pollEpoch]);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -158,6 +162,9 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
       if (res.status === 202) {
         const job = (await res.json()) as UploadJobView;
         setJobs((all) => [job, ...all]);
+        setStopped(false);
+        setPollProblem(null);
+        setPollEpoch((n) => n + 1);
         if (input.current) input.current.value = "";
       } else {
         if (res.status === 401) setStopped(true);
@@ -205,6 +212,12 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
       </form>
 
       <p className="m-0 text-[11px] text-ink-muted">{t("devOnly")}</p>
+
+      {problem !== null && (
+        <Alert tone="fail" role="alert" title={t(`problem.${problem.kind}`)}>
+          {null}
+        </Alert>
+      )}
 
       {jobs.length === 0 ? (
         <EmptyState title={t("emptyTitle")}>{t("empty")}</EmptyState>
@@ -267,8 +280,12 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
         </div>
       )}
 
-      {problem !== null && (
-        <Alert tone="fail" role="alert" title={t(`problem.${problem.kind}`)}>
+      {pollProblem !== null && (
+        <Alert
+          tone="fail"
+          role="alert"
+          title={t(`problem.${pollProblem}`, { minutes: POLL_DEADLINE_MS / 60_000 })}
+        >
           {null}
         </Alert>
       )}

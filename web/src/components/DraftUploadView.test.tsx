@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { Profiler } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import type { DraftUploads, UploadJobView } from "@/api/client";
@@ -249,31 +250,90 @@ test("polling backs off, and stops with a notice after the job deadline", async 
   }
 });
 
-test("an unchanged poll result keeps the same rows (no re-render of the table)", async () => {
+test("an unchanged poll result does not re-render the view", async () => {
   vi.useFakeTimers();
   try {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async () => new Response(JSON.stringify(job({})), { status: 200 })),
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response(JSON.stringify(job({})), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    let commits = 0;
+    render(
+      <NextIntlClientProvider locale="id" messages={messages}>
+        <Profiler id="v" onRender={() => (commits += 1)}>
+          <DraftUploadView initial={initial([job({})])} />
+        </Profiler>
+      </NextIntlClientProvider>,
     );
-    view(initial([job({})]));
-    const row = screen.getByRole("table").querySelector("tbody tr");
+    const before = commits;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100);
     });
-    expect(screen.getByRole("table").querySelector("tbody tr")).toBe(row);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(commits).toBe(before);
+    // A changed status does render.
+    fetchMock.mockImplementation(
+      async () => new Response(JSON.stringify(job({ status: "running" })), { status: 200 }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+    expect(commits).toBeGreaterThan(before);
   } finally {
     vi.useRealTimers();
   }
 });
 
-test("the polling alert sits after the table so it does not push it down", async () => {
+test("the polling alert sits after the table; an upload error sits before it", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 500 })));
+    view(initial([job({})]));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000);
+    });
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toMatch(/dihentikan/);
+    const table = screen.getByRole("table");
+    expect(table.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 413 })));
-  view(initial([job({})]));
   const file = new File([new Uint8Array(10)], "d.pdf", { type: "application/pdf" });
   fireEvent.change(screen.getByLabelText("Berkas PDF"), { target: { files: [file] } });
   fireEvent.click(screen.getByRole("button", { name: /Unggah/ }));
-  const alert = await screen.findByRole("alert");
+  const upload = await screen.findByText(/melebihi batas ukuran/);
   const table = screen.getByRole("table");
-  expect(table.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(table.compareDocumentPosition(upload) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+});
+
+test("a new upload after the polling deadline is polled again", async () => {
+  vi.useFakeTimers();
+  try {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? new Response(JSON.stringify(job({ id: 9, rev: 1 })), { status: 202 })
+        : new Response(JSON.stringify(job({ id: Number(url.split("/").pop()) })), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    view(initial([job({})]));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_900_000);
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/Tidak ada kabar/);
+    const file = new File([new Uint8Array(10)], "d.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Berkas PDF"), { target: { files: [file] } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Unggah/ }));
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    const calls = fetchMock.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(calls);
+  } finally {
+    vi.useRealTimers();
+  }
 });

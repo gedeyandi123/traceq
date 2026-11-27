@@ -59,6 +59,7 @@ async function forward(
     const value = upstream.headers.get(name);
     if (value) headers.set(name, value);
   }
+  // Passed through as the API sent it (it sends `private`); the fallback is for an upstream that sent none.
   headers.set("cache-control", upstream.headers.get("cache-control") ?? "private, no-store");
   return new NextResponse(method === "HEAD" ? null : upstream.body, { status: 200, headers });
 }
