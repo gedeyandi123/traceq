@@ -2195,6 +2195,7 @@ export interface components {
              * Format: date-time
              */
             at: string;
+            provenance?: components["schemas"]["Provenance"] | null;
         };
         /**
          * FrozenDeviation
@@ -3276,6 +3277,18 @@ export interface components {
             latest_draft_rev?: number | null;
             /** Draft Steps */
             draft_steps?: components["schemas"]["DraftStepView"][] | null;
+        };
+        /**
+         * Provenance
+         * @description Where a decision of a version 2 copy comes from.
+         */
+        Provenance: {
+            /** Run Id */
+            run_id: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Draft Rev */
+            draft_rev: number | null;
         };
         /** QualificationCounts */
         QualificationCounts: {

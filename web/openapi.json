@@ -6103,6 +6103,16 @@
             "type": "string",
             "format": "date-time",
             "title": "At"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Provenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -9057,6 +9067,38 @@
         ],
         "title": "ProtocolView",
         "description": "A Protocol assembled in TraceQ, for one Equipment, started from one imported run. Not\na Protocol Draft: that is the site's document under Pre-review."
+      },
+      "Provenance": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "draft_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Rev"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "content_hash",
+          "draft_rev"
+        ],
+        "title": "Provenance",
+        "description": "Where a decision of a version 2 copy comes from."
       },
       "QualificationCounts": {
         "properties": {
