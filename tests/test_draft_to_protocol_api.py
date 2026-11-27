@@ -711,3 +711,63 @@ def test_the_pin_is_all_or_nothing(
     )
     with pytest.raises(DBAPIError), transaction(engine(fresh_database.owner)) as s:
         s.execute(text(insert), {"run": RUN_ID})
+
+
+# --- A decision binds to the requirement mapping ----------------------------------------
+
+
+def accept_step(client: TestClient, headers: dict[str, str], step: str, **again: str) -> None:
+    ps = proposals(client, headers)
+    decide(client, headers, step_proposal(ps, "draft_step", step), decision="accepted", **again)
+    decide(
+        client, headers, step_proposal(ps, "draft_criterion", step), decision="accepted", **again
+    )
+
+
+def candidate(view: Any, requirement: str, step: str) -> Any:
+    return next((c for c in rows(view)[requirement]["candidates"] if c["step"]["id"] == step), None)
+
+
+def test_a_remap_after_accepting_makes_the_step_undecided_again(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    put_mapping(client, decider, protocol, "OQ-26", R030)
+    accept_step(client, decider, "OQ-26")
+    assert candidate(read(client, decider), R030, "OQ-26")["accepted"] is True
+    got = put_mapping(client, decider, protocol, "OQ-26", R026).json()
+    moved = candidate(got, R026, "OQ-26")
+    assert (moved["ready"], moved["accepted"]) == (False, False)
+    assert "draft_undecided" in rows(got)[R026]["blockers"]
+    # Deciding it again on the new mapping counts; remapping back does not revive the
+    # older decision.
+    accept_step(client, decider, "OQ-26", reason="decided on the new mapping")
+    assert candidate(read(client, decider), R026, "OQ-26")["accepted"] is True
+    put_mapping(client, decider, protocol, "OQ-26", R030)
+    back = candidate(read(client, decider), R030, "OQ-26")
+    assert (back["ready"], back["accepted"]) == (False, False)
+
+
+def test_a_step_mapped_differently_in_a_later_protocol_arrives_undecided(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    put_mapping(client, decider, protocol, "OQ-26", R030)
+    accept_step(client, decider, "OQ-26")
+    withdraw(client, decider, protocol, "again")
+    second = start_from_draft(client, decider)
+    got = put_mapping(client, decider, second, "OQ-26", R026).json()
+    assert candidate(got, R026, "OQ-26")["accepted"] is False
+    assert candidate(got, R026, "OQ-26")["ready"] is False
+
+
+def test_a_reason_written_for_an_earlier_acceptance_does_not_count(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    finding = of_kind(proposals(client, decider), "draft")[0]
+    decide(client, decider, finding, decision="accepted")
+    reason(client, decider, protocol, finding, "accepted for now")
+    assert checks(read(client, decider))["finding_reason_missing"][0] == 0
+    decide(client, decider, finding, decision="rejected", reason="changed my mind")
+    decide(client, decider, finding, decision="accepted", reason="after all")
+    assert checks(read(client, decider))["finding_reason_missing"][0] == 1
+    reason(client, decider, protocol, finding, "accepted again, with a reason")
+    assert checks(read(client, decider))["finding_reason_missing"][0] == 0

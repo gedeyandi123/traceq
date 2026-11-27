@@ -128,15 +128,23 @@ class DraftCandidate:
     """An ``edited`` decision on the step was made with a written Test Step of this
     Protocol."""
 
+    def _current(self, d: Decision) -> Decision | None:
+        """A decision binds to the requirement mapping too (ADR 0012, "Binding to content"):
+        one made before the human mapping in force (a remap, or the mapping of another
+        Protocol) decides nothing here."""
+        return d if self.mapping is None or d.at > self.mapping.at else None
+
     @property
     def step_decision(self) -> Decision | None:
         s = self.standing
-        return s.decisions[0] if s.state == "decided" else None
+        return self._current(s.decisions[0]) if s.state == "decided" else None
 
     @property
     def criterion_decision(self) -> Decision | None:
         s = self.criterion_standing
-        return s.decisions[0] if s is not None and s.state == "decided" else None
+        if s is None or s.state != "decided":
+            return None
+        return self._current(s.decisions[0])
 
     @property
     def decided_here(self) -> bool:
@@ -202,6 +210,15 @@ class RowFinding:
     def accepted(self) -> bool:
         s = self.standing
         return s.state == "decided" and s.decisions[0].decision == "accepted"
+
+    @property
+    def reason_current(self) -> bool:
+        """A reason was written after the decision in force: one written for an earlier
+        acceptance (since rejected, or on content that changed) does not count."""
+        s = self.standing
+        return (
+            s.state == "decided" and bool(self.reasons) and self.reasons[-1].at > s.decisions[0].at
+        )
 
 
 @dataclass(frozen=True)
@@ -517,7 +534,7 @@ def _finding_blockers(findings: tuple[RowFinding, ...], changed: bool) -> tuple[
     out: list[Blocker] = []
     if any(f.standing.state != "decided" for f in findings):
         out.append("finding_undecided")
-    if not changed and any(f.accepted and not f.reasons for f in findings):
+    if not changed and any(f.accepted and not f.reason_current for f in findings):
         out.append("finding_reason_missing")
     return tuple(out)
 
