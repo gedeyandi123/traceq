@@ -11,8 +11,12 @@ type Context = { params: Promise<{ runId: string; docId: string; rev: string }> 
 
 /** Auth-forwarding proxy for a cited document: the run routes need a bearer token, which a
  * browser cannot attach to an iframe or a link, so the httpOnly cookie is turned into one
- * here. Validates the path parts, then streams the API's answer without a shared cache. */
-async function forward(method: "GET" | "HEAD", context: Context): Promise<Response> {
+ * here. Validates the path parts, then streams the API's answer, keeping its private cache-control and ETag (304 on a match). */
+async function forward(
+  method: "GET" | "HEAD",
+  context: Context,
+  ifNoneMatch: string | null,
+): Promise<Response> {
   const { runId, docId, rev } = await context.params;
   if (!RUN_ID.test(runId) || !DOC_ID.test(docId) || !REV.test(rev)) {
     return NextResponse.json({ detail: "Invalid run, document or revision" }, { status: 400 });
@@ -20,12 +24,23 @@ async function forward(method: "GET" | "HEAD", context: Context): Promise<Respon
 
   let upstream: Response;
   try {
+    const reqHeaders: Record<string, string> = { ...(await bearerHeaders()) };
+    if (ifNoneMatch) reqHeaders["if-none-match"] = ifNoneMatch;
     upstream = await fetch(
       `${API_URL}/runs/${encodeURIComponent(runId)}/documents/${encodeURIComponent(docId)}/${rev}`,
-      { method, headers: await bearerHeaders(), cache: "no-store" },
+      { method, headers: reqHeaders, cache: "no-store" },
     );
   } catch {
     return NextResponse.json({ detail: "Upstream API unavailable" }, { status: 502 });
+  }
+
+  if (upstream.status === 304) {
+    const notModified = new Headers();
+    for (const name of ["etag", "cache-control"]) {
+      const value = upstream.headers.get(name);
+      if (value) notModified.set(name, value);
+    }
+    return new NextResponse(null, { status: 304, headers: notModified });
   }
 
   if (!upstream.ok) {
@@ -44,14 +59,14 @@ async function forward(method: "GET" | "HEAD", context: Context): Promise<Respon
     const value = upstream.headers.get(name);
     if (value) headers.set(name, value);
   }
-  headers.set("cache-control", "private, no-store");
+  headers.set("cache-control", upstream.headers.get("cache-control") ?? "private, no-store");
   return new NextResponse(method === "HEAD" ? null : upstream.body, { status: 200, headers });
 }
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
-  return forward("GET", context);
+export async function GET(request: Request, context: Context): Promise<Response> {
+  return forward("GET", context, request.headers.get("if-none-match"));
 }
 
-export async function HEAD(_request: Request, context: Context): Promise<Response> {
-  return forward("HEAD", context);
+export async function HEAD(request: Request, context: Context): Promise<Response> {
+  return forward("HEAD", context, request.headers.get("if-none-match"));
 }

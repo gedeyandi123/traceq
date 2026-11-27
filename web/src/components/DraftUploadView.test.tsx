@@ -221,3 +221,59 @@ test("the upload screen labels figures as dev only", () => {
   view(initial());
   expect(screen.getByText(/hanya data pengembangan/i)).toBeTruthy();
 });
+
+test("polling backs off, and stops with a notice after the job deadline", async () => {
+  vi.useFakeTimers();
+  try {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response(JSON.stringify(job({})), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    view(initial([job({})]));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    // Fixed 2 s polling would have made 30 calls in a minute.
+    expect(fetchMock.mock.calls.length).toBeLessThan(15);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_800_000);
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/Tidak ada kabar/);
+    const calls = fetchMock.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100_000);
+    });
+    expect(fetchMock.mock.calls.length).toBe(calls);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("an unchanged poll result keeps the same rows (no re-render of the table)", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => new Response(JSON.stringify(job({})), { status: 200 })),
+    );
+    view(initial([job({})]));
+    const row = screen.getByRole("table").querySelector("tbody tr");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(screen.getByRole("table").querySelector("tbody tr")).toBe(row);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("the polling alert sits after the table so it does not push it down", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 413 })));
+  view(initial([job({})]));
+  const file = new File([new Uint8Array(10)], "d.pdf", { type: "application/pdf" });
+  fireEvent.change(screen.getByLabelText("Berkas PDF"), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole("button", { name: /Unggah/ }));
+  const alert = await screen.findByRole("alert");
+  const table = screen.getByRole("table");
+  expect(table.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});

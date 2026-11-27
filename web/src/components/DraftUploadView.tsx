@@ -11,6 +11,10 @@ import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
 import { Button, EmptyState } from "@/components/ui/ui";
 
 const POLL_MS = 2000;
+const MAX_POLL_MS = 30_000;
+const BACKOFF = 1.5;
+/** The server's upload job deadline (1800 s): past it no news will come. */
+const POLL_DEADLINE_MS = 1_800_000;
 const MAX_LOST_TICKS = 5;
 const TONES: Record<UploadJobView["status"], string> = {
   queued: "border-info-edge bg-info-soft text-info",
@@ -27,6 +31,7 @@ type Problem =
   | "unauthorized"
   | "conflict"
   | "pollLost"
+  | "pollTimeout"
   | "failed";
 
 /** The page shows only these codes, never the API `detail`: it is English and can name
@@ -61,16 +66,28 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
   }, [jobs]);
 
   const pending = jobs.some((j) => j.status === "queued" || j.status === "running");
-  // One interval for as long as something is open; it reads the latest jobs from a ref, skips
-  // a tick while the tab is hidden, and stops for good when the session is gone (401).
+  // One timer chain for as long as something is open: it reads the latest jobs from a ref,
+  // skips a tick while the tab is hidden, backs off from 2 s to 30 s, gives up when a job
+  // outlives the server's deadline, and stops for good when the session is gone (401).
   useEffect(() => {
     if (!pending || stopped) return;
-    let inFlight = false;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let delay = POLL_MS;
     let lostTicks = 0;
-    const timer = setInterval(async () => {
-      if (inFlight || document.visibilityState === "hidden") return;
-      inFlight = true;
-      try {
+    const startedAt = Date.now();
+    const stop = (kind: Problem) => {
+      cancelled = true;
+      setStopped(true);
+      setProblem({ kind });
+    };
+    const tick = async () => {
+      if (cancelled) return;
+      if (Date.now() - startedAt >= POLL_DEADLINE_MS) {
+        stop("pollTimeout");
+        return;
+      }
+      if (document.visibilityState !== "hidden") {
         const open = jobsRef.current.filter((j) => j.status === "queued" || j.status === "running");
         const next = await Promise.all(
           open.map(async (j) => {
@@ -83,27 +100,40 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
             }
           }),
         );
+        if (cancelled) return;
         if (next.includes("signedOut")) {
-          clearInterval(timer);
-          setStopped(true);
-          setProblem({ kind: "unauthorized" });
+          stop("unauthorized");
           return;
         }
         // A status that keeps failing (404, 500, no network) is not polled forever.
         lostTicks = next.every((n) => n === "lost") ? lostTicks + 1 : 0;
         if (lostTicks >= MAX_LOST_TICKS) {
-          clearInterval(timer);
-          setStopped(true);
-          setProblem({ kind: "pollLost" });
+          stop("pollLost");
           return;
         }
         const fresh = next.filter((n): n is UploadJobView => typeof n === "object");
-        setJobs((all) => all.map((j) => fresh.find((n) => n.id === j.id) ?? j));
-      } finally {
-        inFlight = false;
+        // Re-render only when a status or run changed, so the table is not rebuilt each tick.
+        setJobs((all) => {
+          let changed = false;
+          const merged = all.map((j) => {
+            const n = fresh.find((f) => f.id === j.id);
+            if (n !== undefined && (n.status !== j.status || n.run_id !== j.run_id)) {
+              changed = true;
+              return n;
+            }
+            return j;
+          });
+          return changed ? merged : all;
+        });
+        delay = Math.min(delay * BACKOFF, MAX_POLL_MS);
       }
-    }, POLL_MS);
-    return () => clearInterval(timer);
+      if (!cancelled) timer = setTimeout(tick, delay);
+    };
+    timer = setTimeout(tick, delay);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [pending, stopped]);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -176,12 +206,6 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
 
       <p className="m-0 text-[11px] text-ink-muted">{t("devOnly")}</p>
 
-      {problem !== null && (
-        <Alert tone="fail" role="alert" title={t(`problem.${problem.kind}`)}>
-          {null}
-        </Alert>
-      )}
-
       {jobs.length === 0 ? (
         <EmptyState title={t("emptyTitle")}>{t("empty")}</EmptyState>
       ) : (
@@ -241,6 +265,12 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {problem !== null && (
+        <Alert tone="fail" role="alert" title={t(`problem.${problem.kind}`)}>
+          {null}
+        </Alert>
       )}
     </div>
   );
