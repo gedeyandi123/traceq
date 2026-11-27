@@ -158,7 +158,7 @@ A second person who directly verifies the performance of a critical Test Step an
 _Avoid_: checker, second signer
 
 **Separation of Duties**:
-The rule that the person who approves a record is not one who produced it. For a Protocol, the Approver is not the Preparer, not a person who decided a finding or mapped a draft step on that run, and not the uploader of the Pinned Revision, nor, when no upload of its bytes is recorded, the person whose import registered it (ADR 0012, amended 26, 27 and 28 November 2026; the 28 November amendment awaits the owner's approval). The Deviation Closure and Witness rules are in ADR 0013.
+The rule that the person who approves a record is not one who produced it. For a Protocol, the Approver is not the Preparer, not a person who decided a finding or mapped a draft step on that run, and neither a person who uploaded the bytes of the Pinned Revision nor the person whose import registered it (ADR 0012, amended 26, 27 and 28 November 2026). The Deviation Closure and Witness rules are in ADR 0013.
 _Avoid_: segregation (except as the name of the planted Defect Type `segregation_of_duties`)
 
 **Reason for Change**:

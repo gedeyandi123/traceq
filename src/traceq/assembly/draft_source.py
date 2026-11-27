@@ -323,8 +323,8 @@ class StaleDraftRead(Conflict):
 
 
 class UploaderApproves(Conflict):
-    """The Approver uploaded the revision of the Protocol Draft the Protocol is pinned to, or,
-    when no upload of its bytes is recorded, imported it."""
+    """The Approver uploaded the revision of the Protocol Draft the Protocol is pinned to, or
+    registered it by an import."""
 
     code = "uploader_approves"
 

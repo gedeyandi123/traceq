@@ -89,17 +89,14 @@ def _same(a: Author | audit.Actor, actor: audit.Actor) -> bool:
 def _check_not_the_source_of_the_pin(
     session: Session, actor: audit.Actor, protocol: lifecycle.AssembledProtocol, rev: int
 ) -> None:
-    """``UploaderApproves`` when ``actor`` uploaded the pinned Protocol Draft revision, or, with
-    no upload of its bytes recorded, registered it by an import (ADR 0012, amended 27 and 28
-    November 2026)."""
-    uploaders = draft_source.uploaders_of_pinned(session, protocol)
-    if uploaders:
-        if any(_same(u, actor) for u in uploaders):
-            raise draft_source.UploaderApproves(
-                f"{actor.name} uploaded the Protocol Draft revision {rev} that Protocol"
-                f" {protocol.id} is pinned to: an Approver did not"
-            )
-        return
+    """``UploaderApproves`` when ``actor`` uploaded the bytes of the pinned Protocol Draft
+    revision (an upload job of any status) or registered that revision by an import: both are
+    refused, each with their own words (ADR 0012, amended 27 and 28 November 2026)."""
+    if any(_same(u, actor) for u in draft_source.uploaders_of_pinned(session, protocol)):
+        raise draft_source.UploaderApproves(
+            f"{actor.name} uploaded the Protocol Draft revision {rev} that Protocol"
+            f" {protocol.id} is pinned to: an Approver did not"
+        )
     importer = draft_source.importer_of_pinned(session, protocol)
     if importer is not None and _same(importer, actor):
         raise draft_source.UploaderApproves(

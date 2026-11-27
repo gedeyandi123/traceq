@@ -186,6 +186,27 @@ def test_an_upload_is_queued_run_by_the_worker_and_opens_its_review_round(
     assert [j.rev for j in fake.seen] == [0, 1]
 
 
+def test_a_run_the_worker_imports_names_its_uploader_as_the_registrant(
+    client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
+) -> None:
+    """The worker imports as the uploader, so every document version its run registers first
+    names the uploader (migration 0024, ADR 0012 amended 28 November 2026)."""
+    assert upload(client, decider, pdf(1, "registrant")).status_code == 202
+    done = worker.run_once()
+    assert done is not None and done.status == "succeeded"
+    with transaction(engine(fresh_database.app)) as session:
+        uploader = session.execute(
+            text("SELECT subject, issuer, name FROM upload_jobs WHERE id = :id"), {"id": done.id}
+        ).one()
+        registrants = session.execute(
+            text(
+                "SELECT subject, issuer, name FROM document_versions WHERE first_seen_run_id = :run"
+            ),
+            {"run": done.run_id},
+        ).all()
+    assert registrants and {tuple(r) for r in registrants} == {tuple(uploader)}
+
+
 def test_bytes_uploaded_before_for_the_equipment_are_refused_and_queue_nothing(
     client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
 ) -> None:
