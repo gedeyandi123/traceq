@@ -168,8 +168,9 @@ def _shape_acceptances(
     client: Any, api_url: str, protocol_id: int, proto: dict[str, Any], ayu: dict[str, str]
 ) -> dict[str, Any]:
     """Sets a shaped Acceptance Criterion, as a person does, on every row blocked by
-    ``acceptance_not_shaped``: its accepted draft is rejected, then edited (the edit route
-    is refused while that draft stays accepted). Returns the latest Protocol view."""
+    ``acceptance_not_shaped``: its accepted draft is rejected, with any other accepted draft step
+    of the row, then edited (the edit route is refused while another draft stays accepted).
+    Returns the latest Protocol view."""
     for row in proto.get("rows") or []:
         if "acceptance_not_shaped" not in (row.get("blockers") or []):
             continue
@@ -186,6 +187,26 @@ def _shape_acceptances(
             },
         )
         _checked(rej, f"Rejecting draft {proposal_id} of {row['requirement']}")
+        # A row holds one Test Step: the edit is refused while any other draft step standing for
+        # the row is accepted (accept-all accepted every one of them). Newest decision first.
+        for cand in row.get("candidates") or []:
+            other = cand["proposal"]
+            decisions = other.get("decisions") or []
+            if (
+                other["id"] != proposal_id
+                and other.get("state") == "decided"
+                and decisions
+                and decisions[0]["decision"] == "accepted"
+            ):
+                more = client.post(
+                    f"{api_url}/runs/{proto['run_id']}/proposals/{other['id']}/decisions",
+                    headers=ayu,
+                    json={
+                        "decision": "rejected",
+                        "reason": "Demo seed: the row holds one Test Step, the edited draft",
+                    },
+                )
+                _checked(more, f"Rejecting draft {other['id']} of {row['requirement']}")
         edit = client.post(
             f"{api_url}/protocols/{protocol_id}/drafts/{proposal_id}/edit",
             headers=ayu,
