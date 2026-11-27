@@ -380,6 +380,51 @@ test("the edit form of a draft step starts from the drafted criterion, so an edi
   expect(form.querySelector<HTMLInputElement>("[name=ac_max]")?.value).toBe("70");
 });
 
+test("an unchanged edit of an inclusive range submits the same range it was given", async () => {
+  const u = user();
+  const editInline = vi.fn<Inline>(async () => ({ ok: true, submittedAt: 1 }));
+  render(page(fromDraft, { decisions: decider, controls: { ...controls, editInline } }));
+  const drawer = await openRow(u, "URS-TP201-002");
+  const form = within(drawer.getByTestId("candidate-OQ-02")).getByRole("form", {
+    name: "Sunting rancangan",
+  });
+  await u.type(within(form).getByLabelText(/Alasan perubahan/), "koreksi");
+  await u.click(within(form).getByRole("button", { name: "Simpan suntingan" }));
+  await waitFor(() => expect(editInline).toHaveBeenCalledTimes(1));
+  const sent = editInline.mock.calls[0]?.[1] as FormData;
+  expect(sent.get("ac_type")).toBe("range");
+  expect(sent.get("ac_min")).toBe("20");
+  expect(sent.get("ac_max")).toBe("70");
+  expect(sent.get("ac_unit")).toBe("rpm");
+});
+
+test("a strict range is not prefilled, so it cannot be saved as an inclusive one", async () => {
+  const u = user();
+  const strict = fromDraftRows.map((r) =>
+    r.requirement === "URS-TP201-002"
+      ? {
+          ...r,
+          candidates: r.candidates.map((c) => ({
+            ...c,
+            criterion: c.criterion
+              ? {
+                  ...c.criterion,
+                  value: { type: "range" as const, min: 20, max: 70, unit: "rpm", min_exclusive: false, max_exclusive: true },
+                }
+              : c.criterion,
+          })),
+        }
+      : r,
+  );
+  render(page({ ...fromDraft, rows: strict }, { decisions: decider, controls }));
+  const drawer = await openRow(u, "URS-TP201-002");
+  const form = within(drawer.getByTestId("candidate-OQ-02")).getByRole("form", {
+    name: "Sunting rancangan",
+  });
+  expect(form.querySelector<HTMLSelectElement>("[name=ac_type]")?.value).toBe("");
+  expect(form.querySelector("[name=ac_max]")).toBeNull();
+});
+
 test("a map refusal says why in words of its own", async () => {
   const u = user();
   const mapInline = vi.fn<Inline>(async () => ({ ok: false, error: "refused" }));

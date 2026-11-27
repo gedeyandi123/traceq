@@ -1128,7 +1128,7 @@
       "diffFindingsPersisted": "Bertahan",
       "diffFindingsPersistedChanged": "Bertahan, berubah",
       "diffFindingsListTitle": "Temuan yang perlu dilihat dulu",
-      "devOnly": "Hanya data pengembangan (dev only): angka k/n berasal dari set data sintetis TP-201. Jenis temuan baru belum ditinjau praktisi. Ini bukan klaim waktu yang dihemat atau kepatuhan.",
+      "devOnly": "Hanya data pengembangan (dev only): data sintetis, belum ada jawaban praktisi. Jenis temuan baru belum ditinjau praktisi. Ini bukan klaim waktu yang dihemat atau kepatuhan.",
       "diffFindingChange": {
         "resolved": "Selesai",
         "persisted": "Bertahan",
@@ -1286,10 +1286,11 @@
       "budget": "Anggaran panggilan langsung tidak cukup untuk unggahan ini.",
       "forbidden": "Mengunggah memerlukan peran penentu untuk Equipment ini.",
       "unauthorized": "Sesi tidak valid. Masuk kembali.",
+      "pollLost": "Status unggahan tidak dapat dimuat lagi, jadi pembaruan otomatis dihentikan. Muat ulang halaman.",
       "conflict": "Unggahan ditolak: revisi draf ini tidak dapat dibuat sekarang. Muat ulang halaman; jika berulang, hubungi pengelola.",
       "failed": "Unggahan gagal. Coba lagi."
     },
-    "devOnly": "Hanya data pengembangan (dev only): angka k/n berasal dari set data sintetis TP-201. Jenis temuan baru belum ditinjau praktisi. Ini bukan klaim waktu yang dihemat atau kepatuhan.",
+    "devOnly": "Hanya data pengembangan (dev only): data sintetis, belum ada jawaban praktisi. Jenis temuan baru belum ditinjau praktisi. Ini bukan klaim waktu yang dihemat atau kepatuhan.",
     "revLabel": "Revisi {rev}",
     "jobFailed": "Pra-tinjauan gagal untuk unggahan ini. Unggah ulang berkasnya; jika tetap gagal, hubungi pengelola (detail ada di log server).",
     "colRev": "Revisi",

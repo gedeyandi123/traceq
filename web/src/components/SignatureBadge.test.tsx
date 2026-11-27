@@ -99,6 +99,7 @@ describe("SignatureBadge", () => {
   it("keeps the outer badge neutral, not green, for a verified Electronic Signature", () => {
     render(wrap(<SignatureBadge signature={OIDC_SIG} />));
     const pill = screen.getByText("Tanda Tangan Elektronik").parentElement;
+    expect(pill?.className ?? "").toContain("border-border bg-surface text-ink-muted");
     expect(pill?.className ?? "").not.toContain("pass");
   });
 

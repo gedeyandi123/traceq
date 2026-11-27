@@ -116,7 +116,7 @@ export function RoundsWorkbench({
 }) {
   const t = useTranslations("rounds");
   const ui = useTranslations("ui");
-const findingTypes = useTranslations("draft");
+  const findingTypes = useTranslations("draft");
 
   const currentRound =
     data.rounds.find((r) => r.id === data.current_round_id) ?? data.rounds.at(-1);

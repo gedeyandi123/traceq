@@ -11,6 +11,7 @@ import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
 import { Button, EmptyState } from "@/components/ui/ui";
 
 const POLL_MS = 2000;
+const MAX_LOST_TICKS = 5;
 const TONES: Record<UploadJobView["status"], string> = {
   queued: "border-info-edge bg-info-soft text-info",
   running: "border-warn-edge bg-warn-soft text-warn",
@@ -25,6 +26,7 @@ type Problem =
   | "forbidden"
   | "unauthorized"
   | "conflict"
+  | "pollLost"
   | "failed";
 
 /** The page shows only these codes, never the API `detail`: it is English and can name
@@ -51,7 +53,7 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
   const [jobs, setJobs] = useState<UploadJobView[]>(initial.jobs);
   const [problem, setProblem] = useState<{ kind: Problem } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [signedOut, setSignedOut] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const jobsRef = useRef(jobs);
   useEffect(() => {
@@ -62,8 +64,9 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
   // One interval for as long as something is open; it reads the latest jobs from a ref, skips
   // a tick while the tab is hidden, and stops for good when the session is gone (401).
   useEffect(() => {
-    if (!pending || signedOut) return;
+    if (!pending || stopped) return;
     let inFlight = false;
+    let lostTicks = 0;
     const timer = setInterval(async () => {
       if (inFlight || document.visibilityState === "hidden") return;
       inFlight = true;
@@ -74,25 +77,34 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
             try {
               const res = await fetch(`/api/uploads/${j.id}`, { cache: "no-store" });
               if (res.status === 401) return "signedOut" as const;
-              return res.ok ? ((await res.json()) as UploadJobView) : j;
+              return res.ok ? ((await res.json()) as UploadJobView) : ("lost" as const);
             } catch {
-              return j;
+              return "lost" as const;
             }
           }),
         );
         if (next.includes("signedOut")) {
-          setSignedOut(true);
+          clearInterval(timer);
+          setStopped(true);
           setProblem({ kind: "unauthorized" });
           return;
         }
-        const fresh = next.filter((n): n is UploadJobView => n !== "signedOut");
+        // A status that keeps failing (404, 500, no network) is not polled forever.
+        lostTicks = next.every((n) => n === "lost") ? lostTicks + 1 : 0;
+        if (lostTicks >= MAX_LOST_TICKS) {
+          clearInterval(timer);
+          setStopped(true);
+          setProblem({ kind: "pollLost" });
+          return;
+        }
+        const fresh = next.filter((n): n is UploadJobView => typeof n === "object");
         setJobs((all) => all.map((j) => fresh.find((n) => n.id === j.id) ?? j));
       } finally {
         inFlight = false;
       }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [pending, signedOut]);
+  }, [pending, stopped]);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -118,6 +130,7 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
         setJobs((all) => [job, ...all]);
         if (input.current) input.current.value = "";
       } else {
+        if (res.status === 401) setStopped(true);
         setProblem({ kind: problemOf(res.status) });
       }
     } catch {

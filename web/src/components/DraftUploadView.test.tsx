@@ -179,6 +179,44 @@ test("polling does not fetch while the tab is hidden and resumes when it shows",
   }
 });
 
+test("polling gives up after repeated non-401 failures instead of polling forever", async () => {
+  vi.useFakeTimers();
+  try {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    view(initial([job({})]));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(screen.getByRole("alert").textContent).toMatch(/dihentikan/);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a 401 on the upload itself stops polling and says the session is invalid", async () => {
+  vi.useFakeTimers();
+  try {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 401 }));
+    vi.stubGlobal("fetch", fetchMock);
+    view(initial([job({})]));
+    const file = new File([new Uint8Array(10)], "d.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Berkas PDF"), { target: { files: [file] } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Unggah/ }));
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/Sesi tidak valid/);
+    const calls = fetchMock.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(fetchMock.mock.calls.length).toBe(calls);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("the upload screen labels figures as dev only", () => {
   view(initial());
   expect(screen.getByText(/hanya data pengembangan/i)).toBeTruthy();

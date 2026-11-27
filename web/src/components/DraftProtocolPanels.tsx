@@ -29,8 +29,13 @@ type T = ReturnType<typeof useTranslations<"protocol">>;
 /** The drafted Acceptance Criterion as the edit form can start from it: only a shape a Test
  * Step can hold; a reading the form cannot hold (tolerance, free text, ambiguous) is set by a
  * human. Starting from null would drop a criterion the draft read. */
-function formShape(v: { type: string } | null | undefined): Value | null {
+function formShape(
+  v: { type: string; min_exclusive?: boolean; max_exclusive?: boolean } | null | undefined,
+): Value | null {
   if (v === null || v === undefined) return null;
+  // The form has no strict-bound inputs: a strict range would be saved as an inclusive one
+  // ("< 0,8" as "<= 0,8"), so it is left for a human to set (ExclusiveRange form: later ticket).
+  if (v.type === "range" && (v.min_exclusive === true || v.max_exclusive === true)) return null;
   return v.type === "range" || v.type === "number" || v.type === "one_of" || v.type === "present"
     ? (v as Value)
     : null;
