@@ -266,3 +266,44 @@ def test_rounds_are_non_blocking_toward_protocol_assembly(
     import_run(client, decider, RUN_ID)
     proto = client.post(f"/runs/{RUN_ID}/protocol", headers=decider)
     assert proto.status_code == 201, proto.text
+
+
+def test_the_export_of_a_real_draft_with_a_unit_error_carries_the_not_reviewed_label(
+    tmp_path: Path,
+    demo_issuer: DemoIssuer,
+    fresh_database: Databases,
+    decider: dict[str, str],
+) -> None:
+    """Ticket #392: a draft run is imported, its ``unit_error`` finding reaches the stored
+    snapshot with its label, and the PDF of that export re-renders under template 2.0.0."""
+    from test_draft_to_protocol_api import _finding, draft_run
+
+    def add_unit_error(draft: dict[str, Any]) -> None:
+        found = _finding("OQ-02", "URS-TP201-002", 5)
+        found.update(
+            type="unit_error",
+            detail="OQ-02 prints 5 N where the URS prints 5 kN.",
+            label="not reviewed by a practitioner",
+        )
+        draft["findings"] = [found]
+
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    draft_run(runs, RUN_ID, add_unit_error)
+    client = TestClient(configured(runs, demo_issuer, fresh_database))
+    import_run(client, decider, RUN_ID)
+    round_id = client.get(f"/runs/{RUN_ID}/rounds", headers=decider).json()["current_round_id"]
+    made = client.post(f"/rounds/{round_id}/exports", headers=decider)
+    assert made.status_code == 201, made.text
+    assert made.json()["template_version"] == "2.0.0"
+    with transaction(engine(fresh_database.owner)) as session:
+        snapshot = session.execute(
+            text("SELECT snapshot_json FROM report_exports WHERE id = :i"),
+            {"i": made.json()["id"]},
+        ).scalar_one()
+    drafts = snapshot["draft_findings"]
+    assert [f["finding_type"] for f in drafts] == ["unit_error"]
+    assert drafts[0]["label"] == "not reviewed by a practitioner"
+    pdf = client.get(f"/rounds/{round_id}/exports/{made.json()['id']}/pdf", headers=decider)
+    assert pdf.status_code == 200, pdf.text
+    assert hashlib.sha256(pdf.content).hexdigest() == made.json()["pdf_sha256"]

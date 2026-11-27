@@ -41,7 +41,7 @@ from traceq.reports import (
 
 FIXTURES = Path(__file__).parent / "fixtures" / "reports"
 # Rendered with typst 0.15.2 and ``ignore_system_fonts=True``; see the module docstring.
-PRE_REVIEW_V2_SHA256 = "7c463f40e0e8cf5d5e3e9062a164da72645caa35ff4ed929c1efc27a6075f75b"
+PRE_REVIEW_V2_SHA256 = "80849e3bd3d5af84187a466b47d9ba7716eb4dad10625737cdb617bb7d457d45"
 PRE_REVIEW_V1_SHA256 = "3b221354d989ee257f442429b72e5cc5f7946174a97eb28ee211a6e9ebb6ea7a"
 QUALIFICATION_V1_SHA256 = "2d191823dc158c184b8c457c41855222163cf83f16befaade365a99a836f2ed3"
 QUALIFICATION_V2_SHA256 = "2c8f7cb4b6f56810c13f71b286f94416a9c15cc345fc9efaf7094669087ebb29"

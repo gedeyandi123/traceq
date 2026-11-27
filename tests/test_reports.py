@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import UTC, datetime
 
 import pypdfium2 as pdfium
@@ -201,8 +202,10 @@ def test_template_v2_prints_the_five_types_the_labels_and_the_round_states() -> 
     # Once in the notice at the top, then on each of the three findings of the new types.
     assert text.count("not reviewed by a practitioner") == 1 + 3
     assert "dev only" in text
+    assert "\\n" not in text  # no literal escape printed in the notice
     for state in ("resolved", "persisted", "persisted-but-changed", "new"):
-        assert state in text
+        # A whole word: "persisted" is not met by "persisted-but-changed".
+        assert re.search(rf"(?<![\w-]){re.escape(state)}(?![\w-])", text), state
     for kind in (
         "ac_deviates_from_urs",
         "requirement_not_tested",
@@ -211,9 +214,26 @@ def test_template_v2_prints_the_five_types_the_labels_and_the_round_states() -> 
         "outdated_reference",
     ):
         assert kind in text
-    assert "compliant" not in text.lower().replace("non-compliant", "")
+    assert not re.search(r"(?<!non-)\bcompliant\b|\bsaved\b|\bhemat\b", text, re.IGNORECASE)
 
 
 def test_template_v1_does_not_print_the_new_labels() -> None:
     text = _text(render_pre_review_pdf(_sample_snapshot()))
     assert "not reviewed by a practitioner" not in text
+
+
+def test_each_point_of_the_notice_is_on_its_own_line_of_the_template() -> None:
+    from traceq.reports import pre_review
+
+    source = pre_review._TEMPLATE_PATHS[TEMPLATE_VERSION].read_text(encoding="utf-8")
+    points = [ln for ln in source.splitlines() if re.match(r"\s+\d\. \*", ln)]
+    assert [ln.split(".")[0].strip() for ln in points] == ["1", "2", "3", "4"]
+    assert all(len(re.findall(r"\s\d\. \*", ln)) == 1 for ln in points)
+    assert "outdated_reference yang membawa label" in source
+
+
+def test_the_notice_does_not_claim_a_label_on_every_finding_of_the_three_types() -> None:
+    from traceq.reports import pre_review
+
+    source = pre_review._TEMPLATE_PATHS[TEMPLATE_VERSION].read_text(encoding="utf-8")
+    assert "Tiga jenis temuan draf terbaru" not in source

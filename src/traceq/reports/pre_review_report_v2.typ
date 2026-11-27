@@ -73,7 +73,8 @@
     *Catatan Kepatuhan & Batasan Sistem (ADR 0002 & ADR 0007):* \
     1. *Temuan AI bersifat saran (advisori):* Seluruh temuan lapisan AI memerlukan verifikasi dan keputusan manusia sebelum tindakan kualifikasi diambil. \
     2. *Aturan deterministik & kutipan terverifikasi:* Pemeriksaan cakupan (coverage), aturan periksa (check/rule), dan kelengkapan URS dijalankan secara deterministik dengan kutipan halaman sumber. \
-    3. *Jejak Audit Imutabel:* Laporan ini dirender dari cuplikan data (*snapshot*) yang tersimpan secara *append-only* dengan stempel waktu basis data UTC.     4. *Angka hanya untuk pengembangan (dev only):* Seluruh angka (k/n) berasal dari data sintetis dan berlabel _dev only_; tidak ada klaim penghematan waktu atau putaran. Tiga jenis temuan draf terbaru (ac_outside_documented_capability, unit_error, outdated_reference) berlabel _not reviewed by a practitioner_ karena belum ditinjau oleh praktisi.
+    3. *Jejak Audit Imutabel:* Laporan ini dirender dari cuplikan data (*snapshot*) yang tersimpan secara *append-only* dengan stempel waktu basis data UTC. \
+    4. *Angka hanya untuk pengembangan (dev only):* Seluruh angka (k/n) berasal dari data sintetis dan berlabel _dev only_; tidak ada klaim penghematan waktu atau putaran. Temuan jenis ac_outside_documented_capability, unit_error dan outdated_reference yang membawa label ditampilkan dengan label _not reviewed by a practitioner_: jenis itu belum ditinjau oleh praktisi.
   ]
 ]
 
