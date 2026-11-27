@@ -68,9 +68,14 @@ DOCUMENT_VERSIONS = Table(
     Column("doc_id", Text),
     Column("rev", Integer),
     Column("doc_type", Text),
+    Column("source", Text),
+    Column("sha256", Text),
+    Column("subject", Text),
+    Column("issuer", Text),
+    Column("name", Text),
 )
 """The documents the Equipment's runs read (``rounds`` owns it; read here for the latest
-revision of the Protocol Draft)."""
+revision of the Protocol Draft and for who registered the pinned one)."""
 REASONS = Table(
     "protocol_finding_reasons",
     _META,
@@ -276,6 +281,35 @@ def uploaders_of_pinned(session: Session, protocol: AssembledProtocol) -> list[a
     return [audit.actor_of_row(r) for r in rows]
 
 
+def importer_of_pinned(session: Session, protocol: AssembledProtocol) -> audit.Actor | None:
+    """Who registered the Protocol Draft revision the Protocol is pinned to, by the import that
+    first read its bytes (``POST /runs/{id}/import``, or the upload worker for the uploader;
+    audit C5/S1). ``None`` for a Protocol not started from the draft, and for a
+    revision registered before registrants were recorded (migration 0024)."""
+    if protocol.draft is None:
+        return None
+    row = (
+        session.execute(
+            select(
+                DOCUMENT_VERSIONS.c.subject, DOCUMENT_VERSIONS.c.issuer, DOCUMENT_VERSIONS.c.name
+            )
+            .where(
+                DOCUMENT_VERSIONS.c.equipment == protocol.equipment,
+                DOCUMENT_VERSIONS.c.doc_id == protocol.draft.doc,
+                DOCUMENT_VERSIONS.c.rev == protocol.draft.rev,
+                DOCUMENT_VERSIONS.c.sha256 == protocol.draft.sha256,
+                DOCUMENT_VERSIONS.c.source == "review_package_draft",
+                DOCUMENT_VERSIONS.c.subject.is_not(None),
+            )
+            .order_by(DOCUMENT_VERSIONS.c.id)
+            .limit(1)
+        )
+        .mappings()
+        .first()
+    )
+    return None if row is None else audit.actor_of_row(row)
+
+
 class PinnedBehind(Conflict):
     """The Protocol is pinned to an older revision of the Protocol Draft than the latest."""
 
@@ -289,7 +323,8 @@ class StaleDraftRead(Conflict):
 
 
 class UploaderApproves(Conflict):
-    """The Approver uploaded the revision of the Protocol Draft the Protocol is pinned to."""
+    """The Approver uploaded the revision of the Protocol Draft the Protocol is pinned to, or
+    registered it by an import."""
 
     code = "uploader_approves"
 

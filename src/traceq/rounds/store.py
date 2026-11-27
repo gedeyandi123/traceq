@@ -86,7 +86,12 @@ DOCUMENT_VERSIONS = Table(
     Column("sha256", Text),
     Column("first_seen_run_id", Text),
     Column("at", DateTime(timezone=True)),
+    Column("subject", Text),
+    Column("issuer", Text),
+    Column("name", Text),
 )
+"""``subject``, ``issuer`` and ``name``: who registered the version, by the import that first
+read it (migration 0024); NULL on a row registered before."""
 REVIEW_ROUNDS = Table(
     "review_rounds",
     _META,
@@ -298,7 +303,11 @@ def latest_draft_revision(session: Session, equipment: str, doc_id: str) -> int 
 def register_import(
     session: Session, actor: audit.Actor, imported: Imported, run: RunFiles
 ) -> None:
-    """Opens a 1:1 review round and records document versions for a newly imported run."""
+    """Opens a 1:1 review round and records document versions for a newly imported run.
+
+    ``actor`` is who imported it (the principal of ``POST /runs/{id}/import``, or the uploader
+    for a run the upload worker imports): a version first registered here
+    names them as its registrant, and a version registered before keeps its own."""
     lock_equipment(session, imported.equipment)
 
     docs = _extract_documents(run)
@@ -315,6 +324,9 @@ def register_import(
                         "source": d["source"],
                         "sha256": d["sha256"],
                         "first_seen_run_id": imported.run_id,
+                        "subject": actor.subject,
+                        "issuer": actor.issuer,
+                        "name": actor.name,
                     }
                     for d in docs
                 ]
