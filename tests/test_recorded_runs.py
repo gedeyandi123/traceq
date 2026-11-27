@@ -21,7 +21,7 @@ import pytest
 
 from traceq.ai import BudgetExceeded, MissingRecording, Request, Response
 from traceq.app import cli
-from traceq.proposals.keys import digest, proposals_of
+from traceq.proposals.keys import Proposed, digest, proposals_of
 from traceq.review.draft import urs_limit
 from traceq.review.printed import Limit
 from traceq.runs.run import RunOutput, run
@@ -325,10 +325,14 @@ def test_review_package_run_reports_its_draft_findings(
     ]
 
 
-PROPOSAL_KEYS = "56878c4a2b92f26f84b3d4adc1e3a8a24453d790225a61a3517bc42598913801"
-"""The digest of every (kind, subject hash, ordinal, content hash) of the Coverage, Check, AI
-and draft Proposals of the demo run (r10 with the Review Package run r3), taken before the
-drafted Test Steps became Proposals (spec #247): decisions on them must still apply."""
+PROPOSAL_KEYS = "d687e2d086d9b056aa8624d45c49309a3d9f6e6c93856256e89c7bf1bf1a4d69"
+"""The digest of every (kind, subject hash, ordinal, content hash) of the Coverage, Check and AI
+Proposals of the demo run (r10 with the Review Package run r3), taken before the drafted Test
+Steps became Proposals (spec #247): decisions on them must still apply."""
+DRAFT_PROPOSAL_KEYS = "caf099639789769fce1d8c42625928c79d50604d4c7e3cad7ac90a11c3c39e7b"
+"""The same for the draft findings of that run. Moved on purpose by spec #375, ticket S3: a
+finding's key drops the draft revision and adds the cited locations, and its content adds the
+Test Step, its mapping and its Acceptance Criterion. Decisions made before S3 do not carry."""
 
 
 def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
@@ -347,9 +351,12 @@ def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
     assert [(p.subject["test_step"], p.ordinal) for p in new] == [("OQ-04", 0)]
     earlier = [p for p in proposed if p.kind != "test_step" and p not in new]
     assert len(earlier) == 50
-    assert digest([[p.kind, p.subject_hash, p.ordinal, p.content_hash] for p in earlier]) == (
-        PROPOSAL_KEYS
-    )
+
+    def keys(kept: list[Proposed]) -> str:
+        return digest([[p.kind, p.subject_hash, p.ordinal, p.content_hash] for p in kept])
+
+    assert keys([p for p in earlier if p.kind != "draft"]) == PROPOSAL_KEYS
+    assert keys([p for p in earlier if p.kind == "draft"]) == DRAFT_PROPOSAL_KEYS
     steps = [p for p in proposed if p.kind == "test_step"]
     assert all(p.kind == "test_step" and p.position is None for p in steps)
     assert len(steps) == len({p.subject_hash for p in steps}) == 31
