@@ -106,6 +106,11 @@ class Recorder:
                 return Response(**data["response"])
         return None
 
+    def is_recorded(self, r: Request) -> bool:
+        """Whether a replay of ``r`` finds its recording, in the written store or one read."""
+        name = f"{self.key(r)}.json"
+        return any((s / name).exists() for s in (self.store, *self.reads))
+
     def replay_only(self) -> LLM:
         """This recorder without its live adapter and its written store: it answers from the
         stores it reads only, into the same call log."""

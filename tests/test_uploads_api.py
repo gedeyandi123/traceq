@@ -25,15 +25,21 @@ from sqlalchemy import text
 from test_proposals_api import add_run, bearer, token
 from test_upload_checks import pdf
 
-from traceq.ai import MissingRecording
+from traceq.ai import MissingRecording, Recorder
 from traceq.app.api import create_app
+from traceq.audit import Actor
 from traceq.db import engine, transaction
+from traceq.documents import VERSIONS, CorpusDocument, Page
+from traceq.documents.cache import IngestCache, Ingested
 from traceq.identity import IdentitySettings
+from traceq.review.draft import DRAFT_STAGE_VERSION, draft_edition, draft_requests
 from traceq.uploads import RunResult, UploadSettings, Worker, store
 from traceq.uploads.checks import sha256_of
+from traceq.uploads.runner import draft_doc_id, has_draft_recording, package_runner
 from traceq.uploads.store import Job
 
 PDF = {"content-type": "application/pdf"}
+RECORDINGS = Path(__file__).resolve().parents[1] / "recordings"
 
 
 class Fake:
@@ -53,6 +59,27 @@ class Fake:
         run_id = f"20261127T09{job.id:02d}00Z-up{job.id:04d}"
         add_run(self.runs, run_id)
         return RunResult(run_id, self.live_cost)
+
+
+def _never_called() -> Any:
+    raise AssertionError("the runner of these tests never reads live")
+
+
+def record_draft(settings: UploadSettings, data: bytes, pages: int, rev: int) -> None:
+    """What a live read of ``data`` uploaded as revision ``rev`` leaves behind: its ingest and
+    one recording per page, named by the key the run looks up (the draft stage recorder)."""
+    sha = sha256_of(data)
+    texts = [Page(n, f"page {n} text") for n in range(1, pages + 1)]
+    IngestCache(settings.package_recordings / "ingest").put(
+        Ingested(sha, VERSIONS["born_digital"], "test", tuple(texts), (0.0,) * pages, 0.0, None)
+    )
+    recorder = Recorder(settings.package_recordings, settings.model, DRAFT_STAGE_VERSION)
+    doc = CorpusDocument(
+        draft_doc_id(settings.equipment), rev, "oq_protocol", "born_digital", "id", Path(), sha
+    )
+    settings.package_recordings.mkdir(parents=True, exist_ok=True)
+    for request in draft_requests(doc, texts, draft_edition(settings.package_version)):
+        (settings.package_recordings / f"{recorder.key(request)}.json").write_text("{}")
 
 
 @pytest.fixture
@@ -75,6 +102,7 @@ def settings(tmp_path: Path) -> UploadSettings:
         max_bytes=50_000,
         max_pages=3,
         estimate_per_page_usd=0.01,
+        live=_never_called,
     )
 
 
@@ -153,21 +181,75 @@ def test_an_upload_is_queued_run_by_the_worker_and_opens_its_review_round(
     assert [j.rev for j in fake.seen] == [0, 1]
 
 
-def test_a_reupload_of_the_same_bytes_is_the_next_revision_and_costs_nothing_live(
+def test_bytes_uploaded_before_for_the_equipment_are_refused_and_queue_nothing(
     client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
 ) -> None:
     data = pdf(2, "same")
-    first = upload(client, decider, data).json()
-    assert Decimal(str(first["reserved_usd"])) == Decimal("0.02")
-    assert worker.run_once() is not None
-    again = upload(client, decider, data).json()
-    assert (again["rev"], again["sha256"], again["reserved_usd"]) == (1, first["sha256"], 0)
-    assert worker.run_once() is not None
+    assert upload(client, decider, data).status_code == 202
+    again = upload(client, decider, data)
+    assert again.status_code == 409 and "already uploaded" in again.json()["detail"]
+    assert worker.run_once() is not None  # finished, and still refused
+    assert upload(client, decider, data).status_code == 409
+    listed = client.get("/equipment/TP-201/drafts", headers=decider).json()
+    assert [j["rev"] for j in listed["jobs"]] == [0]
     assert ledger(fresh_database) == (Decimal(0), Decimal(0))
 
 
-def test_bytes_with_a_recording_reserve_nothing_even_with_no_live_budget(
+def test_bytes_whose_upload_failed_may_be_uploaded_again(
     client: TestClient,
+    decider: dict[str, str],
+    runs: Path,
+    settings: UploadSettings,
+    fresh_database: Databases,
+) -> None:
+    fake = Fake(runs)
+    worker = Worker(engine(fresh_database.app), fake, settings.blobs, runs)
+    fake.error = MissingRecording("gone")
+    data = pdf(1, "retry")
+    assert upload(client, decider, data).status_code == 202
+    assert worker.run_once() is not None
+    again = upload(client, decider, data)
+    assert (again.status_code, again.json()["rev"]) == (202, 1)
+
+
+def test_the_revision_continues_after_the_draft_revisions_the_rounds_registered(
+    client: TestClient, decider: dict[str, str], fresh_database: Databases
+) -> None:
+    with transaction(engine(fresh_database.app)) as session:
+        session.execute(
+            text(
+                "INSERT INTO imported_runs (run_id, equipment, created, model, mode,"
+                " pipeline_version, prompts, documents) VALUES ('r', 'TP-201', now(), 'm',"
+                " 'replay', 'p', '{}', '[]')"
+            )
+        )
+        for rev in (0, 1, 4):
+            session.execute(
+                text(
+                    "INSERT INTO document_versions (equipment, doc_id, rev, doc_type, source,"
+                    " sha256, first_seen_run_id) VALUES ('TP-201', :doc, :rev, 'protocol_draft',"
+                    " 'review_package_draft', :sha, 'r')"
+                ),
+                {"doc": draft_doc_id("TP-201"), "rev": rev, "sha": f"{rev:064x}"},
+            )
+    assert upload(client, decider, pdf(1, "after the registered")).json()["rev"] == 5
+    assert upload(client, decider, pdf(1, "and one more")).json()["rev"] == 6
+
+
+def replay_only_client(
+    runs: Path,
+    settings: UploadSettings,
+    fresh_database: Databases,
+    demo_issuer: DemoIssuer,
+) -> TestClient:
+    identity = IdentitySettings(issuer=demo_issuer.url, audience=demo_issuer.audience)
+    replay_only = replace(settings, budget_usd=0.0, live=None)
+    return TestClient(
+        create_app(runs, identity=identity, database=fresh_database.app, uploads=replay_only)
+    )
+
+
+def test_bytes_recorded_as_the_revision_they_get_reserve_nothing_even_with_no_budget(
     decider: dict[str, str],
     settings: UploadSettings,
     runs: Path,
@@ -175,18 +257,31 @@ def test_bytes_with_a_recording_reserve_nothing_even_with_no_live_budget(
     demo_issuer: DemoIssuer,
 ) -> None:
     data = pdf(2, "recorded")
-    settings.package_recordings.mkdir(parents=True)
-    (settings.package_recordings / "k.json").write_text(
-        json.dumps({"doc_sha256": sha256_of(data), "model": settings.model})
-    )
-    identity = IdentitySettings(issuer=demo_issuer.url, audience=demo_issuer.audience)
-    replay_only = replace(settings, budget_usd=0.0)
-    c = TestClient(
-        create_app(runs, identity=identity, database=fresh_database.app, uploads=replay_only)
-    )
+    record_draft(settings, data, pages=2, rev=0)
+    c = replay_only_client(runs, settings, fresh_database, demo_issuer)
     assert upload(c, decider, data).json()["reserved_usd"] == 0
     other = upload(c, decider, pdf(2, "never read"))
-    assert other.status_code == 402
+    assert other.status_code == 402 and "no model recording" in other.json()["detail"]
+
+
+def test_bytes_recorded_as_another_revision_are_refused_up_front_in_replay(
+    client: TestClient,
+    decider: dict[str, str],
+    settings: UploadSettings,
+    runs: Path,
+    fresh_database: Databases,
+    demo_issuer: DemoIssuer,
+) -> None:
+    """The prompt names the revision, so a recording of rev 1 does not serve an upload that
+    becomes rev 0: its replay would fail (``MissingRecording``) after a 202."""
+    data = pdf(2, "recorded as rev 1")
+    record_draft(settings, data, pages=2, rev=1)
+    c = replay_only_client(runs, settings, fresh_database, demo_issuer)
+    refused = upload(c, decider, data)
+    assert refused.status_code == 402 and "revision 0" in refused.json()["detail"]
+    assert client.get("/equipment/TP-201/drafts", headers=decider).json()["jobs"] == []
+    # With a live budget it is read live, and reserves its estimate.
+    assert upload(client, decider, data).json()["reserved_usd"] == 0.02
 
 
 def test_an_ingest_file_without_a_model_recording_reserves_like_a_live_run(
@@ -198,15 +293,12 @@ def test_an_ingest_file_without_a_model_recording_reserves_like_a_live_run(
     demo_issuer: DemoIssuer,
 ) -> None:
     data = pdf(2, "parsed only")
-    (settings.package_recordings / "ingest").mkdir(parents=True)
-    (settings.package_recordings / "ingest" / f"{sha256_of(data)}-docling-1.json").write_text("{}")
-    assert upload(client, decider, data).json()["reserved_usd"] == 0.02
-    identity = IdentitySettings(issuer=demo_issuer.url, audience=demo_issuer.audience)
-    replay_only = replace(settings, budget_usd=0.0)
-    c = TestClient(
-        create_app(runs, identity=identity, database=fresh_database.app, uploads=replay_only)
-    )
+    record_draft(settings, data, pages=2, rev=0)
+    for f in settings.package_recordings.glob("*.json"):
+        f.unlink()  # the ingest stays, the model recordings go
+    c = replay_only_client(runs, settings, fresh_database, demo_issuer)
     assert upload(c, decider, data).status_code == 402
+    assert upload(client, decider, data).json()["reserved_usd"] == 0.02
 
 
 def test_the_upload_worker_thread_does_not_block_process_exit(
@@ -440,3 +532,61 @@ def test_a_job_never_moves_backward_or_changes_what_it_holds(
             text("UPDATE upload_jobs SET sha256 = repeat('a', 64) WHERE id = :id"),
             {"id": job["id"]},
         )
+
+
+# --- The real runner, replayed -----------------------------------------------------------
+
+
+def test_the_real_runner_replays_the_recorded_revision_and_a_wrong_revision_is_foreseen(
+    client: TestClient,
+    decider: dict[str, str],
+    runs: Path,
+    tmp_path: Path,
+    fresh_database: Databases,
+) -> None:
+    """``write_package`` -> ``run`` (replay, the recordings of the 0.2.0 package) -> import,
+    with no fake runner: the check ``has_draft_recording`` agrees with what the run finds."""
+    package = json.loads(
+        (RECORDINGS / "TP-201-OQ-draft-0.2.0" / "manifest.json").read_text("utf-8")
+    )
+    rev0 = next(d for d in package["documents"] if d["rev"] == 0)
+    sha = rev0["sha256"]
+    real = UploadSettings(
+        equipment="TP-201",
+        store=tmp_path / "uploads-real",
+        corpus=RECORDINGS / "corpus-0.1.1",
+        recordings=RECORDINGS / "haiku-r10",
+        package_recordings=RECORDINGS / "haiku-oq-draft-r8",
+        model="claude-haiku-5-5",
+    )
+    assert has_draft_recording(real, sha, 0)
+    assert not has_draft_recording(real, sha, 1)  # the revision is in the prompt
+    # The recorded ingest answers the run, so the bytes themselves are never read.
+    store.save_blob(real.blobs, sha, b"%PDF-1.7 placeholder, the ingest is cached")
+    worker = Worker(engine(fresh_database.app), package_runner(real, runs), real.blobs, runs)
+
+    def queue(rev: int) -> None:
+        with transaction(engine(fresh_database.app)) as session:
+            store.accept(
+                session,
+                Actor(subject="s", issuer="i", name="Ayu"),
+                equipment="TP-201",
+                rev=rev,
+                sha256=sha,
+                size_bytes=int(rev0["bytes"]),
+                pages=int(rev0["pages"]),
+                estimate=Decimal(0),
+                ceiling=Decimal(0),
+            )
+
+    queue(rev=0)
+    done = worker.run_once()
+    assert done is not None and done.status == "succeeded", done and done.message
+    assert done.cost_usd == 0 and done.run_id is not None
+    rounds = client.get(f"/runs/{done.run_id}/rounds", headers=decider).json()
+    assert [x["round_number"] for x in rounds["rounds"]] == [1]
+
+    queue(rev=1)  # what the old check let through as a 202
+    failed = worker.run_once()
+    assert failed is not None and failed.status == "failed"
+    assert failed.message is not None and "not recorded" in failed.message

@@ -17,7 +17,6 @@ from traceq.ai.cloud import CloudLLM
 from traceq.ai.port import LLMError, Prompt, Request
 from traceq.app import cli
 from traceq.uploads import UploadSettings, package_runner, runner
-from traceq.uploads.api import has_model_recording
 from traceq.uploads.store import Job
 
 
@@ -121,19 +120,3 @@ def test_a_batch_past_its_deadline_is_cancelled_and_fails() -> None:
 
 def test_the_serve_adapter_has_a_deadline() -> None:
     assert 0 < cli.UPLOAD_BATCH_DEADLINE_SECONDS <= 3600
-
-
-# --- Replay needs the model recording ----------------------------------------------------
-
-
-def test_an_ingest_file_alone_is_not_a_model_recording(tmp_path: Path) -> None:
-    sha = "b" * 64
-    (tmp_path / "ingest").mkdir()
-    (tmp_path / "ingest" / f"{sha}-docling-1.json").write_text("{}")
-    assert not has_model_recording(tmp_path, sha, "m")
-    (tmp_path / "k1.json").write_text(json.dumps({"doc_sha256": "c" * 64, "model": "m"}))
-    (tmp_path / "k2.json").write_text(json.dumps({"doc_sha256": sha, "model": "other"}))
-    assert not has_model_recording(tmp_path, sha, "m")
-    (tmp_path / "k3.json").write_text(json.dumps({"doc_sha256": sha, "model": "m"}))
-    assert has_model_recording(tmp_path, sha, "m")
-    assert not has_model_recording(tmp_path / "missing", sha, "m")

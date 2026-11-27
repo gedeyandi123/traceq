@@ -964,8 +964,9 @@ export interface paths {
         /**
          * Upload
          * @description Queues a Protocol Draft PDF as the Equipment's next revision. The body is the PDF.
-         *     Refused when it is not a PDF (415, 422), passes the size or page cap (413, 422), or
-         *     the live budget does not cover it (402).
+         *     Refused when it is not a PDF (415, 422), passes the size or page cap (413, 422), holds
+         *     bytes already uploaded for the Equipment (409), or has no recording as the revision it
+         *     would be and the live budget does not cover reading it live (402).
          */
         post: operations["uploadDraft"];
         delete?: never;

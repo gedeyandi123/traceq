@@ -3,7 +3,8 @@
 ``accept`` is the one place a job is created. In one transaction it takes the lock of the
 Equipment, reserves the budget with a single conditional UPDATE (so concurrent uploads can
 never reserve past the ceiling: Postgres re-checks the condition on the row the first
-committed), assigns the next revision number of the Equipment (under that lock, so two
+committed), queues the job under the revision number the caller read under that lock
+(``next_rev``: after every upload and every registered draft revision of the Equipment, so two
 uploads never share one) and adds the job and its Audit Trail entry. Nothing is dispatched
 before the reservation holds.
 """
@@ -114,14 +115,44 @@ def save_blob(directory: Path, sha256: str, data: bytes) -> Path:
 # --- Queue ------------------------------------------------------------------------------
 
 
-def replayable(session: Session, sha256: str, recorded: bool) -> bool:
-    """Whether these bytes were read before: by a finished upload, or (``recorded``) because
-    the recordings hold their ingest. A re-upload of them replays and costs nothing live."""
-    done = session.execute(
-        text("SELECT 1 FROM upload_jobs WHERE sha256 = :sha AND status = 'succeeded' LIMIT 1"),
-        {"sha": sha256},
-    ).first()
-    return recorded or done is not None
+class DuplicateUpload(Exception):
+    """These bytes were already uploaded for the Equipment."""
+
+
+def lock_equipment(session: Session, equipment: str) -> None:
+    """Takes the Equipment's upload lock until the transaction ends: the revision number a
+    caller reads next is then the one ``accept`` assigns."""
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(:ns, hashtext(:equipment))"),
+        {"ns": _LOCK_NS, "equipment": equipment},
+    )
+
+
+def already_uploaded(session: Session, equipment: str, sha256: str) -> bool:
+    """Whether a queued, running or finished upload of the Equipment holds these bytes. A
+    failed one does not count: its message tells the uploader to upload it again."""
+    return (
+        session.execute(
+            text(
+                "SELECT 1 FROM upload_jobs WHERE equipment = :equipment AND sha256 = :sha"
+                " AND status <> 'failed' LIMIT 1"
+            ),
+            {"equipment": equipment, "sha": sha256},
+        ).first()
+        is not None
+    )
+
+
+def next_rev(session: Session, equipment: str, registered: int | None) -> int:
+    """The revision the next upload of the Equipment gets: after every upload so far and
+    after ``registered``, the highest revision of the draft that imported runs registered
+    (the review rounds' ``document_versions``), whichever way it arrived."""
+    queued = session.execute(
+        text("SELECT MAX(rev) FROM upload_jobs WHERE equipment = :equipment"),
+        {"equipment": equipment},
+    ).scalar_one()
+    known = [r for r in (queued, registered) if r is not None]
+    return max(known) + 1 if known else 0
 
 
 def accept(
@@ -129,19 +160,18 @@ def accept(
     actor: audit.Actor,
     *,
     equipment: str,
+    rev: int,
     sha256: str,
     size_bytes: int,
     pages: int,
     estimate: Decimal,
     ceiling: Decimal,
 ) -> Job:
-    """Reserves ``estimate`` of the ``ceiling`` and queues the job, in the caller's
-    transaction. ``BudgetRefused`` when ``reserved + spent + estimate`` would pass the
-    ceiling: the transaction then holds nothing."""
-    session.execute(
-        text("SELECT pg_advisory_xact_lock(:ns, hashtext(:equipment))"),
-        {"ns": _LOCK_NS, "equipment": equipment},
-    )
+    """Reserves ``estimate`` of the ``ceiling`` and queues the job as revision ``rev`` (from
+    ``next_rev``, read under ``lock_equipment``), in the caller's transaction.
+    ``BudgetRefused`` when ``reserved + spent + estimate`` would pass the ceiling: the
+    transaction then holds nothing."""
+    lock_equipment(session, equipment)
     reserved = session.execute(
         text(
             "UPDATE upload_budget SET reserved_usd = reserved_usd + :e"
@@ -158,13 +188,12 @@ def accept(
             text(
                 "INSERT INTO upload_jobs (equipment, rev, sha256, size_bytes, pages,"
                 " reserved_usd, subject, issuer, name)"
-                " VALUES (:equipment,"
-                " (SELECT COALESCE(MAX(rev) + 1, 0) FROM upload_jobs WHERE equipment = :equipment),"
-                " :sha, :size, :pages, :e, :subject, :issuer, :name)"
+                " VALUES (:equipment, :rev, :sha, :size, :pages, :e, :subject, :issuer, :name)"
                 f" RETURNING {_COLUMNS}"
             ),
             {
                 "equipment": equipment,
+                "rev": rev,
                 "sha": sha256,
                 "size": size_bytes,
                 "pages": pages,

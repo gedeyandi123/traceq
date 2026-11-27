@@ -44,6 +44,8 @@ Every eval run records the dataset version. Format: [Keep a Changelog](https://k
 
 ### Changed
 
+- Upload replay precheck and revision identity (S8 #393, spec #375; no recording key, prompt or `PIPELINE_VERSION` change): the draft prompt names the revision, so a recording belongs to the bytes and the revision they are uploaded as. An upload now computes the recording keys of every page for the revision it would get (from the cached ingest, `has_draft_recording`) and reserves 0 only when all are recorded; otherwise it reads live within the budget, or is refused up front with 402 (budget 0) instead of 202 then "Gagal". Bytes already uploaded for the Equipment (queued, running or succeeded) are refused with 409; a failed one may be uploaded again. The upload revision continues after the highest of the uploads and the draft revisions the review rounds registered (`document_versions`), not only the upload counter. The old check by document hash and model, and the claim that a re-upload of the same bytes replays, are gone.
+
 - Re-stamp of the Review Package baseline for dataset 0.2.0 (#133 plan step 5, after #223): `baselines/TP-201-OQ-draft.json` and `recordings/haiku-oq-draft-r3/report-TP-201-OQ-draft.json` change only `dataset.version` (0.1.1 → 0.2.0), as #238 did for r10. A zero-call replay of r3 (157 calls replayed, none live, $0) gives the same metrics; the live run id `20261118T185011Z-b920bd` is kept. Without it the ratchet refused every package run across the dataset MINOR.
 
 ### Added

@@ -2402,7 +2402,7 @@
       },
       "post": {
         "summary": "Upload",
-        "description": "Queues a Protocol Draft PDF as the Equipment's next revision. The body is the PDF.\nRefused when it is not a PDF (415, 422), passes the size or page cap (413, 422), or\nthe live budget does not cover it (402).",
+        "description": "Queues a Protocol Draft PDF as the Equipment's next revision. The body is the PDF.\nRefused when it is not a PDF (415, 422), passes the size or page cap (413, 422), holds\nbytes already uploaded for the Equipment (409), or has no recording as the revision it\nwould be and the live budget does not cover reading it live (402).",
         "operationId": "uploadDraft",
         "security": [
           {
