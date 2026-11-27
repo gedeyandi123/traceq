@@ -264,7 +264,9 @@ class ProtocolRow:
 
     @property
     def changed(self) -> bool:
-        """The row's Test Step is one a human wrote or edited in this Protocol."""
+        """The row's Test Step is one a human wrote or edited in this Protocol, whatever it holds.
+        The reason rule for a finding asks something else (same content as the draft's, see
+        ``_changed_from_draft``), so a row can be ``changed`` and still need its reason."""
         return self.written_step is not None
 
 
@@ -556,6 +558,37 @@ def _findings_by_requirement(
     return out
 
 
+def _blank_none(text: str | None) -> str | None:
+    return (text or "").strip() or None
+
+
+def _same_as_drafted(content: WrittenContent, candidates: tuple[DraftCandidate, ...]) -> bool:
+    """The written Test Step holds what a draft Test Step of the row has, to the letter (blanks
+    around the text aside): description, method, instrument and Acceptance Criterion. Saving
+    the form as it started changes nothing."""
+    for c in candidates:
+        start = _from_candidate(c)
+        if (
+            content.description.strip() == start.description.strip()
+            and content.method.strip() == start.method.strip()
+            and _blank_none(content.instrument) == _blank_none(start.instrument)
+            and content.acceptance == start.acceptance
+        ):
+            return True
+    return False
+
+
+def _changed_from_draft(
+    in_force: WrittenVersion | None, candidates: tuple[DraftCandidate, ...]
+) -> bool:
+    """A human wrote a Test Step that differs from the draft's (ADR 0012, "Findings": a
+    finding accepted on a row whose Test Step is unchanged needs a written reason). Saving a
+    Test Step unchanged does not count."""
+    if in_force is None or in_force.content is None:
+        return False
+    return not _same_as_drafted(in_force.content, candidates)
+
+
 def _finding_blockers(findings: tuple[RowFinding, ...], changed: bool) -> tuple[Blocker, ...]:
     out: list[Blocker] = []
     if any(f.standing.state != "decided" for f in findings):
@@ -615,7 +648,10 @@ def rows_of(session: Session, protocol: AssembledProtocol) -> list[ProtocolRow]:
         row_attrs = attrs.get(s.requirement, ()) if kind == "test_step" else ()
         findings = tuple(found.get(s.requirement, ()))
         if from_draft:
-            blockers = (*blockers, *_finding_blockers(findings, in_force is not None))
+            blockers = (
+                *blockers,
+                *_finding_blockers(findings, _changed_from_draft(in_force, candidates)),
+            )
             has_step = accepted is not None or accepted_candidate is not None or step is not None
             if kind == "test_step" and has_step and attributes.current(row_attrs)[0] is None:
                 blockers = (*blockers, "stage_missing")

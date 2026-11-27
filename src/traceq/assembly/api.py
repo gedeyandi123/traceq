@@ -444,8 +444,8 @@ class Approval(_Model):
     """The ``hash`` of the current submission's frozen copy."""
     expected_latest_draft_rev: int | None = None
     """For a Protocol started from the draft: the ``latest_draft_rev`` the Approver's view
-    showed; needed (422 without it), and 409 when a newer revision arrived since. Ignored
-    otherwise."""
+    showed; needed (422 without it). 409 when the Protocol is pinned to an older revision than
+    the latest (whatever was read), or when another than the latest was read. Ignored otherwise."""
 
 
 class SubmitRequest(_Model):
@@ -455,7 +455,8 @@ class SubmitRequest(_Model):
     """The ``draft_hash`` of the Protocol view the Preparer was reading."""
     expected_latest_draft_rev: int | None = None
     """For a Protocol started from the draft: the ``latest_draft_rev`` of that view; needed
-    (422 without it), and 409 when a newer revision arrived since. Ignored otherwise."""
+    (422 without it). 409 when the Protocol is pinned to an older revision than the latest
+    (whatever was read), or when another than the latest was read. Ignored otherwise."""
 
 
 class Return(_Model):
@@ -741,6 +742,16 @@ def _submission(
     )
 
 
+CONFLICT_CODE_HEADER = "X-TraceQ-Conflict"
+"""Names a 409 about the Protocol Draft's revision by a stable code (``pinned_behind``,
+``stale_draft``), so a client does not read the words."""
+
+
+def _signing_conflict(e: Exception) -> HTTPException:
+    code = draft_source.conflict_code(e)
+    return HTTPException(409, str(e), headers={CONFLICT_CODE_HEADER: code} if code else None)
+
+
 def create_router(
     runs: Path,
     db: Engine | None,
@@ -969,7 +980,8 @@ def create_router(
         when ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another
         decider changed it after the Preparer read it); 422 without one. A Protocol started
         from the Protocol Draft is frozen as a version 2 copy and needs
-        ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision arrived since).
+        ``expected_latest_draft_rev`` (422 without it; 409 when the Protocol is pinned to an
+        older revision than the latest, or the caller read another than the latest).
         Needs the deciding role."""
         if not who.may_decide:
             raise HTTPException(403, "submitting a Protocol needs the deciding role")
@@ -996,7 +1008,7 @@ def create_router(
         except lifecycle.Refused as e:
             raise HTTPException(422, str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
-            raise HTTPException(409, str(e)) from e
+            raise _signing_conflict(e) from e
 
     @router.post("/protocols/{protocol_id}/withdraw", operation_id="withdrawProtocol")
     def withdraw_protocol(
@@ -1028,11 +1040,11 @@ decision in force (Coverage, and every current decision on a drafted Test Step, 
 included), or of any version of a written Test Step or of a disposition of a missed number;
 the check reads the copy only; for a Protocol started from the Protocol Draft that includes
 everyone who decided a finding, mapped a draft step or wrote a reason. A Protocol started from
-the draft also needs ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision
-arrived since), and the latest revision is recorded in the approval event. Refused (409) unless
-Submitted. Once approved, no new
-Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
-entry. Needs the approving role.""",
+the draft also needs ``expected_latest_draft_rev`` (422 without it; 409 when the Protocol is
+pinned to an older revision than the latest, or the caller read another than the latest),
+and the latest revision is recorded in the approval event. Refused (409) unless
+Submitted. Once approved, no new Protocol of the Equipment can be started (a new version is
+step 6). With its Audit Trail entry. Needs the approving role.""",
     )
     def approve_protocol(
         protocol_id: int, body: Approval, who: Annotated[Principal, Depends(principal)]
@@ -1061,7 +1073,7 @@ entry. Needs the approving role.""",
         except lifecycle.Refused as e:
             raise HTTPException(422, str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
-            raise HTTPException(409, str(e)) from e
+            raise _signing_conflict(e) from e
 
     @router.post("/protocols/{protocol_id}/return", operation_id="returnProtocol")
     def return_protocol(

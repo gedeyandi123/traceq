@@ -619,6 +619,40 @@ def test_an_accepted_finding_on_a_row_whose_test_step_was_edited_needs_no_reason
     assert rows(got)[R002]["changed"] is True
 
 
+R002_AS_DRAFTED: dict[str, Any] = {
+    "description": "Uji OQ-02",
+    "method": "Metode OQ-02: ukur dan catat.",
+    "instrument": "Load cell LC-1",
+    "acceptance": {"type": "range", "min": 5.0, "unit": "kN"},
+}
+
+
+def test_saving_the_test_step_unchanged_does_not_clear_the_need_for_a_reason(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    decide(client, decider, of_kind(proposals(client, decider), "draft")[0], decision="accepted")
+    assert checks(read(client, decider))["finding_reason_missing"][0] == 1
+    # Saved exactly as the draft has it (also with blanks around the text and an empty
+    # instrument read as none): nothing changed, so the reason is still needed.
+    padded = {**R002_AS_DRAFTED, "description": " Uji OQ-02 ", "instrument": " Load cell LC-1 "}
+    for same in (R002_AS_DRAFTED, padded):
+        write(client, decider, protocol, R002, same)
+        got = read(client, decider)
+        assert rows(got)[R002]["step_source"] == "traceq_written"
+        assert checks(got)["finding_reason_missing"][0] == 1
+    # Any difference in the Test Step or its Acceptance Criterion counts as a change ...
+    for different in (
+        {**R002_AS_DRAFTED, "method": "Metode lain."},
+        {**R002_AS_DRAFTED, "acceptance": {"type": "range", "min": 6.0, "unit": "kN"}},
+        {**R002_AS_DRAFTED, "instrument": None},
+    ):
+        write(client, decider, protocol, R002, different)
+        assert checks(read(client, decider))["finding_reason_missing"][0] == 0
+        # ... and saving it back as the draft has it asks for the reason again.
+        write(client, decider, protocol, R002, R002_AS_DRAFTED)
+        assert checks(read(client, decider))["finding_reason_missing"][0] == 1
+
+
 def test_a_test_step_row_needs_its_stage_before_submission(
     client: TestClient, decider: dict[str, str], protocol: Any
 ) -> None:

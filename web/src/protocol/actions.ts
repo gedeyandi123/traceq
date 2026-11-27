@@ -40,17 +40,14 @@ function error(status: number): ProtocolError | undefined {
   return status >= 200 && status < 300 ? undefined : "failed";
 }
 
-/** A 409 whose reason says a newer revision of the Protocol Draft arrived while the page was
- * open: the caller must reload, which is not the same as the other conflicts. */
-async function staleDraft(response: Response): Promise<boolean> {
-  if (response.status !== 409) return false;
-  try {
-    const body: unknown = await response.clone().json();
-    const detail = typeof body === "object" && body !== null && "detail" in body ? body.detail : "";
-    return typeof detail === "string" && detail.includes("newer revision of the Protocol Draft");
-  } catch {
-    return false;
-  }
+/** A 409 about the revision of the Protocol Draft, which is not the same as the other
+ * conflicts: the Protocol is pinned to an older revision than the latest (it is withdrawn and
+ * started again from the latest, ADR 0012), or a newer one arrived while the page was open (the
+ * caller must reload). The API names which by the `X-TraceQ-Conflict` header, not by its words. */
+function draftRevisionError(response: Pick<Response, "status" | "headers">): ProtocolError | undefined {
+  if (response.status !== 409) return undefined;
+  const code = response.headers.get("x-traceq-conflict");
+  return code === "pinned_behind" || code === "stale_draft" ? code : undefined;
 }
 
 function back(runId: string, failed: ProtocolError | undefined): never {
@@ -211,7 +208,7 @@ export async function approveProtocol(form: FormData): Promise<void> {
       headers: await consumeSignatureBearerHeaders(),
       body: { submission_event_id: eventId, hash, expected_latest_draft_rev: latestRev(form) },
     });
-    failed = (await staleDraft(response)) ? "stale_draft" : errorFromResponse(response);
+    failed = draftRevisionError(response) ?? errorFromResponse(response);
   } catch {
     failed = "failed";
   }
@@ -253,7 +250,7 @@ export async function submitProtocol(form: FormData): Promise<void> {
       headers: await consumeSignatureBearerHeaders(),
       body: { expected_draft_hash: draftHash, expected_latest_draft_rev: latestRev(form) },
     });
-    failed = (await staleDraft(response)) ? "stale_draft" : errorFromResponse(response);
+    failed = draftRevisionError(response) ?? errorFromResponse(response);
   } catch {
     failed = "failed";
   }
