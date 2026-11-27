@@ -107,6 +107,14 @@ test("a Protocol pinned to an older revision comes back as pinned_behind on subm
   );
 });
 
+test("the uploader approving their own pinned revision comes back as uploader_approves", async () => {
+  mocks.post.mockResolvedValue(reply(409, { detail: "x uploaded the Protocol Draft revision 0" }, "uploader_approves"));
+  const approve = { run_id: "r1", protocol_id: "7", submission_event_id: "12", hash: "h", expected_latest_draft_rev: "0" };
+  expect(await redirectedTo(() => approveProtocol(form(approve)))).toBe(
+    "/runs/r1/protocol?protocolError=uploader_approves",
+  );
+});
+
 test("approve names the revision and reports a stale one", async () => {
   mocks.post.mockResolvedValue(reply(409, { detail: STALE }, "stale_draft"));
   const url = await redirectedTo(() =>

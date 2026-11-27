@@ -43,11 +43,12 @@ function error(status: number): ProtocolError | undefined {
 /** A 409 about the revision of the Protocol Draft, which is not the same as the other
  * conflicts: the Protocol is pinned to an older revision than the latest (it is withdrawn and
  * started again from the latest, ADR 0012), or a newer one arrived while the page was open (the
- * caller must reload). The API names which by the `X-TraceQ-Conflict` header, not by its words. */
+ * caller must reload), or the Approver uploaded the revision the Protocol is pinned to (separation
+ * of duties). The API names which by the `X-TraceQ-Conflict` header, not by its words. */
 function draftRevisionError(response: Pick<Response, "status" | "headers">): ProtocolError | undefined {
   if (response.status !== 409) return undefined;
   const code = response.headers.get("x-traceq-conflict");
-  return code === "pinned_behind" || code === "stale_draft" ? code : undefined;
+  return code === "pinned_behind" || code === "stale_draft" || code === "uploader_approves" ? code : undefined;
 }
 
 function back(runId: string, failed: ProtocolError | undefined): never {
