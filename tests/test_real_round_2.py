@@ -244,9 +244,13 @@ def _capability(row: str, top: float, page: int) -> dict[str, Any]:
     }
 
 
-def _two_capability_findings(rows: tuple[tuple[str, float, int], ...]) -> Edit:
-    """OQ-03 against URS-TP201-003, whose matrix row holds both Datasheet rows: a capability
-    finding on each of ``rows``, appended after the older findings as the rule does."""
+type Rows = tuple[tuple[str, float, int], ...]
+
+
+def _two_capability_findings(rows: Rows, sheet: Rows = CAPABILITY_ROWS) -> Edit:
+    """OQ-03 against URS-TP201-003, whose matrix row holds the Datasheet rows of ``sheet``: a
+    capability finding on each of ``rows``, appended after the older findings as the rule
+    does."""
 
     def edit(draft: dict[str, Any]) -> None:
         facts = [
@@ -255,7 +259,7 @@ def _two_capability_findings(rows: tuple[tuple[str, float, int], ...]) -> Edit:
                 "printed": f"{top:g} dB(A)",
                 "citation": {**DATASHEET, "page": page, "quote": f"{row} {top:g} dB(A)"},
             }
-            for row, top, page in CAPABILITY_ROWS
+            for row, top, page in sheet
         ]
         comparator = {**DATASHEET, "kind": "design", "facts": facts}
         draft["test_steps"][0]["traced"][0]["comparators"] = [comparator]
@@ -553,3 +557,27 @@ def test_a_run_over_revision_0_and_one_over_revision_1_make_a_real_round_2(
     }
     assert by_change[("ac_deviates_from_urs", "OQ-24", "URS-TP201-029")] == "persisted"
     assert len(by_change) == sum(f["kind"] == "draft" for f in diff["findings"])
+
+
+def test_two_capability_findings_on_rows_of_one_name_fall_back_to_their_order(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    """A Datasheet that prints one row name twice (on two pages) gives two capability findings
+    of one key: they are told apart by their order, and keep it in the next revision."""
+    same_name = (("Maximum noise", 55.0, 3), ("Maximum noise", 60.0, 4))
+    twins = _two_capability_findings(same_name, same_name)
+
+    def twins_in_revision_1(draft: dict[str, Any]) -> None:
+        revision_1(draft)
+        twins(draft)
+
+    next_run(runs, RUN_2, twins)
+    import_run(client, decider, RUN_2)
+    both = [p for p in drafted(proposals(client, decider, RUN_2)) if p["position"] >= 3]
+    assert len({p["id"] for p in both}) == 2
+    next_run(runs, RUN_3, twins_in_revision_1)
+    import_run(client, decider, RUN_3)
+    again = [p for p in drafted(proposals(client, decider, RUN_3)) if p["position"] >= 3]
+    assert [(p["id"], p["content_hash"]) for p in again] == [
+        (p["id"], p["content_hash"]) for p in both
+    ]
