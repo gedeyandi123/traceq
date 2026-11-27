@@ -28,6 +28,12 @@ _LOCK_NS = 0x7551  # the advisory-lock namespace of upload revision numbers
 WORKER_LOCK = (0x7551, 1)
 """The session lock one worker holds while it processes a job: workers are serialised."""
 _SHA = re.compile(r"^[0-9a-f]{64}$")
+WORKER_ACTOR = audit.Actor(
+    subject="system:upload-worker", issuer="traceq", name="traceq upload worker"
+)
+"""Who the Audit Trail names for the end of a job: the worker is a system actor, not the
+uploader (who is named by the entry of the upload itself)."""
+LIST_LIMIT = 200
 STATUSES = ("queued", "running", "succeeded", "failed")
 
 
@@ -249,9 +255,11 @@ def finish(
     run_id: str | None,
     cost: Decimal,
     message: str | None,
+    interrupted: bool = False,
 ) -> None:
     """A running job ends: ``succeeded`` when it produced ``run_id``, else ``failed``. Its
-    reservation is released and what it spent is added to the ledger, in one transaction."""
+    reservation is released and what it spent is added to the ledger, in one transaction,
+    with the Audit Trail entry of its end and charged cost (the worker is the actor)."""
     status = "succeeded" if run_id is not None else "failed"
     done = session.execute(
         text(
@@ -276,6 +284,23 @@ def finish(
         ),
         {"reserved": job.reserved_usd, "cost": cost},
     )
+    audit.append(
+        session,
+        WORKER_ACTOR,
+        "draft upload interrupted" if interrupted else f"draft upload {status}",
+        "upload_job",
+        str(job.id),
+        old={"status": "running"},
+        new={
+            "status": status,
+            "equipment": job.equipment,
+            "rev": job.rev,
+            "run_id": run_id,
+            "cost_usd": str(cost),
+            "reserved_usd": str(job.reserved_usd),
+            "message": message,
+        },
+    )
 
 
 def interrupted(session: Session) -> list[Job]:
@@ -297,6 +322,7 @@ def interrupted(session: Session) -> list[Job]:
             run_id=None,
             cost=job.reserved_usd,
             message="the worker stopped before this upload finished; upload it again",
+            interrupted=True,
         )
     return jobs
 
@@ -310,14 +336,15 @@ def get(session: Session, job_id: int) -> Job | None:
     return None if m is None else _job(m)
 
 
-def for_equipment(session: Session, equipment: str) -> list[Job]:
-    """The Equipment's uploads, newest revision first."""
+def for_equipment(session: Session, equipment: str, limit: int = LIST_LIMIT) -> list[Job]:
+    """The Equipment's ``limit`` newest uploads, newest revision first."""
     rows = (
         session.execute(
             text(
                 f"SELECT {_COLUMNS} FROM upload_jobs WHERE equipment = :equipment ORDER BY rev DESC"
+                " LIMIT :limit"
             ),
-            {"equipment": equipment},
+            {"equipment": equipment, "limit": limit},
         )
         .mappings()
         .all()

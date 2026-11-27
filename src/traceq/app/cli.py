@@ -140,9 +140,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "serve":
-        if not math.isfinite(args.upload_budget_usd) or args.upload_budget_usd < 0:
+        from traceq.uploads.runner import MAX_BUDGET_USD
+
+        if not math.isfinite(args.upload_budget_usd) or not (
+            0 <= args.upload_budget_usd <= MAX_BUDGET_USD
+        ):
             print(
-                "traceq serve: --upload-budget-usd must be a finite number, 0 or more",
+                f"traceq serve: --upload-budget-usd must be a finite number from 0 to"
+                f" {MAX_BUDGET_USD:g}",
                 file=sys.stderr,
             )
             return 2

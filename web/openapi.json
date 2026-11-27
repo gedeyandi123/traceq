@@ -2472,6 +2472,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 9223372036854775807,
+              "minimum": 1,
               "title": "Job Id"
             }
           }

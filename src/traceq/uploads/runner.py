@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -26,6 +27,15 @@ from traceq.documents.package import DATASET
 from traceq.review.draft import DRAFT_STAGE_VERSION, draft_edition, draft_requests
 from traceq.runs.run import INGEST_DIR, run
 from traceq.uploads.store import Job
+
+MAX_BUDGET_USD = 1000.0
+"""The highest live-spend ceiling accepted: far above any dev budget, far below the range of
+the ledger's ``numeric(12, 6)``."""
+
+
+def _money(name: str, value: float, upper: float) -> None:
+    if not math.isfinite(value) or value < 0 or value > upper:
+        raise ValueError(f"{name} must be a finite amount from 0 to {upper:g} USD, not {value!r}")
 
 
 @dataclass(frozen=True)
@@ -55,6 +65,19 @@ class UploadSettings:
     estimate_per_page_usd: float = 0.002
     """What a page with no recording may cost live, as a ceiling for the reservation (one
     recorded draft run cost about USD 0.0018 for the whole draft)."""
+
+    def __post_init__(self) -> None:
+        """Refuses a setting that would fail later as a 500 (or never refuse at all): a
+        budget that is NaN, infinite, negative or beyond ``MAX_BUDGET_USD`` (the ledger
+        stores ``numeric(12, 6)``), a per-page estimate likewise, a cap that is not positive."""
+        _money("budget_usd", self.budget_usd, MAX_BUDGET_USD)
+        _money("estimate_per_page_usd", self.estimate_per_page_usd, MAX_BUDGET_USD)
+        if self.estimate_per_page_usd == 0:
+            raise ValueError("estimate_per_page_usd must be above 0: it is what a live page holds")
+        for name in ("max_bytes", "max_pages"):
+            value = getattr(self, name)
+            if not isinstance(value, int) or value <= 0:
+                raise ValueError(f"{name} must be a positive whole number, not {value!r}")
 
     @property
     def blobs(self) -> Path:
