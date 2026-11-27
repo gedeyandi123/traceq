@@ -68,7 +68,9 @@ def create_app(
             return
         stop = threading.Event()
         worker = Worker(db, package_runner(uploads, runs), uploads.blobs, runs)
-        thread = threading.Thread(target=worker.loop, args=(stop,), name="upload-worker")
+        thread = threading.Thread(
+            target=worker.loop, args=(stop,), name="upload-worker", daemon=True
+        )
         thread.start()
         try:
             yield

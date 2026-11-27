@@ -14,10 +14,12 @@ No ``from __future__ import annotations``: FastAPI reads the annotations naming 
 per-application dependency (``principal``), a local name, at definition time.
 """
 
+import json
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated, Literal, cast
+from pathlib import Path
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -34,6 +36,26 @@ CLOUD_NOTICE = (
     "Mode Cloud sends the text of the document to an external model provider. Upload only"
     " synthetic data (ADR 0001): never a real plant document."
 )
+
+
+def has_model_recording(directory: Path, sha256: str, model: str) -> bool:
+    """Whether ``directory`` holds a recorded model answer for the document with this hash
+    and this model. The ingest file holds only the parse result, so it does not count: a
+    replay without the model recording would fail."""
+    for path in directory.glob("*.json"):
+        try:
+            text = path.read_text(encoding="utf-8")
+            if sha256 not in text:
+                continue
+            record: Any = json.loads(text)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(record, dict):
+            continue
+        fields = cast(dict[str, Any], record)
+        if fields.get("doc_sha256") == sha256 and fields.get("model") == model:
+            return True
+    return False
 
 
 JobStatus = Literal["queued", "running", "succeeded", "failed"]
@@ -124,7 +146,7 @@ def create_router(
     ) -> store.Job:
         ceiling = store.usd(conf.budget_usd)
         with transaction(database()) as session:
-            recorded = any((conf.package_recordings / "ingest").glob(f"{checked.sha256}-*.json"))
+            recorded = has_model_recording(conf.package_recordings, checked.sha256, conf.model)
             replays = store.replayable(session, checked.sha256, recorded)
             estimate = (
                 Decimal(0) if replays else store.usd(checked.pages * conf.estimate_per_page_usd)

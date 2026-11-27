@@ -27,11 +27,15 @@ class CloudLLM:
         client: anthropic.Anthropic | None = None,
         effort: Effort = "low",
         poll_seconds: float = 30.0,
+        deadline_seconds: float | None = None,
     ) -> None:
         self._model = model
         self.client = client or anthropic.Anthropic()
         self.effort: Effort = effort
         self.poll_seconds = poll_seconds
+        self.deadline_seconds = deadline_seconds
+        """Past this many seconds of polling the batch is cancelled and the call fails; none
+        means wait as long as it takes."""
 
     @property
     def model(self) -> str:
@@ -58,7 +62,16 @@ class CloudLLM:
                 for i, r in enumerate(requests)
             ]
         )
+        started = time.monotonic()
         while batch.processing_status != "ended":
+            if self.deadline_seconds is not None and (
+                time.monotonic() - started >= self.deadline_seconds
+            ):
+                self.client.messages.batches.cancel(batch.id)
+                raise LLMError(
+                    f"batch {batch.id} passed its deadline of {self.deadline_seconds:g} s"
+                    " and was cancelled"
+                )
             time.sleep(self.poll_seconds)
             batch = self.client.messages.batches.retrieve(batch.id)
         answers: dict[int, Response] = {}
