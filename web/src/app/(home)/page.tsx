@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 import { api } from "@/api/client";
-import { currentSession } from "@/auth/session";
+import { bearerHeaders, currentSession } from "@/auth/session";
 import { formatWhen } from "@/components/formatWhen";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState, ModeBadge } from "@/components/ui/ui";
@@ -22,7 +22,7 @@ export default async function RunsPage() {
   const when = await getTranslations("decisions");
   const signin = await getTranslations("signin");
   const [{ data }, session] = await Promise.all([
-    api.GET("/runs").catch(() => ({ data: undefined })),
+    api.GET("/runs", { headers: await bearerHeaders() }).catch(() => ({ data: undefined })),
     currentSession(),
   ]);
 

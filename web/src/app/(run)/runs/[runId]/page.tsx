@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { api, type Proposal } from "@/api/client";
+import { bearerHeaders } from "@/auth/session";
 import { MatrixTable, type MatrixFilter } from "@/components/MatrixTable";
 import type { CoverageBadgeKey } from "@/components/ui/StatusBadge";
 import { decisionError, loadDecisions } from "@/decisions/load";
@@ -34,7 +35,7 @@ export default async function MatrixPage({
   const { runId } = await params;
   const query = await searchParams;
   const t = await getTranslations("matrix");
-  const path = { params: { path: { run_id: runId } } };
+  const path = { params: { path: { run_id: runId } }, headers: await bearerHeaders() };
   const [run, matrix, decisions] = await Promise.all([
     fetchRun(runId),
     api.GET("/runs/{run_id}/matrix", path),

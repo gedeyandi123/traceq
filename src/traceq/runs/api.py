@@ -9,8 +9,8 @@ summary fields and the dropped claims are served, never per-item scores. A cited
 opens from the released corpus, and only for a document the run read, with the bytes it
 read.
 
-There is no upload and no database: every route is a GET. The database routes over the same
-runs are in ``traceq.proposals``.
+There is no upload and no database: every route is a GET, and every route needs a
+bearer token. The database routes over the same runs are in ``traceq.proposals``.
 
 ``create_router`` returns the routes; the ``app`` module composes them into the application
 (``python -m traceq.app.api OUT`` writes the OpenAPI schema, ADR 0003).
@@ -103,7 +103,9 @@ def scan_runs(runs: Path) -> list[RunSummary]:
 
 def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
     """``runs``: the directory ``traceq run`` writes run folders into. ``corpus``: the
-    released corpus the runs read, for opening a cited page (none: no document route)."""
+    released corpus the runs read, for opening a cited page (none: no document route).
+    The router does not authenticate: ``traceq.app`` mounts it behind the principal, so no
+    run is served to an anonymous caller."""
     router = APIRouter()
 
     def folder(run_id: str) -> Path:

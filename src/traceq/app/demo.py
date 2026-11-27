@@ -404,7 +404,7 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
                 ),
             ]
         )
-        _wait(f"{api_url}/runs", "API", api)
+        _wait(f"{api_url}/openapi.json", "API", api)
         log(f"importing {run_id} as {DEMO_PERSONA}")
         access_token = _demo_import_token(issuer_url, settings.idp, DEMO_PERSONA)
         imported = httpx.post(

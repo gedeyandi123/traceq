@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
+import { bearerHeaders } from "@/auth/session";
 import { LeftOutView } from "@/components/LeftOutView";
 import { fetchRun } from "@/runs/fetchers";
 
@@ -16,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LeftOutPage({ params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params;
   const t = await getTranslations("leftOut");
-  const path = { params: { path: { run_id: runId } } };
+  const path = { params: { path: { run_id: runId } }, headers: await bearerHeaders() };
   const [run, dropped, completeness] = await Promise.all([
     fetchRun(runId),
     api.GET("/runs/{run_id}/dropped", path),

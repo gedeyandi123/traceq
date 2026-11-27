@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, cast
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -84,11 +84,11 @@ def create_app(
         version="0.1.0",
         summary="Run folders read-only; Proposals in the database, behind a token.",
     )
-    app.include_router(runs_router(runs, corpus))
     verifier = None if identity is None else Verifier(identity)
     db = None if database is None else engine(make_url(database))
     principal = authenticate(verifier)
     fresh_auth = require_fresh_auth(verifier)
+    app.include_router(runs_router(runs, corpus), dependencies=[Depends(principal)])
     app.include_router(
         proposals_router(
             runs,

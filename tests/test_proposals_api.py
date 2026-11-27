@@ -188,8 +188,8 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
         )
         assert client.request(method, url).status_code == 401
         assert client.request(method, url, headers=good).status_code == 401
-    # The run-folder routes still work.
-    assert client.get(f"/runs/{RUN_ID}/matrix").status_code == 200
+    # The run-folder routes need a token too, and none can be verified here.
+    assert client.get(f"/runs/{RUN_ID}/matrix").status_code == 401
 
 
 def test_the_api_refuses_to_start_with_only_an_issuer_or_only_a_database(

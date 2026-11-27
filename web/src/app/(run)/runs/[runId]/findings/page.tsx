@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { api } from "@/api/client";
+import { bearerHeaders } from "@/auth/session";
 import { FindingsView } from "@/components/FindingsView";
 import { decisionError, loadDecisions } from "@/decisions/load";
 import { fetchRun } from "@/runs/fetchers";
@@ -23,7 +24,7 @@ export default async function FindingsPage({
 }) {
   const { runId } = await params;
   const t = await getTranslations("findings");
-  const path = { params: { path: { run_id: runId } } };
+  const path = { params: { path: { run_id: runId } }, headers: await bearerHeaders() };
   const [run, findings, decisions] = await Promise.all([
     fetchRun(runId),
     api.GET("/runs/{run_id}/findings", path),
