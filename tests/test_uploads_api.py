@@ -19,12 +19,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from conftest import Databases, DemoIssuer
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from test_proposals_api import add_run, bearer, token
 from test_upload_checks import pdf
 
+from traceq import audit
+from traceq import db as traceq_db
 from traceq.ai import MissingRecording, Recorder
 from traceq.app.api import create_app
 from traceq.audit import Actor
@@ -590,3 +594,171 @@ def test_the_real_runner_replays_the_recorded_revision_and_a_wrong_revision_is_f
     failed = worker.run_once()
     assert failed is not None and failed.status == "failed"
     assert failed.message is not None and "not recorded" in failed.message
+
+
+# --- Ledger integrity, validated settings, the worker in the Audit Trail (ticket #393) ----
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf"), -0.01, 1e30, 1001.0])
+def test_a_budget_that_is_not_a_sane_amount_is_refused_at_startup(
+    settings: UploadSettings, bad: float
+) -> None:
+    with pytest.raises(ValueError, match="budget_usd"):
+        replace(settings, budget_usd=bad)
+
+
+@pytest.mark.parametrize("field", ["estimate_per_page_usd", "max_bytes", "max_pages"])
+def test_the_other_limits_of_the_settings_are_validated_too(
+    settings: UploadSettings, field: str
+) -> None:
+    for bad in (float("nan"), -1, 0):
+        with pytest.raises(ValueError, match=field):
+            replace(settings, **{field: bad})
+
+
+def test_a_budget_of_zero_stays_valid(settings: UploadSettings) -> None:
+    assert replace(settings, budget_usd=0.0, live=None).budget_usd == 0.0
+
+
+def test_the_end_of_a_job_and_its_cost_are_in_the_audit_trail_by_the_worker(
+    client: TestClient,
+    decider: dict[str, str],
+    runs: Path,
+    settings: UploadSettings,
+    fresh_database: Databases,
+) -> None:
+    fake = Fake(runs)
+    fake.live_cost = 0.0018
+    worker = Worker(engine(fresh_database.app), fake, settings.blobs, runs)
+    ok = upload(client, decider, pdf(2, "ends well")).json()
+    done = worker.run_once()
+    assert done is not None and done.status == "succeeded"
+    fake.error = MissingRecording("no recording for page 1 of the draft")
+    bad = upload(client, decider, pdf(1, "ends badly")).json()
+    failed = worker.run_once()
+    assert failed is not None and failed.status == "failed"
+
+    with transaction(engine(fresh_database.app)) as session:
+        ended = [
+            e
+            for e in audit.entries(session)
+            if e.record_type == "upload_job" and e.action.startswith("draft upload ")
+        ]
+    by_id = {e.record_id: e for e in ended}
+    good, wrong = by_id[str(ok["id"])], by_id[str(bad["id"])]
+    assert good.action == "draft upload succeeded" and wrong.action == "draft upload failed"
+    for entry in (good, wrong):
+        assert entry.actor == store.WORKER_ACTOR  # the worker, not the uploader
+    assert isinstance(good.new_value, dict) and isinstance(wrong.new_value, dict)
+    assert good.new_value["cost_usd"] == "0.001800" and good.new_value["run_id"] == done.run_id
+    assert wrong.new_value["cost_usd"] == "0.010000"
+    assert "recording" in str(wrong.new_value["message"])
+
+
+def test_an_interrupted_job_is_in_the_audit_trail_as_the_worker(
+    client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
+) -> None:
+    job = upload(client, decider, pdf(2, "orphan")).json()
+    with transaction(engine(fresh_database.app)) as session:
+        assert store.claim_next(session) is not None
+    assert worker.run_once() is None  # no queued job left: only the interruption is recorded
+    with transaction(engine(fresh_database.app)) as session:
+        mine = [
+            e
+            for e in audit.entries(session)
+            if e.record_type == "upload_job" and e.record_id == str(job["id"])
+        ]
+    assert [e.action for e in mine] == ["draft uploaded", "draft upload interrupted"]
+    assert mine[1].actor == store.WORKER_ACTOR
+
+
+def test_a_finished_job_keeps_its_run_cost_and_message(
+    client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
+) -> None:
+    job = upload(client, decider, pdf(1, "final")).json()
+    assert worker.run_once() is not None
+    for column, value in (
+        ("run_id", "'other'"),
+        ("cost_usd", "5"),
+        ("message", "'rewritten'"),
+        ("finished_at", "now()"),
+    ):
+        with (
+            pytest.raises(Exception, match="finished upload job"),
+            transaction(engine(fresh_database.app)) as session,
+        ):
+            session.execute(
+                text(f"UPDATE upload_jobs SET {column} = {value} WHERE id = :id"),
+                {"id": job["id"]},
+            )
+
+
+def test_a_job_cannot_be_marked_finished_without_its_cost_and_time(
+    client: TestClient, decider: dict[str, str], fresh_database: Databases
+) -> None:
+    job = upload(client, decider, pdf(1, "half")).json()
+    with transaction(engine(fresh_database.app)) as session:
+        assert store.claim_next(session) is not None
+    with (
+        pytest.raises(Exception, match="upload_jobs_finished_complete"),
+        transaction(engine(fresh_database.app)) as session,
+    ):
+        session.execute(
+            text("UPDATE upload_jobs SET status = 'failed' WHERE id = :id"), {"id": job["id"]}
+        )
+
+
+def test_the_spent_ledger_never_goes_down_and_its_id_is_not_updatable(
+    client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
+) -> None:
+    upload(client, decider, pdf(1, "spend"))
+    assert worker.run_once() is not None
+    with (
+        pytest.raises(Exception, match="spent"),
+        transaction(engine(fresh_database.app)) as session,
+    ):
+        session.execute(text("UPDATE upload_budget SET spent_usd = spent_usd - 0.01 WHERE id = 1"))
+    with (
+        pytest.raises(Exception, match="permission denied"),
+        transaction(engine(fresh_database.app)) as session,
+    ):
+        session.execute(text("UPDATE upload_budget SET id = 2 WHERE id = 1"))
+
+
+def test_a_job_id_beyond_the_database_range_is_a_client_error_not_a_500(
+    client: TestClient, decider: dict[str, str]
+) -> None:
+    assert client.get(f"/uploads/{2**63}", headers=decider).status_code == 422
+    assert client.get(f"/uploads/{2**63 - 1}", headers=decider).status_code == 404
+
+
+def test_the_list_of_uploads_is_limited_to_the_newest(
+    client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
+) -> None:
+    for n in range(3):
+        upload(client, decider, pdf(1, f"v{n}"))
+        assert worker.run_once() is not None
+    with transaction(engine(fresh_database.app)) as session:
+        assert [j.rev for j in store.for_equipment(session, "TP-201", limit=2)] == [2, 1]
+
+
+def test_migration_0022_goes_down_and_up_again_with_its_guards_restored(
+    fresh_database: Databases,
+) -> None:
+    cfg = Config()
+    cfg.set_main_option("script_location", str(Path(traceq_db.__file__).parent / "migrations"))
+    cfg.attributes["url"] = fresh_database.owner
+    command.downgrade(cfg, "0021")
+    with transaction(engine(fresh_database.owner)) as session:
+        triggers = session.execute(
+            text("SELECT tgname FROM pg_trigger WHERE tgname LIKE 'upload_%'")
+        ).scalars()
+        assert "upload_budget_spent_only_up" not in set(triggers)
+    command.upgrade(cfg, "head")
+    with transaction(engine(fresh_database.owner)) as session:
+        names = set(
+            session.execute(
+                text("SELECT tgname FROM pg_trigger WHERE tgname LIKE 'upload_%'")
+            ).scalars()
+        )
+        assert {"upload_budget_spent_only_up", "upload_jobs_finished_immutable"} <= names

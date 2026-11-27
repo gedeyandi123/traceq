@@ -19,7 +19,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine
@@ -36,6 +36,8 @@ CLOUD_NOTICE = (
     " synthetic data (ADR 0001): never a real plant document."
 )
 
+
+_BIGINT_MAX = 2**63 - 1  # a job id beyond it is a 422, not a database error
 
 JobStatus = Literal["queued", "running", "succeeded", "failed"]
 
@@ -232,7 +234,10 @@ def create_router(
         return _view(job)
 
     @router.get("/uploads/{job_id}", operation_id="getDraftUpload")
-    def get_upload(job_id: int, who: Annotated[Principal, Depends(principal)]) -> UploadJobView:
+    def get_upload(
+        job_id: Annotated[int, Path(ge=1, le=_BIGINT_MAX)],
+        who: Annotated[Principal, Depends(principal)],
+    ) -> UploadJobView:
         """Where an upload stands: ``queued``, ``running``, ``succeeded`` (with its run) or
         ``failed`` (with why)."""
         scoped(who, None)

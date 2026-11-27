@@ -735,7 +735,13 @@ def _queue_upload(fresh_database: Databases, rev: int, status: str = "queued") -
         )
         for step in () if status == "queued" else ("running", status):
             session.execute(
-                text("UPDATE upload_jobs SET status = :s WHERE id = :id"), {"s": step, "id": job.id}
+                text(
+                    "UPDATE upload_jobs SET status = :s,"
+                    " cost_usd = CASE WHEN :s = 'running' THEN NULL ELSE 0 END,"
+                    " finished_at = CASE WHEN :s = 'running' THEN NULL ELSE clock_timestamp() END"
+                    " WHERE id = :id"
+                ),
+                {"s": step, "id": job.id},
             )
 
 
