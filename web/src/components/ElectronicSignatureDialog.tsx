@@ -103,11 +103,7 @@ export function ElectronicSignatureDialog({
     >
       <div className="space-y-3 text-xs">
         <div
-          className={`flex items-start gap-2 rounded-md border px-3 py-2 text-[11px] leading-relaxed ${
-            signingAuth.oidcMode
-              ? "border-pass-edge bg-pass-soft text-pass"
-              : "border-info-edge bg-info-soft text-info"
-          }`}
+          className="flex items-start gap-2 rounded-md border border-border bg-sunken px-3 py-2 text-[11px] leading-relaxed text-ink-muted"
         >
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>{signingAuth.oidcMode ? t("oidcHonestNote") : t("demoHonestNote")}</span>

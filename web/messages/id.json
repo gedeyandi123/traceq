@@ -1310,7 +1310,7 @@
     "signerLabel": "Ditandatangani sebagai",
     "signerUnknown": "Penandatangan tidak diketahui. Masuk kembali sebelum menandatangani.",
     "contentHashLabel": "Hash Konten",
-    "verified": "Terverifikasi",
+    "verified": "Hash cocok",
     "unverified": "Verifikasi Gagal (hash tidak cocok)",
     "notChecked": "Belum Diperiksa",
     "voided": "Dibatalkan",
