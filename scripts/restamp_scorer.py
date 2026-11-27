@@ -9,6 +9,10 @@ is compared with the committed one, ignoring only ``scorer_version``; the commit
 Only when both hold is the ``scorer_version`` line of each file re-written (``--check``:
 compare, write nothing); no other byte moves. Precedent: the scorer 0.8.0 re-stamp (#204).
 
+A target whose report is kept (r3, owner decision on #393) leaves the report as the record of
+its run, at the scorer that scored it, and re-stamps only its baseline, which the replay must
+still give apart from ``scorer_version``.
+
 A held-out target (any Equipment but TP-201) runs only through
 ``bash scripts/heldout_run.sh <TAG> -- uv run python scripts/restamp_scorer.py <target>``.
 Every message is fixed: it names the check, never a key, value or diff, and an exception's
@@ -69,6 +73,8 @@ class Target:
     package_world: str | None = None
     package_recordings: str | None = None
     draft_rev: int | None = None
+    keep_report: bool = False
+    """The report stays the record of its run at its scorer; only the baseline is re-stamped."""
 
 
 R10 = "recordings/haiku-r10"
@@ -135,6 +141,9 @@ TARGETS: dict[str, Target] = {
         package="recordings/TP-201-OQ-draft-0.1.0",
         package_world="world/tp201-oq-draft.yaml",
         package_recordings=R3,
+        # Scored now, the unit table compares OQ-24 and OQ-27 and the capability finding on
+        # OQ-04 is not_graded, so the report is not the replay's; its ratcheted metrics are.
+        keep_report=True,
     ),
 }
 
@@ -229,23 +238,29 @@ def apply(
     version: str = SCORER_VERSION,
     write: bool = True,
     explain: bool = False,
+    keep_report: bool = False,
 ) -> int:
     """Re-stamp ``report_path`` (and ``baseline_path``) with ``version`` when ``fresh`` equals
-    the committed report apart from ``scorer_version``; otherwise write nothing."""
+    the committed report apart from ``scorer_version``; otherwise write nothing.
+    ``keep_report``: leave the report as it is and re-stamp only the baseline (required)."""
     fresh = json.loads(json.dumps(fresh))  # tuples as lists, as the committed JSON holds them
     report_text = report_path.read_text(encoding="utf-8")
     stored = json.loads(report_text)
+    new_report = None
     try:
-        if _without_version(fresh) != _without_version(stored):
+        if keep_report and baseline_path is None:
+            raise Different("a kept report needs a baseline to re-stamp")
+        if not keep_report and _without_version(fresh) != _without_version(stored):
             if explain:
                 for p in list(diff_paths(_without_version(stored), _without_version(fresh)))[:40]:
                     print(f"  differs: {p}")
             raise Different("the replayed report differs from the committed one")
         if fresh[FIELD] != version:
             raise Different("the scorer that ran is not the version to stamp")
-        new_report = _stamped(report_text, stored[FIELD], version)
-        if json.loads(new_report) != {**stored, FIELD: version}:
-            raise Different("the re-stamped report changes more than the scorer version")
+        if not keep_report:
+            new_report = _stamped(report_text, stored[FIELD], version)
+            if json.loads(new_report) != {**stored, FIELD: version}:
+                raise Different("the re-stamped report changes more than the scorer version")
         new_baseline = None
         if baseline_path is not None:
             baseline_text = baseline_path.read_text(encoding="utf-8")
@@ -263,7 +278,8 @@ def apply(
         print(f"different, nothing written: {e}")
         return DIFFERENT
     if write:
-        report_path.write_text(new_report, encoding="utf-8", newline="\n")
+        if new_report is not None:
+            report_path.write_text(new_report, encoding="utf-8", newline="\n")
         if baseline_path is not None and new_baseline is not None:
             baseline_path.write_text(new_baseline, encoding="utf-8", newline="\n")
         print(f"equal: re-stamped with scorer {version}")
@@ -291,6 +307,7 @@ def main(argv: list[str]) -> int:
             baseline,
             write=not args.check,
             explain=args.explain,
+            keep_report=target.keep_report,
         )
     except Different as e:
         print(f"different, nothing written: {e}")

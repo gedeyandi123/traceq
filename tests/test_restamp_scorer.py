@@ -30,6 +30,12 @@ DEV_BASELINES = {
 }
 """Every dev baseline and the committed report it was written from."""
 
+KEPT_AT_0_8_0 = {"haiku-oq-draft-r3/report-TP-201-OQ-draft.json"}
+"""r3's report stays the record of that run at scorer 0.8.0 (owner decision, #393): scored now,
+the unit table compares OQ-24 and OQ-27 (19 Test Steps not compared become 17) and the capability
+finding on OQ-04 is ``not_graded``, so the report is not the replay's. Its baseline's ratcheted
+metrics re-score the same, so the 0.1.0 baseline carries 0.9.0."""
+
 
 def _load_script() -> ModuleType:
     spec = importlib.util.spec_from_file_location(
@@ -56,7 +62,8 @@ def test_the_scorer_is_0_9_0() -> None:
 @pytest.mark.parametrize(("baseline", "report"), sorted(DEV_BASELINES.items()))
 def test_every_dev_baseline_and_its_report_carry_scorer_0_9_0(baseline: str, report: str) -> None:
     assert ratchet.read(BASELINES / baseline).scorer_version == "0.9.0"
-    assert _json(RECORDINGS / report)["scorer_version"] == "0.9.0"
+    expected = "0.8.0" if report in KEPT_AT_0_8_0 else "0.9.0"
+    assert _json(RECORDINGS / report)["scorer_version"] == expected
 
 
 def test_revision_1_of_r8_carries_scorer_0_9_0() -> None:
@@ -142,6 +149,35 @@ def test_a_baseline_that_is_not_the_reports_writes_nothing(tmp_path: Path) -> No
     before = _bytes(report_path, baseline_path)
 
     code = restamp.apply(_report("0.9.0"), report_path, baseline_path, version="0.9.0")
+
+    assert code == restamp.DIFFERENT
+    assert _bytes(report_path, baseline_path) == before
+
+
+def test_a_kept_report_re_stamps_only_its_baseline(tmp_path: Path) -> None:
+    """A report kept as the record of its run may differ from the replay; its baseline is
+    re-stamped when the replay gives the same baseline."""
+    report_path, baseline_path = _files(tmp_path, _report())
+    before = _bytes(report_path, baseline_path)
+    fresh = _report("0.9.0")
+    fresh["citations"]["total"] += 2  # not a ratcheted metric
+
+    code = restamp.apply(fresh, report_path, baseline_path, version="0.9.0", keep_report=True)
+
+    assert code == restamp.EQUAL
+    after = _bytes(report_path, baseline_path)
+    assert after[0] == before[0]
+    line = ('  "scorer_version": "0.8.0",', '  "scorer_version": "0.9.0",')
+    assert _changed_lines(before[1], after[1]) == [line]
+
+
+def test_a_kept_report_whose_baseline_moves_writes_nothing(tmp_path: Path) -> None:
+    report_path, baseline_path = _files(tmp_path, _report())
+    before = _bytes(report_path, baseline_path)
+    fresh = _report("0.9.0")
+    fresh["fabrication"]["rate"] = 0.5
+
+    code = restamp.apply(fresh, report_path, baseline_path, version="0.9.0", keep_report=True)
 
     assert code == restamp.DIFFERENT
     assert _bytes(report_path, baseline_path) == before
