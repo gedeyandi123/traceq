@@ -554,7 +554,7 @@ def test_a_withdrawn_protocols_edit_never_decides_the_step_in_a_new_protocol(
 # --- Exact shapes ---------------------------------------------------------------------
 
 
-def test_an_exclusive_bound_is_never_coerced_into_an_inclusive_range(
+def test_an_exclusive_bound_is_a_shape_of_its_own_never_an_inclusive_range(
     client: TestClient, decider: dict[str, str], protocol: Any
 ) -> None:
     put_mapping(client, decider, protocol, "OQ-40", R030)
@@ -562,8 +562,15 @@ def test_an_exclusive_bound_is_never_coerced_into_an_inclusive_range(
     decide(client, decider, step_proposal(ps, "draft_step", "OQ-40"), decision="accepted")
     decide(client, decider, step_proposal(ps, "draft_criterion", "OQ-40"), decision="accepted")
     row = rows(read(client, decider))[R030]
-    assert row["test_step"]["acceptance"] is None
-    assert "acceptance_not_shaped" in row["blockers"]
+    assert row["test_step"]["acceptance"] == {
+        "type": "exclusive_range",
+        "min": None,
+        "max": 0.8,
+        "min_exclusive": False,
+        "max_exclusive": True,
+        "unit": "µm",
+    }
+    assert "acceptance_not_shaped" not in row["blockers"]
 
 
 # --- Submission rules -----------------------------------------------------------------

@@ -2330,6 +2330,12 @@
             "$ref": "#/components/schemas/Range"
           },
           {
+            "$ref": "#/components/schemas/ExclusiveRange"
+          },
+          {
+            "$ref": "#/components/schemas/ToleranceBand"
+          },
+          {
             "$ref": "#/components/schemas/Number"
           },
           {
@@ -2342,10 +2348,12 @@
         "discriminator": {
           "propertyName": "type",
           "mapping": {
+            "exclusive_range": "#/components/schemas/ExclusiveRange",
             "number": "#/components/schemas/Number",
             "one_of": "#/components/schemas/OneOf",
             "present": "#/components/schemas/Present",
-            "range": "#/components/schemas/Range"
+            "range": "#/components/schemas/Range",
+            "tolerance": "#/components/schemas/ToleranceBand"
           }
         }
       },
@@ -4976,6 +4984,59 @@
         ],
         "title": "EvidenceStep",
         "description": "A vendor FAT/SAT step linked to a requirement, with its verdict."
+      },
+      "ExclusiveRange": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "exclusive_range",
+            "title": "Type",
+            "default": "exclusive_range"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min_exclusive": {
+            "type": "boolean",
+            "title": "Min Exclusive",
+            "default": false
+          },
+          "max_exclusive": {
+            "type": "boolean",
+            "title": "Max Exclusive",
+            "default": false
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "unit"
+        ],
+        "title": "ExclusiveRange",
+        "description": "A required range with at least one strict bound (``< 0,8 µm``): the bound itself fails.\n\nA member of the Acceptance Criterion shapes of its own, not a flag on ``Range``, so that\na stored ``range`` keeps its meaning (spec #375, S4a3)."
       },
       "ExecutionCopy": {
         "properties": {
@@ -9920,6 +9981,9 @@
                 }
               },
               {
+                "$ref": "#/components/schemas/Acceptance"
+              },
+              {
                 "type": "null"
               }
             ],
@@ -10366,6 +10430,42 @@
         ],
         "title": "Tolerance",
         "description": "A nominal value with a tolerance: ``380 V ± 10 %``."
+      },
+      "ToleranceBand": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tolerance",
+            "title": "Type",
+            "default": "tolerance"
+          },
+          "nominal": {
+            "type": "number",
+            "title": "Nominal"
+          },
+          "tolerance": {
+            "type": "number",
+            "title": "Tolerance"
+          },
+          "tolerance_unit": {
+            "type": "string",
+            "title": "Tolerance Unit"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nominal",
+          "tolerance",
+          "tolerance_unit",
+          "unit"
+        ],
+        "title": "ToleranceBand",
+        "description": "A nominal value with a symmetric tolerance (``380 V ± 10 %``), the ends included.\n\n``tolerance_unit`` is ``%`` (of the nominal value) or the nominal's own unit."
       },
       "UnconfirmedWitnessBlocker": {
         "properties": {

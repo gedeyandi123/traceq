@@ -952,7 +952,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Acceptance: components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Present"];
+        Acceptance: components["schemas"]["Range"] | components["schemas"]["ExclusiveRange"] | components["schemas"]["ToleranceBand"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Present"];
         /**
          * AiFinding
          * @description A Pre-review finding of the LLM, every citation verified; advisory (ADR 0002).
@@ -1802,6 +1802,36 @@ export interface components {
             /** Failure */
             failure: string | null;
             citation: components["schemas"]["Cite"];
+        };
+        /**
+         * ExclusiveRange
+         * @description A required range with at least one strict bound (``< 0,8 µm``): the bound itself fails.
+         *
+         *     A member of the Acceptance Criterion shapes of its own, not a flag on ``Range``, so that
+         *     a stored ``range`` keeps its meaning (spec #375, S4a3).
+         */
+        ExclusiveRange: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "exclusive_range";
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /**
+             * Min Exclusive
+             * @default false
+             */
+            min_exclusive: boolean;
+            /**
+             * Max Exclusive
+             * @default false
+             */
+            max_exclusive: boolean;
+            /** Unit */
+            unit: string;
         };
         /**
          * ExecutionCopy
@@ -3574,7 +3604,7 @@ export interface components {
             /** Instrument */
             instrument: string | null;
             /** Acceptance */
-            acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | null;
+            acceptance: (components["schemas"]["Range"] | components["schemas"]["Number"] | components["schemas"]["OneOf"] | components["schemas"]["Text"] | components["schemas"]["Present"]) | components["schemas"]["Acceptance"] | null;
             /** Acceptance Flag */
             acceptance_flag: string | null;
             stage?: components["schemas"]["Stage"] | null;
@@ -3737,6 +3767,27 @@ export interface components {
          * @description A nominal value with a tolerance: ``380 V ± 10 %``.
          */
         Tolerance: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tolerance";
+            /** Nominal */
+            nominal: number;
+            /** Tolerance */
+            tolerance: number;
+            /** Tolerance Unit */
+            tolerance_unit: string;
+            /** Unit */
+            unit: string;
+        };
+        /**
+         * ToleranceBand
+         * @description A nominal value with a symmetric tolerance (``380 V ± 10 %``), the ends included.
+         *
+         *     ``tolerance_unit`` is ``%`` (of the nominal value) or the nominal's own unit.
+         */
+        ToleranceBand: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}

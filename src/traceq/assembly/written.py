@@ -41,11 +41,14 @@ from traceq.assembly.lifecycle import AssembledProtocol, Conflict, NotFound
 from traceq.proposals import decisions
 from traceq.proposals.store import PROPOSALS, RUN_PROPOSALS
 from traceq.runs.schemas import DraftStepProposal
-from traceq.traceability.values import Number, OneOf, Present, Range
+from traceq.traceability.values import ExclusiveRange, Number, OneOf, Present, Range, ToleranceBand
 
-type Acceptance = Annotated[Range | Number | OneOf | Present, Field(discriminator="type")]
-"""The shapes an Acceptance Criterion a human sets may take: range (one or two bounds, with
-unit), number (an exact value with unit), one of (allowed values), present (no value). Free
+type Acceptance = Annotated[
+    Range | ExclusiveRange | ToleranceBand | Number | OneOf | Present, Field(discriminator="type")
+]
+"""The shapes an Acceptance Criterion may take: range (one or two bounds, ends included, with
+unit), exclusive range (a strict bound), tolerance (a nominal value and its tolerance), number
+(an exact value with unit), one of (allowed values), present (no value). Free
 text is not one: Execution must judge every Test Step by code (ADR 0002)."""
 
 
@@ -66,9 +69,14 @@ class WrittenContent(BaseModel):
         a = self.acceptance
         if isinstance(a, Present) and a.value is not None:
             raise ValueError("present takes no value")
-        if isinstance(a, Range | Number) and not a.unit.strip():
+        if isinstance(a, Range | ExclusiveRange | ToleranceBand | Number) and not a.unit.strip():
             raise ValueError("a range or a number needs a unit")
-        if isinstance(a, Range) and a.min is not None and a.max is not None and a.min > a.max:
+        if (
+            isinstance(a, Range | ExclusiveRange)
+            and a.min is not None
+            and a.max is not None
+            and a.min > a.max
+        ):
             raise ValueError("a range's lower bound is above its upper bound")
         if isinstance(a, OneOf) and not all(v.strip() for v in a.allowed):
             raise ValueError("one of needs non-blank allowed values")
