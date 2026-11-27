@@ -234,6 +234,24 @@ def latest_revision(session: Session, protocol: AssembledProtocol) -> int | None
     ).scalar_one()
 
 
+class PinnedBehind(Conflict):
+    """The Protocol is pinned to an older revision of the Protocol Draft than the latest."""
+
+    code = "pinned_behind"
+
+
+class StaleDraftRead(Conflict):
+    """The caller read another revision of the Protocol Draft than the latest."""
+
+    code = "stale_draft"
+
+
+def conflict_code(e: Exception) -> str | None:
+    """The stable code of a refusal about the draft's revision, for the API to send alongside
+    its words; ``None`` for any other conflict."""
+    return e.code if isinstance(e, PinnedBehind | StaleDraftRead) else None
+
+
 def check_latest(session: Session, protocol: AssembledProtocol, expected: int | None) -> int | None:
     """What a signature on a Protocol started from the draft needs. Returns the latest draft
     revision the Equipment has read now (``None`` for a Protocol not started from the draft,
@@ -253,14 +271,14 @@ def check_latest(session: Session, protocol: AssembledProtocol, expected: int | 
             " revision you read (expected_latest_draft_rev)"
         )
     if latest is not None and latest > protocol.draft.rev:
-        raise Conflict(
+        raise PinnedBehind(
             f"Protocol {protocol.id} is pinned to revision {protocol.draft.rev} of the Protocol"
             f" Draft, but revision {latest} has arrived: it is not signed. Withdraw it (or"
             " return it to Draft and withdraw it), then start a new Protocol from the latest"
             " revision"
         )
     if latest != expected:
-        raise Conflict(
+        raise StaleDraftRead(
             f"a newer revision of the Protocol Draft arrived (revision {latest}, you read"
             f" {expected}): reload before signing"
         )

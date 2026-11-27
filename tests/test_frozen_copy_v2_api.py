@@ -488,6 +488,7 @@ def test_a_protocol_pinned_to_an_older_revision_cannot_be_submitted(
     for read_rev in (0, 1):
         refused = post_submit(client, decider, protocol, read_rev)
         assert refused.status_code == 409
+        assert refused.headers["X-TraceQ-Conflict"] == "pinned_behind"
         assert "pinned to revision 0" in refused.json()["detail"]
         assert "start a new Protocol" in refused.json()["detail"]
     assert post_submit(client, decider, protocol, None).status_code == 422
@@ -534,22 +535,49 @@ def test_a_submitted_protocol_pinned_to_an_older_revision_cannot_be_approved_but
     assert start_from_draft(client, decider, RUN_2)["source"]["rev"] == 1
 
 
-def test_an_up_to_date_protocol_is_still_signed_only_with_the_revision_the_caller_read(
+def test_a_protocol_pinned_to_the_latest_revision_is_signed_only_with_the_revision_read(
     client: TestClient,
+    runs: Path,
+    decider: dict[str, str],
+    protocol: Any,
+) -> None:
+    # A Protocol pinned to revision 1, the latest; a client that read revision 0 is stale.
+    draft_run(runs, RUN_2, revision_1)
+    import_run(client, decider, RUN_2)
+    withdraw(client, decider, protocol, "revision 1 arrived")
+    second = start_from_draft(client, decider, RUN_2)
+    assert (second["source"]["rev"], second["latest_draft_rev"]) == (1, 1)
+    body: dict[str, Any] = {"expected_draft_hash": "0" * 64, "expected_latest_draft_rev": 0}
+    stale = client.post(f"/protocols/{second['id']}/submit", headers=decider, json=body)
+    assert stale.status_code == 409
+    assert stale.headers["X-TraceQ-Conflict"] == "stale_draft"
+    assert (
+        "newer revision of the Protocol Draft arrived (revision 1, you read 0)"
+        in (stale.json()["detail"])
+    )
+    body.pop("expected_latest_draft_rev")
+    missing = client.post(f"/protocols/{second['id']}/submit", headers=decider, json=body)
+    assert missing.status_code == 422
+
+
+def test_a_pinned_behind_refusal_wins_over_a_stale_read_and_carries_its_own_code(
+    client: TestClient,
+    runs: Path,
     decider: dict[str, str],
     approver: dict[str, str],
     protocol: Any,
 ) -> None:
     ready(client, decider, protocol)
-    stale = post_submit(client, decider, protocol, 3)
-    assert stale.status_code == 409
-    assert "newer revision" in stale.json()["detail"]
-    assert post_submit(client, decider, protocol, None).status_code == 422
     view = post_submit(client, decider, protocol, 0).json()
-    assert [e["latest_draft_rev"] for e in view["events"]] == [None, 0]
-    done = post_approve(client, approver, protocol, view, 0)
-    assert done.status_code == 200, done.text
-    assert done.json()["events"][-1]["latest_draft_rev"] == 0
+    draft_run(runs, RUN_2, revision_1)
+    import_run(client, decider, RUN_2)
+    # Both apply (pinned to 0 behind 1, and the caller read 0 or 7): the pin message wins.
+    for read_rev in (0, 7):
+        refused = post_approve(client, approver, protocol, view, read_rev)
+        assert refused.status_code == 409
+        assert refused.headers["X-TraceQ-Conflict"] == "pinned_behind"
+        assert "pinned to revision 0" in refused.json()["detail"]
+        assert "newer revision" not in refused.json()["detail"]
 
 
 def test_a_protocol_not_started_from_the_draft_ignores_the_expected_revision(

@@ -634,7 +634,7 @@ def test_saving_the_test_step_unchanged_does_not_clear_the_need_for_a_reason(
     assert checks(read(client, decider))["finding_reason_missing"][0] == 1
     # Saved exactly as the draft has it (also with blanks around the text and an empty
     # instrument read as none): nothing changed, so the reason is still needed.
-    padded = {**R002_AS_DRAFTED, "description": " Uji OQ-02 "}
+    padded = {**R002_AS_DRAFTED, "description": " Uji OQ-02 ", "instrument": " Load cell LC-1 "}
     for same in (R002_AS_DRAFTED, padded):
         write(client, decider, protocol, R002, same)
         got = read(client, decider)

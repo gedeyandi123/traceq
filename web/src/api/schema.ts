@@ -376,7 +376,8 @@ export interface paths {
          *     when ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another
          *     decider changed it after the Preparer read it); 422 without one. A Protocol started
          *     from the Protocol Draft is frozen as a version 2 copy and needs
-         *     ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision arrived since).
+         *     ``expected_latest_draft_rev`` (422 without it; 409 when the Protocol is pinned to an
+         *     older revision than the latest, or the caller read another than the latest).
          *     Needs the deciding role.
          */
         post: operations["submitProtocol"];
@@ -426,11 +427,11 @@ export interface paths {
          *     included), or of any version of a written Test Step or of a disposition of a missed number;
          *     the check reads the copy only; for a Protocol started from the Protocol Draft that includes
          *     everyone who decided a finding, mapped a draft step or wrote a reason. A Protocol started from
-         *     the draft also needs ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision
-         *     arrived since), and the latest revision is recorded in the approval event. Refused (409) unless
-         *     Submitted. Once approved, no new
-         *     Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
-         *     entry. Needs the approving role.
+         *     the draft also needs ``expected_latest_draft_rev`` (422 without it; 409 when the Protocol is
+         *     pinned to an older revision than the latest, or the caller read another than the latest),
+         *     and the latest revision is recorded in the approval event. Refused (409) unless
+         *     Submitted. Once approved, no new Protocol of the Equipment can be started (a new version is
+         *     step 6). With its Audit Trail entry. Needs the approving role.
          */
         post: operations["approveProtocol"];
         delete?: never;

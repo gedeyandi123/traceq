@@ -25,11 +25,11 @@ function form(fields: Record<string, string>): FormData {
   return f;
 }
 
-function reply(status: number, body: unknown = {}) {
+function reply(status: number, body: unknown = {}, code?: string) {
   return {
     response: new Response(JSON.stringify(body), {
       status,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(code ? { "x-traceq-conflict": code } : {}) },
     }),
   };
 }
@@ -80,10 +80,14 @@ test("a Protocol not started from the draft sends no revision", async () => {
 });
 
 test("a stale submit comes back as stale_draft, any other conflict as conflict", async () => {
-  mocks.post.mockResolvedValue(reply(409, { detail: STALE }));
+  mocks.post.mockResolvedValue(reply(409, { detail: STALE }, "stale_draft"));
   const fields = { run_id: "r1", protocol_id: "7", expected_draft_hash: "h", expected_latest_draft_rev: "1" };
   expect(await redirectedTo(() => submitProtocol(form(fields)))).toBe(
     "/runs/r1/protocol?protocolError=stale_draft",
+  );
+  mocks.post.mockResolvedValue(reply(409, { detail: STALE }));
+  expect(await redirectedTo(() => submitProtocol(form(fields)))).toBe(
+    "/runs/r1/protocol?protocolError=conflict",
   );
   mocks.post.mockResolvedValue(reply(409, { detail: "the draft changed since you read it" }));
   expect(await redirectedTo(() => submitProtocol(form(fields)))).toBe(
@@ -92,7 +96,7 @@ test("a stale submit comes back as stale_draft, any other conflict as conflict",
 });
 
 test("a Protocol pinned to an older revision comes back as pinned_behind on submit and approve", async () => {
-  mocks.post.mockResolvedValue(reply(409, { detail: PINNED }));
+  mocks.post.mockResolvedValue(reply(409, { detail: PINNED }, "pinned_behind"));
   const submit = { run_id: "r1", protocol_id: "7", expected_draft_hash: "h", expected_latest_draft_rev: "1" };
   expect(await redirectedTo(() => submitProtocol(form(submit)))).toBe(
     "/runs/r1/protocol?protocolError=pinned_behind",
@@ -104,7 +108,7 @@ test("a Protocol pinned to an older revision comes back as pinned_behind on subm
 });
 
 test("approve names the revision and reports a stale one", async () => {
-  mocks.post.mockResolvedValue(reply(409, { detail: STALE }));
+  mocks.post.mockResolvedValue(reply(409, { detail: STALE }, "stale_draft"));
   const url = await redirectedTo(() =>
     approveProtocol(
       form({

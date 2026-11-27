@@ -264,7 +264,9 @@ class ProtocolRow:
 
     @property
     def changed(self) -> bool:
-        """The row's Test Step is one a human wrote or edited in this Protocol."""
+        """The row's Test Step is one a human wrote or edited in this Protocol, whatever it holds.
+        The reason rule for a finding asks something else (same content as the draft's, see
+        ``_changed_from_draft``), so a row can be ``changed`` and still need its reason."""
         return self.written_step is not None
 
 
@@ -556,6 +558,10 @@ def _findings_by_requirement(
     return out
 
 
+def _blank_none(text: str | None) -> str | None:
+    return (text or "").strip() or None
+
+
 def _same_as_drafted(content: WrittenContent, candidates: tuple[DraftCandidate, ...]) -> bool:
     """The written Test Step holds what a draft Test Step of the row has, to the letter (blanks
     around the text aside): description, method, instrument and Acceptance Criterion. Saving
@@ -565,7 +571,7 @@ def _same_as_drafted(content: WrittenContent, candidates: tuple[DraftCandidate, 
         if (
             content.description.strip() == start.description.strip()
             and content.method.strip() == start.method.strip()
-            and (content.instrument or None) == (start.instrument or None)
+            and _blank_none(content.instrument) == _blank_none(start.instrument)
             and content.acceptance == start.acceptance
         ):
             return True
