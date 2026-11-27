@@ -9,6 +9,8 @@ an LLM call.
 
 from __future__ import annotations
 
+import json
+import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -173,8 +175,10 @@ def test_bytes_with_a_recording_reserve_nothing_even_with_no_live_budget(
     demo_issuer: DemoIssuer,
 ) -> None:
     data = pdf(2, "recorded")
-    (settings.package_recordings / "ingest").mkdir(parents=True)
-    (settings.package_recordings / "ingest" / f"{sha256_of(data)}-docling-1.json").write_text("{}")
+    settings.package_recordings.mkdir(parents=True)
+    (settings.package_recordings / "k.json").write_text(
+        json.dumps({"doc_sha256": sha256_of(data), "model": settings.model})
+    )
     identity = IdentitySettings(issuer=demo_issuer.url, audience=demo_issuer.audience)
     replay_only = replace(settings, budget_usd=0.0)
     c = TestClient(
@@ -183,6 +187,38 @@ def test_bytes_with_a_recording_reserve_nothing_even_with_no_live_budget(
     assert upload(c, decider, data).json()["reserved_usd"] == 0
     other = upload(c, decider, pdf(2, "never read"))
     assert other.status_code == 402
+
+
+def test_an_ingest_file_without_a_model_recording_reserves_like_a_live_run(
+    client: TestClient,
+    decider: dict[str, str],
+    settings: UploadSettings,
+    runs: Path,
+    fresh_database: Databases,
+    demo_issuer: DemoIssuer,
+) -> None:
+    data = pdf(2, "parsed only")
+    (settings.package_recordings / "ingest").mkdir(parents=True)
+    (settings.package_recordings / "ingest" / f"{sha256_of(data)}-docling-1.json").write_text("{}")
+    assert upload(client, decider, data).json()["reserved_usd"] == 0.02
+    identity = IdentitySettings(issuer=demo_issuer.url, audience=demo_issuer.audience)
+    replay_only = replace(settings, budget_usd=0.0)
+    c = TestClient(
+        create_app(runs, identity=identity, database=fresh_database.app, uploads=replay_only)
+    )
+    assert upload(c, decider, data).status_code == 402
+
+
+def test_the_upload_worker_thread_does_not_block_process_exit(
+    runs: Path, settings: UploadSettings, demo_issuer: DemoIssuer, fresh_database: Databases
+) -> None:
+    identity = IdentitySettings(issuer=demo_issuer.url, audience=demo_issuer.audience)
+    app = create_app(
+        runs, identity=identity, database=fresh_database.app, uploads=settings, run_worker=True
+    )
+    with TestClient(app):
+        threads = [t for t in threading.enumerate() if t.name == "upload-worker"]
+        assert len(threads) == 1 and threads[0].daemon
 
 
 # --- Who and what ----------------------------------------------------------------------
@@ -368,7 +404,7 @@ def test_only_one_worker_runs_at_a_time(
     assert done is not None and done.status == "succeeded"
 
 
-def test_a_job_left_running_by_a_dead_worker_fails_and_frees_its_reservation(
+def test_a_job_left_running_by_a_dead_worker_fails_and_is_charged_its_reservation(
     client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
 ) -> None:
     job = upload(client, decider, pdf(2, "orphan")).json()
@@ -380,7 +416,8 @@ def test_a_job_left_running_by_a_dead_worker_fails_and_frees_its_reservation(
     assert done is not None and done.rev == 1 and done.status == "succeeded"
     orphan = client.get(f"/uploads/{job['id']}", headers=decider).json()
     assert orphan["status"] == "failed" and "upload it again" in orphan["message"]
-    assert ledger(fresh_database)[0] == Decimal(0)
+    assert orphan["cost_usd"] == 0.02  # live calls may have been billed: charged in full
+    assert ledger(fresh_database) == (Decimal(0), Decimal("0.02"))
 
 
 def test_a_job_never_moves_backward_or_changes_what_it_holds(

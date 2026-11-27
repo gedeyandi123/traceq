@@ -251,7 +251,8 @@ def finish(
 
 def interrupted(session: Session) -> list[Job]:
     """Jobs still ``running`` while no worker holds the lock: a worker died. Each fails and
-    releases its reservation, so the queue and the ledger do not stay stuck."""
+    releases its reservation, so the queue does not stay stuck; it is charged the whole
+    reservation (as a failed live job is), since live calls may already have been billed."""
     rows = (
         session.execute(
             text(f"SELECT {_COLUMNS} FROM upload_jobs WHERE status = 'running' ORDER BY id")
@@ -265,7 +266,7 @@ def interrupted(session: Session) -> list[Job]:
             session,
             job,
             run_id=None,
-            cost=Decimal(0),
+            cost=job.reserved_usd,
             message="the worker stopped before this upload finished; upload it again",
         )
     return jobs

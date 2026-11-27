@@ -53,6 +53,7 @@ another interface): demo identities without a password, for the demo only.
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -60,6 +61,10 @@ from traceq.ai import LLM, BudgetExceeded, MissingRecording
 from traceq.documents import OcrUnavailable
 
 DEFAULT_MODEL = "claude-haiku-5-5"
+
+
+UPLOAD_BATCH_DEADLINE_SECONDS = 1800.0
+"""How long a live batch of an upload may run before it is cancelled and the job fails."""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -134,6 +139,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "serve":
+        if not math.isfinite(args.upload_budget_usd) or args.upload_budget_usd < 0:
+            print(
+                "traceq serve: --upload-budget-usd must be a finite number, 0 or more",
+                file=sys.stderr,
+            )
+            return 2
         import uvicorn
 
         from traceq.app.api import create_app
@@ -164,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
             def _cloud() -> LLM:
                 from traceq.ai.cloud import CloudLLM
 
-                return CloudLLM(args.model)
+                return CloudLLM(args.model, deadline_seconds=UPLOAD_BATCH_DEADLINE_SECONDS)
 
             uploads = UploadSettings(
                 equipment=args.upload_equipment,
