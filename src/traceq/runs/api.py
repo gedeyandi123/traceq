@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from traceq.documents import Corpus
@@ -51,6 +51,21 @@ _MEDIA = {
     ".pdf": "application/pdf",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
+
+
+def _etag_matches(header: str | None, etag: str) -> bool:
+    """RFC 9110 weak comparison of an If-None-Match list with the current ETag."""
+    if header is None:
+        return False
+    tags = [t.strip().removeprefix("W/") for t in header.split(",")]
+    return "*" in tags or etag in tags
+
+
+def _not_modified(headers: dict[str, str]) -> Response:
+    return Response(
+        status_code=304,
+        headers={"ETag": headers["ETag"], "Cache-Control": headers["Cache-Control"]},
+    )
 
 
 def read_served(path: Path) -> Any:
@@ -178,9 +193,16 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
         response_class=Response,
         responses={200: {"content": {m: {} for m in _MEDIA.values()}}},
     )
-    def get_document(run_id: str, doc_id: str, rev: int) -> Response:
+    def get_document(
+        run_id: str,
+        doc_id: str,
+        rev: int,
+        request: Request,
+    ) -> Response:
         """A document the run read, as released: a citation links here with ``#page=N``."""
         data, media, headers = _resolve_document(run_id, doc_id, rev)
+        if _etag_matches(request.headers.get("if-none-match"), headers["ETag"]):
+            return _not_modified(headers)
         return Response(data, media_type=media, headers=headers)
 
     @router.head(
@@ -188,9 +210,19 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
         include_in_schema=False,
         response_class=Response,
     )
-    def head_document(run_id: str, doc_id: str, rev: int) -> Response:
-        """Pre-check document availability and media type without transferring bytes."""
+    def head_document(
+        run_id: str,
+        doc_id: str,
+        rev: int,
+        request: Request,
+    ) -> Response:
+        """Pre-check document availability and media type without transferring bytes.
+
+        The bytes are still read and hashed against the manifest: the manifest sha alone does
+        not prove the file on disk is the released one."""
         data, media, headers = _resolve_document(run_id, doc_id, rev)
+        if _etag_matches(request.headers.get("if-none-match"), headers["ETag"]):
+            return _not_modified(headers)
         return Response(
             b"",
             media_type=media,

@@ -54,4 +54,41 @@ describe("GET /api/runs/[runId]/documents/[docId]/[rev]", () => {
     );
     expect((await HEAD(req, ctx("run-1", "FAT-TP201-M", "0"))).status).toBe(status);
   });
+
+  it("keeps the upstream cache-control and ETag", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(new Uint8Array([1]), {
+            status: 200,
+            headers: { "content-type": "application/pdf", etag: '"abc"', "cache-control": "private, max-age=300" },
+          }),
+      ),
+    );
+    const res = await GET(req, ctx("run-1", "FAT-TP201-M", "0"));
+    expect(res.headers.get("cache-control")).toBe("private, max-age=300");
+    expect(res.headers.get("etag")).toBe('"abc"');
+  });
+
+  it("forwards If-None-Match and returns 304", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 304,
+          headers: { etag: '"abc"', "cache-control": "private, max-age=300" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const r = new Request("http://localhost/x", { headers: { "if-none-match": '"abc"' } });
+    const res = await GET(r, ctx("run-1", "FAT-TP201-M", "0"));
+    expect(res.status).toBe(304);
+    expect(res.headers.get("etag")).toBe('"abc"');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: { authorization: "Bearer test-token", "if-none-match": '"abc"' },
+      }),
+    );
+  });
 });

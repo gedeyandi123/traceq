@@ -191,6 +191,23 @@ def test_document_headers_and_head_precheck(client: TestClient) -> None:
     assert client.head(f"/runs/{RUN_ID}/documents/SAT-TP201/0").status_code == 404
 
 
+@pytest.mark.parametrize("method", ["get", "head"])
+def test_document_answers_304_for_a_matching_etag_only(client: TestClient, method: str) -> None:
+    url = f"/runs/{RUN_ID}/documents/FAT-TP201-M/0"
+    call = getattr(client, method)
+    etag = call(url).headers["etag"]
+    hit = call(url, headers={"If-None-Match": etag})
+    assert hit.status_code == 304
+    assert hit.content == b""
+    assert hit.headers["etag"] == etag
+    assert hit.headers["cache-control"] == "private, max-age=300"
+    assert call(url, headers={"If-None-Match": f'W/{etag}, "other"'}).status_code == 304
+    assert call(url, headers={"If-None-Match": '"other"'}).status_code == 200
+    # An unknown document is never a 304, even with a matching-looking tag.
+    missing = f"/runs/{RUN_ID}/documents/SAT-TP201/0"
+    assert call(missing, headers={"If-None-Match": etag}).status_code == 404
+
+
 def test_a_document_the_run_did_not_read_is_not_served(
     client: TestClient, tmp_path: Path, demo_issuer: DemoIssuer
 ) -> None:

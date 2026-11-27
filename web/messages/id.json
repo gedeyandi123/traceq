@@ -1288,6 +1288,7 @@
       "forbidden": "Mengunggah memerlukan peran penentu untuk Equipment ini.",
       "unauthorized": "Sesi tidak valid. Masuk kembali.",
       "pollLost": "Status unggahan tidak dapat dimuat lagi, jadi pembaruan otomatis dihentikan. Muat ulang halaman.",
+      "pollTimeout": "Tidak ada kabar baru untuk unggahan ini setelah {minutes} menit, jadi pembaruan otomatis dihentikan. Muat ulang halaman; jika masih tertunda, hubungi pengelola.",
       "conflict": "Unggahan ditolak: revisi draf ini tidak dapat dibuat sekarang. Muat ulang halaman; jika berulang, hubungi pengelola.",
       "failed": "Unggahan gagal. Coba lagi."
     },
