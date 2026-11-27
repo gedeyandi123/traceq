@@ -32,6 +32,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     runHeader: allMessages.runHeader,
     runs: allMessages.runs,
     signin: allMessages.signin,
+    upload: allMessages.upload,
   };
   return (
     <html lang={LOCALE} className={inter.variable}>
