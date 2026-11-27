@@ -9,6 +9,7 @@ import type { ProtocolRowView, Stage } from "@/api/client";
 import type { ProtocolFormActionState } from "@/protocol/actions";
 import type { ProtocolControls } from "./AssembledProtocolView";
 import type { DecisionView } from "./Decisions";
+import { DraftLabels, DraftRowSections } from "./DraftProtocolPanels";
 import { FindingDecisionPanel } from "./FindingDecisionPanel";
 import { formatValue } from "./MatrixTable";
 import { EditDraftForm, Versions, WriteForm } from "./TestStepForms";
@@ -311,6 +312,25 @@ export function ProtocolRowDrawer({
 
         <Versions t={t} m={m} versions={row.written} />
 
+        {row.step_source && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+            <span>
+              {t("draftFlow.row.source")}: {t(`draftFlow.row.sources.${row.step_source}`)}
+            </span>
+            {row.step_source === "draft" && <DraftLabels t={t} />}
+          </div>
+        )}
+
+        <DraftRowSections
+          t={t}
+          row={row}
+          runId={runId}
+          protocolId={protocolId}
+          decisions={decisions}
+          controls={controls}
+          onDirtyChange={onDirtyChange}
+        />
+
         {row.drafts.length > 0 && (
           <section className="space-y-3">
             <h3 className="m-0 text-xs font-bold tracking-wide text-ink-muted uppercase">
@@ -359,7 +379,8 @@ export function ProtocolRowDrawer({
                   {controls !== null && row.test_step?.origin !== "written" && (
                     <EditDraftForm
                       t={t}
-                      d={d}
+                      proposalId={d.proposal.id}
+                      start={d.draft}
                       runId={runId}
                       protocolId={protocolId}
                       edit={controls.edit}

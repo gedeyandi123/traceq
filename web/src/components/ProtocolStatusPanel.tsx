@@ -27,18 +27,33 @@ export function StartForm({
   runId,
   action,
   again,
+  hasDraft = false,
 }: {
   t: T;
   runId: string;
   action: ProtocolControls;
   again: boolean;
+  /** The run read a Protocol Draft: the Protocol may start from it instead. */
+  hasDraft?: boolean;
 }) {
   if (action === null) return null;
   return (
-    <form action={action.start}>
-      <input type="hidden" name="run_id" value={runId} />
-      <SubmitButton variant="primary">{t(again ? "startAgain" : "start")}</SubmitButton>
-    </form>
+    <div className="flex flex-wrap items-start gap-3">
+      <form action={action.start}>
+        <input type="hidden" name="run_id" value={runId} />
+        <SubmitButton variant={hasDraft ? "soft" : "primary"}>
+          {t(again ? "startAgain" : "start")}
+        </SubmitButton>
+      </form>
+      {hasDraft && (
+        <form action={action.start} className="space-y-1">
+          <input type="hidden" name="run_id" value={runId} />
+          <input type="hidden" name="from_draft" value="true" />
+          <SubmitButton variant="primary">{t("draftFlow.start")}</SubmitButton>
+          <p className="m-0 max-w-md text-[11px] text-ink-muted">{t("draftFlow.startNote")}</p>
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -144,6 +159,9 @@ function ApprovalForms({
         <input type="hidden" name="protocol_id" value={protocol.id} />
         <input type="hidden" name="submission_event_id" value={shown.event_id} />
         <input type="hidden" name="hash" value={shown.hash} />
+        {protocol.source && protocol.latest_draft_rev != null && (
+          <input type="hidden" name="expected_latest_draft_rev" value={protocol.latest_draft_rev} />
+        )}
       </ElectronicSignatureDialog>
 
       <Modal
@@ -196,6 +214,7 @@ export function ProtocolStatusPanel({
   signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
   error,
+  hasDraft = false,
 }: {
   t: T;
   protocol: ProtocolView;
@@ -205,6 +224,7 @@ export function ProtocolStatusPanel({
   signingAuth?: SigningAuthState;
   initialReauthTarget?: string | null;
   error?: ProtocolError;
+  hasDraft?: boolean;
 }) {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const currentStepIdx =
@@ -320,7 +340,7 @@ export function ProtocolStatusPanel({
       {protocol.status === "withdrawn" && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-sunken px-3.5 py-2.5">
           <p className="m-0 text-xs text-ink-muted">{t("withdrawnNote")}</p>
-          <StartForm t={t} runId={runId} action={controls} again />
+          <StartForm t={t} runId={runId} action={controls} again hasDraft={hasDraft} />
         </div>
       )}
 

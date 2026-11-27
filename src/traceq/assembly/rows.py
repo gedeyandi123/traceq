@@ -458,11 +458,12 @@ def shaped(acceptance: Value | Acceptance | None) -> TypeGuard[Acceptance]:
     """An Acceptance Criterion in one of the shapes: range, exclusive range, tolerance, number,
     one of, present.
 
-    A range whose lower bound is above its upper bound is no shape (as a written Test Step's)."""
+    A range, exclusive or not, whose lower bound is above its upper bound is no shape (as a
+    written Test Step's)."""
     if acceptance is None or isinstance(acceptance, Text):
         return False
     return not (
-        isinstance(acceptance, Range)
+        isinstance(acceptance, Range | ExclusiveRange)
         and acceptance.min is not None
         and acceptance.max is not None
         and acceptance.min > acceptance.max

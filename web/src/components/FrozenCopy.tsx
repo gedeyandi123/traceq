@@ -3,7 +3,8 @@
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { FrozenDecision, FrozenRow, SubmissionView } from "@/api/client";
+import type { FrozenDecision, FrozenRow, ProtocolCopyV2, SubmissionView } from "@/api/client";
+import { DraftLabels, NotReviewedLabel } from "./DraftProtocolPanels";
 import { formatWhen } from "./formatWhen";
 import { formatValue } from "./MatrixTable";
 import { CopyHashButton } from "./ui/CopyHashButton";
@@ -126,6 +127,117 @@ function Row({
   );
 }
 
+/** What a version 2 copy records beyond the rows: the draft it was pinned to, its steps the
+ * citation check dropped or a person mapped, every finding with its decisions and reasons,
+ * and each row's source and Stage. Marked "dev only" and as awaiting the practitioner (#245). */
+function DraftSection({ t, copy }: { t: T; copy: ProtocolCopyV2 }) {
+  const when = useTranslations("decisions");
+  const d = useTranslations("draft");
+  const rowsWithDetail = copy.row_details.filter((x) => x.source !== null);
+  const stageOf = (req: string) =>
+    copy.rows.find((r) => r.requirement === req)?.step_attributes.at(-1)?.stage ?? null;
+  return (
+    <section
+      aria-labelledby="copy-draft"
+      data-testid="copy-draft"
+      className="space-y-3 rounded-lg border border-border bg-surface p-4 shadow-xs"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 id="copy-draft" className="m-0 text-sm font-bold text-ink">
+          {t("draftFlow.copy.title")}
+        </h3>
+        <DraftLabels t={t} />
+      </div>
+      <p className="m-0 text-xs break-all text-ink tabular-nums">
+        {t("draftFlow.copy.source", {
+          doc: copy.source.doc,
+          rev: copy.source.rev,
+          hash: copy.source.sha256,
+          run: copy.source.run_id,
+        })}
+      </p>
+
+      {rowsWithDetail.length > 0 && (
+        <ul className="m-0 list-none space-y-0.5 p-0 text-[11px] text-ink-muted">
+          {rowsWithDetail.map((x) => (
+            <li key={x.requirement} data-testid={`copy-row-${x.requirement}`}>
+              <span className="font-mono font-semibold text-ink">{x.requirement}</span>{" "}
+              {t("draftFlow.copy.rowSource", {
+                source: t(`draftFlow.row.sources.${x.source ?? "draft"}`),
+                stage: stageOf(x.requirement)
+                  ? t("draftFlow.copy.stageIs", { stage: stageOf(x.requirement) ?? "" })
+                  : t("draftFlow.copy.noStage"),
+              })}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {copy.draft_steps.length > 0 && (
+        <div className="space-y-1">
+          <h4 className="m-0 text-xs font-bold text-ink-muted">{t("draftFlow.copy.steps")}</h4>
+          <ul className="m-0 list-none space-y-1 p-0 text-xs">
+            {copy.draft_steps.map((x) => (
+              <li key={x.step} className="rounded border border-border bg-sunken px-2.5 py-1.5">
+                <div className="text-ink">
+                  {x.requirement
+                    ? t("draftFlow.copy.stepLine", { step: x.step, requirement: x.requirement })
+                    : t("draftFlow.copy.stepUnmapped", { step: x.step })}
+                </div>
+                {x.mappings.map((m) => (
+                  <div key={m.version} className="text-[11px] text-ink-muted tabular-nums">
+                    {t("draftFlow.steps.mappedBy", {
+                      requirement: m.requirement,
+                      name: m.author.name,
+                      when: formatWhen(when, m.at),
+                    })}
+                  </div>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="space-y-1">
+        <h4 className="m-0 text-xs font-bold text-ink-muted">{t("draftFlow.copy.findings")}</h4>
+        <ul className="m-0 list-none space-y-2 p-0 text-xs">
+          {copy.findings.map((f) => (
+            <li
+              key={f.proposal_id}
+              data-testid={`copy-finding-${f.proposal_id}`}
+              className="space-y-1 rounded border border-border bg-sunken px-2.5 py-2"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-fail">{d(`types.${f.type}`)}</span>
+                {f.label && <NotReviewedLabel t={t} />}
+                <span className="font-mono text-[11px] text-ink-muted">
+                  {f.row ?? t("draftFlow.copy.findingNoRow")}
+                </span>
+              </div>
+              <p className="m-0 text-ink">{f.detail}</p>
+              {f.decisions.length === 0 ? (
+                <div className="text-ink-muted">{t("draftFlow.copy.findingNoDecision")}</div>
+              ) : (
+                f.decisions.map((x) => <By key={x.id} t={t} when={when} d={x} />)
+              )}
+              {f.reasons.map((r) => (
+                <div key={r.version} className="text-[11px] text-ink-muted italic">
+                  {t("draftFlow.copy.reason", {
+                    name: r.author.name,
+                    when: formatWhen(when, r.at),
+                    reason: r.reason,
+                  })}
+                </div>
+              ))}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 /** The frozen copy of a submitted Protocol: what the Approver reads, shown instead of live rows. */
 export function FrozenCopy({
   t,
@@ -183,6 +295,8 @@ export function FrozenCopy({
           </dd>
         </dl>
       </div>
+
+      {"schema_version" in copy && copy.schema_version === 2 && <DraftSection t={t} copy={copy} />}
 
       <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-xs">
         <table className="w-full border-collapse text-left text-xs">
