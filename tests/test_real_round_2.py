@@ -217,6 +217,86 @@ def test_two_findings_citing_the_same_documents_fall_back_to_their_order(
     assert [p["id"] for p in again] == [p["id"] for p in both]
 
 
+DATASHEET = {"doc": "DS-TP201", "rev": 0}
+CAPABILITY_ROWS = (("Maximum noise, idle", 55.0, 3), ("Maximum noise, full load", 60.0, 4))
+"""Two rows of one Datasheet, each a maximum OQ-03's Acceptance Criterion goes above."""
+
+
+def _capability(row: str, top: float, page: int) -> dict[str, Any]:
+    return {
+        "type": "ac_outside_documented_capability",
+        "layer": "rule",
+        "test_step": "OQ-03",
+        "row": None,
+        "requirement": "URS-TP201-003",
+        "detail": (
+            f"OQ-03 requires at most 65 dB(A), above the maximum {top:g} dB(A) the Datasheet"
+            " DS-TP201 states: the limit may not be reachable."
+        ),
+        "ac": {"type": "range", "unit": "dB(A)", "max": 65},
+        "urs_limit": None,
+        "capability": {"type": "range", "unit": "dB(A)", "max": top},
+        "label": "not reviewed by a practitioner",
+        "citations": [
+            {**DRAFT, "page": 2, "quote": "OQ-03 Kebisingan maks. 65 dB(A)"},
+            {**DATASHEET, "page": page, "quote": f"{row} {top:g} dB(A)"},
+        ],
+    }
+
+
+def _two_capability_findings(rows: tuple[tuple[str, float, int], ...]) -> Edit:
+    """OQ-03 against URS-TP201-003, whose matrix row holds both Datasheet rows: a capability
+    finding on each of ``rows``, appended after the older findings as the rule does."""
+
+    def edit(draft: dict[str, Any]) -> None:
+        facts = [
+            {
+                "name": row,
+                "printed": f"{top:g} dB(A)",
+                "citation": {**DATASHEET, "page": page, "quote": f"{row} {top:g} dB(A)"},
+            }
+            for row, top, page in CAPABILITY_ROWS
+        ]
+        comparator = {**DATASHEET, "kind": "design", "facts": facts}
+        draft["test_steps"][0]["traced"][0]["comparators"] = [comparator]
+        draft["findings"] += [_capability(*r) for r in rows]
+
+    return edit
+
+
+def test_two_capability_findings_of_one_step_are_told_apart_by_their_datasheet_row(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    """Both cite the draft and the same Datasheet, so the cited documents do not tell them
+    apart; the Datasheet row does. When the first is fixed in revision 1, the second persists
+    with its decision: it does not take the first one's place by order."""
+    next_run(runs, RUN_2, _two_capability_findings(CAPABILITY_ROWS))
+    import_run(client, decider, RUN_2)
+    both = [p for p in drafted(proposals(client, decider, RUN_2)) if p["position"] >= 3]
+    assert len({p["id"] for p in both}) == 2
+    idle, full_load = both
+    made = decide(client, decider, full_load, run_id=RUN_2, decision="accepted")
+
+    def idle_is_fixed(draft: dict[str, Any]) -> None:
+        revision_1(draft)
+        _two_capability_findings(CAPABILITY_ROWS[1:])(draft)
+
+    next_run(runs, RUN_3, idle_is_fixed)
+    import_run(client, decider, RUN_3)
+    left = [p for p in drafted(proposals(client, decider, RUN_3)) if p["position"] >= 3]
+    assert [(p["id"], p["content_hash"]) for p in left] == [
+        (full_load["id"], full_load["content_hash"])
+    ]
+    assert (left[0]["state"], left[0]["decisions"]) == ("decided", [made])
+    assert idle["id"] not in {p["id"] for p in left}
+    diff = rounds(client, decider, RUN_3)["diff"]
+    assert (
+        diff["findings_resolved"],
+        diff["findings_persisted_changed"],
+        diff["findings_new"],
+    ) == (1, 0, 0)
+
+
 # --- The round diff ---------------------------------------------------------------------
 
 

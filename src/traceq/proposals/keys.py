@@ -16,7 +16,10 @@ rests on. Both follow the spec's table:
   requirement id for ``requirement_not_tested``), the requirement it was compared with (a
   Test Step the table lists under two requirements gives a finding for each) and the
   documents it cites (a set; no page, no revision, no quote text), so a finding whose page
-  shifts between revisions is the same finding and persists (spec #375, S8); two findings of
+  shifts between revisions is the same finding and persists (spec #375, S8). An
+  ``ac_outside_documented_capability`` finding's key also holds the Datasheet row it compares
+  with (its name, case and spacing evened out), so two such findings of one Test Step on rows
+  of one Datasheet keep their identity when one of them is fixed (#393, C3). Other findings of
   one Test Step, type and requirement citing the same documents fall back to their order.
   Content = detail text, the rule (its type), the values compared (AC, URS limit, capability
   as parsed) and what the finding rests on: the Test Step as read (the requirements its header
@@ -207,6 +210,24 @@ def _rests_on(draft: ProtocolDraft, f: DraftCheckFinding) -> JsonObject:
     return {"row": row.requirement, "test_steps": list(row.test_steps)}
 
 
+def _datasheet_row(draft: ProtocolDraft, f: DraftCheckFinding) -> str | None:
+    """The Datasheet row an ``ac_outside_documented_capability`` finding compares the Test
+    Step's AC with: the design fact of the requirement's matrix row whose citation the finding
+    cites, by its name with case and spacing evened out. ``None`` when the draft holds no
+    such fact."""
+    step = next((s for s in draft.test_steps if s.id == f.test_step), None)
+    for traced in () if step is None else step.traced:
+        if traced.requirement != f.requirement:
+            continue
+        for comparator in traced.comparators:
+            if comparator.kind != "design":
+                continue
+            for fact in comparator.facts:
+                if fact.citation in f.citations:
+                    return " ".join(fact.name.split()).casefold()
+    return None
+
+
 def _draft(
     equipment: str, draft: ProtocolDraft, f: DraftCheckFinding
 ) -> tuple[JsonObject, JsonObject]:
@@ -219,6 +240,11 @@ def _draft(
         **where,
         "requirement": f.requirement,
         "cited": _cited_documents(f.citations),
+        **(
+            {"datasheet_row": _datasheet_row(draft, f)}
+            if f.type == "ac_outside_documented_capability"
+            else {}
+        ),
     }
     content = {
         "detail": f.detail,
