@@ -11,6 +11,7 @@ import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
 import { Button, EmptyState } from "@/components/ui/ui";
 
 const POLL_MS = 2000;
+const MAX_LOST_TICKS = 5;
 const TONES: Record<UploadJobView["status"], string> = {
   queued: "border-info-edge bg-info-soft text-info",
   running: "border-warn-edge bg-warn-soft text-warn",
@@ -18,9 +19,20 @@ const TONES: Record<UploadJobView["status"], string> = {
   failed: "border-fail-edge bg-fail-soft text-fail",
 };
 
-type Problem = "notPdf" | "tooLarge" | "budget" | "forbidden" | "unauthorized" | "failed";
+type Problem =
+  | "notPdf"
+  | "tooLarge"
+  | "budget"
+  | "forbidden"
+  | "unauthorized"
+  | "conflict"
+  | "pollLost"
+  | "failed";
 
+/** The page shows only these codes, never the API `detail`: it is English and can name
+ * server files. */
 function problemOf(status: number): Problem {
+  if (status === 409) return "conflict";
   if (status === 413) return "tooLarge";
   if (status === 402) return "budget";
   if (status === 403) return "forbidden";
@@ -39,29 +51,60 @@ function megabytes(bytes: number): string {
 export function DraftUploadView({ initial }: { initial: DraftUploads }) {
   const t = useTranslations("upload");
   const [jobs, setJobs] = useState<UploadJobView[]>(initial.jobs);
-  const [problem, setProblem] = useState<{ kind: Problem; detail?: string } | null>(null);
+  const [problem, setProblem] = useState<{ kind: Problem } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const jobsRef = useRef(jobs);
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
 
   const pending = jobs.some((j) => j.status === "queued" || j.status === "running");
+  // One interval for as long as something is open; it reads the latest jobs from a ref, skips
+  // a tick while the tab is hidden, and stops for good when the session is gone (401).
   useEffect(() => {
-    if (!pending) return;
+    if (!pending || stopped) return;
+    let inFlight = false;
+    let lostTicks = 0;
     const timer = setInterval(async () => {
-      const open = jobs.filter((j) => j.status === "queued" || j.status === "running");
-      const next = await Promise.all(
-        open.map(async (j) => {
-          try {
-            const res = await fetch(`/api/uploads/${j.id}`, { cache: "no-store" });
-            return res.ok ? ((await res.json()) as UploadJobView) : j;
-          } catch {
-            return j;
-          }
-        }),
-      );
-      setJobs((all) => all.map((j) => next.find((n) => n.id === j.id) ?? j));
+      if (inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      try {
+        const open = jobsRef.current.filter((j) => j.status === "queued" || j.status === "running");
+        const next = await Promise.all(
+          open.map(async (j) => {
+            try {
+              const res = await fetch(`/api/uploads/${j.id}`, { cache: "no-store" });
+              if (res.status === 401) return "signedOut" as const;
+              return res.ok ? ((await res.json()) as UploadJobView) : ("lost" as const);
+            } catch {
+              return "lost" as const;
+            }
+          }),
+        );
+        if (next.includes("signedOut")) {
+          clearInterval(timer);
+          setStopped(true);
+          setProblem({ kind: "unauthorized" });
+          return;
+        }
+        // A status that keeps failing (404, 500, no network) is not polled forever.
+        lostTicks = next.every((n) => n === "lost") ? lostTicks + 1 : 0;
+        if (lostTicks >= MAX_LOST_TICKS) {
+          clearInterval(timer);
+          setStopped(true);
+          setProblem({ kind: "pollLost" });
+          return;
+        }
+        const fresh = next.filter((n): n is UploadJobView => typeof n === "object");
+        setJobs((all) => all.map((j) => fresh.find((n) => n.id === j.id) ?? j));
+      } finally {
+        inFlight = false;
+      }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [pending, jobs]);
+  }, [pending, stopped]);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -87,11 +130,8 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
         setJobs((all) => [job, ...all]);
         if (input.current) input.current.value = "";
       } else {
-        const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
-        setProblem({
-          kind: problemOf(res.status),
-          detail: typeof body?.detail === "string" ? body.detail : undefined,
-        });
+        if (res.status === 401) setStopped(true);
+        setProblem({ kind: problemOf(res.status) });
       }
     } catch {
       setProblem({ kind: "failed" });
@@ -134,13 +174,13 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
         </Button>
       </form>
 
-      <div aria-live="polite">
-        {problem !== null && (
-          <Alert tone="fail" role="alert" title={t(`problem.${problem.kind}`)}>
-            {problem.detail ?? ""}
-          </Alert>
-        )}
-      </div>
+      <p className="m-0 text-[11px] text-ink-muted">{t("devOnly")}</p>
+
+      {problem !== null && (
+        <Alert tone="fail" role="alert" title={t(`problem.${problem.kind}`)}>
+          {null}
+        </Alert>
+      )}
 
       {jobs.length === 0 ? (
         <EmptyState title={t("emptyTitle")}>{t("empty")}</EmptyState>
@@ -163,11 +203,11 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border" aria-live="polite">
               {jobs.map((j) => (
                 <tr key={j.id}>
                   <th scope="row" className="px-4 py-3 font-bold text-ink tabular-nums">
-                    Rev {j.rev}
+                    {t("revLabel", { rev: j.rev })}
                   </th>
                   <td className="px-4 py-3 text-xs text-ink-muted">
                     <span className="font-mono">{j.sha256.slice(0, 12)}</span>
@@ -194,7 +234,7 @@ export function DraftUploadView({ initial }: { initial: DraftUploads }) {
                         </Link>
                       </span>
                     )}
-                    {j.status === "failed" && <span className="text-fail">{j.message}</span>}
+                    {j.status === "failed" && <span className="text-fail">{t("jobFailed")}</span>}
                   </td>
                 </tr>
               ))}

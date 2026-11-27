@@ -116,6 +116,7 @@ export function RoundsWorkbench({
 }) {
   const t = useTranslations("rounds");
   const ui = useTranslations("ui");
+  const findingTypes = useTranslations("draft");
 
   const currentRound =
     data.rounds.find((r) => r.id === data.current_round_id) ?? data.rounds.at(-1);
@@ -495,6 +496,7 @@ export function RoundsWorkbench({
                 <h3 className="m-0 text-xs font-semibold tracking-wide text-ink-muted uppercase">
                   {t("reviewRounds.diffFindingsListTitle")}
                 </h3>
+                <p className="m-0 mt-1 text-[11px] text-ink-muted">{t("reviewRounds.devOnly")}</p>
                 <ul className="mt-2.5 mb-0 list-none space-y-1.5 p-0 text-xs">
                   {data.diff.findings
                     .filter((f) => f.change !== "persisted")
@@ -504,7 +506,17 @@ export function RoundsWorkbench({
                           {t(`reviewRounds.diffFindingChange.${f.change}`)}
                         </span>
                         <span className="text-ink-muted">
-                          {[f.finding_type, f.test_step, f.requirement].filter(Boolean).join(" · ")}
+                          {[
+                            f.finding_type === null
+                              ? null
+                              : findingTypes.has(`types.${f.finding_type}`)
+                                ? findingTypes(`types.${f.finding_type}`)
+                                : f.finding_type,
+                            f.test_step,
+                            f.requirement,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </span>
                       </li>
                     ))}

@@ -511,7 +511,8 @@ test("an approved Protocol shows the approval note and no controls", async () =>
   const user = userEvent.setup();
   renderForApprover(approved);
   expect(screen.getByText("Disetujui")).toBeDefined();
-  expect(screen.getByText("Versi baru protokol ini adalah langkah 6.")).toBeDefined();
+  expect(screen.getAllByText("Belum ada versi baru setelah protokol disetujui (langkah 6).").length).toBeGreaterThan(0);
+  expect(screen.queryByText("Versi baru protokol ini adalah langkah 6.")).toBeNull();
   expect(screen.queryByText(/bukan Tanda Tangan Elektronik(?! \(pra-Langkah 8\))/)).toBeNull();
   expect(screen.queryByText(/status yang dicatat/i)).toBeNull();
   expect(screen.getByTestId("copy-hash").textContent).toBe("a".repeat(64));

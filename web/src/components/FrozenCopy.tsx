@@ -215,7 +215,9 @@ function DraftSection({ t, copy }: { t: T; copy: ProtocolCopyV2 }) {
                   {f.row ?? t("draftFlow.copy.findingNoRow")}
                 </span>
               </div>
-              <p className="m-0 text-ink">{f.detail}</p>
+              <p lang="en" className="m-0 text-ink">
+                {f.detail}
+              </p>
               {f.decisions.length === 0 ? (
                 <div className="text-ink-muted">{t("draftFlow.copy.findingNoDecision")}</div>
               ) : (

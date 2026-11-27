@@ -253,7 +253,13 @@ describe("RoundsWorkbench", () => {
     expect(screen.getByRole("button", { name: /Tutup ronde/ })).toBeDefined();
     // A persisted-but-changed finding is shown as that, and a plain persisted one is not listed.
     expect(screen.getAllByText("Bertahan, berubah")).toHaveLength(2);
-    expect(screen.getByText("ac_deviates_from_urs · OQ-03 · URS-TP201-003")).toBeDefined();
+    // The finding type is its Indonesian label, never the raw code.
+    expect(
+      screen.getByText("Kriteria penerimaan lebih longgar dari URS · OQ-03 · URS-TP201-003"),
+    ).toBeDefined();
+    expect(screen.queryByText(/ac_deviates_from_urs/)).toBeNull();
+    // The figures here are dev-only and claim nothing about time saved or compliance.
+    expect(screen.getByText(/Hanya data pengembangan/)).toBeDefined();
     expect(screen.queryByText(/OQ-24/)).toBeNull();
   });
 
