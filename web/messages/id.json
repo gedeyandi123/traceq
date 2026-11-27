@@ -772,7 +772,7 @@
       "reauth_required": "Autentikasi ulang diperlukan untuk tanda tangan elektronik. Silakan masuk ulang.",
       "failed": "Tidak tersimpan. Coba lagi.",
       "pinned_behind": "Tidak ditandatangani: protokol ini terpaku pada revisi draf yang lebih lama dari revisi terbaru, dan protokol tidak mengikuti revisi baru. Jika masih Draft, tarik protokol ini; jika sudah diajukan, kembalikan ke Draft dulu, lalu tarik. Setelah itu mulai protokol baru dari revisi terbaru.",
-      "uploader_approves": "Tidak disetujui: Anda yang mengunggah revisi draf protokol yang menjadi dasar protokol ini, dan pengunggah tidak boleh menyetujuinya. Minta Penyetuju lain yang tidak ikut menyusun protokol ini untuk menyetujui.",
+      "uploader_approves": "Tidak disetujui: Anda yang mengunggah atau mengimpor revisi draf protokol yang menjadi dasar protokol ini, dan orang itu tidak boleh menyetujuinya. Minta Penyetuju lain yang tidak ikut menyusun protokol ini untuk menyetujui.",
       "stale_draft": "Tidak ditandatangani: revisi draf yang lebih baru masuk sejak halaman ini dibaca. Muat ulang halaman, baca temuan dan salinan terbaru, lalu coba lagi.",
       "invalid": "Tidak dikirim: langkah uji perlu deskripsi, metode, dan kriteria penerimaan dalam salah satu dari empat bentuk dengan nilainya; jawaban atas nomor yang terlewat perlu jenis jawaban."
     },

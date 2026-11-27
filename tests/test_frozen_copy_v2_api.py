@@ -869,10 +869,57 @@ def test_the_uploader_of_another_revision_than_the_pinned_one_may_approve(
     assert r.status_code == 200, r.text
 
 
-def test_a_revision_with_no_upload_job_names_no_uploader(
+def test_a_revision_with_no_upload_job_excludes_only_the_person_who_imported_it(
     client: TestClient, decider: dict[str, str], other: dict[str, str], protocol: Any
 ) -> None:
-    """A draft revision that arrived another way than an upload has no uploader to exclude."""
+    """A draft revision that arrived by an import, not an upload, names its importer (here the
+    Preparer); anyone else who may approve still may (audit C5/S1)."""
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    assert post_approve(client, other, protocol, view, 0).status_code == 200
+
+
+def test_the_importer_of_the_pinned_draft_revision_may_not_approve_but_another_approver_may(
+    client: TestClient,
+    decider: dict[str, str],
+    approver: dict[str, str],
+    other: dict[str, str],
+    fresh_database: Databases,
+) -> None:
+    """With no upload of the pinned bytes, whoever registered the revision by importing its run
+    (``POST /runs/{id}/import``) stands where the uploader would (audit C5/S1)."""
+    import_run(client, other)
+    decide_coverage(client, decider)
+    protocol = start_from_draft(client, decider)
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    refused = post_approve(client, other, protocol, view, 0)
+    assert refused.status_code == 409, refused.text
+    assert refused.headers["X-TraceQ-Conflict"] == "uploader_approves"
+    assert "imported the Protocol Draft revision 0" in refused.json()["detail"]
+    assert read(client, decider)["status"] == "submitted"
+    assert trail(fresh_database, "protocol")[-1].action == "protocol submitted"
+    r = post_approve(client, approver, protocol, view, 0)
+    assert r.status_code == 200, r.text
+
+
+def test_a_revision_registered_before_importers_were_recorded_names_nobody(
+    client: TestClient,
+    decider: dict[str, str],
+    other: dict[str, str],
+    fresh_database: Databases,
+) -> None:
+    """A revision registered before migration 0024 has no importer (NULL): nobody is excluded
+    on that ground, as before."""
+    import_run(client, other)
+    with transaction(engine(fresh_database.owner)) as session:
+        session.execute(text("ALTER TABLE document_versions DISABLE TRIGGER USER"))
+        session.execute(
+            text("UPDATE document_versions SET subject = NULL, issuer = NULL, name = NULL")
+        )
+        session.execute(text("ALTER TABLE document_versions ENABLE TRIGGER USER"))
+    decide_coverage(client, decider)
+    protocol = start_from_draft(client, decider)
     ready(client, decider, protocol)
     view = submitted(client, decider, protocol)
     assert post_approve(client, other, protocol, view, 0).status_code == 200

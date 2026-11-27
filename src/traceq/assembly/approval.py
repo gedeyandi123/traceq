@@ -86,6 +86,28 @@ def _same(a: Author | audit.Actor, actor: audit.Actor) -> bool:
     return (a.subject, a.issuer) == (actor.subject, actor.issuer)
 
 
+def _check_not_the_source_of_the_pin(
+    session: Session, actor: audit.Actor, protocol: lifecycle.AssembledProtocol, rev: int
+) -> None:
+    """``UploaderApproves`` when ``actor`` uploaded the pinned Protocol Draft revision, or, with
+    no upload of its bytes recorded, registered it by an import (ADR 0012, amended 27 and 28
+    November 2026)."""
+    uploaders = draft_source.uploaders_of_pinned(session, protocol)
+    if uploaders:
+        if any(_same(u, actor) for u in uploaders):
+            raise draft_source.UploaderApproves(
+                f"{actor.name} uploaded the Protocol Draft revision {rev} that Protocol"
+                f" {protocol.id} is pinned to: an Approver did not"
+            )
+        return
+    importer = draft_source.importer_of_pinned(session, protocol)
+    if importer is not None and _same(importer, actor):
+        raise draft_source.UploaderApproves(
+            f"{actor.name} imported the Protocol Draft revision {rev} that Protocol"
+            f" {protocol.id} is pinned to: an Approver did not"
+        )
+
+
 def _submitted(
     session: Session, protocol_id: int
 ) -> tuple[lifecycle.AssembledProtocol, Submission]:
@@ -137,12 +159,8 @@ def approve(
             " force, a decision on a finding, a draft step mapping, a disposition of a missed"
             " number, a written Test Step or step attributes): an Approver did not"
         )
-    uploaders = draft_source.uploaders_of_pinned(session, current)
-    if any(_same(u, actor) for u in uploaders) and current.draft is not None:
-        raise draft_source.UploaderApproves(
-            f"{actor.name} uploaded the Protocol Draft revision {current.draft.rev} that Protocol"
-            f" {protocol_id} is pinned to: an Approver did not"
-        )
+    if current.draft is not None:
+        _check_not_the_source_of_the_pin(session, actor, current, current.draft.rev)
     done = lifecycle.append(
         session, actor, protocol_id, "approved", None, latest_draft_rev=latest_rev
     )

@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from conftest import Databases
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.orm import Session
 
+from traceq import db as traceq_db
 from traceq.db import engine, transaction
 from traceq.rounds.diff import PreviousFinding, RoundDoc, RoundFindingItem, compute_round_diff
 
@@ -275,3 +280,72 @@ def test_0016_append_only_and_check_constraints(fresh_database: Databases) -> No
                 session.execute(text(f"DELETE FROM {table}"))
             with pytest.raises(DBAPIError, match="append-only"), session.begin_nested():
                 session.execute(text(f"TRUNCATE {table} CASCADE"))
+
+
+# --- Who registered a document version (migration 0024, spec #375, ticket #393) ----------
+
+
+def _imported_run(session: Session, run_id: str) -> None:
+    session.execute(
+        text(
+            "INSERT INTO imported_runs (run_id, equipment, created, model, mode,"
+            " pipeline_version, prompts, documents) VALUES (:run, 'TP-201', now(), 'm',"
+            " 'replay', '0.2.0', '{}'::jsonb, '[]'::jsonb)"
+        ),
+        {"run": run_id},
+    )
+
+
+def _version_columns(fresh_database: Databases) -> set[str]:
+    with transaction(engine(fresh_database.owner)) as session:
+        return set(
+            session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns"
+                    " WHERE table_name = 'document_versions'"
+                )
+            ).scalars()
+        )
+
+
+def test_0024_a_document_version_names_its_registrant_whole_or_not_at_all(
+    fresh_database: Databases,
+) -> None:
+    with transaction(engine(fresh_database.owner)) as session:
+        _imported_run(session, "run-0024")
+        insert = (
+            "INSERT INTO document_versions (equipment, doc_id, rev, source, sha256,"
+            " first_seen_run_id, subject, issuer, name) VALUES ('TP-201', :doc, 0, 'corpus',"
+            " repeat('a', 64), 'run-0024', :s, :i, :n)"
+        )
+        session.execute(text(insert), {"doc": "D-1", "s": "s", "i": "i", "n": "n"})
+        session.execute(text(insert), {"doc": "D-2", "s": None, "i": None, "n": None})
+        for s, i, n in (("s", None, None), (None, "i", "n"), ("s", "i", None), ("s", "i", " ")):
+            with pytest.raises(IntegrityError), session.begin_nested():
+                session.execute(text(insert), {"doc": "D-3", "s": s, "i": i, "n": n})
+        with pytest.raises(DBAPIError, match="append-only"), session.begin_nested():
+            session.execute(text("UPDATE document_versions SET subject = 'x'"))
+
+
+def test_migration_0024_goes_down_and_up_again_leaving_older_rows_unnamed(
+    fresh_database: Databases,
+) -> None:
+    cfg = Config()
+    cfg.set_main_option("script_location", str(Path(traceq_db.__file__).parent / "migrations"))
+    cfg.attributes["url"] = fresh_database.owner
+    assert {"subject", "issuer", "name"} <= _version_columns(fresh_database)
+    command.downgrade(cfg, "0023")
+    assert not {"subject", "issuer", "name"} & _version_columns(fresh_database)
+    with transaction(engine(fresh_database.owner)) as session:
+        _imported_run(session, "run-0023")
+        session.execute(
+            text(
+                "INSERT INTO document_versions (equipment, doc_id, rev, source, sha256,"
+                " first_seen_run_id) VALUES ('TP-201', 'D-1', 0, 'corpus', repeat('a', 64),"
+                " 'run-0023')"
+            )
+        )
+    command.upgrade(cfg, "head")
+    with transaction(engine(fresh_database.owner)) as session:
+        row = session.execute(text("SELECT subject, issuer, name FROM document_versions")).one()
+    assert tuple(row) == (None, None, None)

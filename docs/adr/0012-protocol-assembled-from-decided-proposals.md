@@ -41,6 +41,10 @@ Decided by the owner on 27 November 2026 (ticket #393, spec #375): "Larang pengu
 - **Source of the identity.** The upload queue records the uploader of each revision (`upload_jobs`: Equipment, revision, identity), so it is read there at approval, not from the frozen copy; no new identity is stored. A revision that arrived another way than an upload names no uploader, so nobody is excluded on that ground.
 - **Unchanged.** Submitting, returning and withdrawing are not restricted by it, and neither is the Preparer role: a person who uploaded and prepared a Protocol still cannot approve it, and another Approver can.
 
+## Amended 28 November 2026: the importer of the pinned draft revision does not approve either
+
+Proposed on 28 November 2026 (ticket #393, spec #375, audit finding C5/S1); awaiting the owner's approval. It extends the amendment of 27 November above to a revision that arrived by an import rather than an upload: the import route (`POST /runs/{id}/import`, through which the demo start imports too; there is no other import command) named nobody, so whoever brought the revision in that way could approve the Protocol started from it. For a Protocol started from the Protocol Draft, when the upload queue holds no job for the bytes of the pinned revision, whoever registered that revision by importing the run that first read it counts as its uploader: they may not approve it (409, the same code `uploader_approves`, the message saying "imported"). The registrant is recorded in `document_versions` (`subject`, `issuer`, `name`) when the import registers the revision, which replaces "no new identity is stored" above; a revision registered before this was recorded names nobody, as before. When an upload of the bytes is recorded, its uploader is the one excluded, as above. Submitting, returning and withdrawing stay unrestricted, and another Approver can approve.
+
 ## Considered Options
 
 - **Execute the site's Protocol Draft (reversed in part, see Amended 26 November 2026):** its Test Steps and Acceptance Criteria are read with verified citations, but no human decides them, and the Review Package holds only an OQ draft.

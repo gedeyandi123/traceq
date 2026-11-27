@@ -322,7 +322,7 @@ test("the uploader of the pinned draft revision is told in plain words that they
   rerender(page(submittedFromDraft, { approver: true, error: "uploader_approves" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   const alert = screen.getByRole("alert");
-  expect(alert.textContent).toContain("Anda yang mengunggah revisi draf");
+  expect(alert.textContent).toContain("Anda yang mengunggah atau mengimpor revisi draf");
   expect(alert.textContent).toContain("Minta Penyetuju lain");
   expect(alert.textContent).not.toContain("Ditolak API");
 });
