@@ -12,12 +12,16 @@ from __future__ import annotations
 
 import json
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import pytest
 from conftest import Databases, DemoIssuer
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from test_assembled_protocol_api import read, rows, withdraw
 from test_draft_to_protocol_api import (
     DRAFT,
@@ -62,8 +66,12 @@ from traceq.assembly.submission import (
     hash_of,
     parse_copy,
 )
+from traceq.audit import Actor
+from traceq.db import engine, transaction
+from traceq.db.locks import lock_equipment
 from traceq.execution.completion import ExecutionCopy
 from traceq.execution.completion import hash_of as execution_hash_of
+from traceq.uploads import store
 
 
 @pytest.fixture
@@ -707,3 +715,83 @@ def test_the_path_from_the_draft_to_a_started_execution(
     assert execution_hash_of(ExecutionCopy.model_validate(frozen)) == body["copy_hash"]
     again = client.get(f"/runs/{RUN_ID}/execution", headers=decider).json()
     assert again["copy_hash"] == body["copy_hash"] and again["frozen_copy"] == frozen
+
+
+# --- The stale-draft check is race-free (spec #375, ticket #393) ----------------------
+
+
+def _queue_upload(fresh_database: Databases, rev: int, status: str = "queued") -> None:
+    with transaction(engine(fresh_database.app)) as session:
+        job = store.accept(
+            session,
+            Actor(subject="s", issuer="i", name="Ayu"),
+            equipment="TP-201",
+            rev=rev,
+            sha256="b" * 64,
+            size_bytes=1,
+            pages=1,
+            estimate=Decimal(0),
+            ceiling=Decimal(0),
+        )
+        for step in () if status == "queued" else ("running", status):
+            session.execute(
+                text("UPDATE upload_jobs SET status = :s WHERE id = :id"), {"s": step, "id": job.id}
+            )
+
+
+@pytest.mark.parametrize("status", ["queued", "running"])
+def test_an_upload_queued_or_running_for_the_equipment_counts_as_a_newer_revision(
+    client: TestClient,
+    decider: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+    status: str,
+) -> None:
+    ready(client, decider, protocol)
+    _queue_upload(fresh_database, 1, status)
+    for read_rev in (0, 1):
+        refused = post_submit(client, decider, protocol, read_rev)
+        assert refused.status_code == 409
+        assert refused.headers["X-TraceQ-Conflict"] == "pinned_behind"
+        assert "revision 1" in refused.json()["detail"]
+        assert "being read" in refused.json()["detail"]
+    assert read(client, decider)["status"] == "draft"
+
+
+def test_a_failed_upload_does_not_hold_a_signature_back(
+    client: TestClient,
+    decider: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    ready(client, decider, protocol)
+    _queue_upload(fresh_database, 1, "failed")
+    assert post_submit(client, decider, protocol, 0).status_code == 200
+
+
+def test_the_check_waits_for_the_revision_being_written_under_the_equipment_lock(
+    client: TestClient,
+    decider: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    ready(client, decider, protocol)
+    with transaction(engine(fresh_database.app)) as writer:
+        lock_equipment(writer, "TP-201")
+        doc = writer.execute(text("SELECT draft_doc FROM assembled_protocols")).scalar_one()
+        writer.execute(
+            text(
+                "INSERT INTO document_versions (equipment, doc_id, rev, doc_type, source, sha256,"
+                " first_seen_run_id) SELECT 'TP-201', :doc, 1, 'protocol_draft',"
+                " 'review_package_draft', repeat('c', 64), run_id FROM imported_runs LIMIT 1"
+            ),
+            {"doc": doc},
+        )
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(post_submit, client, decider, protocol, 0)
+            time.sleep(1.0)
+            assert not pending.done()  # it waits for the writer: it does not read rev 0 now
+            writer.commit()
+            refused = pending.result(timeout=30)
+    assert refused.status_code == 409
+    assert refused.headers["X-TraceQ-Conflict"] == "pinned_behind"

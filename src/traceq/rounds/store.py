@@ -25,6 +25,7 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.orm import Session
 
 from traceq import audit
+from traceq.db.locks import lock_equipment
 from traceq.proposals import decisions
 from traceq.proposals.store import (
     PROPOSALS,
@@ -69,7 +70,6 @@ type RoundEventKind = Literal["opened", "returned_for_revision", "ready_for_prot
 type RoundStatus = Literal["open", "returned_for_revision", "ready_for_protocol"]
 type CloseOutcome = Literal["returned_for_revision", "ready_for_protocol"]
 
-_EQUIPMENT_LOCK_NS = 5
 _ROUND_LOCK_NS = 6
 _FINDING_KINDS = ("check", "ai", "draft")
 
@@ -191,12 +191,6 @@ class ReviewRound:
     exports: tuple[ReportExport, ...]
 
 
-def _lock_equipment(session: Session, equipment: str) -> None:
-    session.execute(
-        select(func.pg_advisory_xact_lock(_EQUIPMENT_LOCK_NS, func.hashtext(equipment)))
-    )
-
-
 def _lock_round(session: Session, round_id: int) -> None:
     session.execute(
         select(func.pg_advisory_xact_lock(_ROUND_LOCK_NS, func.hashtext(str(round_id))))
@@ -305,7 +299,7 @@ def register_import(
     session: Session, actor: audit.Actor, imported: Imported, run: RunFiles
 ) -> None:
     """Opens a 1:1 review round and records document versions for a newly imported run."""
-    _lock_equipment(session, imported.equipment)
+    lock_equipment(session, imported.equipment)
 
     docs = _extract_documents(run)
     if docs:

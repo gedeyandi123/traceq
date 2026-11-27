@@ -33,6 +33,7 @@ from sqlalchemy import (
     Text,
     func,
     select,
+    text,
 )
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -40,6 +41,7 @@ from sqlalchemy.orm import Session
 from traceq import audit
 from traceq.assembly import lifecycle
 from traceq.assembly.lifecycle import AssembledProtocol, Conflict, NotFound, Refused
+from traceq.db.locks import lock_equipment
 from traceq.proposals import decisions
 from traceq.proposals.store import PROPOSALS, RUN_PROPOSALS
 from traceq.runs.schemas import DraftStepProposal
@@ -234,6 +236,21 @@ def latest_revision(session: Session, protocol: AssembledProtocol) -> int | None
     ).scalar_one()
 
 
+def upload_revision_being_read(session: Session, protocol: AssembledProtocol) -> int | None:
+    """The newest revision of an upload of the Equipment that is queued or running and newer
+    than the one the Protocol is pinned to: a revision on its way that no run has registered
+    yet. ``None`` when there is none (a failed or finished upload does not count)."""
+    if protocol.draft is None:
+        return None
+    return session.execute(
+        text(
+            "SELECT MAX(rev) FROM upload_jobs WHERE equipment = :equipment"
+            " AND status IN ('queued', 'running') AND rev > :pinned"
+        ),
+        {"equipment": protocol.equipment, "pinned": protocol.draft.rev},
+    ).scalar_one()
+
+
 class PinnedBehind(Conflict):
     """The Protocol is pinned to an older revision of the Protocol Draft than the latest."""
 
@@ -264,11 +281,22 @@ def check_latest(session: Session, protocol: AssembledProtocol, expected: int | 
     than the latest (the page is stale: reload before signing)."""
     if protocol.draft is None:
         return None
+    # The lock the revision writer holds (an import registering the draft): a revision being
+    # written is read once it is committed, never missed.
+    lock_equipment(session, protocol.equipment)
     latest = latest_revision(session, protocol)
+    reading = upload_revision_being_read(session, protocol)
     if expected is None:
         raise Refused(
             f"Protocol {protocol.id} was started from a Protocol Draft: name the latest draft"
             " revision you read (expected_latest_draft_rev)"
+        )
+    if reading is not None and (latest is None or reading > latest):
+        raise PinnedBehind(
+            f"Protocol {protocol.id} is pinned to revision {protocol.draft.rev} of the Protocol"
+            f" Draft, but revision {reading} is being read: it is not signed. Wait for it, then"
+            " withdraw this Protocol (or return it to Draft and withdraw it) and start a new"
+            " Protocol from the latest revision"
         )
     if latest is not None and latest > protocol.draft.rev:
         raise PinnedBehind(
