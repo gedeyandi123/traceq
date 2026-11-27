@@ -88,6 +88,14 @@ describe("SignatureBadge", () => {
     expect(screen.queryByText("Hash cocok")).toBeNull();
   });
 
+  it("shows the check beside 'Hash cocok' in a neutral tone, not green", () => {
+    render(wrap(<SignatureBadge signature={DEMO_SIG} />));
+    const check = screen.getByTestId("signature-verified-check");
+    expect(check.getAttribute("class") ?? "").not.toContain("text-pass");
+    const label = screen.getByText(/Hash cocok/i).parentElement;
+    expect(label?.className ?? "").not.toContain("text-pass");
+  });
+
   it("does not show the green check for a voided signature", () => {
     render(wrap(<SignatureBadge signature={OIDC_SIG} voided />));
     expect(screen.getByText("Dibatalkan")).toBeTruthy();

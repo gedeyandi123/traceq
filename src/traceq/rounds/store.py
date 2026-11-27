@@ -38,16 +38,17 @@ from traceq.reports import (
     PRE_REVIEW_TEMPLATE_VERSIONS,
     TEMPLATE_VERSION,
     TYPST_VERSION,
-    PreReviewReportSnapshot,
+    PreReviewReportSnapshotV2,
     ReportDocument,
     ReportDroppedClaim,
-    ReportFinding,
+    ReportFindingV2,
     ReportKindSummary,
     ReportMissingDocument,
-    ReportRoundDiff,
+    ReportRoundDiffV2,
     ReportUrsCompleteness,
     check_rendered_pdf,
     check_template_supported,
+    parse_pre_review_snapshot,
     render_pre_review_pdf,
     snapshot_hash,
     typesettable_snapshot,
@@ -629,12 +630,18 @@ def _combine_kind_summaries(items: list[decisions.KindCounts]) -> ReportKindSumm
     )
 
 
+def _label_of(proposed: dict[str, Any]) -> str | None:
+    """The label a finding carries ("not reviewed by a practitioner"), if its payload has one."""
+    label = proposed.get("label")
+    return label if isinstance(label, str) and label else None
+
+
 def _build_snapshot(
     session: Session,
     runs: Path,
     current: ReviewRound,
     generated_at: datetime,
-) -> PreReviewReportSnapshot:
+) -> PreReviewReportSnapshotV2:
     counts = decisions.counts(session, current.run_id)
     if counts is None:
         raise NotFound(f"run {current.run_id} is not imported")
@@ -649,9 +656,11 @@ def _build_snapshot(
         ).mappings()
     }
 
-    check_findings: list[ReportFinding] = []
-    ai_findings: list[ReportFinding] = []
-    draft_findings: list[ReportFinding] = []
+    diff = _diff_for_round(session, current)
+    change_of = {} if diff is None else {f.proposal_id: str(f.change) for f in diff.findings}
+    check_findings: list[ReportFindingV2] = []
+    ai_findings: list[ReportFindingV2] = []
+    draft_findings: list[ReportFindingV2] = []
 
     for s in standings:
         if s.kind not in _FINDING_KINDS:
@@ -659,7 +668,7 @@ def _build_snapshot(
         prop = proposed_by_id.get(s.proposal_id, {})
         cites = tuple(_format_cite(c) for c in _dict_items(prop.get("citations")))
         latest = s.decisions[0] if s.decisions else s.previous
-        item = ReportFinding(
+        item = ReportFindingV2(
             position=s.position or 0,
             finding_type=str(prop.get("type") or s.kind),
             doc=str(prop["doc"]) if prop.get("doc") is not None else None,
@@ -670,6 +679,8 @@ def _build_snapshot(
             reason=latest.reason if latest is not None else None,
             decided_by=latest.actor.name if (s.state == "decided" and latest is not None) else None,
             decided_at=latest.at if (s.state == "decided" and latest is not None) else None,
+            label=_label_of(prop),
+            change=change_of.get(s.proposal_id),
         )
         if s.kind == "check":
             check_findings.append(item)
@@ -730,11 +741,10 @@ def _build_snapshot(
                 )
             )
 
-    diff = _diff_for_round(session, current)
     report_diff = (
         None
         if diff is None
-        else ReportRoundDiff(
+        else ReportRoundDiffV2(
             previous_round_number=diff.previous_round_number,
             previous_run_id=diff.previous_run_id,
             documents_added=diff.documents_added,
@@ -743,6 +753,7 @@ def _build_snapshot(
             documents_removed=diff.documents_removed,
             findings_resolved=diff.findings_resolved,
             findings_persisted=diff.findings_persisted,
+            findings_persisted_changed=diff.findings_persisted_changed,
             findings_new=diff.findings_new,
             decisions_carried_forward=diff.decisions_carried_forward,
             decisions_changed=diff.decisions_changed,
@@ -750,7 +761,7 @@ def _build_snapshot(
         )
     )
 
-    snapshot = PreReviewReportSnapshot(
+    snapshot = PreReviewReportSnapshotV2(
         generated_at=generated_at,
         equipment=current.equipment,
         run_id=current.run_id,
@@ -872,7 +883,7 @@ def render_stored_export_pdf(session: Session, round_id: int, export_id: int) ->
         raise NotFound(f"no export {export_id} for review round {round_id}")
     template_version = str(row["template_version"])
     check_template_supported(template_version, PRE_REVIEW_TEMPLATE_VERSIONS)
-    snapshot = PreReviewReportSnapshot.model_validate(row["snapshot_json"])
+    snapshot = parse_pre_review_snapshot(row["snapshot_json"], template_version)
     pdf_bytes = render_pre_review_pdf(snapshot, template_version=template_version)
     check_rendered_pdf(
         pdf_bytes, str(row["pdf_sha256"]), stored_typst_version=str(row["typst_version"])

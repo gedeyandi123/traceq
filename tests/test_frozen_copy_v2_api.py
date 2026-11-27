@@ -32,6 +32,7 @@ from test_draft_to_protocol_api import (
     start_from_draft,
     step_proposal,
 )
+from test_execution_completion_api import _pass_value
 from test_proposals_api import (
     RUN_ID,
     bearer,
@@ -54,6 +55,8 @@ from traceq.assembly.submission import (
     hash_of,
     parse_copy,
 )
+from traceq.execution.completion import ExecutionCopy
+from traceq.execution.completion import hash_of as execution_hash_of
 
 
 @pytest.fixture
@@ -444,6 +447,34 @@ def test_the_authors_of_a_copy_include_the_candidates_decisions(
     assert names == {"Ayu Kartika Sari"}
 
 
+def _pass_all_rows(client: TestClient, headers: dict[str, str], ex: dict[str, Any]) -> None:
+    """One passing attempt on every test step; a draft's range may have only one bound."""
+    for row in ex["rows"]:
+        if row["kind"] != "test_step":
+            continue
+        step = row["test_step"]
+        acceptance = step["acceptance"]
+        if acceptance["type"] == "range" and None in (acceptance["min"], acceptance["max"]):
+            low, high = acceptance["min"], acceptance["max"]
+            value: dict[str, Any] = {
+                "type": "number",
+                "value": low + 1 if high is None else high - 1,
+            }
+        else:
+            value = _pass_value(acceptance)
+        payload: dict[str, Any] = {"outcome_kind": "value", "value": value, "evidence": ["LOG-001"]}
+        if step["instrument"]:
+            payload["instruments"] = [
+                {"identifier": step["instrument"], "calibration_due_date": "2099-12-31"}
+            ]
+        r = client.post(
+            f"/executions/{ex['id']}/rows/{row['requirement']}/attempts",
+            headers=headers,
+            json=payload,
+        )
+        assert r.status_code == 201, r.text
+
+
 # --- The whole path, the way the browser drives it --------------------------------------
 
 
@@ -477,3 +508,19 @@ def test_the_path_from_the_draft_to_a_started_execution(
         R026,
         R030,
     }
+
+    # Complete it, then read the frozen copy and check its hash (the run of a version 2
+    # Protocol, end to end).
+    ex = started.json()
+    _pass_all_rows(client, decider, ex)
+    done = client.post(f"/executions/{ex['id']}/complete", headers=decider)
+    assert done.status_code == 200, done.text
+    body = done.json()
+    assert body["status"] == "completed"
+    frozen = body["frozen_copy"]
+    assert frozen["protocol_id"] == protocol["id"]
+    assert frozen["submission_hash"] == ex["submission_hash"]
+    assert len(frozen["rows"]) == len(ex["rows"])
+    assert execution_hash_of(ExecutionCopy.model_validate(frozen)) == body["copy_hash"]
+    again = client.get(f"/runs/{RUN_ID}/execution", headers=decider).json()
+    assert again["copy_hash"] == body["copy_hash"] and again["frozen_copy"] == frozen

@@ -1,0 +1,194 @@
+{
+  "generated_at": "2026-11-25T12:00:00Z",
+  "equipment": "TP-201",
+  "run_id": "20261113T090000Z-f1a2b3",
+  "round_number": 2,
+  "round_status": "open",
+  "documents": [
+    {
+      "doc_id": "URS-TP201",
+      "rev": 1,
+      "doc_type": "URS",
+      "source": "corpus",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "doc_id": "DRAFT-TP201",
+      "rev": 1,
+      "doc_type": "protocol_draft",
+      "source": "review_package_draft",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "coverage": {
+    "total": 10,
+    "decided": 8,
+    "accepted": 6,
+    "edited": 2,
+    "rejected": 0,
+    "undecided": 1,
+    "changed": 1
+  },
+  "findings_summary": {
+    "total": 3,
+    "decided": 2,
+    "accepted": 1,
+    "edited": 0,
+    "rejected": 1,
+    "undecided": 1,
+    "changed": 0
+  },
+  "check_findings": [
+    {
+      "position": 0,
+      "finding_type": "missing_tolerance",
+      "doc": "URS-TP201",
+      "detail": "Toleransi tidak dicantumkan pada dokumen.",
+      "citations": [
+        "URS-TP201 rev 1 p.2"
+      ],
+      "state": "decided",
+      "decision": "accepted",
+      "reason": null,
+      "decided_by": "Ayu",
+      "decided_at": "2026-11-25T11:30:00Z",
+      "label": null,
+      "change": null
+    }
+  ],
+  "ai_findings": [
+    {
+      "position": 0,
+      "finding_type": "contradiction",
+      "doc": null,
+      "detail": "Nilai kecepatan berbeda antara URS dan FAT.",
+      "citations": [
+        "URS-TP201 rev 1 p.3",
+        "FAT-TP201 rev 0 p.5"
+      ],
+      "state": "decided",
+      "decision": "rejected",
+      "reason": "FAT menguji rentang tambahan sesuai SOP.",
+      "decided_by": "Ayu",
+      "decided_at": "2026-11-25T11:35:00Z",
+      "label": null,
+      "change": null
+    }
+  ],
+  "draft_findings": [
+    {
+      "position": 0,
+      "finding_type": "ac_deviates_from_urs",
+      "doc": "OQ-TP201",
+      "detail": "detail ac_deviates_from_urs",
+      "citations": [],
+      "state": "undecided",
+      "decision": null,
+      "reason": null,
+      "decided_by": null,
+      "decided_at": null,
+      "label": null,
+      "change": "resolved"
+    },
+    {
+      "position": 1,
+      "finding_type": "requirement_not_tested",
+      "doc": "OQ-TP201",
+      "detail": "detail requirement_not_tested",
+      "citations": [],
+      "state": "undecided",
+      "decision": null,
+      "reason": null,
+      "decided_by": null,
+      "decided_at": null,
+      "label": null,
+      "change": "persisted"
+    },
+    {
+      "position": 2,
+      "finding_type": "ac_outside_documented_capability",
+      "doc": "OQ-TP201",
+      "detail": "detail ac_outside_documented_capability",
+      "citations": [],
+      "state": "undecided",
+      "decision": null,
+      "reason": null,
+      "decided_by": null,
+      "decided_at": null,
+      "label": "not reviewed by a practitioner",
+      "change": "persisted_changed"
+    },
+    {
+      "position": 3,
+      "finding_type": "unit_error",
+      "doc": "OQ-TP201",
+      "detail": "detail unit_error",
+      "citations": [],
+      "state": "undecided",
+      "decision": null,
+      "reason": null,
+      "decided_by": null,
+      "decided_at": null,
+      "label": "not reviewed by a practitioner",
+      "change": "new"
+    },
+    {
+      "position": 4,
+      "finding_type": "outdated_reference",
+      "doc": "OQ-TP201",
+      "detail": "detail outdated_reference",
+      "citations": [],
+      "state": "undecided",
+      "decision": null,
+      "reason": null,
+      "decided_by": null,
+      "decided_at": null,
+      "label": "not reviewed by a practitioner",
+      "change": "new"
+    }
+  ],
+  "missing_documents": [
+    {
+      "doc_id": "SAT-TP201",
+      "doc_type": "SAT",
+      "stage": "SAT",
+      "citation": "VMP-01 rev 0 p.4"
+    }
+  ],
+  "dropped_claims": [
+    {
+      "claim": "value",
+      "id": "URS-TP201-005",
+      "reason": "quote not on page or value not in it"
+    }
+  ],
+  "completeness": [
+    {
+      "doc": "URS-TP201",
+      "rev": 1,
+      "numbers": "checked",
+      "found": 10,
+      "missed_count": 1,
+      "unquoted_count": 2
+    }
+  ],
+  "round_diff": {
+    "previous_round_number": 1,
+    "previous_run_id": "20261112T090000Z-000001",
+    "documents_added": [
+      "DRAFT-TP201"
+    ],
+    "documents_revised": [
+      "URS-TP201"
+    ],
+    "documents_unchanged": [],
+    "documents_removed": [],
+    "findings_resolved": 1,
+    "findings_persisted": 1,
+    "findings_new": 1,
+    "decisions_carried_forward": 1,
+    "decisions_changed": 1,
+    "decisions_undecided": 1,
+    "findings_persisted_changed": 1
+  }
+}
