@@ -166,7 +166,9 @@
     "unavailableTitle": "API tidak dapat dihubungi",
     "reviewPackageBadge": "Paket Tinjauan",
     "signedOutBanner": "Anda belum masuk. Pilih persona demo untuk memutuskan usulan atau membuka Draf, Protokol, dan Eksekusi.",
-    "openRow": "Buka"
+    "openRow": "Buka",
+    "signedOutTitle": "Masuk untuk melihat run",
+    "signedOutBody": "Run, matriks, temuan, dan dokumen hanya terbuka bagi pengguna yang sudah masuk."
   },
   "matrix": {
     "title": "Matriks ketertelusuran",

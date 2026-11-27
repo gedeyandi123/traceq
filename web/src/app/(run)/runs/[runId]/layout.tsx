@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { signOutAction } from "@/auth/actions";
 import { currentSession } from "@/auth/session";
 import { RunShell } from "@/components/RunShell";
+import { signedOutPrompt } from "@/components/signedOutPrompt";
 import type { RunSidebarBadges } from "@/components/RunSidebar";
 import { LOCALE } from "@/i18n/request";
 import { fetchDecisionCounts, fetchExecution, fetchProtocol, fetchRounds, fetchRun } from "@/runs/fetchers";
@@ -18,6 +19,10 @@ export default async function RunWorkspaceLayout({
   children: ReactNode;
 }) {
   const { runId } = await params;
+  // The run routes need a token: signed out, no run screen can load, so none is rendered.
+  if ((await currentSession()) === null) {
+    return await signedOutPrompt(`/runs/${encodeURIComponent(runId)}`);
+  }
   const [run, counts, protocolRes, roundsRes, session, allMessages] = await Promise.all([
     fetchRun(runId),
     fetchDecisionCounts(runId),
