@@ -374,8 +374,10 @@ export interface paths {
          *     and missed-number dispositions are refused. Refused (409) unless in Draft status, and
          *     while any check of ``checklist`` blocks (the reason lists them with their counts), and
          *     when ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another
-         *     decider changed it after the Preparer read it); 422 without one. Needs the deciding
-         *     role.
+         *     decider changed it after the Preparer read it); 422 without one. A Protocol started
+         *     from the Protocol Draft is frozen as a version 2 copy and needs
+         *     ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision arrived since).
+         *     Needs the deciding role.
          */
         post: operations["submitProtocol"];
         delete?: never;
@@ -422,7 +424,11 @@ export interface paths {
          *     Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
          *     decision in force (Coverage, and every current decision on a drafted Test Step, rejections
          *     included), or of any version of a written Test Step or of a disposition of a missed number;
-         *     the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
+         *     the check reads the copy only; for a Protocol started from the Protocol Draft that includes
+         *     everyone who decided a finding, mapped a draft step or wrote a reason. A Protocol started from
+         *     the draft also needs ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision
+         *     arrived since), and the latest revision is recorded in the approval event. Refused (409) unless
+         *     Submitted. Once approved, no new
          *     Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
          *     entry. Needs the approving role.
          */
@@ -1002,6 +1008,8 @@ export interface components {
             submission_event_id: number;
             /** Hash */
             hash: string;
+            /** Expected Latest Draft Rev */
+            expected_latest_draft_rev?: number | null;
         };
         /**
          * ApproveQualificationReportRequest
@@ -2047,6 +2055,22 @@ export interface components {
             witness_confirmations: components["schemas"]["FrozenWitnessConfirmation"][];
         };
         /**
+         * FrozenCandidate
+         * @description A draft Test Step that stands for the row's requirement, and who decided it.
+         */
+        FrozenCandidate: {
+            /** Proposal Id */
+            proposal_id: number;
+            /** Step */
+            step: string;
+            step_decision: components["schemas"]["FrozenDecision"] | null;
+            /** Criterion Proposal Id */
+            criterion_proposal_id: number | null;
+            criterion_decision: components["schemas"]["FrozenDecision"] | null;
+            /** Mapping Version */
+            mapping_version: number | null;
+        };
+        /**
          * FrozenCoverage
          * @description The Coverage class a human decided, and the decision in force that settled it.
          */
@@ -2178,6 +2202,29 @@ export interface components {
             decision: components["schemas"]["FrozenDecision"] | null;
         };
         /**
+         * FrozenDraftStep
+         * @description A Test Step of the pinned Protocol Draft: mapped by a human, dropped by the citation
+         *     check or traced by the table, with every decision on it and on its criterion.
+         */
+        FrozenDraftStep: {
+            /** Step */
+            step: string;
+            /** Proposal Id */
+            proposal_id: number;
+            /** Traced To */
+            traced_to: string[];
+            /** Not Read */
+            not_read: string | null;
+            /** Requirement */
+            requirement: string | null;
+            /** Mappings */
+            mappings: components["schemas"]["FrozenMapping"][];
+            /** Decisions */
+            decisions: components["schemas"]["FrozenDecision"][];
+            /** Criterion Decisions */
+            criterion_decisions: components["schemas"]["FrozenDecision"][];
+        };
+        /**
          * FrozenExecutionRow
          * @description One row of the completed Execution, in Protocol order.
          */
@@ -2222,6 +2269,61 @@ export interface components {
              */
             witness_required: boolean;
         };
+        /**
+         * FrozenFinding
+         * @description A finding of the Protocol Draft in the run: every decision on it with its author and
+         *     reason (rejections too), and the reasons written for submitting its row. Findings tied to
+         *     no row of the Protocol are here too.
+         */
+        FrozenFinding: {
+            /** Proposal Id */
+            proposal_id: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "ac_deviates_from_urs" | "requirement_not_tested" | "ac_outside_documented_capability" | "unit_error" | "outdated_reference";
+            /** Requirement */
+            requirement: string;
+            /** Test Step */
+            test_step: string | null;
+            /** Row */
+            row: string | null;
+            /** Detail */
+            detail: string;
+            /** Label */
+            label: string | null;
+            /** Decisions */
+            decisions: components["schemas"]["FrozenDecision"][];
+            /** Reasons */
+            reasons: components["schemas"]["FrozenFindingReason"][];
+        };
+        /** FrozenFindingReason */
+        FrozenFindingReason: {
+            /** Version */
+            version: number;
+            /** Reason */
+            reason: string;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** FrozenMapping */
+        FrozenMapping: {
+            /** Version */
+            version: number;
+            /** Requirement */
+            requirement: string;
+            author: components["schemas"]["Author"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
         /** FrozenMissed */
         FrozenMissed: {
             /** Number */
@@ -2257,6 +2359,34 @@ export interface components {
              * @default []
              */
             step_attributes: components["schemas"]["FrozenStepAttribute"][];
+        };
+        /**
+         * FrozenRowDetail
+         * @description What a version 2 copy records about one row beyond a version 1 row.
+         */
+        FrozenRowDetail: {
+            /** Requirement */
+            requirement: string;
+            source: components["schemas"]["RowSource"] | null;
+            criterion_decision: components["schemas"]["FrozenDecision"] | null;
+            /** Candidates */
+            candidates: components["schemas"]["FrozenCandidate"][];
+            /** Findings */
+            findings: number[];
+        };
+        /**
+         * FrozenSource
+         * @description The Protocol Draft the Protocol was pinned to, and the run that read it.
+         */
+        FrozenSource: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /** Sha256 */
+            sha256: string;
+            /** Run Id */
+            run_id: string;
         };
         /**
          * FrozenStepAttribute
@@ -2862,6 +2992,37 @@ export interface components {
             urs: components["schemas"]["FrozenUrs"][] | null;
         };
         /**
+         * ProtocolCopyV2
+         * @description The frozen copy of a Protocol started from the Protocol Draft: the version 1 content
+         *     (``rows``, ``urs``, the Preparer) and what the draft adds.
+         */
+        ProtocolCopyV2: {
+            /** Protocol Id */
+            protocol_id: number;
+            /** Equipment */
+            equipment: string;
+            /** Run Id */
+            run_id: string;
+            preparer: components["schemas"]["Author"];
+            /** Rows */
+            rows: components["schemas"]["FrozenRow"][];
+            /** Urs */
+            urs: components["schemas"]["FrozenUrs"][] | null;
+            /**
+             * Schema Version
+             * @default 2
+             * @constant
+             */
+            schema_version: 2;
+            source: components["schemas"]["FrozenSource"];
+            /** Row Details */
+            row_details: components["schemas"]["FrozenRowDetail"][];
+            /** Draft Steps */
+            draft_steps: components["schemas"]["FrozenDraftStep"][];
+            /** Findings */
+            findings: components["schemas"]["FrozenFinding"][];
+        };
+        /**
          * ProtocolDraftView
          * @description The Protocol Draft of a Review Package run: its Test Steps in draft order, its
          *     traceability rows and its findings, each with its decision state.
@@ -2906,6 +3067,8 @@ export interface components {
              */
             at: string;
             electronic_signature?: components["schemas"]["ElectronicSignatureView"] | null;
+            /** Latest Draft Rev */
+            latest_draft_rev?: number | null;
         };
         /**
          * ProtocolRowView
@@ -3014,6 +3177,8 @@ export interface components {
             /** Submissions */
             submissions: components["schemas"]["SubmissionView"][];
             source?: components["schemas"]["ProtocolSource"] | null;
+            /** Latest Draft Rev */
+            latest_draft_rev?: number | null;
             /** Draft Steps */
             draft_steps?: components["schemas"]["DraftStepView"][] | null;
         };
@@ -3541,7 +3706,8 @@ export interface components {
              * Format: date-time
              */
             at: string;
-            frozen_copy: components["schemas"]["ProtocolCopy"];
+            /** Frozen Copy */
+            frozen_copy: components["schemas"]["ProtocolCopyV2"] | components["schemas"]["ProtocolCopy"];
             outcome: components["schemas"]["ProtocolEvent"] | null;
         };
         /**
@@ -3551,6 +3717,8 @@ export interface components {
         SubmitRequest: {
             /** Expected Draft Hash */
             expected_draft_hash: string;
+            /** Expected Latest Draft Rev */
+            expected_latest_draft_rev?: number | null;
         };
         /** @enum {string} */
         TechnicalConclusion: "qualified" | "qualified_with_deviations" | "not_qualified";

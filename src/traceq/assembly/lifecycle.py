@@ -74,6 +74,7 @@ EVENTS = Table(
     Column("name", Text),
     Column("frozen_copy", JSONB(none_as_null=True)),
     Column("copy_hash", Text),
+    Column("latest_draft_rev", Integer),
 )
 """A ``submitted`` event also holds the frozen copy and its hash (``assembly.submission``)."""
 
@@ -97,6 +98,9 @@ class Event:
     event: EventKind
     reason: str | None
     actor: audit.Actor
+    latest_draft_rev: int | None = None
+    """For a ``submitted`` or ``approved`` event of a Protocol started from the Protocol Draft:
+    the latest revision of the draft the Equipment had when it was recorded."""
 
     @property
     def status(self) -> Status:
@@ -141,6 +145,7 @@ def _event(m: RowMapping) -> Event:
         event=cast(EventKind, m["event"]),
         reason=m["reason"],
         actor=audit.actor_of_row(m),
+        latest_draft_rev=m["latest_draft_rev"],
     )
 
 
@@ -239,9 +244,11 @@ def append(
     *,
     frozen_copy: dict[str, Any] | None = None,
     copy_hash: str | None = None,
+    latest_draft_rev: int | None = None,
 ) -> Event:
     """Adds a status event; the caller holds the per-Protocol lock and writes the Audit Trail
-    entry. ``frozen_copy`` and ``copy_hash``: for ``submitted`` only."""
+    entry. ``frozen_copy`` and ``copy_hash``: for ``submitted`` only. ``latest_draft_rev``: for
+    ``submitted`` and ``approved`` of a Protocol started from the Protocol Draft."""
     return _event(
         session.execute(
             insert(EVENTS)
@@ -254,6 +261,7 @@ def append(
                 name=actor.name,
                 frozen_copy=frozen_copy,
                 copy_hash=copy_hash,
+                latest_draft_rev=latest_draft_rev,
             )
             .returning(*EVENTS.c)
         )

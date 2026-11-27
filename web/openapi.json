@@ -826,7 +826,7 @@
     "/protocols/{protocol_id}/submit": {
       "post": {
         "summary": "Submit Protocol",
-        "description": "Submits a Protocol in Draft status that no check blocks; the submitter becomes its\nPreparer. Stores the frozen copy and its hash in the ``submitted`` event, with its\nAudit Trail entry; from then on the Protocol shows that copy, and written Test Steps\nand missed-number dispositions are refused. Refused (409) unless in Draft status, and\nwhile any check of ``checklist`` blocks (the reason lists them with their counts), and\nwhen ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another\ndecider changed it after the Preparer read it); 422 without one. Needs the deciding\nrole.",
+        "description": "Submits a Protocol in Draft status that no check blocks; the submitter becomes its\nPreparer. Stores the frozen copy and its hash in the ``submitted`` event, with its\nAudit Trail entry; from then on the Protocol shows that copy, and written Test Steps\nand missed-number dispositions are refused. Refused (409) unless in Draft status, and\nwhile any check of ``checklist`` blocks (the reason lists them with their counts), and\nwhen ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another\ndecider changed it after the Preparer read it); 422 without one. A Protocol started\nfrom the Protocol Draft is frozen as a version 2 copy and needs\n``expected_latest_draft_rev`` (422 without it, 409 when a newer revision arrived since).\nNeeds the deciding role.",
         "operationId": "submitProtocol",
         "security": [
           {
@@ -936,7 +936,7 @@
     "/protocols/{protocol_id}/approve": {
       "post": {
         "summary": "Approve Protocol",
-        "description": "Approves a Submitted Protocol: a recorded status, not an Electronic Signature (ADR 0007 phase 2). Bound to the\nsubmission the Approver read: ``submission_event_id`` and ``hash`` must be the current\nsubmission's, else 409 (a resubmission after a return has the same hash but a new event id).\nRefused (409) for the Preparer and for anyone the frozen copy records as an author: of a\ndecision in force (Coverage, and every current decision on a drafted Test Step, rejections\nincluded), or of any version of a written Test Step or of a disposition of a missed number;\nthe check reads the copy only. Refused (409) unless Submitted. Once approved, no new\nProtocol of the Equipment can be started (a new version is step 6). With its Audit Trail\nentry. Needs the approving role.",
+        "description": "Approves a Submitted Protocol: a recorded status, not an Electronic Signature (ADR 0007 phase 2). Bound to the\nsubmission the Approver read: ``submission_event_id`` and ``hash`` must be the current\nsubmission's, else 409 (a resubmission after a return has the same hash but a new event id).\nRefused (409) for the Preparer and for anyone the frozen copy records as an author: of a\ndecision in force (Coverage, and every current decision on a drafted Test Step, rejections\nincluded), or of any version of a written Test Step or of a disposition of a missed number;\nthe check reads the copy only; for a Protocol started from the Protocol Draft that includes\neveryone who decided a finding, mapped a draft step or wrote a reason. A Protocol started from\nthe draft also needs ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision\narrived since), and the latest revision is recorded in the approval event. Refused (409) unless\nSubmitted. Once approved, no new\nProtocol of the Equipment can be started (a new version is step 6). With its Audit Trail\nentry. Needs the approving role.",
         "operationId": "approveProtocol",
         "security": [
           {
@@ -2451,6 +2451,17 @@
           "hash": {
             "type": "string",
             "title": "Hash"
+          },
+          "expected_latest_draft_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Latest Draft Rev"
           }
         },
         "additionalProperties": false,
@@ -5668,6 +5679,72 @@
         "title": "FrozenAttemptVersion",
         "description": "One immutable version of an attempt's Result."
       },
+      "FrozenCandidate": {
+        "properties": {
+          "proposal_id": {
+            "type": "integer",
+            "title": "Proposal Id"
+          },
+          "step": {
+            "type": "string",
+            "title": "Step"
+          },
+          "step_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrozenDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "criterion_proposal_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criterion Proposal Id"
+          },
+          "criterion_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrozenDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mapping_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proposal_id",
+          "step",
+          "step_decision",
+          "criterion_proposal_id",
+          "criterion_decision",
+          "mapping_version"
+        ],
+        "title": "FrozenCandidate",
+        "description": "A draft Test Step that stands for the row's requirement, and who decided it."
+      },
       "FrozenCoverage": {
         "properties": {
           "coverage_class": {
@@ -6031,6 +6108,82 @@
         "title": "FrozenDraft",
         "description": "A drafted Test Step of the row and the decision in force on it; ``null`` for an\nundecided draft of a Vendor Reference, which needs none."
       },
+      "FrozenDraftStep": {
+        "properties": {
+          "step": {
+            "type": "string",
+            "title": "Step"
+          },
+          "proposal_id": {
+            "type": "integer",
+            "title": "Proposal Id"
+          },
+          "traced_to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Traced To"
+          },
+          "not_read": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Read"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "mappings": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenMapping"
+            },
+            "type": "array",
+            "title": "Mappings"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDecision"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "criterion_decisions": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDecision"
+            },
+            "type": "array",
+            "title": "Criterion Decisions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step",
+          "proposal_id",
+          "traced_to",
+          "not_read",
+          "requirement",
+          "mappings",
+          "decisions",
+          "criterion_decisions"
+        ],
+        "title": "FrozenDraftStep",
+        "description": "A Test Step of the pinned Protocol Draft: mapped by a human, dropped by the citation\ncheck or traced by the table, with every decision on it and on its criterion."
+      },
       "FrozenExecutionRow": {
         "properties": {
           "requirement": {
@@ -6151,6 +6304,153 @@
         "title": "FrozenExecutionTestStep",
         "description": "The Test Step of a Test Step row from the Approved Protocol's frozen copy."
       },
+      "FrozenFinding": {
+        "properties": {
+          "proposal_id": {
+            "type": "integer",
+            "title": "Proposal Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ac_deviates_from_urs",
+              "requirement_not_tested",
+              "ac_outside_documented_capability",
+              "unit_error",
+              "outdated_reference"
+            ],
+            "title": "Type"
+          },
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Step"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDecision"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenFindingReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proposal_id",
+          "type",
+          "requirement",
+          "test_step",
+          "row",
+          "detail",
+          "label",
+          "decisions",
+          "reasons"
+        ],
+        "title": "FrozenFinding",
+        "description": "A finding of the Protocol Draft in the run: every decision on it with its author and\nreason (rejections too), and the reasons written for submitting its row. Findings tied to\nno row of the Protocol are here too."
+      },
+      "FrozenFindingReason": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "reason",
+          "author",
+          "at"
+        ],
+        "title": "FrozenFindingReason"
+      },
+      "FrozenMapping": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "requirement",
+          "author",
+          "at"
+        ],
+        "title": "FrozenMapping"
+      },
       "FrozenMissed": {
         "properties": {
           "number": {
@@ -6260,6 +6560,89 @@
           "written"
         ],
         "title": "FrozenRow"
+      },
+      "FrozenRowDetail": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RowSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "criterion_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FrozenDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenCandidate"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "findings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement",
+          "source",
+          "criterion_decision",
+          "candidates",
+          "findings"
+        ],
+        "title": "FrozenRowDetail",
+        "description": "What a version 2 copy records about one row beyond a version 1 row."
+      },
+      "FrozenSource": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "sha256",
+          "run_id"
+        ],
+        "title": "FrozenSource",
+        "description": "The Protocol Draft the Protocol was pinned to, and the run that read it."
       },
       "FrozenStepAttribute": {
         "properties": {
@@ -7795,6 +8178,92 @@
         "title": "ProtocolCopy",
         "description": "The frozen copy of a submitted Protocol: what the Approver reads."
       },
+      "ProtocolCopyV2": {
+        "properties": {
+          "protocol_id": {
+            "type": "integer",
+            "title": "Protocol Id"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "preparer": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "urs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FrozenUrs"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urs"
+          },
+          "schema_version": {
+            "type": "integer",
+            "const": 2,
+            "title": "Schema Version",
+            "default": 2
+          },
+          "source": {
+            "$ref": "#/components/schemas/FrozenSource"
+          },
+          "row_details": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenRowDetail"
+            },
+            "type": "array",
+            "title": "Row Details"
+          },
+          "draft_steps": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenDraftStep"
+            },
+            "type": "array",
+            "title": "Draft Steps"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol_id",
+          "equipment",
+          "run_id",
+          "preparer",
+          "rows",
+          "urs",
+          "source",
+          "row_details",
+          "draft_steps",
+          "findings"
+        ],
+        "title": "ProtocolCopyV2",
+        "description": "The frozen copy of a Protocol started from the Protocol Draft: the version 1 content\n(``rows``, ``urs``, the Preparer) and what the draft adds."
+      },
       "ProtocolDraftView": {
         "properties": {
           "run_id": {
@@ -7905,6 +8374,17 @@
                 "type": "null"
               }
             ]
+          },
+          "latest_draft_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Draft Rev"
           }
         },
         "additionalProperties": false,
@@ -8246,6 +8726,17 @@
                 "type": "null"
               }
             ]
+          },
+          "latest_draft_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Draft Rev"
           },
           "draft_steps": {
             "anyOf": [
@@ -9752,7 +10243,15 @@
             "title": "At"
           },
           "frozen_copy": {
-            "$ref": "#/components/schemas/ProtocolCopy"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProtocolCopyV2"
+              },
+              {
+                "$ref": "#/components/schemas/ProtocolCopy"
+              }
+            ],
+            "title": "Frozen Copy"
           },
           "outcome": {
             "anyOf": [
@@ -9783,6 +10282,17 @@
             "type": "string",
             "minLength": 1,
             "title": "Expected Draft Hash"
+          },
+          "expected_latest_draft_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Latest Draft Rev"
           }
         },
         "additionalProperties": false,

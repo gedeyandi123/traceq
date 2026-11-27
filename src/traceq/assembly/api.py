@@ -50,7 +50,7 @@ from traceq.assembly.rows import (
     rows_of,
     step_of,
 )
-from traceq.assembly.submission import Check, ProtocolCopy
+from traceq.assembly.submission import Check, ProtocolCopy, ProtocolCopyV2
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.db import transaction
 from traceq.identity import Principal, reauthentication_required
@@ -90,6 +90,9 @@ class ProtocolEvent(_Model):
     """The name shown for the person at the time."""
     at: datetime
     electronic_signature: audit.ElectronicSignatureView | None = None
+    latest_draft_rev: int | None = None
+    """For ``submitted`` and ``approved`` of a Protocol started from the Protocol Draft: the
+    latest revision of the draft the Equipment had when it was recorded."""
 
 
 class RowDraft(_Model):
@@ -357,8 +360,7 @@ class ChecklistItem(_Model):
     """For ``draft_step_unresolved``: the draft Test Steps concerned. The checks
     ``finding_undecided``, ``finding_reason_missing``, ``stage_missing`` and
     ``draft_step_unresolved`` are listed only for a Protocol started from the Protocol Draft;
-    that one cannot be submitted yet (``draft_hash`` stays ``null``): its frozen copy is built by
-    the next ticket."""
+    that one is frozen as a version 2 copy when submitted."""
 
 
 class SubmissionView(_Model):
@@ -369,7 +371,7 @@ class SubmissionView(_Model):
     hash: str
     """The SHA-256 of the copy's canonical JSON (keys sorted, no spaces, UTF-8)."""
     at: datetime
-    frozen_copy: ProtocolCopy
+    frozen_copy: ProtocolCopyV2 | ProtocolCopy
     """Every row, its decisions in force and who made them, its Test Step and every version
     of its written one; the missed numbers with every version of their dispositions; the
     unquoted text."""
@@ -415,6 +417,12 @@ class ProtocolView(_Model):
     source: ProtocolSource | None = None
     """The Protocol Draft it was started from, pinned with ``run_id``; ``null`` for a Protocol
     assembled from TraceQ's own drafted Test Steps."""
+    latest_draft_rev: int | None = None
+    """For a Protocol started from the draft, in any status: the latest revision of that draft
+    the Equipment has now. A Protocol never re-syncs: when it is above ``source.rev`` the
+    Protocol is pinned to an older revision. Submitting and approving name the one the caller
+    read (``expected_latest_draft_rev``) and are refused with 409 when a newer one arrived
+    since."""
     draft_steps: list[DraftStepView] | None = None
     """In Draft status, for a Protocol started from the draft: every Test Step of the pinned
     draft in draft order, with the requirement it stands for; the ones that stand for none
@@ -434,6 +442,10 @@ class Approval(_Model):
     """The ``event_id`` of the current submission."""
     hash: str
     """The ``hash`` of the current submission's frozen copy."""
+    expected_latest_draft_rev: int | None = None
+    """For a Protocol started from the draft: the ``latest_draft_rev`` the Approver's view
+    showed; needed (422 without it), and 409 when a newer revision arrived since. Ignored
+    otherwise."""
 
 
 class SubmitRequest(_Model):
@@ -441,6 +453,9 @@ class SubmitRequest(_Model):
 
     expected_draft_hash: str = Field(min_length=1)
     """The ``draft_hash`` of the Protocol view the Preparer was reading."""
+    expected_latest_draft_rev: int | None = None
+    """For a Protocol started from the draft: the ``latest_draft_rev`` of that view; needed
+    (422 without it), and 409 when a newer revision arrived since. Ignored otherwise."""
 
 
 class Return(_Model):
@@ -523,6 +538,7 @@ def _event(
         electronic_signature=audit.signature_view(
             sig, verified=audit.verified_against(sig, expected_hash)
         ),
+        latest_draft_rev=e.latest_draft_rev,
     )
 
 
@@ -782,12 +798,15 @@ def create_router(
                     rows, urs, from_draft=p.draft is not None, unresolved=unresolved
                 )
             ],
-            draft_hash=None if rows is None else submission.draft_hash(p, rows, urs, unresolved),
+            draft_hash=None
+            if rows is None
+            else submission.draft_hash(session, p, rows, urs, unresolved),
             submission=submissions[-1] if frozen else None,
             submissions=submissions,
             source=None
             if p.draft is None
             else ProtocolSource(doc=p.draft.doc, rev=p.draft.rev, sha256=p.draft.sha256),
+            latest_draft_rev=draft_source.latest_revision(session, p),
             draft_steps=None if listing is None else [_draft_step(e) for e in listing],
         )
 
@@ -948,8 +967,10 @@ def create_router(
         and missed-number dispositions are refused. Refused (409) unless in Draft status, and
         while any check of ``checklist`` blocks (the reason lists them with their counts), and
         when ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another
-        decider changed it after the Preparer read it); 422 without one. Needs the deciding
-        role."""
+        decider changed it after the Preparer read it); 422 without one. A Protocol started
+        from the Protocol Draft is frozen as a version 2 copy and needs
+        ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision arrived since).
+        Needs the deciding role."""
         if not who.may_decide:
             raise HTTPException(403, "submitting a Protocol needs the deciding role")
         who = fresh_auth(who)
@@ -965,12 +986,15 @@ def create_router(
                     auth_time=who.auth_time,
                     jti=who.jti,
                     is_demo=who.is_demo,
+                    expected_latest_draft_rev=body.expected_latest_draft_rev,
                 )
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
         except audit.SignatureAuthRequired as e:
             raise reauthentication_required(str(e)) from e
+        except lifecycle.Refused as e:
+            raise HTTPException(422, str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
@@ -1002,7 +1026,11 @@ submission's, else 409 (a resubmission after a return has the same hash but a ne
 Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
 decision in force (Coverage, and every current decision on a drafted Test Step, rejections
 included), or of any version of a written Test Step or of a disposition of a missed number;
-the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
+the check reads the copy only; for a Protocol started from the Protocol Draft that includes
+everyone who decided a finding, mapped a draft step or wrote a reason. A Protocol started from
+the draft also needs ``expected_latest_draft_rev`` (422 without it, 409 when a newer revision
+arrived since), and the latest revision is recorded in the approval event. Refused (409) unless
+Submitted. Once approved, no new
 Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
 entry. Needs the approving role.""",
     )
@@ -1023,12 +1051,15 @@ entry. Needs the approving role.""",
                     auth_time=who.auth_time,
                     jti=who.jti,
                     is_demo=who.is_demo,
+                    expected_latest_draft_rev=body.expected_latest_draft_rev,
                 )
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
         except audit.SignatureAuthRequired as e:
             raise reauthentication_required(str(e)) from e
+        except lifecycle.Refused as e:
+            raise HTTPException(422, str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
             raise HTTPException(409, str(e)) from e
 
