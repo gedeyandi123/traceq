@@ -45,6 +45,8 @@ beforeEach(() => {
   mocks.redirect.mockClear();
 });
 
+const PINNED =
+  "Protocol 7 is pinned to revision 0 of the Protocol Draft, but revision 1 has arrived: it is not signed. Withdraw it, then start a new Protocol from the latest revision";
 const STALE = "a newer revision of the Protocol Draft arrived (revision 2, you read 1): reload before signing";
 
 test("starting from the draft sends from_draft; the plain start does not", async () => {
@@ -86,6 +88,18 @@ test("a stale submit comes back as stale_draft, any other conflict as conflict",
   mocks.post.mockResolvedValue(reply(409, { detail: "the draft changed since you read it" }));
   expect(await redirectedTo(() => submitProtocol(form(fields)))).toBe(
     "/runs/r1/protocol?protocolError=conflict",
+  );
+});
+
+test("a Protocol pinned to an older revision comes back as pinned_behind on submit and approve", async () => {
+  mocks.post.mockResolvedValue(reply(409, { detail: PINNED }));
+  const submit = { run_id: "r1", protocol_id: "7", expected_draft_hash: "h", expected_latest_draft_rev: "1" };
+  expect(await redirectedTo(() => submitProtocol(form(submit)))).toBe(
+    "/runs/r1/protocol?protocolError=pinned_behind",
+  );
+  const approve = { run_id: "r1", protocol_id: "7", submission_event_id: "12", hash: "h", expected_latest_draft_rev: "1" };
+  expect(await redirectedTo(() => approveProtocol(form(approve)))).toBe(
+    "/runs/r1/protocol?protocolError=pinned_behind",
   );
 });
 

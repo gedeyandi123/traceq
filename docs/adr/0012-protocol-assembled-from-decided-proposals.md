@@ -24,6 +24,13 @@ Decided by the owner on 26 November 2026 (see ADR 0010 of the same date). Wordin
 - **Stage.** The draft carries no Stage; a human sets IQ or OQ per Test Step, as the consequence of this ADR already anticipated.
 - **Open question and marking.** Whether a plant executes the draft it reviewed is a question for the practitioner (#245). Until it is answered, the UI and the demo runbook mark the draft-sourced path as awaiting it. If the answer is no, this path is removed, not patched.
 
+## Amended 27 November 2026: a Protocol pinned to an older revision is refused, not only shown
+
+Decided by the owner on 27 November 2026 (ticket #393, spec #375), in answer to the question what happens when a newer revision of the Protocol Draft arrives while a Protocol started from an older one is open: "Tolak approve bila revisi lama (Disarankan)". It replaces "The Approver is shown when the source revision is no longer the latest" in the frozen copy rule above, and gives the word "unchanged" in the findings rule a meaning.
+
+- **Refused at signing.** Submitting and approving a draft-sourced Protocol are refused (409, with the pinned and the latest revision named in the message) while the revision it is pinned to is older than the latest registered revision of that draft document, whatever revision the caller says it read. The Protocol never re-syncs: it is withdrawn (from Submitted, first returned to Draft, which stays allowed and keeps its pin) and a new Protocol is started from the latest revision. The existing check that the caller read the latest revision stays, so a caller who read an older page is still sent to reload.
+- **Unchanged means the same content.** The accepted-finding rule above applies to a row whose Test Step and Acceptance Criterion equal the draft's (description, method, instrument and criterion, blanks aside). Saving a written Test Step with the draft's own content is not a change and does not clear the need for a written reason; only a real difference does, and saving the draft's content back asks for the reason again.
+
 ## Considered Options
 
 - **Execute the site's Protocol Draft (reversed in part, see Amended 26 November 2026):** its Test Steps and Acceptance Criteria are read with verified citations, but no human decides them, and the Review Package holds only an OQ draft.

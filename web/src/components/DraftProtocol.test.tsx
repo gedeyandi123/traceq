@@ -301,6 +301,19 @@ test("a stale draft closes the submit dialog and says to reload, naming no other
   await waitFor(() => expect(document.activeElement).toBe(alert));
 });
 
+test("a Protocol pinned to an older revision says so in plain words, not as a generic conflict", async () => {
+  const u = user();
+  const { rerender } = render(page(submittedFromDraft, { approver: true }));
+  await u.click(screen.getByRole("button", { name: "Setujui protokol" }));
+  await screen.findByRole("dialog");
+  rerender(page(submittedFromDraft, { approver: true, error: "pinned_behind" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const alert = screen.getByRole("alert");
+  expect(alert.textContent).toContain("terpaku pada revisi draf yang lebih lama");
+  expect(alert.textContent).toContain("mulai protokol baru dari revisi terbaru");
+  expect(alert.textContent).not.toContain("Ditolak API");
+});
+
 test("the version 2 frozen copy shows its source, mapped steps, findings with decisions and reasons, and the labels", () => {
   render(page(submittedFromDraft));
   const copy = within(screen.getByTestId("copy-draft"));

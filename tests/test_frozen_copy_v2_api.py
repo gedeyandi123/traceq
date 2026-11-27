@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 from conftest import Databases, DemoIssuer
 from fastapi.testclient import TestClient
-from test_assembled_protocol_api import read, rows
+from test_assembled_protocol_api import read, rows, withdraw
 from test_draft_to_protocol_api import (
     DRAFT,
     R002,
@@ -32,10 +32,13 @@ from test_draft_to_protocol_api import (
     of_kind,
     put_mapping,
     revision_1,
+    set_stage,
     start_from_draft,
     step_proposal,
 )
 from test_execution_completion_api import _pass_value
+from test_missed_numbers_api import N003, N004
+from test_missed_numbers_api import answer as dispose
 from test_proposals_api import (
     RUN_ID,
     bearer,
@@ -48,7 +51,7 @@ from test_proposals_api import (
 )
 from test_protocol_approval_api import both_roles, persona_token
 from test_protocol_submission_api import canonical_sha256
-from test_written_test_steps_api import STEP, edit, trail
+from test_written_test_steps_api import STEP, edit, trail, write
 
 from traceq.assembly.approval import authors
 from traceq.assembly.submission import (
@@ -110,8 +113,14 @@ def ready(client: TestClient, headers: dict[str, str], protocol: Any) -> None:
     assert [c for c in read(client, headers)["checklist"] if c["count"]] == []
 
 
-def post_submit(client: TestClient, headers: dict[str, str], protocol: Any, rev: int | None) -> Any:
-    body: dict[str, Any] = {"expected_draft_hash": read(client, headers)["draft_hash"]}
+def post_submit(
+    client: TestClient,
+    headers: dict[str, str],
+    protocol: Any,
+    rev: int | None,
+    run_id: str = RUN_ID,
+) -> Any:
+    body: dict[str, Any] = {"expected_draft_hash": read(client, headers, run_id)["draft_hash"]}
     if rev is not None:
         body["expected_latest_draft_rev"] = rev
     return client.post(f"/protocols/{protocol['id']}/submit", headers=headers, json=body)
@@ -276,15 +285,26 @@ def _revision_1_one_page_later(draft: dict[str, Any]) -> None:
 def test_a_decision_made_on_another_run_and_revision_says_so_and_names_the_same_finding(
     client: TestClient, runs: Path, decider: dict[str, str], protocol: Any
 ) -> None:
+    ready(client, decider, protocol)  # decides the finding on the run of revision 0
     draft_run(runs, RUN_2, _revision_1_one_page_later)
     import_run(client, decider, RUN_2)
-    ready(client, decider, protocol)  # decides the finding on the run of revision 0
+    # Revision 1 arrived: the Protocol of revision 0 is withdrawn, one of revision 1 started.
+    withdraw(client, decider, protocol, "revision 1 arrived")
+    second = start_from_draft(client, decider, RUN_2)
     again = of_kind(proposals(client, decider, RUN_2), "draft")[0]
     decide(client, decider, again, RUN_2, decision="rejected", reason="also on revision 1")
-    view = post_submit(client, decider, protocol, 1)
+    for requirement in (R026, R030):
+        write(client, decider, second, requirement, STEP)
+    for requirement in (R002, R026, R030):
+        set_stage(client, decider, second, requirement, "OQ")
+    dispose(client, decider, second, number=N003)
+    dispose(client, decider, second, number=N004, kind="not_tested_here")
+    pending = [c for c in read(client, decider, RUN_2)["checklist"] if c["count"]]
+    assert pending == [], pending
+    view = post_submit(client, decider, second, 1, RUN_2)
     assert view.status_code == 200, view.text
     copy = view.json()["submission"]["frozen_copy"]
-    assert copy["source"]["rev"] == 0  # the Protocol stays pinned to revision 0
+    assert copy["source"]["rev"] == 1
     [finding] = copy["findings"]
     assert finding["proposal_id"] == again["id"]  # the same finding, one page later
     newest, oldest = (d["provenance"] for d in finding["decisions"])
@@ -451,11 +471,10 @@ def _finish_without_finding(client: TestClient, headers: dict[str, str], protoco
 # --- Stale approval -------------------------------------------------------------------
 
 
-def test_submit_and_approve_refuse_a_stale_draft_revision_and_need_the_one_the_caller_read(
+def test_a_protocol_pinned_to_an_older_revision_cannot_be_submitted(
     client: TestClient,
     runs: Path,
     decider: dict[str, str],
-    approver: dict[str, str],
     protocol: Any,
 ) -> None:
     ready(client, decider, protocol)
@@ -465,32 +484,72 @@ def test_submit_and_approve_refuse_a_stale_draft_revision_and_need_the_one_the_c
     import_run(client, decider, RUN_2)
     got = read(client, decider)
     assert (got["source"]["rev"], got["latest_draft_rev"]) == (0, 1)
-    stale = post_submit(client, decider, protocol, 0)
+    # Whatever revision the caller names, even the latest: the Protocol is behind it.
+    for read_rev in (0, 1):
+        refused = post_submit(client, decider, protocol, read_rev)
+        assert refused.status_code == 409
+        assert "pinned to revision 0" in refused.json()["detail"]
+        assert "start a new Protocol" in refused.json()["detail"]
+    assert post_submit(client, decider, protocol, None).status_code == 422
+    assert read(client, decider)["status"] == "draft"
+    # The remedy: withdraw it and start again from the latest revision.
+    withdraw(client, decider, protocol, "revision 1 arrived")
+    again = start_from_draft(client, decider, RUN_2)
+    assert (again["source"]["rev"], again["latest_draft_rev"]) == (1, 1)
+
+
+def test_a_submitted_protocol_pinned_to_an_older_revision_cannot_be_approved_but_can_be_returned(
+    client: TestClient,
+    runs: Path,
+    decider: dict[str, str],
+    approver: dict[str, str],
+    protocol: Any,
+) -> None:
+    ready(client, decider, protocol)
+    findings = [r["findings"] for r in read(client, decider)["rows"]]
+    view = post_submit(client, decider, protocol, 0).json()
+    assert view["status"] == "submitted"
+    # Revision 1 arrives while the Approver reads.
+    draft_run(runs, RUN_2, revision_1)
+    import_run(client, decider, RUN_2)
+    for read_rev in (0, 1):
+        refused = post_approve(client, approver, protocol, view, read_rev)
+        assert refused.status_code == 409
+        assert "pinned to revision 0" in refused.json()["detail"]
+    assert post_approve(client, approver, protocol, view, None).status_code == 422
+    assert read(client, approver)["status"] == "submitted"
+    # Return to Draft: the Protocol stays pinned to revision 0; nothing re-syncs.
+    r = client.post(
+        f"/protocols/{protocol['id']}/return", headers=approver, json={"reason": "rev 1 arrived"}
+    )
+    assert r.status_code == 200, r.text
+    back = r.json()
+    assert back["status"] == "draft"
+    assert back["source"] == view["source"]
+    assert back["source"]["rev"] == 0 and back["latest_draft_rev"] == 1
+    assert [row["findings"] for row in back["rows"]] == findings
+    assert post_submit(client, decider, protocol, 1).status_code == 409
+    # Withdrawn, a Protocol from the latest revision is the way on.
+    withdraw(client, decider, protocol, "restart from revision 1")
+    assert start_from_draft(client, decider, RUN_2)["source"]["rev"] == 1
+
+
+def test_an_up_to_date_protocol_is_still_signed_only_with_the_revision_the_caller_read(
+    client: TestClient,
+    decider: dict[str, str],
+    approver: dict[str, str],
+    protocol: Any,
+) -> None:
+    ready(client, decider, protocol)
+    stale = post_submit(client, decider, protocol, 3)
     assert stale.status_code == 409
     assert "newer revision" in stale.json()["detail"]
     assert post_submit(client, decider, protocol, None).status_code == 422
-    assert read(client, decider)["status"] == "draft"
-    # Reloaded: the Preparer read revision 1 (the Protocol stays pinned to revision 0).
-    view = post_submit(client, decider, protocol, 1).json()
-    assert view["status"] == "submitted"
-    assert [e["latest_draft_rev"] for e in view["events"]] == [None, 1]
-    # Another revision arrives while the Approver reads.
-    draft_run(runs, "20261126T090000Z-decade", _revision(2))
-    import_run(client, decider, "20261126T090000Z-decade")
-    assert post_approve(client, approver, protocol, view, 1).status_code == 409
-    assert post_approve(client, approver, protocol, view, None).status_code == 422
-    assert read(client, approver)["status"] == "submitted"
-    done = post_approve(client, approver, protocol, view, 2)
+    view = post_submit(client, decider, protocol, 0).json()
+    assert [e["latest_draft_rev"] for e in view["events"]] == [None, 0]
+    done = post_approve(client, approver, protocol, view, 0)
     assert done.status_code == 200, done.text
-    assert done.json()["events"][-1]["latest_draft_rev"] == 2
-
-
-def _revision(rev: int) -> Any:
-    def edit_draft(draft: dict[str, Any]) -> None:
-        draft["document"].update(rev=rev, sha256=f"{rev + 10:02x}" * 32)
-        draft["findings"] = []
-
-    return edit_draft
+    assert done.json()["events"][-1]["latest_draft_rev"] == 0
 
 
 def test_a_protocol_not_started_from_the_draft_ignores_the_expected_revision(

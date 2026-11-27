@@ -235,10 +235,15 @@ def latest_revision(session: Session, protocol: AssembledProtocol) -> int | None
 
 
 def check_latest(session: Session, protocol: AssembledProtocol, expected: int | None) -> int | None:
-    """What a signature on a Protocol started from the draft needs: the latest draft revision
-    the caller read. Returns the latest revision now (``None`` for a Protocol not started from
-    the draft, which ignores ``expected``); ``Refused`` without ``expected``, ``Conflict`` when
-    a newer revision arrived since (the page is stale: reload before signing)."""
+    """What a signature on a Protocol started from the draft needs. Returns the latest draft
+    revision the Equipment has read now (``None`` for a Protocol not started from the draft,
+    which ignores ``expected``).
+
+    ``Refused`` without ``expected`` (the latest revision the caller read). ``Conflict`` when
+    the Protocol is pinned to an older revision than the latest one (ADR 0012, amended 27
+    November 2026): it never re-syncs, so it is withdrawn and started again from the latest
+    revision, whatever the caller read. ``Conflict`` too when the caller read another revision
+    than the latest (the page is stale: reload before signing)."""
     if protocol.draft is None:
         return None
     latest = latest_revision(session, protocol)
@@ -246,6 +251,13 @@ def check_latest(session: Session, protocol: AssembledProtocol, expected: int | 
         raise Refused(
             f"Protocol {protocol.id} was started from a Protocol Draft: name the latest draft"
             " revision you read (expected_latest_draft_rev)"
+        )
+    if latest is not None and latest > protocol.draft.rev:
+        raise Conflict(
+            f"Protocol {protocol.id} is pinned to revision {protocol.draft.rev} of the Protocol"
+            f" Draft, but revision {latest} has arrived: it is not signed. Withdraw it (or"
+            " return it to Draft and withdraw it), then start a new Protocol from the latest"
+            " revision"
         )
     if latest != expected:
         raise Conflict(

@@ -33,6 +33,7 @@ export type ProtocolError =
   | "unauthorized"
   | "reauth_required"
   | "stale_draft"
+  | "pinned_behind"
   | "failed";
 
 type Action = (formData: FormData) => void | Promise<void>;
