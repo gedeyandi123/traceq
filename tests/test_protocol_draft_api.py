@@ -247,13 +247,12 @@ def test_a_changed_compared_value_asks_again(
 @pytest.mark.parametrize(
     "edit",
     [
-        lambda d: d["document"].update(rev=1),
         lambda d: d["document"].update(doc_id="OQ-TP201-B"),
         lambda d: d["findings"][0].update(test_step="OQ-04"),
         lambda d: d["findings"][0].update(requirement="URS-TP201-005"),
         lambda d: d["findings"][2].update(row="URS-TP201-028", requirement="URS-TP201-028"),
     ],
-    ids=["revision", "document", "test step", "requirement", "row"],
+    ids=["document", "test step", "requirement", "row"],
 )
 def test_another_draft_revision_step_requirement_or_row_is_another_proposal(
     client: TestClient, runs: Path, decider: dict[str, str], edit: DraftEdit

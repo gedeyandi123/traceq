@@ -1040,6 +1040,14 @@
       "diffFindingsTitle": "Temuan Pra-Tinjauan",
       "diffFindingsResolved": "Selesai",
       "diffFindingsPersisted": "Bertahan",
+      "diffFindingsPersistedChanged": "Bertahan, berubah",
+      "diffFindingsListTitle": "Temuan yang perlu dilihat dulu",
+      "diffFindingChange": {
+        "resolved": "Selesai",
+        "persisted": "Bertahan",
+        "persisted_changed": "Bertahan, berubah",
+        "new": "Baru"
+      },
       "diffFindingsNew": "Baru",
       "diffDecisionsTitle": "Keputusan Matriks & Temuan",
       "diffDecisionsCarriedForward": "Terbawa",

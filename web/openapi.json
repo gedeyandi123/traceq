@@ -4845,6 +4845,75 @@
         "title": "ExecutionView",
         "description": "An Execution of an Approved Protocol: its status, events, and rows from the frozen copy."
       },
+      "FindingChange": {
+        "type": "string",
+        "enum": [
+          "resolved",
+          "persisted",
+          "persisted_changed",
+          "new"
+        ]
+      },
+      "FindingChangeView": {
+        "properties": {
+          "proposal_id": {
+            "type": "integer",
+            "title": "Proposal Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "change": {
+            "$ref": "#/components/schemas/FindingChange"
+          },
+          "finding_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Type"
+          },
+          "test_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Step"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proposal_id",
+          "kind",
+          "change",
+          "finding_type",
+          "test_step",
+          "requirement"
+        ],
+        "title": "FindingChangeView",
+        "description": "One finding of either round and what became of it between them."
+      },
       "Findings": {
         "properties": {
           "check_findings": {
@@ -8453,6 +8522,10 @@
             "type": "integer",
             "title": "Findings Persisted"
           },
+          "findings_persisted_changed": {
+            "type": "integer",
+            "title": "Findings Persisted Changed"
+          },
           "findings_new": {
             "type": "integer",
             "title": "Findings New"
@@ -8468,6 +8541,13 @@
           "decisions_undecided": {
             "type": "integer",
             "title": "Decisions Undecided"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FindingChangeView"
+            },
+            "type": "array",
+            "title": "Findings"
           }
         },
         "additionalProperties": false,
@@ -8481,10 +8561,12 @@
           "documents_removed",
           "findings_resolved",
           "findings_persisted",
+          "findings_persisted_changed",
           "findings_new",
           "decisions_carried_forward",
           "decisions_changed",
-          "decisions_undecided"
+          "decisions_undecided",
+          "findings"
         ],
         "title": "RoundDiffView"
       },
