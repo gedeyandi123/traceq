@@ -35,7 +35,7 @@ Decided by the owner on 27 November 2026 (ticket #393, spec #375) for approval, 
 
 ## Amended 27 November 2026: the uploader of the pinned draft revision does not approve
 
-Decided on 27 November 2026 (ticket #393, spec #375). It adds to the separation of duties in "Freezing and approval" (the Approver is neither the Preparer nor an author the frozen copy records) and reverses the residual risk accepted in spec #375 under "Out of Scope", that someone could upload a draft revision and then approve the Protocol started from it.
+Decided by the owner on 27 November 2026 (ticket #393, spec #375): "Larang pengunggah approve (Disarankan)", confirmed with "Ya, larang + amandemen ADR (Disarankan)". It adds to the separation of duties in "Freezing and approval" (the Approver is neither the Preparer nor an author the frozen copy records) and reverses the residual risk accepted in spec #375 under "Out of Scope", that someone could upload a draft revision and then approve the Protocol started from it.
 
 - **Rule.** For a Protocol started from the Protocol Draft, whoever uploaded the revision it is pinned to counts as an author: they may not approve it (409, code `uploader_approves`, in plain words). Only the pinned revision counts, not earlier ones.
 - **Source of the identity.** The upload queue records the uploader of each revision (`upload_jobs`: Equipment, revision, identity), so it is read there at approval, not from the frozen copy; no new identity is stored. A revision that arrived another way than an upload names no uploader, so nobody is excluded on that ground.

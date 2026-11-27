@@ -866,3 +866,18 @@ def test_a_revision_with_no_upload_job_names_no_uploader(
     ready(client, decider, protocol)
     view = submitted(client, decider, protocol)
     assert post_approve(client, other, protocol, view, 0).status_code == 200
+
+
+def test_a_failed_upload_at_the_pinned_revision_excludes_nobody(
+    client: TestClient,
+    demo_issuer: DemoIssuer,
+    decider: dict[str, str],
+    other: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    """A failed job registered no revision, so its uploader is not the uploader of the pin."""
+    _queue_upload(fresh_database, 0, "failed", _uploader(demo_issuer))
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    assert post_approve(client, other, protocol, view, 0).status_code == 200

@@ -743,8 +743,9 @@ def _submission(
 
 
 CONFLICT_CODE_HEADER = "X-TraceQ-Conflict"
-"""Names a 409 about the Protocol Draft's revision by a stable code (``pinned_behind``,
-``stale_draft``), so a client does not read the words."""
+"""Names a 409 about the Protocol Draft (its revision, or who uploaded it) by a stable code
+(``pinned_behind``, ``stale_draft``, ``uploader_approves``), so a client does not read the
+words."""
 
 
 def _signing_conflict(e: Exception) -> HTTPException:

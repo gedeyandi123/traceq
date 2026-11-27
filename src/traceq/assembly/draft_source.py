@@ -253,16 +253,17 @@ def upload_revision_being_read(session: Session, protocol: AssembledProtocol) ->
 
 def uploader_of_pinned(session: Session, protocol: AssembledProtocol) -> audit.Actor | None:
     """Who uploaded the revision of the Protocol Draft the Protocol is pinned to, as the upload
-    queue records them (the uploader of that revision only, not of earlier ones). ``None`` for
-    a Protocol not started from the draft, and for a revision that arrived another way than an
-    upload (no job holds it)."""
+    queue records them (the uploader of that revision only, not of earlier ones). Only a
+    succeeded job counts: a failed one registered no revision. ``None`` for a Protocol not
+    started from the draft, and for a revision that arrived another way than an upload (no
+    succeeded job holds it)."""
     if protocol.draft is None:
         return None
     row = (
         session.execute(
             text(
                 "SELECT subject, issuer, name FROM upload_jobs"
-                " WHERE equipment = :equipment AND rev = :rev"
+                " WHERE equipment = :equipment AND rev = :rev AND status = 'succeeded'"
             ),
             {"equipment": protocol.equipment, "rev": protocol.draft.rev},
         )
