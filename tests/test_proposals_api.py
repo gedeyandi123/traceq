@@ -80,8 +80,18 @@ ROUNDS_ROUTES = {
 REGISTRY_ROUTES = {
     ("get", "/equipment"),
 }
+UPLOAD_ROUTES = {
+    ("get", "/equipment/{equipment}/drafts"),
+    ("post", "/equipment/{equipment}/drafts"),
+    ("get", "/uploads/{job_id}"),
+}
 DATABASE_ROUTES = (
-    DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES | ROUNDS_ROUTES | REGISTRY_ROUTES
+    DECISION_ROUTES
+    | PROTOCOL_ROUTES
+    | EXECUTION_ROUTES
+    | ROUNDS_ROUTES
+    | REGISTRY_ROUTES
+    | UPLOAD_ROUTES
 )
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
@@ -171,6 +181,8 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
             attempt_number=1,
             round_id=1,
             export_id=1,
+            job_id=1,
+            equipment="TP-201",
             requirement="URS-TP201-002",
             step="OQ-02",
         )
@@ -212,6 +224,8 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
                 attempt_number=1,
                 round_id=1,
                 export_id=1,
+                job_id=1,
+                equipment="TP-201",
                 requirement="URS-TP201-002",
                 step="OQ-02",
             ),

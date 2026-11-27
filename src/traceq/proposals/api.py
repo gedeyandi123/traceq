@@ -13,7 +13,7 @@ per-application dependency (``principal``), a local name, at definition time.
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -221,6 +221,26 @@ def actor_of(who: Principal) -> Actor:
     return Actor(subject=who.subject, issuer=who.issuer, name=who.name)
 
 
+def read_run_files(folder: Path) -> RunFiles:
+    """What an import reads of a run folder, through the files the API serves. Raises
+    ``OSError``, ``ValueError`` or ``ValidationError`` for a folder that is not a run's."""
+    draft = folder / DRAFT_FILE
+    drafted = folder / DRAFTS_FILE
+    comp_path = folder / COMPLETENESS_FILE
+    return RunFiles(
+        meta=read_served(folder / RUN_FILE),
+        matrix=Matrix.model_validate(read_served(folder / MATRIX_FILE)),
+        findings=Findings.model_validate(read_served(folder / FINDINGS_FILE)),
+        draft=ProtocolDraft.model_validate(read_served(draft)) if draft.is_file() else None,
+        drafted=DraftedTestSteps.model_validate(read_served(drafted))
+        if drafted.is_file()
+        else None,
+        completeness=Completeness.model_validate(read_served(comp_path))
+        if comp_path.is_file()
+        else None,
+    )
+
+
 def create_router(
     runs: Path,
     db: Engine | None,
@@ -249,24 +269,10 @@ def create_router(
         if folder is None:
             raise HTTPException(404, f"no run {run_id}")
         try:
-            meta: dict[str, Any] = read_served(folder / RUN_FILE)
-            draft = folder / DRAFT_FILE
-            drafted = folder / DRAFTS_FILE
-            comp_path = folder / COMPLETENESS_FILE
-            files = RunFiles(
-                meta=meta,
-                matrix=Matrix.model_validate(read_served(folder / MATRIX_FILE)),
-                findings=Findings.model_validate(read_served(folder / FINDINGS_FILE)),
-                draft=ProtocolDraft.model_validate(read_served(draft)) if draft.is_file() else None,
-                drafted=DraftedTestSteps.model_validate(read_served(drafted))
-                if drafted.is_file()
-                else None,
-                completeness=Completeness.model_validate(read_served(comp_path))
-                if comp_path.is_file()
-                else None,
-            )
+            files = read_run_files(folder)
         except (OSError, ValueError, ValidationError) as e:
             raise HTTPException(422, f"{run_id} is not a run folder that can be imported") from e
+        meta = files.meta
         if meta.get("run_id") != run_id:
             raise HTTPException(422, f"the run folder {run_id} names another run id")
         with transaction(database()) as session:

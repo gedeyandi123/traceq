@@ -17,6 +17,8 @@ from traceq.reports.pre_review import (
     ReportUrsCompleteness,
     render_pre_review_pdf,
     snapshot_hash,
+    typesettable,
+    typesettable_snapshot,
 )
 from traceq.reports.qualification import (
     QUALIFICATION_APPROVAL_NOTE,
@@ -71,4 +73,6 @@ __all__ = [
     "render_pre_review_pdf",
     "render_qualification_pdf",
     "snapshot_hash",
+    "typesettable",
+    "typesettable_snapshot",
 ]

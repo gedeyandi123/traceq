@@ -105,7 +105,7 @@ name = "TraceQ modules are layered: app > execution > assembly, rounds > proposa
 type = "layers"
 layers = [
     "traceq.app",
-    "traceq.registry",
+    "traceq.registry | traceq.uploads",
     "traceq.execution",
     "traceq.assembly | traceq.rounds",
     "traceq.proposals",
@@ -133,6 +133,7 @@ source_modules = [
 forbidden_modules = [
     "traceq.app",
     "traceq.registry",
+    "traceq.uploads",
     "traceq.execution",
     "traceq.assembly",
     "traceq.rounds",

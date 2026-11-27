@@ -50,6 +50,7 @@ from traceq.reports import (
     check_template_supported,
     render_pre_review_pdf,
     snapshot_hash,
+    typesettable_snapshot,
 )
 from traceq.rounds.diff import (
     FindingLabel,
@@ -749,7 +750,7 @@ def _build_snapshot(
         )
     )
 
-    return PreReviewReportSnapshot(
+    snapshot = PreReviewReportSnapshot(
         generated_at=generated_at,
         equipment=current.equipment,
         run_id=current.run_id,
@@ -775,6 +776,7 @@ def _build_snapshot(
         completeness=tuple(completeness_rows),
         round_diff=report_diff,
     )
+    return typesettable_snapshot(snapshot)
 
 
 def export_pre_review(
