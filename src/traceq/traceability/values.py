@@ -9,7 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class _Model(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    # A bound or a value is a finite number: NaN or infinity is refused, never stored (NaN
+    # compares false with everything, so a check against it could never fail).
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
 
 
 class Range(_Model):

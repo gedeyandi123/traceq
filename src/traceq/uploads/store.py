@@ -4,8 +4,9 @@
 Equipment, reserves the budget with a single conditional UPDATE (so concurrent uploads can
 never reserve past the ceiling: Postgres re-checks the condition on the row the first
 committed), queues the job under the revision number the caller read under that lock
-(``next_rev``: after every upload and every registered draft revision of the Equipment, so two
-uploads never share one) and adds the job and its Audit Trail entry. Nothing is dispatched
+(``next_rev``: after every upload that did not fail and every registered draft revision of the
+Equipment, so two uploads that did not fail never share one; a failed one's number may be
+given again) and adds the job and its Audit Trail entry. Nothing is dispatched
 before the reservation holds.
 """
 
@@ -24,9 +25,13 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 
-_LOCK_NS = 0x7551  # the advisory-lock namespace of upload revision numbers
-WORKER_LOCK = (0x7551, 1)
-"""The session lock one worker holds while it processes a job: workers are serialised."""
+UPLOAD_REV_LOCK_NS = 0x7551
+"""The advisory-lock namespace of upload revision numbers (key: the Equipment's hash)."""
+_WORKER_LOCK_NS = 0x7552
+WORKER_LOCK = (_WORKER_LOCK_NS, 0)
+"""The session lock one worker holds while it processes a job: workers are serialised. A
+namespace of its own (audit C14): in the namespace of revision numbers it would be the lock of
+any Equipment whose hash is its key. The transaction locks use namespaces 1 to 6."""
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 WORKER_ACTOR = audit.Actor(
     subject="system:upload-worker", issuer="traceq", name="traceq upload worker"
@@ -130,7 +135,7 @@ def lock_equipment(session: Session, equipment: str) -> None:
     caller reads next is then the one ``accept`` assigns."""
     session.execute(
         text("SELECT pg_advisory_xact_lock(:ns, hashtext(:equipment))"),
-        {"ns": _LOCK_NS, "equipment": equipment},
+        {"ns": UPLOAD_REV_LOCK_NS, "equipment": equipment},
     )
 
 
@@ -150,11 +155,18 @@ def already_uploaded(session: Session, equipment: str, sha256: str) -> bool:
 
 
 def next_rev(session: Session, equipment: str, registered: int | None) -> int:
-    """The revision the next upload of the Equipment gets: after every upload so far and
-    after ``registered``, the highest revision of the draft that imported runs registered
-    (the review rounds' ``document_versions``), whichever way it arrived."""
+    """The revision the next upload of the Equipment gets: after every upload so far that did
+    not fail and after ``registered``, the highest revision of the draft that imported runs
+    registered (the review rounds' ``document_versions``), whichever way it arrived.
+
+    A failed upload registered no revision, so when it holds the highest number that number
+    is given again (audit C1): replay recordings exist only for the revision the bytes were
+    given, so a retry under the next number could never replay. A failed job whose run was
+    imported by hand counts through ``registered``."""
     queued = session.execute(
-        text("SELECT MAX(rev) FROM upload_jobs WHERE equipment = :equipment"),
+        text(
+            "SELECT MAX(rev) FROM upload_jobs WHERE equipment = :equipment AND status <> 'failed'"
+        ),
         {"equipment": equipment},
     ).scalar_one()
     known = [r for r in (queued, registered) if r is not None]
@@ -337,12 +349,13 @@ def get(session: Session, job_id: int) -> Job | None:
 
 
 def for_equipment(session: Session, equipment: str, limit: int = LIST_LIMIT) -> list[Job]:
-    """The Equipment's ``limit`` newest uploads, newest revision first."""
+    """The Equipment's ``limit`` newest uploads, newest revision first (and the newest upload
+    first among those sharing a revision: a failed one and its retry)."""
     rows = (
         session.execute(
             text(
-                f"SELECT {_COLUMNS} FROM upload_jobs WHERE equipment = :equipment ORDER BY rev DESC"
-                " LIMIT :limit"
+                f"SELECT {_COLUMNS} FROM upload_jobs WHERE equipment = :equipment"
+                " ORDER BY rev DESC, id DESC LIMIT :limit"
             ),
             {"equipment": equipment, "limit": limit},
         )

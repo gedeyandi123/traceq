@@ -32,7 +32,7 @@ from traceq import db as traceq_db
 from traceq.ai import MissingRecording, Recorder
 from traceq.app.api import create_app
 from traceq.audit import Actor
-from traceq.db import engine, transaction
+from traceq.db import engine, locks, transaction
 from traceq.documents import VERSIONS, CorpusDocument, Page
 from traceq.documents.cache import IngestCache, Ingested
 from traceq.identity import IdentitySettings
@@ -41,6 +41,7 @@ from traceq.uploads import RunResult, UploadSettings, Worker, store
 from traceq.uploads.checks import sha256_of
 from traceq.uploads.runner import draft_doc_id, has_draft_recording, package_runner
 from traceq.uploads.store import Job
+from traceq.uploads.worker import FAILURE_MESSAGES
 
 PDF = {"content-type": "application/pdf"}
 RECORDINGS = Path(__file__).resolve().parents[1] / "recordings"
@@ -213,7 +214,89 @@ def test_bytes_whose_upload_failed_may_be_uploaded_again(
     assert upload(client, decider, data).status_code == 202
     assert worker.run_once() is not None
     again = upload(client, decider, data)
-    assert (again.status_code, again.json()["rev"]) == (202, 1)
+    # The failed revision was the highest: it is given again (audit C1).
+    assert (again.status_code, again.json()["rev"]) == (202, 0)
+    listed = client.get("/equipment/TP-201/drafts", headers=decider).json()["jobs"]
+    assert [(j["rev"], j["status"]) for j in listed] == [(0, "queued"), (0, "failed")]
+
+
+def test_a_failed_revision_recorded_for_replay_can_be_uploaded_again_in_replay(
+    decider: dict[str, str],
+    settings: UploadSettings,
+    runs: Path,
+    fresh_database: Databases,
+    demo_issuer: DemoIssuer,
+) -> None:
+    """The recordings exist only for the revision the bytes were given: replay could never
+    retry a failed upload if the retry got the next number (audit C1)."""
+    fake = Fake(runs)
+    worker = Worker(engine(fresh_database.app), fake, settings.blobs, runs)
+    data = pdf(2, "recorded, fails once")
+    record_draft(settings, data, pages=2, rev=0)
+    c = replay_only_client(runs, settings, fresh_database, demo_issuer)
+    assert upload(c, decider, data).status_code == 202
+    fake.error = OSError("the disk was full")
+    assert worker.run_once() is not None
+    again = upload(c, decider, data)
+    assert (again.status_code, again.json()["rev"]) == (202, 0), again.text
+    fake.error = None
+    done = worker.run_once()
+    assert done is not None and (done.rev, done.status) == (0, "succeeded")
+
+
+def test_a_failed_revision_below_a_live_one_is_not_given_again(
+    client: TestClient,
+    decider: dict[str, str],
+    runs: Path,
+    settings: UploadSettings,
+    fresh_database: Databases,
+) -> None:
+    fake = Fake(runs)
+    worker = Worker(engine(fresh_database.app), fake, settings.blobs, runs)
+    assert upload(client, decider, pdf(1, "a")).json()["rev"] == 0
+    assert upload(client, decider, pdf(1, "b")).json()["rev"] == 1
+    fake.error = MissingRecording("gone")
+    assert worker.run_once() is not None  # rev 0 fails; rev 1 is still queued
+    assert upload(client, decider, pdf(1, "c")).json()["rev"] == 2
+    fake.error = None
+    assert worker.run_once() is not None  # rev 1 succeeds
+    fake.error = MissingRecording("gone")
+    assert worker.run_once() is not None  # rev 2 fails: the highest, given again
+    assert upload(client, decider, pdf(1, "d")).json()["rev"] == 2
+
+
+def test_two_live_jobs_never_share_a_revision_but_a_failed_one_may(
+    client: TestClient, decider: dict[str, str], worker: Worker, fresh_database: Databases
+) -> None:
+    upload(client, decider, pdf(1, "first"))
+
+    def queue(sha: str) -> None:
+        with transaction(engine(fresh_database.app)) as session:
+            store.accept(
+                session,
+                Actor(subject="s", issuer="i", name="Ayu"),
+                equipment="TP-201",
+                rev=0,
+                sha256=sha * 64,
+                size_bytes=1,
+                pages=1,
+                estimate=Decimal(0),
+                ceiling=Decimal(1),
+            )
+
+    with pytest.raises(Exception, match="upload_jobs_live_rev"):
+        queue("a")
+    with transaction(engine(fresh_database.app)) as session:
+        session.execute(
+            text(
+                "UPDATE upload_jobs SET status = 'running' WHERE status = 'queued';"
+                " UPDATE upload_jobs SET status = 'failed', cost_usd = 0,"
+                " finished_at = clock_timestamp() WHERE status = 'running'"
+            )
+        )
+    queue("a")
+    with pytest.raises(Exception, match="upload_jobs_live_rev"):
+        queue("b")
 
 
 def test_the_revision_continues_after_the_draft_revisions_the_rounds_registered(
@@ -433,7 +516,7 @@ def test_a_failed_job_releases_its_reservation_and_charges_a_live_one_in_full(
     assert ledger(fresh_database) == (Decimal("0.02"), Decimal(0))
     done = worker.run_once()
     assert done is not None and done.status == "failed"
-    assert done.message == "no recording for page 1 of the draft"
+    assert done.message == FAILURE_MESSAGES[MissingRecording]
     assert ledger(fresh_database) == (Decimal(0), Decimal("0.02"))
     assert done.run_id is None
 
@@ -762,3 +845,112 @@ def test_migration_0022_goes_down_and_up_again_with_its_guards_restored(
             ).scalars()
         )
         assert {"upload_budget_spent_only_up", "upload_jobs_finished_immutable"} <= names
+
+
+# --- Audit fixes of 28 November (spec #375, ticket #393) ----------------------------------
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        MissingRecording("C:/srv/recordings/abc.json is not recorded"),
+        FileNotFoundError("C:/srv/runs/x/manifest.json"),
+        ValueError("1 validation error for Manifest\ndocuments.0.path\n  C:/srv/secret"),
+        OSError("C:/srv/secret: disk full"),
+    ],
+)
+def test_a_failed_job_shows_a_fixed_message_per_kind_never_the_error_text(
+    client: TestClient,
+    decider: dict[str, str],
+    runs: Path,
+    settings: UploadSettings,
+    fresh_database: Databases,
+    error: Exception,
+) -> None:
+    """A server path or a validation dump stays in the log (audit S5)."""
+    fake = Fake(runs)
+    worker = Worker(engine(fresh_database.app), fake, settings.blobs, runs)
+    fake.error = error
+    job = upload(client, decider, pdf(1, f"fails with {type(error).__name__}")).json()
+    assert worker.run_once() is not None
+    polled = client.get(f"/uploads/{job['id']}", headers=decider).json()
+    assert polled["status"] == "failed"
+    assert "srv" not in polled["message"] and "C:/" not in polled["message"]
+    assert polled["message"] in set(FAILURE_MESSAGES.values()) or "server log" in polled["message"]
+
+
+def test_the_worker_lock_has_a_namespace_of_its_own() -> None:
+    """Not the namespace of the per-Equipment upload lock (an Equipment whose hash is 1 would
+    hold the worker lock), nor one of the transaction lock namespaces (audit C14)."""
+    ns = store.WORKER_LOCK[0]
+    assert ns != store.UPLOAD_REV_LOCK_NS
+    assert ns not in {1, 2, 3, 4, 5, 6, locks.EQUIPMENT_LOCK_NS}
+
+
+def test_the_uploads_sharing_a_revision_are_listed_newest_first(
+    client: TestClient,
+    decider: dict[str, str],
+    runs: Path,
+    settings: UploadSettings,
+    fresh_database: Databases,
+) -> None:
+    fake = Fake(runs)
+    worker = Worker(engine(fresh_database.app), fake, settings.blobs, runs)
+    fake.error = MissingRecording("gone")
+    first = upload(client, decider, pdf(1, "one")).json()
+    assert worker.run_once() is not None
+    second = upload(client, decider, pdf(1, "two")).json()
+    listed = client.get("/equipment/TP-201/drafts", headers=decider).json()["jobs"]
+    assert [j["id"] for j in listed] == [second["id"], first["id"]]
+
+
+def _alembic(fresh_database: Databases) -> Config:
+    cfg = Config()
+    cfg.set_main_option("script_location", str(Path(traceq_db.__file__).parent / "migrations"))
+    cfg.attributes["url"] = fresh_database.owner
+    return cfg
+
+
+def _upload_job_constraints(fresh_database: Databases) -> set[str]:
+    with transaction(engine(fresh_database.owner)) as session:
+        return set(
+            session.execute(
+                text(
+                    "SELECT conname FROM pg_constraint WHERE conrelid = 'upload_jobs'::regclass"
+                    " UNION SELECT indexname FROM pg_indexes WHERE tablename = 'upload_jobs'"
+                )
+            ).scalars()
+        )
+
+
+def test_migration_0023_goes_down_and_up_again(fresh_database: Databases) -> None:
+    cfg = _alembic(fresh_database)
+    names = _upload_job_constraints(fresh_database)
+    assert "upload_jobs_live_rev" in names and "upload_jobs_equipment_rev_key" not in names
+    command.downgrade(cfg, "0022")
+    names = _upload_job_constraints(fresh_database)
+    assert "upload_jobs_equipment_rev_key" in names and "upload_jobs_live_rev" not in names
+    command.upgrade(cfg, "head")
+    assert "upload_jobs_live_rev" in _upload_job_constraints(fresh_database)
+
+
+def test_migration_0023_does_not_go_down_while_a_revision_is_shared(
+    fresh_database: Databases,
+) -> None:
+    """Going down needs the old unique revision again: refused, and nothing is deleted."""
+    with transaction(engine(fresh_database.owner)) as session:
+        for sha, status in (("a", "failed"), ("b", "queued")):
+            session.execute(
+                text(
+                    "INSERT INTO upload_jobs (equipment, rev, sha256, size_bytes, pages, status,"
+                    " reserved_usd, cost_usd, finished_at, subject, issuer, name) VALUES"
+                    " ('TP-201', 0, :sha, 1, 1, :status, 0,"
+                    " CASE WHEN :status = 'failed' THEN 0 END,"
+                    " CASE WHEN :status = 'failed' THEN now() END, 's', 'i', 'n')"
+                ),
+                {"sha": sha * 64, "status": status},
+            )
+    with pytest.raises(Exception, match="share a revision"):
+        command.downgrade(_alembic(fresh_database), "0022")
+    with transaction(engine(fresh_database.owner)) as session:
+        assert session.execute(text("SELECT count(*) FROM upload_jobs")).scalar_one() == 2

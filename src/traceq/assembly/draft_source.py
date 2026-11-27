@@ -251,26 +251,29 @@ def upload_revision_being_read(session: Session, protocol: AssembledProtocol) ->
     ).scalar_one()
 
 
-def uploader_of_pinned(session: Session, protocol: AssembledProtocol) -> audit.Actor | None:
-    """Who uploaded the revision of the Protocol Draft the Protocol is pinned to, as the upload
-    queue records them (the uploader of that revision only, not of earlier ones). Only a
-    succeeded job counts: a failed one registered no revision. ``None`` for a Protocol not
-    started from the draft, and for a revision that arrived another way than an upload (no
-    succeeded job holds it)."""
+def uploaders_of_pinned(session: Session, protocol: AssembledProtocol) -> list[audit.Actor]:
+    """Who uploaded the bytes of the Protocol Draft revision the Protocol is pinned to, as the
+    upload queue records them: every job of the Equipment holding that SHA-256, whatever its
+    status or revision number (audit C4/S1/S6). A job that failed after writing its run still
+    uploaded the bytes an import of that run registers, and a failed job and its retry may
+    share a revision number with other bytes, so the number alone names nobody for sure.
+    Empty for a Protocol not started from the draft, and for bytes that arrived another way
+    than an upload."""
     if protocol.draft is None:
-        return None
-    row = (
+        return []
+    rows = (
         session.execute(
             text(
-                "SELECT subject, issuer, name FROM upload_jobs"
-                " WHERE equipment = :equipment AND rev = :rev AND status = 'succeeded'"
+                "SELECT DISTINCT subject, issuer, name FROM upload_jobs"
+                " WHERE equipment = :equipment AND sha256 = :sha"
+                " ORDER BY subject, issuer, name"
             ),
-            {"equipment": protocol.equipment, "rev": protocol.draft.rev},
+            {"equipment": protocol.equipment, "sha": protocol.draft.sha256},
         )
         .mappings()
-        .first()
+        .all()
     )
-    return None if row is None else audit.actor_of_row(row)
+    return [audit.actor_of_row(r) for r in rows]
 
 
 class PinnedBehind(Conflict):

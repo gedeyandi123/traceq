@@ -28,15 +28,26 @@ from traceq.uploads import store
 from traceq.uploads.runner import Runner
 
 log = logging.getLogger("traceq.uploads")
-_MESSAGE_CAP = 300
-_KNOWN = (MissingRecording, BudgetExceeded, OcrUnavailable, FileNotFoundError, ValueError)
+FAILURE_MESSAGES: dict[type[Exception], str] = {
+    MissingRecording: (
+        "a page of this draft is not recorded (no model recording for this revision) and"
+        " reading it live is off; the server log has the detail"
+    ),
+    BudgetExceeded: "reading this draft live would pass the live budget; the run stopped",
+    OcrUnavailable: "a page of this draft needs OCR, which this server does not have",
+    FileNotFoundError: "a file the run needs is missing; the server log has the detail",
+    ValueError: "the run could not read this draft; the server log has the detail",
+}
+"""What the page shows of a failure, one fixed text per kind: the error's own text may hold a
+server path or a validation dump, so it goes to the log only (audit S5)."""
 
 
 def _message(e: Exception) -> str:
-    """What the page shows of a failure: the text of an error the runner raises on purpose,
-    else only its kind (the rest goes to the log)."""
-    if isinstance(e, _KNOWN):
-        return str(e)[:_MESSAGE_CAP]
+    """What the page shows of a failure: the fixed text of its kind, else only the kind's name
+    (the rest goes to the log)."""
+    for kind, words in FAILURE_MESSAGES.items():
+        if isinstance(e, kind):
+            return words
     return f"the run failed ({type(e).__name__}); the server log has the detail"
 
 
