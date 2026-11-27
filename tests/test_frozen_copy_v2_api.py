@@ -10,6 +10,8 @@ citation check. ``make_ready`` there is the checklist done; here ``OQ-26`` is fi
 
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +20,7 @@ from conftest import Databases, DemoIssuer
 from fastapi.testclient import TestClient
 from test_assembled_protocol_api import read, rows
 from test_draft_to_protocol_api import (
+    DRAFT,
     R002,
     R026,
     R030,
@@ -50,6 +53,7 @@ from test_written_test_steps_api import STEP, edit, trail
 from traceq.assembly.approval import authors
 from traceq.assembly.submission import (
     Author,
+    FrozenDecision,
     ProtocolCopy,
     ProtocolCopyV2,
     hash_of,
@@ -221,6 +225,74 @@ def _issuer(copy: dict[str, Any]) -> str:
     return str(copy["preparer"]["issuer"])
 
 
+# --- Provenance of a decision ---------------------------------------------------------
+
+
+def _decisions_in(node: Any) -> list[dict[str, Any]]:
+    """Every decision of a copy, wherever it sits: an object with a verdict and an author."""
+    found: list[dict[str, Any]] = []
+    if isinstance(node, dict):
+        if "decision" in node and "author" in node and isinstance(node["decision"], str):
+            found.append(node)
+        for value in node.values():
+            found.extend(_decisions_in(value))
+    elif isinstance(node, list):
+        for value in node:
+            found.extend(_decisions_in(value))
+    return found
+
+
+def test_every_decision_of_a_version_2_copy_records_its_run_content_and_draft_revision(
+    client: TestClient, decider: dict[str, str], protocol: Any
+) -> None:
+    ready(client, decider, protocol)
+    copy = submitted(client, decider, protocol)["submission"]["frozen_copy"]
+    found = _decisions_in(copy)
+    assert len(found) == 16  # Coverage, Test Steps, candidates, findings, draft steps, criteria
+    for d in found:
+        got = d["provenance"]
+        assert got["run_id"] == RUN_ID, d
+        assert re.fullmatch(r"[0-9a-f]{64}", got["content_hash"]), d
+        assert got["draft_rev"] == 0, d
+    # What it names is the content the decision was made on.
+    ps = {p["id"]: p for p in proposals(client, decider)}
+    [finding] = copy["findings"]
+    [decision] = finding["decisions"]
+    assert decision["provenance"]["content_hash"] == ps[finding["proposal_id"]]["content_hash"]
+
+
+def _revision_1_one_page_later(draft: dict[str, Any]) -> None:
+    """Revision 1 prints everything the same, one page later."""
+    draft["document"].update(rev=1, sha256="cd" * 32)
+    for f in draft["findings"]:
+        for c in f["citations"]:
+            if c["doc"] == DRAFT["doc"]:
+                c["page"] += 1
+    for step in draft["test_steps"]:
+        if step["acceptance"] is not None:
+            step["acceptance"]["citation"]["page"] += 1
+
+
+def test_a_decision_made_on_another_run_and_revision_says_so_and_names_the_same_finding(
+    client: TestClient, runs: Path, decider: dict[str, str], protocol: Any
+) -> None:
+    draft_run(runs, RUN_2, _revision_1_one_page_later)
+    import_run(client, decider, RUN_2)
+    ready(client, decider, protocol)  # decides the finding on the run of revision 0
+    again = of_kind(proposals(client, decider, RUN_2), "draft")[0]
+    decide(client, decider, again, RUN_2, decision="rejected", reason="also on revision 1")
+    view = post_submit(client, decider, protocol, 1)
+    assert view.status_code == 200, view.text
+    copy = view.json()["submission"]["frozen_copy"]
+    assert copy["source"]["rev"] == 0  # the Protocol stays pinned to revision 0
+    [finding] = copy["findings"]
+    assert finding["proposal_id"] == again["id"]  # the same finding, one page later
+    newest, oldest = (d["provenance"] for d in finding["decisions"])
+    assert (newest["run_id"], newest["draft_rev"]) == (RUN_2, 1)
+    assert (oldest["run_id"], oldest["draft_rev"]) == (RUN_ID, 0)
+    assert newest["content_hash"] == oldest["content_hash"] == again["content_hash"]
+
+
 # --- Version 1 copies are untouched ---------------------------------------------------
 
 STORED_V1: dict[str, Any] = {
@@ -240,6 +312,30 @@ def test_a_stored_version_1_copy_loads_through_the_version_1_model_and_keeps_its
     assert hash_of(parsed) == _golden_v1_hash()
     # It is not a version 2 copy: no discriminator appears in what it dumps.
     assert "schema_version" not in parsed.model_dump(mode="json")
+
+
+V1_WITH_ROWS = Path(__file__).parent / "fixtures" / "frozen_copy_v1_rows.json"
+V1_WITH_ROWS_HASH = "8cf92a48f26253e4af152766f066030544cc19132154f36f264a489c5566c57b"
+"""``V1_WITH_ROWS`` as the version 1 model of ticket #393 (before the version 2 provenance)
+dumped it: two rows (a Vendor Reference and a Test Step row with its written versions, drafts,
+step attributes and decisions), a URS with a missed number and its disposition. Its hash is
+written down here, not computed from a model, so a change of any version 1 model shows."""
+
+
+def test_a_stored_version_1_copy_with_rows_loads_and_keeps_its_hash_byte_for_byte() -> None:
+    raw = json.loads(V1_WITH_ROWS.read_text(encoding="utf-8"))
+    assert canonical_sha256(raw) == V1_WITH_ROWS_HASH
+    parsed = parse_copy(raw)
+    assert type(parsed) is ProtocolCopy
+    assert parsed.model_dump(mode="json") == raw  # nothing added, nothing dropped
+    assert hash_of(parsed) == V1_WITH_ROWS_HASH
+    # Its decisions are version 1 decisions: none of the provenance of a version 2 decision.
+    decisions = _decisions_in(raw)
+    assert len(decisions) == 4
+    assert all("provenance" not in d for d in decisions)
+    assert type(parsed.rows[0].coverage.decision) is FrozenDecision
+    # The same bytes are not a version 2 copy.
+    assert "schema_version" not in raw
 
 
 def _golden_v1_hash() -> str:

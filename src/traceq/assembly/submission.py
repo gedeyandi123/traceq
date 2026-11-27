@@ -17,18 +17,23 @@ decision recorded later (decisions are shared across runs) never changes what th
 reads. A Protocol started from the Protocol Draft (spec #375, S4a2) is frozen as a **version 2**
 copy (``schema_version`` 2), which also records the draft it was pinned to, the source of each
 row, every finding with its decisions and reasons, and every draft Test Step with its mapping
-and decisions; a stored version 1 copy is read by the unchanged version 1 model and its hash is
-never recomputed from a version 2 model. Submitting takes the per-Protocol lock and checks the
-status inside it, and has its Audit Trail entry in the same transaction.
+and decisions. Every decision of a version 2 copy also records its ``provenance``: the run it was
+made on, the content hash it was made on and the revision of the Protocol Draft that run read,
+so the Approver can tell a decision made on revision 0 and carried to revision 2 from one made
+on revision 2 (decisions are shared across runs and draft revisions). A decision of a version 1
+copy has no ``provenance`` and dumps without the key, so a stored version 1 copy keeps its hash
+byte for byte, and its hash is never recomputed from a version 2 model. Submitting takes the
+per-Protocol lock and checks the status inside it, and has its Audit Trail entry in the same
+transaction.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -58,6 +63,7 @@ from traceq.assembly.rows import (
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.proposals.decisions import Decision, Standing, Verdict, standings
 from traceq.proposals.keys import digest
+from traceq.proposals.store import RUNS
 from traceq.review.draft_rules import DraftType
 from traceq.runs.schemas import (
     Cite,
@@ -156,6 +162,18 @@ class Author(_Frozen):
     name: str
 
 
+class Provenance(_Frozen):
+    """Where a decision of a version 2 copy comes from."""
+
+    run_id: str
+    """The run on whose Proposal it was made."""
+    content_hash: str
+    """The content it was made on: what the Approver sees is what this hash names."""
+    draft_rev: int | None
+    """The revision of the Protocol Draft the Protocol is pinned to that ``run_id`` read, or
+    ``null`` when that run read no revision of it."""
+
+
 class FrozenDecision(_Frozen):
     """A Proposal Decision in force when the Protocol was submitted, and who made it."""
 
@@ -165,6 +183,9 @@ class FrozenDecision(_Frozen):
     reason: str | None
     author: Author
     at: datetime
+    provenance: Provenance | None = Field(default=None, exclude_if=lambda v: v is None)
+    """Version 2 copies only: every decision of one records it. A version 1 decision has none and
+    dumps without the key, which keeps the hash of every stored version 1 copy."""
 
 
 class FrozenCoverage(_Frozen):
@@ -401,7 +422,9 @@ def _utc(at: datetime) -> datetime:
     return at.astimezone(UTC)
 
 
-def _decision(d: Decision) -> FrozenDecision:
+def _decision(d: Decision, draft_revs: dict[str, int] | None = None) -> FrozenDecision:
+    """``d`` as frozen: with its provenance when ``draft_revs`` (for each run, the revision of
+    the pinned Protocol Draft it read) is given, as in a version 2 copy."""
     return FrozenDecision(
         id=d.id,
         decision=d.decision,
@@ -409,7 +432,25 @@ def _decision(d: Decision) -> FrozenDecision:
         reason=d.reason,
         author=_author(d.actor),
         at=_utc(d.at),
+        provenance=None
+        if draft_revs is None
+        else Provenance(
+            run_id=d.run_id, content_hash=d.content_hash, draft_rev=draft_revs.get(d.run_id)
+        ),
     )
+
+
+def draft_revisions(session: Session, equipment: str, doc: str) -> dict[str, int]:
+    """For each imported run of the Equipment that read a revision of the Protocol Draft
+    ``doc``, that revision."""
+    out: dict[str, int] = {}
+    for run_id, documents in session.execute(
+        select(RUNS.c.run_id, RUNS.c.documents).where(RUNS.c.equipment == equipment)
+    ):
+        for d in cast(list[dict[str, Any]], documents or []):
+            if d.get("doc_id") == doc and d.get("rev") is not None:
+                out[run_id] = int(d["rev"])
+    return out
 
 
 def _version(v: WrittenVersion) -> FrozenVersion:
@@ -438,7 +479,7 @@ def _step_attribute(a: StepAttribute) -> FrozenStepAttribute:
     )
 
 
-def _test_step(r: ProtocolRow) -> FrozenTestStep | None:
+def _test_step(r: ProtocolRow, revs: dict[str, int] | None) -> FrozenTestStep | None:
     step = step_of(r)
     if step is None:
         return None
@@ -448,7 +489,7 @@ def _test_step(r: ProtocolRow) -> FrozenTestStep | None:
         origin=step.origin,
         proposal_id=step.proposal_id,
         version=step.version,
-        decision=None if step.decision is None else _decision(step.decision),
+        decision=None if step.decision is None else _decision(step.decision, revs),
         description=step.description,
         method=step.method,
         instrument=step.instrument,
@@ -458,7 +499,7 @@ def _test_step(r: ProtocolRow) -> FrozenTestStep | None:
     )
 
 
-def _row(r: ProtocolRow) -> FrozenRow:
+def _row(r: ProtocolRow, revs: dict[str, int] | None = None) -> FrozenRow:
     if r.kind == "undecided" or r.decided_class is None:
         raise NotFrozen(f"the Coverage of {r.requirement.id} is not decided")
     req = r.requirement
@@ -467,16 +508,16 @@ def _row(r: ProtocolRow) -> FrozenRow:
         text=req.text,
         source=req.source,
         coverage=FrozenCoverage(
-            coverage_class=r.decided_class, decision=_decision(r.coverage.decisions[0])
+            coverage_class=r.decided_class, decision=_decision(r.coverage.decisions[0], revs)
         ),
         kind=r.kind,
         evidence=req.evidence if r.kind == "vendor_reference" else (),
-        test_step=_test_step(r),
+        test_step=_test_step(r, revs),
         drafts=tuple(
             FrozenDraft(
                 proposal_id=d.standing.proposal_id,
                 draft_id=d.draft.id,
-                decision=_decision(d.standing.decisions[0])
+                decision=_decision(d.standing.decisions[0], revs)
                 if d.standing.state == "decided"
                 else None,
             )
@@ -541,41 +582,44 @@ def _copy(
     )
 
 
-def _decisions(s: Standing | None) -> tuple[FrozenDecision, ...]:
+def _decisions(s: Standing | None, revs: dict[str, int]) -> tuple[FrozenDecision, ...]:
     if s is None or s.state != "decided":
         return ()
-    return tuple(_decision(d) for d in s.decisions)
+    return tuple(_decision(d, revs) for d in s.decisions)
 
 
-def _candidate(c: DraftCandidate) -> FrozenCandidate:
+def _candidate(c: DraftCandidate, revs: dict[str, int]) -> FrozenCandidate:
     d, k = c.step_decision, c.criterion_decision
     k_standing = c.criterion_standing
     return FrozenCandidate(
         proposal_id=c.standing.proposal_id,
         step=c.step.id,
-        step_decision=None if d is None else _decision(d),
+        step_decision=None if d is None else _decision(d, revs),
         criterion_proposal_id=None if k_standing is None else k_standing.proposal_id,
-        criterion_decision=None if k is None else _decision(k),
+        criterion_decision=None if k is None else _decision(k, revs),
         mapping_version=None if c.mapping is None else c.mapping.version,
     )
 
 
-def _row_detail(r: ProtocolRow) -> FrozenRowDetail:
+def _row_detail(r: ProtocolRow, revs: dict[str, int]) -> FrozenRowDetail:
     crit = None
     accepted = r.accepted_candidate
     if accepted is not None and not r.changed and accepted.criterion_decision is not None:
-        crit = _decision(accepted.criterion_decision)
+        crit = _decision(accepted.criterion_decision, revs)
     return FrozenRowDetail(
         requirement=r.requirement.id,
         source=r.source,
         criterion_decision=crit,
-        candidates=tuple(_candidate(c) for c in r.candidates),
+        candidates=tuple(_candidate(c, revs) for c in r.candidates),
         findings=tuple(f.standing.proposal_id for f in r.findings),
     )
 
 
 def _finding(
-    s: Standing, f: DraftCheckFinding, reasons: tuple[draft_source.Reason, ...]
+    s: Standing,
+    f: DraftCheckFinding,
+    reasons: tuple[draft_source.Reason, ...],
+    revs: dict[str, int],
 ) -> FrozenFinding:
     return FrozenFinding(
         proposal_id=s.proposal_id,
@@ -585,7 +629,7 @@ def _finding(
         row=f.row,
         detail=f.detail,
         label=f.label,
-        decisions=_decisions(s),
+        decisions=_decisions(s, revs),
         reasons=tuple(
             FrozenFindingReason(
                 version=x.version, reason=x.reason, author=_author(x.actor), at=_utc(x.at)
@@ -614,13 +658,14 @@ def _copy_v2(
             criteria.setdefault(c.id, s)
     listing, _ = draft_listing(session, current, stood, proposed)
     reasons = draft_source.reasons_of(session, current.id)
+    revs = draft_revisions(session, current.equipment, pin.doc)
     return ProtocolCopyV2(
         protocol_id=current.id,
         equipment=current.equipment,
         run_id=current.run_id,
         preparer=preparer,
-        rows=tuple(_row(r) for r in rows),
-        row_details=tuple(_row_detail(r) for r in rows),
+        rows=tuple(_row(r, revs) for r in rows),
+        row_details=tuple(_row_detail(r, revs) for r in rows),
         urs=None if urs is None else tuple(_urs(u) for u in urs),
         source=FrozenSource(doc=pin.doc, rev=pin.rev, sha256=pin.sha256, run_id=current.run_id),
         draft_steps=tuple(
@@ -639,8 +684,8 @@ def _copy_v2(
                     )
                     for m in e.mappings
                 ),
-                decisions=_decisions(e.standing),
-                criterion_decisions=_decisions(criteria.get(e.step.id)),
+                decisions=_decisions(e.standing, revs),
+                criterion_decisions=_decisions(criteria.get(e.step.id), revs),
             )
             for e in listing
         ),
@@ -649,6 +694,7 @@ def _copy_v2(
                 s,
                 DraftCheckFinding.model_validate(proposed[s.proposal_id]),
                 reasons.get(s.proposal_id, ()),
+                revs,
             )
             for s in stood
             if s.kind == "draft"

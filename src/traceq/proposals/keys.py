@@ -14,22 +14,24 @@ rests on. Both follow the spec's table:
   spec #196, #375): key = Equipment, layer, type, draft document id (not its revision, so a
   finding is the same finding across revisions), the Test Step id (or the traceability row's
   requirement id for ``requirement_not_tested``), the requirement it was compared with (a
-  Test Step the table lists under two requirements gives a finding for each) and the cited
-  locations (document and page of each citation, no revision, no quote text), so two findings
-  of one Test Step and type are told apart by where they cite, not by order; only two findings
-  citing the same pages fall back to their order. Content = detail text, the rule (its type),
-  the values compared (AC, URS limit, capability as parsed) and what the finding rests on: the
-  Test Step as read (the requirements its header prints, its Acceptance Criterion as printed
-  and as parsed) and its requirement mapping (the requirements the table traces it to), or
-  for a table row its requirement and Test Step ids. No quote text enters either: a re-run
-  whose quote differs only in length is the same Proposal with the same content, while a
-  change in a Test Step, its mapping or its criterion asks again.
+  Test Step the table lists under two requirements gives a finding for each) and the
+  documents it cites (a set; no page, no revision, no quote text), so a finding whose page
+  shifts between revisions is the same finding and persists (spec #375, S8); two findings of
+  one Test Step, type and requirement citing the same documents fall back to their order.
+  Content = detail text, the rule (its type), the values compared (AC, URS limit, capability
+  as parsed) and what the finding rests on: the Test Step as read (the requirements its header
+  prints, its description, method and instrument, its Acceptance Criterion as printed and as
+  parsed) and its requirement mapping (the requirements the table traces it to), or for a
+  table row its requirement and Test Step ids. No quote text and no page enters either: a
+  re-run whose quote differs only in length, or a revision that prints the same text on
+  another page, is the same Proposal with the same content, while a change in a Test Step, its
+  mapping or its criterion asks again (ADR 0012, "Binding to content").
 - Draft Test Step (``draft_step``) and its Acceptance Criterion (``draft_criterion``), of the
   Protocol Draft of a Review Package run (spec #375, S4a1): key = Equipment, draft document id
   (not its revision), the Test Step id. Content = the requirements the draft's traceability
   table maps the step to (the mapping), and for the step its header requirements, description,
-  method, instrument and why the read was dropped; for the criterion the AC as printed, as
-  parsed and the page it cites (no quote text, no revision). A change of the step, of its
+  method, instrument and why the read was dropped; for the criterion the AC as printed and as
+  parsed (no page, no quote text, no revision). A change of the step, of its
   mapping or of its criterion asks again (ADR 0012, "Binding to content").
 - Drafted Test Step (``drafts.json``, spec #247): key = Equipment, requirement id. Content =
   the URS document and revision the requirement is printed in, description, method,
@@ -174,15 +176,17 @@ def _read(v: PrintedRead | None) -> JsonObject | None:
     return None if v is None else v.model_dump(mode="json", exclude_none=True)
 
 
-def _locations(cites: tuple[Cite, ...]) -> list[JsonObject]:
-    """Where a finding cites, as a set: document and page of each citation. The revision and
-    the quote are left out, so a finding keeps its identity across draft revisions and re-runs."""
-    return _as_set([{"doc": c.doc, "page": c.page} for c in cites])
+def _cited_documents(cites: tuple[Cite, ...]) -> list[JsonObject]:
+    """Which documents a finding cites, as a set. The page, the revision and the quote are left
+    out, so a finding keeps its identity across draft revisions and re-runs: a page shifts
+    when a revision adds a line above it, and the finding is still the same one."""
+    return _as_set([{"doc": c.doc} for c in cites])
 
 
 def _rests_on(draft: ProtocolDraft, f: DraftCheckFinding) -> JsonObject:
     """What a decision on a draft finding rests on besides the finding's own values: the Test
-    Step as read, its Acceptance Criterion and its requirement mapping, or the table row."""
+    Step as read (header requirements, description, method, instrument), its Acceptance
+    Criterion and its requirement mapping, or the table row."""
     if f.test_step is not None:
         step = next((s for s in draft.test_steps if s.id == f.test_step), None)
         if step is None:
@@ -191,6 +195,9 @@ def _rests_on(draft: ProtocolDraft, f: DraftCheckFinding) -> JsonObject:
         return {
             "test_step": step.id,
             "header_requirements": list(step.requirements),
+            "description": step.description,
+            "method": step.method,
+            "instrument": step.instrument,
             "acceptance": None if ac is None else {"printed": ac.printed, "value": _read(ac.value)},
             "mapped_to": [t.requirement for t in step.traced],
         }
@@ -211,7 +218,7 @@ def _draft(
         "doc": draft.document.doc_id,
         **where,
         "requirement": f.requirement,
-        "cited": _locations(f.citations),
+        "cited": _cited_documents(f.citations),
     }
     content = {
         "detail": f.detail,
@@ -260,7 +267,6 @@ def _draft_criterion(
         "mapped_to": list(mapped),
         "printed": ac.printed,
         "value": _read(ac.value),
-        "cited": _locations((ac.citation,)),
     }
     payload = DraftCriterionProposal(
         document=draft.document,

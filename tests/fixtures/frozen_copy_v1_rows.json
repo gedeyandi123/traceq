@@ -1,0 +1,235 @@
+{
+ "protocol_id": 7,
+ "equipment": "TP-201",
+ "run_id": "20260101T000000Z-aaaaaaa",
+ "preparer": {
+  "subject": "u-1",
+  "issuer": "https://issuer.example",
+  "name": "Ayu"
+ },
+ "rows": [
+  {
+   "requirement": "URS-TP201-001",
+   "text": "The press shall be a vendor-tested unit.",
+   "source": {
+    "doc": "URS-TP201",
+    "rev": 1,
+    "page": 3,
+    "quote": "Kebisingan maksimal 60 dB(A)."
+   },
+   "coverage": {
+    "coverage_class": "covered_by_vendor",
+    "decision": {
+     "id": 11,
+     "decision": "accepted",
+     "coverage": null,
+     "reason": null,
+     "author": {
+      "subject": "u-1",
+      "issuer": "https://issuer.example",
+      "name": "Ayu"
+     },
+     "at": "2026-01-05T08:30:00Z"
+    }
+   },
+   "kind": "vendor_reference",
+   "evidence": [
+    {
+     "doc": "FAT-TP201",
+     "rev": 0,
+     "stage": "FAT",
+     "step": "FAT-04",
+     "test": "Noise at 1 m",
+     "acceptance": "max 60 dB(A)",
+     "observed": "58 dB(A)",
+     "observed_value": null,
+     "result": "pass",
+     "failure": null,
+     "citation": {
+      "doc": "FAT-TP201",
+      "rev": 0,
+      "page": 5,
+      "quote": "Observed 58 dB(A)"
+     }
+    }
+   ],
+   "test_step": null,
+   "drafts": [
+    {
+     "proposal_id": 41,
+     "draft_id": "d1",
+     "decision": null
+    }
+   ],
+   "written": [],
+   "step_attributes": []
+  },
+  {
+   "requirement": "URS-TP201-002",
+   "text": "Noise shall not exceed 60 dB(A).",
+   "source": {
+    "doc": "URS-TP201",
+    "rev": 1,
+    "page": 3,
+    "quote": "Kebisingan maksimal 60 dB(A)."
+   },
+   "coverage": {
+    "coverage_class": "gap",
+    "decision": {
+     "id": 12,
+     "decision": "edited",
+     "coverage": "gap",
+     "reason": "not in the vendor scope",
+     "author": {
+      "subject": "u-2",
+      "issuer": "https://issuer.example",
+      "name": "Eka"
+     },
+     "at": "2026-01-06T09:15:00Z"
+    }
+   },
+   "kind": "test_step",
+   "evidence": [],
+   "test_step": {
+    "origin": "written",
+    "proposal_id": 42,
+    "version": 2,
+    "decision": {
+     "id": 12,
+     "decision": "edited",
+     "coverage": "gap",
+     "reason": "not in the vendor scope",
+     "author": {
+      "subject": "u-2",
+      "issuer": "https://issuer.example",
+      "name": "Eka"
+     },
+     "at": "2026-01-06T09:15:00Z"
+    },
+    "description": "Ukur kebisingan pada 1 m",
+    "method": "Sound level meter, 3 titik",
+    "instrument": "SLM-7",
+    "acceptance": {
+     "type": "range",
+     "min": null,
+     "max": 60.0,
+     "unit": "dB(A)"
+    },
+    "stage": "OQ",
+    "witness_required": true
+   },
+   "drafts": [
+    {
+     "proposal_id": 42,
+     "draft_id": "d2",
+     "decision": {
+      "id": 11,
+      "decision": "accepted",
+      "coverage": null,
+      "reason": null,
+      "author": {
+       "subject": "u-1",
+       "issuer": "https://issuer.example",
+       "name": "Ayu"
+      },
+      "at": "2026-01-05T08:30:00Z"
+     }
+    }
+   ],
+   "written": [
+    {
+     "version": 1,
+     "removed": false,
+     "test_step": {
+      "description": "Ukur kebisingan pada 1 m",
+      "method": "Sound level meter, 3 titik",
+      "instrument": "SLM-7",
+      "acceptance": {
+       "type": "range",
+       "min": null,
+       "max": 60.0,
+       "unit": "dB(A)"
+      }
+     },
+     "from_proposal_id": 42,
+     "decision_id": 12,
+     "author": {
+      "subject": "u-2",
+      "issuer": "https://issuer.example",
+      "name": "Eka"
+     },
+     "at": "2026-01-06T09:15:00Z"
+    },
+    {
+     "version": 2,
+     "removed": true,
+     "test_step": null,
+     "from_proposal_id": null,
+     "decision_id": null,
+     "author": {
+      "subject": "u-1",
+      "issuer": "https://issuer.example",
+      "name": "Ayu"
+     },
+     "at": "2026-01-06T09:15:00Z"
+    }
+   ],
+   "step_attributes": [
+    {
+     "version": 1,
+     "stage": "OQ",
+     "witness_required": true,
+     "author": {
+      "subject": "u-1",
+      "issuer": "https://issuer.example",
+      "name": "Ayu"
+     },
+     "at": "2026-01-05T08:30:00Z"
+    }
+   ]
+  }
+ ],
+ "urs": [
+  {
+   "doc": "URS-TP201",
+   "rev": 1,
+   "numbers": "checked",
+   "missed": [
+    {
+     "number": "4.1",
+     "page": 2,
+     "disposition": {
+      "version": 1,
+      "kind": "not_tested_here",
+      "justification": "PQ",
+      "author": {
+       "subject": "u-1",
+       "issuer": "https://issuer.example",
+       "name": "Ayu"
+      },
+      "at": "2026-01-05T08:30:00Z"
+     },
+     "dispositions": [
+      {
+       "version": 1,
+       "kind": "not_tested_here",
+       "justification": "PQ",
+       "author": {
+        "subject": "u-1",
+        "issuer": "https://issuer.example",
+        "name": "Ayu"
+       },
+       "at": "2026-01-05T08:30:00Z"
+      }
+     ]
+    }
+   ],
+   "unquoted": [
+    {
+     "page": 4,
+     "text": "Noise is measured at 1 m."
+    }
+   ]
+  }
+ ]
+}

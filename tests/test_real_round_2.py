@@ -96,35 +96,125 @@ def test_a_finding_is_the_same_finding_in_the_next_draft_revision(
     assert (second[0]["state"], second[0]["decisions"]) == ("decided", [made])
 
 
+def _page_shift(draft: dict[str, Any]) -> None:
+    """Revision 1 prints the same text one page later: every citation of the draft moves from
+    its page to the next (the URS citations stay where they are)."""
+    for f in draft["findings"]:
+        for c in f["citations"]:
+            if c["doc"] == DRAFT["doc"]:
+                c["page"] += 1
+    for s in draft["test_steps"]:
+        s["acceptance"]["citation"]["page"] += 1
+    for r in draft["trace_rows"]:
+        r["citation"]["page"] += 1
+
+
+def _of_kind(ps: list[dict[str, Any]], kind: str) -> list[dict[str, Any]]:
+    return [p for p in ps if p["kind"] == kind]
+
+
+def test_a_finding_whose_page_shifts_between_revisions_is_the_same_finding(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    """The OQ-24 anomaly: the same defect on page 6 of revision 0 and page 7 of revision 1 is
+    one finding that persists, not one resolved and another new."""
+    import_run(client, decider)
+    first = drafted(proposals(client, decider))
+    made = decide(client, decider, first[0], decision="accepted")
+
+    def round_2(draft: dict[str, Any]) -> None:
+        revision_1(draft)
+        _page_shift(draft)
+
+    next_run(runs, RUN_2, round_2)
+    import_run(client, decider, RUN_2)
+    second = drafted(proposals(client, decider, RUN_2))
+    assert [(p["id"], p["content_hash"]) for p in second] == [
+        (p["id"], p["content_hash"]) for p in first
+    ]
+    assert (second[0]["state"], second[0]["decisions"]) == ("decided", [made])
+    diff = rounds(client, decider, RUN_2)["diff"]
+    assert set(changes(diff).values()) == {"persisted"}
+    assert (diff["findings_resolved"], diff["findings_new"]) == (0, 0)
+
+
+def test_a_criterion_whose_page_shifts_keeps_its_identity_content_and_decision(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    import_run(client, decider)
+    before = _of_kind(proposals(client, decider), "draft_criterion")
+    assert len(before) == 1
+    made = decide(client, decider, before[0], decision="accepted")
+
+    def round_2(draft: dict[str, Any]) -> None:
+        revision_1(draft)
+        _page_shift(draft)
+
+    next_run(runs, RUN_2, round_2)
+    import_run(client, decider, RUN_2)
+    after = _of_kind(proposals(client, decider, RUN_2), "draft_criterion")
+    assert [(p["id"], p["content_hash"]) for p in after] == [
+        (p["id"], p["content_hash"]) for p in before
+    ]
+    assert (after[0]["state"], after[0]["decisions"]) == ("decided", [made])
+
+
 def _two_findings_of_one_step_and_type(draft: dict[str, Any]) -> None:
-    """OQ-03 against URS-TP201-003 twice, citing two places of the draft."""
+    """OQ-03 against URS-TP201-003 twice, the second citing another document than the first."""
     twin = copy.deepcopy(draft["findings"][0])
-    twin["citations"][0]["page"] = 5
-    twin["detail"] += " (second place)"
+    twin["citations"][0]["doc"] = "REF-TP201"
+    twin["detail"] += " (second document)"
     draft["findings"].insert(1, twin)
 
 
-def test_two_findings_of_one_step_and_type_are_told_apart_by_what_they_cite_not_by_order(
+def test_two_findings_of_one_step_and_type_are_told_apart_by_the_documents_they_cite(
     client: TestClient, runs: Path, decider: dict[str, str]
 ) -> None:
     next_run(runs, RUN_2, _two_findings_of_one_step_and_type)
     import_run(client, decider, RUN_2)
     both = drafted(proposals(client, decider, RUN_2))
     assert len({p["id"] for p in both}) == 4
-    page_2, page_5 = both[0], both[1]
-    made = decide(client, decider, page_5, run_id=RUN_2, decision="accepted")
+    own, other = both[0], both[1]
+    made = decide(client, decider, other, run_id=RUN_2, decision="accepted")
 
     def first_is_fixed(draft: dict[str, Any]) -> None:
         _two_findings_of_one_step_and_type(draft)
-        del draft["findings"][0]  # the page 2 finding is fixed; the page 5 one is not
+        del draft["findings"][0]  # the first finding is fixed; the other document's is not
 
     next_run(runs, RUN_3, first_is_fixed)
     import_run(client, decider, RUN_3)
     left = drafted(proposals(client, decider, RUN_3))
     # The decision stays on the finding it was made on and does not move to the other.
-    assert page_5["id"] in {p["id"] for p in left} and page_2["id"] not in {p["id"] for p in left}
-    kept = next(p for p in left if p["id"] == page_5["id"])
+    assert other["id"] in {p["id"] for p in left} and own["id"] not in {p["id"] for p in left}
+    kept = next(p for p in left if p["id"] == other["id"])
     assert (kept["state"], kept["decisions"]) == ("decided", [made])
+
+
+def test_two_findings_citing_the_same_documents_fall_back_to_their_order(
+    client: TestClient, runs: Path, decider: dict[str, str]
+) -> None:
+    """A page does not tell findings apart (it shifts between revisions), so two findings of one
+    Test Step, type and requirement that cite the same documents are told apart by order."""
+
+    def twins(draft: dict[str, Any]) -> None:
+        twin = copy.deepcopy(draft["findings"][0])
+        twin["citations"][0]["page"] = 5
+        twin["detail"] += " (second place)"
+        draft["findings"].insert(1, twin)
+
+    def shifted_twins(draft: dict[str, Any]) -> None:
+        revision_1(draft)
+        twins(draft)
+        _page_shift(draft)
+
+    next_run(runs, RUN_2, twins)
+    import_run(client, decider, RUN_2)
+    both = drafted(proposals(client, decider, RUN_2))
+    assert len({p["id"] for p in both}) == 4
+    next_run(runs, RUN_3, shifted_twins)
+    import_run(client, decider, RUN_3)
+    again = drafted(proposals(client, decider, RUN_3))
+    assert [p["id"] for p in again] == [p["id"] for p in both]
 
 
 # --- The round diff ---------------------------------------------------------------------
@@ -250,6 +340,33 @@ def test_a_changed_test_step_mapping_or_criterion_asks_again_though_the_finding_
     assert (second[0]["state"], second[0]["previous"]) == ("changed", made), what
 
 
+def _step_field(field: str, value: str) -> Edit:
+    def edit(draft: dict[str, Any]) -> None:
+        draft["test_steps"][0][field] = value
+
+    return edit
+
+
+@pytest.mark.parametrize("field", ["description", "method", "instrument"])
+def test_a_changed_step_description_method_or_instrument_asks_again_on_its_finding(
+    client: TestClient, runs: Path, decider: dict[str, str], field: str
+) -> None:
+    """ADR 0012, "Binding to content": a finding's decision rests on the Test Step's content,
+    which is its description, method and instrument as well as its criterion and mapping."""
+    next_run(runs, RUN_2, _step_field(field, "as first read"))
+    import_run(client, decider, RUN_2)
+    first = drafted(proposals(client, decider, RUN_2))
+    made = decide(client, decider, first[0], RUN_2, decision="accepted")
+    next_run(runs, RUN_3, _step_field(field, "as reworded in the next revision"))
+    import_run(client, decider, RUN_3)
+    second = drafted(proposals(client, decider, RUN_3))
+    assert second[0]["id"] == first[0]["id"]
+    assert second[0]["content_hash"] != first[0]["content_hash"]
+    assert (second[0]["state"], second[0]["previous"]) == ("changed", made)
+    # A finding of another Test Step does not ask again: only the step it rests on changed.
+    assert second[2]["content_hash"] == first[2]["content_hash"]
+
+
 def test_content_that_reverts_does_not_revive_an_older_decision_over_a_newer_one(
     client: TestClient, runs: Path, decider: dict[str, str]
 ) -> None:
@@ -347,3 +464,12 @@ def test_a_run_over_revision_0_and_one_over_revision_1_make_a_real_round_2(
         f["change"] in {"persisted", "persisted_changed"} for f in diff["findings"]
     )
     assert all(f["finding_type"] for f in diff["findings"])
+    # The defect of OQ-24 sits on page 6 of revision 0 and page 7 of revision 1: it persists,
+    # it is not one finding resolved and another new (S8, the OQ-24 anomaly).
+    by_change = {
+        (f["finding_type"], f["test_step"], f["requirement"]): f["change"]
+        for f in diff["findings"]
+        if f["kind"] == "draft"
+    }
+    assert by_change[("ac_deviates_from_urs", "OQ-24", "URS-TP201-029")] == "persisted"
+    assert len(by_change) == sum(f["kind"] == "draft" for f in diff["findings"])
