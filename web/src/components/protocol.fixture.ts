@@ -72,6 +72,10 @@ function row(over: Partial<ProtocolRowView> & { requirement: string }): Protocol
     written: [],
     prefill: null,
     blockers: [],
+    candidates: [],
+    findings: [],
+    changed: false,
+    step_source: null,
     witness_required: false,
     ...over,
   };
@@ -261,14 +265,14 @@ export function protocolView(over: Partial<ProtocolView> = {}): ProtocolView {
 /** What blocks the Protocol above: one row's Coverage, one row without a Test Step, one
  * missed number without its disposition. */
 export const checklist: ChecklistItem[] = [
-  { check: "coverage_undecided", count: 1, requirements: ["URS-TP201-001"], numbers: [] },
-  { check: "draft_undecided", count: 0, requirements: [], numbers: [] },
-  { check: "no_test_step", count: 1, requirements: ["URS-TP201-030"], numbers: [] },
-  { check: "acceptance_not_shaped", count: 0, requirements: [], numbers: [] },
-  { check: "missed_undecided", count: 1, requirements: [], numbers: [{ ...URS, number: "URS-TP201-004" }] },
+  { check: "coverage_undecided", count: 1, requirements: ["URS-TP201-001"], numbers: [], steps: [] },
+  { check: "draft_undecided", count: 0, requirements: [], numbers: [], steps: [] },
+  { check: "no_test_step", count: 1, requirements: ["URS-TP201-030"], numbers: [], steps: [] },
+  { check: "acceptance_not_shaped", count: 0, requirements: [], numbers: [], steps: [] },
+  { check: "missed_undecided", count: 1, requirements: [], numbers: [{ ...URS, number: "URS-TP201-004" }], steps: [] },
 ];
 
-export const ready: ChecklistItem[] = checklist.map((c) => ({ ...c, count: 0, requirements: [], numbers: [] }));
+export const ready: ChecklistItem[] = checklist.map((c) => ({ ...c, count: 0, requirements: [], numbers: [], steps: [] }));
 
 /** A submission as the API serves it (ticket #252): two rows frozen with who decided them. */
 export const submissionView: SubmissionView = {

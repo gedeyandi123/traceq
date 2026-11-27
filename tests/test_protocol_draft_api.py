@@ -186,7 +186,7 @@ def test_draft_findings_are_imported_after_the_equipment_proposals_which_keep_th
     client: TestClient, runs: Path, decider: dict[str, str]
 ) -> None:
     add_run(runs, OTHER_RUN)  # the same run without its Protocol Draft
-    assert import_run(client, decider)["proposals"] == 9
+    assert import_run(client, decider)["proposals"] == 11
     import_run(client, decider, OTHER_RUN)
     got = proposals(client, decider)
     equipment = proposals(client, decider, OTHER_RUN)
@@ -195,6 +195,8 @@ def test_draft_findings_are_imported_after_the_equipment_proposals_which_keep_th
         ("draft", 0, None),
         ("draft", 1, None),
         ("draft", 2, None),
+        ("draft_step", 0, None),
+        ("draft_criterion", 0, None),
     ]
     # One Test Step traced to two requirements gives two Proposals.
     assert len({p["id"] for p in drafted(got)}) == 3

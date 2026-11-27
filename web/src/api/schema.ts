@@ -267,10 +267,13 @@ export interface paths {
         /**
          * Start Protocol
          * @description Starts the Protocol of the run's Equipment from this imported run, in Draft status,
-         *     with its Audit Trail entry. Refused (409) while a Protocol of the Equipment is open
-         *     (Draft or Submitted), once one is approved, and for a run whose folder has
-         *     ``drafts.json`` but which holds no drafted Test Step Proposals. Needs the deciding
-         *     role.
+         *     with its Audit Trail entry. With ``from_draft`` it starts from the Protocol Draft the
+         *     run read: pinned to the run and the draft's document, revision and hash, and never
+         *     re-synced (a later revision is a new run: Return or Withdraw this one and start another
+         *     from it). Refused (409) while a Protocol of the Equipment is open (Draft or Submitted),
+         *     once one is approved, for a run whose folder has ``drafts.json`` but which holds no
+         *     drafted Test Step Proposals, and with ``from_draft`` for a run that read no draft. Needs
+         *     the deciding role.
          */
         post: operations["startProtocol"];
         delete?: never;
@@ -469,6 +472,58 @@ export interface paths {
          */
         put: operations["setRowAttributes"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/draft-steps/{step}/mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Map Draft Step
+         * @description Maps a Test Step of the pinned Protocol Draft to exactly one requirement of the
+         *     run, when the draft's traceability table maps it to none or to several or the citation
+         *     check dropped it; until then it is listed and unusable. Every mapping is kept with its
+         *     author (the Approver may be none of them), and the latest counts; it does not carry
+         *     over to another Protocol. Refused (409) unless the Protocol is in Draft status and was
+         *     started from the draft, for a step the table maps to exactly one requirement, and
+         *     while the step is edited into a written Test Step of this Protocol; 404 for an unknown
+         *     step or requirement. Needs the deciding role.
+         */
+        put: operations["mapDraftStep"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/protocols/{protocol_id}/findings/{proposal_id}/reason": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Give Finding Reason
+         * @description Records why the row of a finding accepted on its content is submitted as it is: a
+         *     non-blank written reason (422 without one), every version kept with its author, the
+         *     latest counting. Needed to submit a row whose Test Step is not written in this
+         *     Protocol. Refused (409) unless the Protocol is in Draft status and was started from the
+         *     draft, and for a finding not accepted; 404 for a finding the run does not hold. Needs
+         *     the deciding role.
+         */
+        post: operations["giveFindingReason"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1048,9 +1103,9 @@ export interface components {
             name: string;
         };
         /** @enum {string} */
-        Blocker: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped";
+        Blocker: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped" | "finding_undecided" | "finding_reason_missing" | "stage_missing";
         /** @enum {string} */
-        Check: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped" | "missed_undecided";
+        Check: "coverage_undecided" | "draft_undecided" | "no_test_step" | "acceptance_not_shaped" | "missed_undecided" | "finding_undecided" | "finding_reason_missing" | "stage_missing" | "draft_step_unresolved";
         /**
          * CheckFinding
          * @description A Pre-review finding of a deterministic rule: no model involved.
@@ -1086,6 +1141,11 @@ export interface components {
             requirements: string[];
             /** Numbers */
             numbers: components["schemas"]["MissedKey"][];
+            /**
+             * Steps
+             * @default []
+             */
+            steps: string[];
         };
         /**
          * Cite
@@ -1425,6 +1485,23 @@ export interface components {
             facts: components["schemas"]["VendorFactCite"][];
         };
         /**
+         * DraftCriterionProposal
+         * @description What a Proposal of kind ``draft_criterion`` holds: the Acceptance Criterion of a draft
+         *     Test Step as printed, the value code read from it and its verified citation.
+         */
+        DraftCriterionProposal: {
+            document: components["schemas"]["DraftDocument"];
+            /** Id */
+            id: string;
+            /** Mapped To */
+            mapped_to: string[];
+            /** Printed */
+            printed: string;
+            /** Value */
+            value: (components["schemas"]["Limit"] | components["schemas"]["Number"] | components["schemas"]["Tolerance"] | components["schemas"]["Text"] | components["schemas"]["AmbiguousValue"]) | null;
+            citation: components["schemas"]["Cite"];
+        };
+        /**
          * DraftDocument
          * @description The Protocol Draft under review: document, revision and the SHA-256 of its bytes.
          */
@@ -1454,6 +1531,73 @@ export interface components {
             proposal: components["schemas"]["Proposal"] | null;
         };
         /**
+         * DraftMapping
+         * @description The requirement a draft Test Step is mapped to.
+         */
+        DraftMapping: {
+            /** Requirement */
+            requirement: string;
+        };
+        /**
+         * DraftMappingView
+         * @description A requirement a human mapped a draft Test Step to, who and when.
+         */
+        DraftMappingView: {
+            /** Version */
+            version: number;
+            /** Requirement */
+            requirement: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /**
+         * DraftStepProposal
+         * @description What a Proposal of kind ``draft_step`` holds (spec #375, S4a1): a Test Step of the
+         *     Protocol Draft as read, with the requirements its traceability rows map it to. A human
+         *     accepts or edits it; the Acceptance Criterion is the Proposal ``draft_criterion``.
+         */
+        DraftStepProposal: {
+            document: components["schemas"]["DraftDocument"];
+            /** Id */
+            id: string;
+            /** Requirements */
+            requirements: string[];
+            /** Mapped To */
+            mapped_to: string[];
+            /** Description */
+            description: string | null;
+            /** Method */
+            method: string | null;
+            /** Instrument */
+            instrument: string | null;
+            /** Not Read */
+            not_read: string | null;
+        };
+        /**
+         * DraftStepView
+         * @description A Test Step of the Protocol's pinned Protocol Draft: the ones that stand for no
+         *     requirement are listed and unusable until a human maps one or rejects the step.
+         */
+        DraftStepView: {
+            step: components["schemas"]["DraftStepProposal"];
+            proposal: components["schemas"]["Proposal"];
+            /** Mappings */
+            mappings: components["schemas"]["DraftMappingView"][];
+            /** Requirement */
+            requirement: string | null;
+            /** Resolved */
+            resolved: boolean;
+        };
+        /**
          * DraftTestStep
          * @description A Test Step of the draft, in draft order, as read and compared, or not read: the draft
          *     prints it, but the citation check dropped its reading (``not_read``).
@@ -1466,6 +1610,12 @@ export interface components {
             acceptance: components["schemas"]["DraftAcceptance"] | null;
             /** Not Read */
             not_read?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Method */
+            method?: string | null;
+            /** Instrument */
+            instrument?: string | null;
             /** Traced */
             traced: components["schemas"]["DraftTraced"][];
             /** Compared */
@@ -1788,6 +1938,37 @@ export interface components {
             test_step: string | null;
             /** Requirement */
             requirement: string | null;
+        };
+        /**
+         * FindingReason
+         * @description Why a row on which a finding was accepted is submitted as it is.
+         */
+        FindingReason: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * FindingReasonView
+         * @description A Preparer's written reason on an accepted finding, who and when.
+         */
+        FindingReasonView: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: number;
+            /** Reason */
+            reason: string;
+            /** Subject */
+            subject: string;
+            /** Issuer */
+            issuer: string;
+            /** Name */
+            name: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         };
         /**
          * Findings
@@ -2242,7 +2423,7 @@ export interface components {
             reason_for_change?: string | null;
         };
         /** @enum {string} */
-        Kind: "coverage" | "check" | "ai" | "draft" | "test_step";
+        Kind: "coverage" | "check" | "ai" | "draft" | "test_step" | "draft_step" | "draft_criterion";
         /**
          * KindCounts
          * @description The Proposals of one kind in a run, by decision state. ``total`` is the sum of
@@ -2756,6 +2937,36 @@ export interface components {
              * @default false
              */
             witness_required: boolean;
+            step_source?: components["schemas"]["RowSource"] | null;
+            /**
+             * Candidates
+             * @default []
+             */
+            candidates: components["schemas"]["RowCandidate"][];
+            /**
+             * Findings
+             * @default []
+             */
+            findings: components["schemas"]["RowFindingView"][];
+            /**
+             * Changed
+             * @default false
+             */
+            changed: boolean;
+        };
+        /**
+         * ProtocolSource
+         * @description The Protocol Draft a Protocol was started from: pinned at creation, with the run, and
+         *     never re-synced in Draft, Submitted or Returned. A later revision never clears a warning
+         *     on it; Return or Withdraw it and start a new one from the latest revision.
+         */
+        ProtocolSource: {
+            /** Doc */
+            doc: string;
+            /** Rev */
+            rev: number;
+            /** Sha256 */
+            sha256: string;
         };
         /**
          * ProtocolUrs
@@ -2802,6 +3013,9 @@ export interface components {
             submission: components["schemas"]["SubmissionView"] | null;
             /** Submissions */
             submissions: components["schemas"]["SubmissionView"][];
+            source?: components["schemas"]["ProtocolSource"] | null;
+            /** Draft Steps */
+            draft_steps?: components["schemas"]["DraftStepView"][] | null;
         };
         /** QualificationCounts */
         QualificationCounts: {
@@ -3119,6 +3333,24 @@ export interface components {
         /** @enum {string} */
         RoundStatus: "open" | "returned_for_revision" | "ready_for_protocol";
         /**
+         * RowCandidate
+         * @description A Test Step of the site's Protocol Draft that stands for the row's requirement, with its
+         *     Acceptance Criterion and where each stands. Decided with ``recordDecision`` (accepted or
+         *     rejected) or edited with ``editDraftedTestStep``; an edit made in another Protocol does not
+         *     decide it here.
+         */
+        RowCandidate: {
+            step: components["schemas"]["DraftStepProposal"];
+            proposal: components["schemas"]["Proposal"];
+            criterion: components["schemas"]["DraftCriterionProposal"] | null;
+            criterion_proposal: components["schemas"]["Proposal"] | null;
+            mapping: components["schemas"]["DraftMappingView"] | null;
+            /** Ready */
+            ready: boolean;
+            /** Accepted */
+            accepted: boolean;
+        };
+        /**
          * RowDraft
          * @description A drafted Test Step of the row's requirement, as the run drafted it, and the Proposal it
          *     was imported as, decided with ``recordDecision`` (accepted or rejected).
@@ -3126,6 +3358,17 @@ export interface components {
         RowDraft: {
             draft: components["schemas"]["DraftedTestStep"];
             proposal: components["schemas"]["Proposal"];
+        };
+        /**
+         * RowFindingView
+         * @description A finding of the Protocol Draft about the row's requirement, its decision state and the
+         *     reasons written for it in this Protocol.
+         */
+        RowFindingView: {
+            finding: components["schemas"]["DraftCheckFinding"];
+            proposal: components["schemas"]["Proposal"];
+            /** Reasons */
+            reasons: components["schemas"]["FindingReasonView"][];
         };
         /** @enum {string} */
         RowKind: "undecided" | "vendor_reference" | "test_step";
@@ -3143,6 +3386,8 @@ export interface components {
             instrument: string | null;
             acceptance: components["schemas"]["Acceptance"] | null;
         };
+        /** @enum {string} */
+        RowSource: "draft" | "traceq_drafted" | "traceq_written";
         /**
          * RowTestStep
          * @description The one Test Step of a Test Step row.
@@ -3173,6 +3418,7 @@ export interface components {
              * @default false
              */
             witness_required: boolean;
+            source?: components["schemas"]["RowSource"] | null;
         };
         /**
          * RowsWithoutResultBlocker
@@ -3256,6 +3502,17 @@ export interface components {
         };
         /** @enum {string} */
         Stage: "IQ" | "OQ";
+        /**
+         * StartProtocol
+         * @description How a Protocol is started.
+         */
+        StartProtocol: {
+            /**
+             * From Draft
+             * @default false
+             */
+            from_draft: boolean;
+        };
         /** @enum {string} */
         State: "decided" | "changed" | "undecided";
         /**
@@ -3912,7 +4169,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StartProtocol"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {
@@ -4199,6 +4460,78 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mapDraftStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+                step: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftMapping"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocolView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    giveFindingReason: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                protocol_id: number;
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingReason"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

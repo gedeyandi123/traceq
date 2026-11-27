@@ -40,7 +40,7 @@ from traceq.assembly.missed import (
     UrsMissed,
     missed_of,
 )
-from traceq.assembly.rows import ProtocolRow, rows_of, shaped, step_of
+from traceq.assembly.rows import ProtocolRow, rows_of, shaped, step_of, unresolved_steps
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.proposals.decisions import Decision, Verdict
 from traceq.proposals.keys import digest
@@ -53,9 +53,18 @@ type Check = Literal[
     "no_test_step",
     "acceptance_not_shaped",
     "missed_undecided",
+    "finding_undecided",
+    "finding_reason_missing",
+    "stage_missing",
+    "draft_step_unresolved",
 ]
-"""The five submission checks, in the order the page lists them. The first four are row
-blockers; ``missed_undecided``: a printed number the run missed, without its disposition."""
+"""The submission checks, in the order the page lists them. The first four are row blockers;
+``missed_undecided``: a printed number the run missed, without its disposition. The last four
+apply to a Protocol started from the Protocol Draft only (ADR 0012, amended 26 November
+2026): ``finding_undecided``, ``finding_reason_missing`` and ``stage_missing`` are row
+blockers; ``draft_step_unresolved``: a Test Step of the pinned draft that maps to no
+requirement or to several, or that the citation check dropped, that no human mapped or
+rejected."""
 
 CHECKS: tuple[Check, ...] = (
     "coverage_undecided",
@@ -64,31 +73,49 @@ CHECKS: tuple[Check, ...] = (
     "acceptance_not_shaped",
     "missed_undecided",
 )
+DRAFT_CHECKS: tuple[Check, ...] = (
+    "finding_undecided",
+    "finding_reason_missing",
+    "stage_missing",
+    "draft_step_unresolved",
+)
 
 
 @dataclass(frozen=True)
 class Blocking:
-    """One submission check: the rows and the missed numbers it holds back."""
+    """One submission check: the rows, the missed numbers and the draft Test Steps it holds
+    back."""
 
     check: Check
     requirements: tuple[str, ...]
     numbers: tuple[Key, ...]
+    steps: tuple[str, ...] = ()
+    """For ``draft_step_unresolved``: the draft Test Step ids."""
 
     @property
     def count(self) -> int:
-        return len(self.requirements) + len(self.numbers)
+        return len(self.requirements) + len(self.numbers) + len(self.steps)
 
 
-def checklist(rows: list[ProtocolRow], urs: list[UrsMissed] | None) -> list[Blocking]:
-    """Every submission check, blocking or not, in ``CHECKS`` order."""
+def checklist(
+    rows: list[ProtocolRow],
+    urs: list[UrsMissed] | None,
+    *,
+    from_draft: bool = False,
+    unresolved: tuple[str, ...] = (),
+) -> list[Blocking]:
+    """Every submission check, blocking or not, in ``CHECKS`` order, then (``from_draft``: the
+    Protocol was started from the Protocol Draft) in ``DRAFT_CHECKS`` order. ``unresolved``:
+    the draft Test Steps that stand for no requirement and that nobody rejected."""
     numbers = tuple((u.doc, u.rev, m.number) for u in urs or [] for m in u.missed if m.blocking)
     return [
         Blocking(
             check,
             tuple(r.requirement.id for r in rows if check in r.blockers),
             numbers if check == "missed_undecided" else (),
+            unresolved if check == "draft_step_unresolved" else (),
         )
-        for check in CHECKS
+        for check in (*CHECKS, *(DRAFT_CHECKS if from_draft else ()))
     ]
 
 
@@ -394,13 +421,27 @@ _NO_ONE = Author(subject="", issuer="", name="")
 
 
 def draft_hash(
-    current: lifecycle.AssembledProtocol, rows: list[ProtocolRow], urs: list[UrsMissed] | None
+    current: lifecycle.AssembledProtocol,
+    rows: list[ProtocolRow],
+    urs: list[UrsMissed] | None,
+    unresolved: tuple[str, ...] = (),
 ) -> str | None:
     """``draft_hash_of`` the copy a submission would freeze now; ``None`` while a check of
-    ``checklist`` blocks it (there is nothing to submit yet)."""
-    if any(b.count for b in checklist(rows, urs)):
+    ``checklist`` blocks it (there is nothing to submit yet), and for a Protocol started from
+    the Protocol Draft, whose frozen copy is not built yet (``FROM_DRAFT_NOT_FROZEN``)."""
+    from_draft = current.draft is not None
+    if any(b.count for b in checklist(rows, urs, from_draft=from_draft, unresolved=unresolved)):
+        return None
+    if from_draft:
         return None
     return draft_hash_of(_copy(current, rows, urs, _NO_ONE))
+
+
+FROM_DRAFT_NOT_FROZEN = (
+    "a Protocol started from the Protocol Draft is frozen as a version 2 copy, which records the"
+    " source of each row, the findings, their reasons and the mappings: it is built by the"
+    " next ticket (S4a2, #388), and a version 1 copy would lose them"
+)
 
 
 # --- Submitting -----------------------------------------------------------------------
@@ -463,10 +504,16 @@ def submit(
     )
     rows = rows_of(session, current)
     urs = missed_of(session, protocol_id, check)
-    blocking = [b for b in checklist(rows, urs) if b.count]
+    from_draft = current.draft is not None
+    unresolved = tuple(unresolved_steps(session, current)) if from_draft else ()
+    blocking = [
+        b for b in checklist(rows, urs, from_draft=from_draft, unresolved=unresolved) if b.count
+    ]
     if blocking:
         listed = ", ".join(f"{b.check} ({b.count})" for b in blocking)
         raise Conflict(f"Protocol {protocol_id} cannot be submitted while it is blocked: {listed}")
+    if from_draft:
+        raise Conflict(f"Protocol {protocol_id} cannot be submitted yet: {FROM_DRAFT_NOT_FROZEN}")
     copy = _copy(current, rows, urs, _author(actor))
     if draft_hash_of(copy) != expected_draft_hash:
         raise Conflict(

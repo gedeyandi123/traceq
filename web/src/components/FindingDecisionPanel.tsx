@@ -11,6 +11,10 @@ import { FIELD_BASE_CLASS } from "@/components/ui/FormControls";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
 import type { DecideActionState } from "@/decisions/actions";
 
+/** The Proposal kinds the decision counts cover: the draft Test Steps of a Protocol started
+ * from the Protocol Draft are decided in the Protocol, not counted here. */
+type CountedKind = Exclude<Proposal["kind"], "draft_step" | "draft_criterion">;
+
 type DecisionsT = ReturnType<typeof useTranslations<"decisions">>;
 type MatrixT = ReturnType<typeof useTranslations<"matrix">>;
 
@@ -88,8 +92,8 @@ export function DecisionCountsSummary({
   progressKinds,
 }: {
   counts: DecisionCounts | undefined;
-  kinds: readonly Proposal["kind"][];
-  progressKinds?: readonly Proposal["kind"][];
+  kinds: readonly CountedKind[];
+  progressKinds?: readonly CountedKind[];
 }) {
   const td = useTranslations("decisions");
   const [open, setOpen] = useState(false);
