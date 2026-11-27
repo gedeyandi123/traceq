@@ -251,6 +251,27 @@ def upload_revision_being_read(session: Session, protocol: AssembledProtocol) ->
     ).scalar_one()
 
 
+def uploader_of_pinned(session: Session, protocol: AssembledProtocol) -> audit.Actor | None:
+    """Who uploaded the revision of the Protocol Draft the Protocol is pinned to, as the upload
+    queue records them (the uploader of that revision only, not of earlier ones). ``None`` for
+    a Protocol not started from the draft, and for a revision that arrived another way than an
+    upload (no job holds it)."""
+    if protocol.draft is None:
+        return None
+    row = (
+        session.execute(
+            text(
+                "SELECT subject, issuer, name FROM upload_jobs"
+                " WHERE equipment = :equipment AND rev = :rev"
+            ),
+            {"equipment": protocol.equipment, "rev": protocol.draft.rev},
+        )
+        .mappings()
+        .first()
+    )
+    return None if row is None else audit.actor_of_row(row)
+
+
 class PinnedBehind(Conflict):
     """The Protocol is pinned to an older revision of the Protocol Draft than the latest."""
 
@@ -263,10 +284,16 @@ class StaleDraftRead(Conflict):
     code = "stale_draft"
 
 
+class UploaderApproves(Conflict):
+    """The Approver uploaded the revision of the Protocol Draft the Protocol is pinned to."""
+
+    code = "uploader_approves"
+
+
 def conflict_code(e: Exception) -> str | None:
-    """The stable code of a refusal about the draft's revision, for the API to send alongside
-    its words; ``None`` for any other conflict."""
-    return e.code if isinstance(e, PinnedBehind | StaleDraftRead) else None
+    """The stable code of a refusal about the Protocol Draft (its revision, or who uploaded
+    it), for the API to send alongside its words; ``None`` for any other conflict."""
+    return e.code if isinstance(e, PinnedBehind | StaleDraftRead | UploaderApproves) else None
 
 
 def check_latest(session: Session, protocol: AssembledProtocol, expected: int | None) -> int | None:

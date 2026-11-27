@@ -38,6 +38,7 @@ const PROTOCOL_ERRORS: readonly ProtocolError[] = [
   "reauth_required",
   "stale_draft",
   "pinned_behind",
+  "uploader_approves",
   "failed",
 ];
 

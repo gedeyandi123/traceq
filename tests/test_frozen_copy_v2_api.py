@@ -720,14 +720,21 @@ def test_the_path_from_the_draft_to_a_started_execution(
 # --- The stale-draft check is race-free (spec #375, ticket #393) ----------------------
 
 
-def _queue_upload(fresh_database: Databases, rev: int, status: str = "queued") -> None:
+def _queue_upload(
+    fresh_database: Databases,
+    rev: int,
+    status: str = "queued",
+    actor: Actor | None = None,
+    sha: str = "b",
+) -> None:
+    actor = actor or Actor(subject="s", issuer="i", name="Ayu")
     with transaction(engine(fresh_database.app)) as session:
         job = store.accept(
             session,
-            Actor(subject="s", issuer="i", name="Ayu"),
+            actor,
             equipment="TP-201",
             rev=rev,
-            sha256="b" * 64,
+            sha256=sha * 64,
             size_bytes=1,
             pages=1,
             estimate=Decimal(0),
@@ -738,6 +745,7 @@ def _queue_upload(fresh_database: Databases, rev: int, status: str = "queued") -
                 text(
                     "UPDATE upload_jobs SET status = :s,"
                     " cost_usd = CASE WHEN :s = 'running' THEN NULL ELSE 0 END,"
+                    " run_id = CASE WHEN :s = 'succeeded' THEN 'a-run' END,"
                     " finished_at = CASE WHEN :s = 'running' THEN NULL ELSE clock_timestamp() END"
                     " WHERE id = :id"
                 ),
@@ -801,3 +809,60 @@ def test_the_check_waits_for_the_revision_being_written_under_the_equipment_lock
             refused = pending.result(timeout=30)
     assert refused.status_code == 409
     assert refused.headers["X-TraceQ-Conflict"] == "pinned_behind"
+
+
+# --- The uploader of the pinned revision may not approve (spec #375, ticket #393) ------
+
+
+def _uploader(demo_issuer: DemoIssuer) -> Actor:
+    """``other`` as the upload ledger names them."""
+    return Actor(subject="test-0099", issuer=demo_issuer.url, name="Eka Pratama")
+
+
+def test_the_uploader_of_the_pinned_draft_revision_may_not_approve_but_another_approver_may(
+    client: TestClient,
+    demo_issuer: DemoIssuer,
+    decider: dict[str, str],
+    approver: dict[str, str],
+    other: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    _queue_upload(fresh_database, 0, "succeeded", _uploader(demo_issuer))
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    refused = post_approve(client, other, protocol, view, 0)
+    assert refused.status_code == 409, refused.text
+    assert refused.headers["X-TraceQ-Conflict"] == "uploader_approves"
+    assert "uploaded the Protocol Draft revision 0" in refused.json()["detail"]
+    assert read(client, decider)["status"] == "submitted"
+    assert trail(fresh_database, "protocol")[-1].action == "protocol submitted"
+    r = post_approve(client, approver, protocol, view, 0)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "approved"
+
+
+def test_the_uploader_of_another_revision_than_the_pinned_one_may_approve(
+    client: TestClient,
+    demo_issuer: DemoIssuer,
+    decider: dict[str, str],
+    other: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    """Only the pinned revision counts: an earlier or a later upload by the Approver does not."""
+    _queue_upload(fresh_database, 0, "succeeded", sha="a")
+    _queue_upload(fresh_database, 1, "failed", _uploader(demo_issuer), sha="c")
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    r = post_approve(client, other, protocol, view, 0)
+    assert r.status_code == 200, r.text
+
+
+def test_a_revision_with_no_upload_job_names_no_uploader(
+    client: TestClient, decider: dict[str, str], other: dict[str, str], protocol: Any
+) -> None:
+    """A draft revision that arrived another way than an upload has no uploader to exclude."""
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    assert post_approve(client, other, protocol, view, 0).status_code == 200

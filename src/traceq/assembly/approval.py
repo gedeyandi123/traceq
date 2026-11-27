@@ -11,7 +11,9 @@ a Protocol started from the Protocol Draft (version 2 copy, spec #375, S4a2) the
 none of those who decided a finding of the run (rejections too), mapped a draft Test Step,
 decided a draft step or its criterion, or wrote a reason; and the approval is refused when a
 newer revision of the draft arrived since the Approver opened it, recording the latest revision
-in its event.
+in its event. The Approver also did not upload the revision of the draft the Protocol is pinned
+to (ADR 0012, amended 27 November 2026): the upload queue names the uploader, so this is read
+there, not from the copy (that revision only, not earlier ones).
 
 A return sends a Submitted Protocol back to Draft with a reason; its copy stays as history.
 Both take the per-Protocol lock and check the status inside it, so approve and return cannot
@@ -80,7 +82,7 @@ def _authors_v2(copy: ProtocolCopyV2) -> list[Author]:
     return found
 
 
-def _same(a: Author, actor: audit.Actor) -> bool:
+def _same(a: Author | audit.Actor, actor: audit.Actor) -> bool:
     return (a.subject, a.issuer) == (actor.subject, actor.issuer)
 
 
@@ -134,6 +136,12 @@ def approve(
             f"{actor.name} recorded part of what Protocol {protocol_id} rests on (a decision in"
             " force, a decision on a finding, a draft step mapping, a disposition of a missed"
             " number, a written Test Step or step attributes): an Approver did not"
+        )
+    uploader = draft_source.uploader_of_pinned(session, current)
+    if uploader is not None and _same(uploader, actor) and current.draft is not None:
+        raise draft_source.UploaderApproves(
+            f"{actor.name} uploaded the Protocol Draft revision {current.draft.rev} that Protocol"
+            f" {protocol_id} is pinned to: an Approver did not"
         )
     done = lifecycle.append(
         session, actor, protocol_id, "approved", None, latest_draft_rev=latest_rev

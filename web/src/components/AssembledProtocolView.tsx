@@ -34,6 +34,7 @@ export type ProtocolError =
   | "reauth_required"
   | "stale_draft"
   | "pinned_behind"
+  | "uploader_approves"
   | "failed";
 
 type Action = (formData: FormData) => void | Promise<void>;

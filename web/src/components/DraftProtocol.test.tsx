@@ -314,6 +314,19 @@ test("a Protocol pinned to an older revision says so in plain words, not as a ge
   expect(alert.textContent).not.toContain("Ditolak API");
 });
 
+test("the uploader of the pinned draft revision is told in plain words that they cannot approve", async () => {
+  const u = user();
+  const { rerender } = render(page(submittedFromDraft, { approver: true }));
+  await u.click(screen.getByRole("button", { name: "Setujui protokol" }));
+  await screen.findByRole("dialog");
+  rerender(page(submittedFromDraft, { approver: true, error: "uploader_approves" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const alert = screen.getByRole("alert");
+  expect(alert.textContent).toContain("Anda yang mengunggah revisi draf");
+  expect(alert.textContent).toContain("Minta Penyetuju lain");
+  expect(alert.textContent).not.toContain("Ditolak API");
+});
+
 test("the version 2 frozen copy shows its source, mapped steps, findings with decisions and reasons, and the labels", () => {
   render(page(submittedFromDraft));
   const copy = within(screen.getByTestId("copy-draft"));
