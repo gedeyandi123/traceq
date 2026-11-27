@@ -181,6 +181,8 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
             attempt_number=1,
             round_id=1,
             export_id=1,
+            job_id=1,
+            equipment="TP-201",
             requirement="URS-TP201-002",
             step="OQ-02",
         )
