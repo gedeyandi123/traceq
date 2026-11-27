@@ -12,7 +12,7 @@
     "prompt": "e7b77fbfedfb",
     "run_id": "20261119T021735Z-aa3429"
   },
-  "scorer_version": "0.8.0",
+  "scorer_version": "0.9.0",
   "equipment": "PW-001",
   "split": "held_out",
   "headline": {

@@ -6,6 +6,8 @@
 
 `PW-001/haiku-r10` holds the one live run on the held-out Equipment PW-001 (A5 of #133, below). It sits under a top-level `PW-001/` folder so that the held-out deny rules cover every path in it.
 
+Scorer 0.9.0 (#393) re-stamped, from a zero-call replay that changed nothing else, the r10 reports, r8's two reports, the PW-001 report and their baselines; r3's report keeps scorer 0.8.0 as the record of that run, because 0.9.0 compares OQ-24 and OQ-27 and marks its capability finding on OQ-04 `not_graded` (its baseline's ratcheted metrics re-score the same and carry 0.9.0), and older reports keep the scorer that scored them.
+
 `haiku-r8` (prompt `7b9b0d1f8dbd`) no longer replays on `main`, because its `extract` answers were recorded with the earlier prompt. It stays while the demo of the practitioner session runs on it (`docs/demo-runbook.md`); a demo reset from it needs a checkout before the r9 change (a975cae).
 
 `haiku-r7` and `corpus-0.1.0` stay for the tests that read them without replaying `extract` (`tests/test_eval_screen.py`, `test_completeness.py`) and as the recordings set of release 0.1.0; `test_promote.py` and `test_demo.py` replay r10 since the r10 prompt change. r7 is a top-up of r6, itself a top-up of r5: each folder is the previous one renamed, and each live run sent only the calls not yet recorded (r6: the repeated `link` votes of #88; r7: the `transport` votes of #90, after which r6's `link` votes were removed as unused). Every r5 `link` answer kept its key. `cost_usd` counts all calls; `live_cost_usd` is what was paid.

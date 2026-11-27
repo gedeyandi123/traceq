@@ -7,7 +7,7 @@
     "seed": 0,
     "answer_key_sha256": "0dd473b2d7087349a688dc23478175f965bbe9b5e193a0c3dc99453a893ffa5d"
   },
-  "scorer_version": "0.8.0",
+  "scorer_version": "0.9.0",
   "submission": {
     "name": "traceq",
     "model": "claude-haiku-5-5",
