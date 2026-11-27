@@ -26,6 +26,7 @@ from sqlalchemy import Engine
 
 from traceq.audit import Actor
 from traceq.db import transaction
+from traceq.db.ranges import BIGINT_MAX
 from traceq.identity import Principal
 from traceq.rounds import latest_draft_revision
 from traceq.uploads import checks, store
@@ -36,8 +37,6 @@ CLOUD_NOTICE = (
     " synthetic data (ADR 0001): never a real plant document."
 )
 
-
-_BIGINT_MAX = 2**63 - 1  # a job id beyond it is a 422, not a database error
 
 JobStatus = Literal["queued", "running", "succeeded", "failed"]
 
@@ -235,7 +234,7 @@ def create_router(
 
     @router.get("/uploads/{job_id}", operation_id="getDraftUpload")
     def get_upload(
-        job_id: Annotated[int, Path(ge=1, le=_BIGINT_MAX)],
+        job_id: Annotated[int, Path(ge=1, le=BIGINT_MAX)],
         who: Annotated[Principal, Depends(principal)],
     ) -> UploadJobView:
         """Where an upload stands: ``queued``, ``running``, ``succeeded`` (with its run) or

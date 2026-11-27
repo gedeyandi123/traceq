@@ -137,8 +137,8 @@ def approve(
             " force, a decision on a finding, a draft step mapping, a disposition of a missed"
             " number, a written Test Step or step attributes): an Approver did not"
         )
-    uploader = draft_source.uploader_of_pinned(session, current)
-    if uploader is not None and _same(uploader, actor) and current.draft is not None:
+    uploaders = draft_source.uploaders_of_pinned(session, current)
+    if any(_same(u, actor) for u in uploaders) and current.draft is not None:
         raise draft_source.UploaderApproves(
             f"{actor.name} uploaded the Protocol Draft revision {current.draft.rev} that Protocol"
             f" {protocol_id} is pinned to: an Approver did not"

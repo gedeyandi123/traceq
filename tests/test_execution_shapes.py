@@ -5,6 +5,7 @@ keeps its meaning."""
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -20,7 +21,14 @@ from traceq.execution.results import (
 from traceq.review.printed import Limit, read_printed
 from traceq.review.printed import Tolerance as Printed
 from traceq.traceability.ambiguity import Ambiguous
-from traceq.traceability.values import ExclusiveRange, Range, Text, ToleranceBand
+from traceq.traceability.values import (
+    ExclusiveRange,
+    Number,
+    Range,
+    Text,
+    ToleranceBand,
+    Value,
+)
 
 
 def _verdict(acceptance: Acceptance, x: float) -> str:
@@ -163,4 +171,46 @@ def test_deviation_text_states_the_new_shapes() -> None:
     assert (
         _format_acceptance(ToleranceBand(nominal=380, tolerance=10, tolerance_unit="%", unit="V"))
         == "380.0 V ± 10.0 %"
+    )
+
+
+# --- A value is a finite number (audit C10) ----------------------------------------------
+
+_NOT_FINITE = [float("nan"), float("inf"), float("-inf")]
+
+
+@pytest.mark.parametrize("bad", _NOT_FINITE)
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda x: Range(min=x, unit="°C"),
+        lambda x: Range(max=x, unit="°C"),
+        lambda x: ExclusiveRange(max=x, max_exclusive=True, unit="µm"),
+        lambda x: ToleranceBand(nominal=x, tolerance=1, tolerance_unit="V", unit="V"),
+        lambda x: ToleranceBand(nominal=1, tolerance=x, tolerance_unit="V", unit="V"),
+        lambda x: Number(value=x, unit="V"),
+    ],
+)
+def test_a_value_that_is_not_a_finite_number_is_refused(build: Any, bad: float) -> None:
+    with pytest.raises(ValidationError, match="finite"):
+        build(bad)
+
+
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity"])
+def test_a_stored_value_holding_nan_or_infinity_in_json_is_refused(literal: str) -> None:
+    raw = f'{{"type": "number", "value": {literal}, "unit": "V"}}'
+    with pytest.raises(ValidationError):
+        TypeAdapter(Value).validate_json(raw)
+
+
+def test_a_finite_value_dumps_as_it_did_so_stored_hashes_stay() -> None:
+    """The option only refuses values: what a finite value dumps (and so every hash of a
+    stored copy) is unchanged."""
+    dumped = [
+        Range(min=-0.5, max=1e300, unit="°C").model_dump(mode="json"),
+        Number(value=0.0, unit="V").model_dump(mode="json"),
+    ]
+    assert json.dumps(dumped, sort_keys=True) == (
+        '[{"max": 1e+300, "min": -0.5, "type": "range", "unit": "\\u00b0C"},'
+        ' {"type": "number", "unit": "V", "value": 0.0}]'
     )

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Path as PathParam
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -53,6 +54,7 @@ from traceq.assembly.rows import (
 from traceq.assembly.submission import Check, ProtocolCopy, ProtocolCopyV2
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.db import transaction
+from traceq.db.ranges import BIGINT_MAX, INTEGER_MAX
 from traceq.identity import Principal, reauthentication_required
 from traceq.proposals import decisions
 from traceq.proposals.api import Proposal, actor_of, proposal_view
@@ -69,6 +71,15 @@ from traceq.runs.schemas import (
 )
 from traceq.traceability.coverage import CoverageClass
 from traceq.traceability.values import Value
+
+ProtocolId = Annotated[int, PathParam(ge=1, le=BIGINT_MAX)]
+"""A Protocol id in a path: beyond the ``bigint`` range it is a 422, not a 500."""
+ProposalId = Annotated[int, PathParam(ge=1, le=BIGINT_MAX)]
+"""A Proposal id in a path, bounded the same way."""
+Rev = Annotated[int, Field(ge=0, le=INTEGER_MAX)]
+"""A document revision number in a body: within the ``integer`` column that stores it."""
+EventId = Annotated[int, Field(ge=1, le=BIGINT_MAX)]
+"""An event id in a body: within the ``bigint`` range."""
 
 
 class _Model(BaseModel):
@@ -438,11 +449,11 @@ class Withdrawal(_Model):
 class Approval(_Model):
     """What the Approver read: approval is bound to that submission and its hash."""
 
-    submission_event_id: int
+    submission_event_id: EventId
     """The ``event_id`` of the current submission."""
     hash: str
     """The ``hash`` of the current submission's frozen copy."""
-    expected_latest_draft_rev: int | None = None
+    expected_latest_draft_rev: Rev | None = None
     """For a Protocol started from the draft: the ``latest_draft_rev`` the Approver's view
     showed; needed (422 without it). 409 when the Protocol is pinned to an older revision than
     the latest (whatever was read), or when another than the latest was read. Ignored otherwise."""
@@ -453,7 +464,7 @@ class SubmitRequest(_Model):
 
     expected_draft_hash: str = Field(min_length=1)
     """The ``draft_hash`` of the Protocol view the Preparer was reading."""
-    expected_latest_draft_rev: int | None = None
+    expected_latest_draft_rev: Rev | None = None
     """For a Protocol started from the draft: the ``latest_draft_rev`` of that view; needed
     (422 without it). 409 when the Protocol is pinned to an older revision than the latest
     (whatever was read), or when another than the latest was read. Ignored otherwise."""
@@ -483,7 +494,7 @@ class MissedDisposition(_Model):
     later one replaces it, and every one is kept."""
 
     doc: str
-    rev: int
+    rev: Rev
     number: str
     """URS document, revision and printed number: what the disposition is keyed by."""
     kind: MissedKind
@@ -879,7 +890,7 @@ def create_router(
         status_code=201,
     )
     def write_test_step(
-        protocol_id: int,
+        protocol_id: ProtocolId,
         requirement: str,
         body: NewWrittenVersion,
         who: Annotated[Principal, Depends(principal)],
@@ -907,8 +918,8 @@ def create_router(
         status_code=201,
     )
     def edit_drafted_test_step(
-        protocol_id: int,
-        proposal_id: int,
+        protocol_id: ProtocolId,
+        proposal_id: ProposalId,
         body: DraftEdit,
         who: Annotated[Principal, Depends(principal)],
     ) -> ProtocolView:
@@ -939,7 +950,9 @@ def create_router(
         status_code=201,
     )
     def decide_missed_number(
-        protocol_id: int, body: MissedDisposition, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId,
+        body: MissedDisposition,
+        who: Annotated[Principal, Depends(principal)],
     ) -> ProtocolView:
         """Records the disposition of a printed requirement number the Protocol's run missed,
         in a Protocol in Draft status: ``not_a_requirement`` or ``not_tested_here``, with a
@@ -971,7 +984,7 @@ def create_router(
 
     @router.post("/protocols/{protocol_id}/submit", operation_id="submitProtocol")
     def submit_protocol(
-        protocol_id: int, body: SubmitRequest, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: SubmitRequest, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         """Submits a Protocol in Draft status that no check blocks; the submitter becomes its
         Preparer. Stores the frozen copy and its hash in the ``submitted`` event, with its
@@ -1013,7 +1026,7 @@ def create_router(
 
     @router.post("/protocols/{protocol_id}/withdraw", operation_id="withdrawProtocol")
     def withdraw_protocol(
-        protocol_id: int, body: Withdrawal, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: Withdrawal, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         """Withdraws a Protocol in Draft status, with a reason and its Audit Trail entry, so
         a new Protocol of the Equipment can be started. Needs the deciding role."""
@@ -1048,7 +1061,7 @@ Submitted. Once approved, no new Protocol of the Equipment can be started (a new
 step 6). With its Audit Trail entry. Needs the approving role.""",
     )
     def approve_protocol(
-        protocol_id: int, body: Approval, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: Approval, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         if not who.may_approve:
             raise HTTPException(403, "approving a Protocol needs the approving role")
@@ -1078,7 +1091,7 @@ step 6). With its Audit Trail entry. Needs the approving role.""",
 
     @router.post("/protocols/{protocol_id}/return", operation_id="returnProtocol")
     def return_protocol(
-        protocol_id: int, body: Return, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: Return, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         """Returns a Submitted Protocol to Draft with a reason (422 without one) and its Audit
         Trail entry. It reads the current decisions again; the returned copy stays readable in
@@ -1101,7 +1114,7 @@ step 6). With its Audit Trail entry. Needs the approving role.""",
         operation_id="setRowAttributes",
     )
     def set_row_attributes(
-        protocol_id: int,
+        protocol_id: ProtocolId,
         requirement: str,
         body: StepAttributesUpdate,
         who: Annotated[Principal, Depends(principal)],
@@ -1133,7 +1146,7 @@ step 6). With its Audit Trail entry. Needs the approving role.""",
         operation_id="mapDraftStep",
     )
     def map_draft_step(
-        protocol_id: int,
+        protocol_id: ProtocolId,
         step: str,
         body: DraftMapping,
         who: Annotated[Principal, Depends(principal)],
@@ -1163,8 +1176,8 @@ step 6). With its Audit Trail entry. Needs the approving role.""",
         status_code=201,
     )
     def give_finding_reason(
-        protocol_id: int,
-        proposal_id: int,
+        protocol_id: ProtocolId,
+        proposal_id: ProposalId,
         body: FindingReason,
         who: Annotated[Principal, Depends(principal)],
     ) -> ProtocolView:

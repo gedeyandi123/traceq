@@ -734,7 +734,7 @@ def _queue_upload(
             actor,
             equipment="TP-201",
             rev=rev,
-            sha256=sha * 64,
+            sha256=sha if len(sha) == 64 else sha * 64,
             size_bytes=1,
             pages=1,
             estimate=Decimal(0),
@@ -819,6 +819,14 @@ def _uploader(demo_issuer: DemoIssuer) -> Actor:
     return Actor(subject="test-0099", issuer=demo_issuer.url, name="Eka Pratama")
 
 
+def _pinned_sha(fresh_database: Databases) -> str:
+    """The SHA-256 of the Protocol Draft revision the Protocol is pinned to."""
+    with transaction(engine(fresh_database.app)) as session:
+        return str(
+            session.execute(text("SELECT draft_sha256 FROM assembled_protocols")).scalar_one()
+        )
+
+
 def test_the_uploader_of_the_pinned_draft_revision_may_not_approve_but_another_approver_may(
     client: TestClient,
     demo_issuer: DemoIssuer,
@@ -828,7 +836,9 @@ def test_the_uploader_of_the_pinned_draft_revision_may_not_approve_but_another_a
     protocol: Any,
     fresh_database: Databases,
 ) -> None:
-    _queue_upload(fresh_database, 0, "succeeded", _uploader(demo_issuer))
+    _queue_upload(
+        fresh_database, 0, "succeeded", _uploader(demo_issuer), sha=_pinned_sha(fresh_database)
+    )
     ready(client, decider, protocol)
     view = submitted(client, decider, protocol)
     refused = post_approve(client, other, protocol, view, 0)
@@ -868,7 +878,7 @@ def test_a_revision_with_no_upload_job_names_no_uploader(
     assert post_approve(client, other, protocol, view, 0).status_code == 200
 
 
-def test_a_failed_upload_at_the_pinned_revision_excludes_nobody(
+def test_a_failed_upload_of_other_bytes_at_the_pinned_revision_excludes_nobody(
     client: TestClient,
     demo_issuer: DemoIssuer,
     decider: dict[str, str],
@@ -876,8 +886,130 @@ def test_a_failed_upload_at_the_pinned_revision_excludes_nobody(
     protocol: Any,
     fresh_database: Databases,
 ) -> None:
-    """A failed job registered no revision, so its uploader is not the uploader of the pin."""
+    """The uploader is found by the bytes of the pin, not by its revision number."""
     _queue_upload(fresh_database, 0, "failed", _uploader(demo_issuer))
     ready(client, decider, protocol)
     view = submitted(client, decider, protocol)
     assert post_approve(client, other, protocol, view, 0).status_code == 200
+
+
+def test_the_uploader_of_a_failed_job_whose_run_was_imported_may_not_approve(
+    client: TestClient,
+    demo_issuer: DemoIssuer,
+    decider: dict[str, str],
+    other: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    """A job can fail after its run folder was written (its import failed); importing that
+    folder by hand registers the uploaded bytes, and their uploader is still the uploader of
+    the pin (audit C4/S1/S6)."""
+    _queue_upload(
+        fresh_database, 0, "failed", _uploader(demo_issuer), sha=_pinned_sha(fresh_database)
+    )
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    refused = post_approve(client, other, protocol, view, 0)
+    assert refused.status_code == 409, refused.text
+    assert refused.headers["X-TraceQ-Conflict"] == "uploader_approves"
+
+
+def test_two_uploads_at_the_pinned_revision_name_the_uploader_of_the_pinned_bytes(
+    client: TestClient,
+    demo_issuer: DemoIssuer,
+    decider: dict[str, str],
+    approver: dict[str, str],
+    other: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    """A failed revision is given again (audit C1): two jobs then share it, with other bytes.
+    Only the uploader of the bytes the Protocol is pinned to is refused."""
+    _queue_upload(fresh_database, 0, "failed", _uploader(demo_issuer), sha="c")
+    _queue_upload(fresh_database, 0, "succeeded", sha=_pinned_sha(fresh_database))
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    assert post_approve(client, other, protocol, view, 0).status_code == 200
+
+
+def test_the_uploader_of_the_pinned_bytes_is_refused_when_another_job_shares_the_revision(
+    client: TestClient,
+    demo_issuer: DemoIssuer,
+    decider: dict[str, str],
+    other: dict[str, str],
+    protocol: Any,
+    fresh_database: Databases,
+) -> None:
+    _queue_upload(
+        fresh_database, 0, "failed", _uploader(demo_issuer), sha=_pinned_sha(fresh_database)
+    )
+    _queue_upload(fresh_database, 0, "succeeded", sha="c")
+    ready(client, decider, protocol)
+    view = submitted(client, decider, protocol)
+    refused = post_approve(client, other, protocol, view, 0)
+    assert refused.status_code == 409, refused.text
+    assert refused.headers["X-TraceQ-Conflict"] == "uploader_approves"
+
+
+# --- Ids and revisions beyond the database range are a 422, not a 500 (audit C9/S8) ------
+
+_TOO_BIG = 2**63
+_ROUTES = [
+    ("post", "/protocols/{p}/test-steps/R001", {"test_step": None}),
+    ("post", "/protocols/{p}/drafts/{q}/edit", {}),
+    ("post", "/protocols/{p}/missed-numbers", {}),
+    ("post", "/protocols/{p}/submit", {"expected_draft_hash": "x"}),
+    ("post", "/protocols/{p}/withdraw", {"reason": "r"}),
+    ("post", "/protocols/{p}/approve", {"submission_event_id": 1, "hash": "h"}),
+    ("post", "/protocols/{p}/return", {"reason": "r"}),
+    ("put", "/protocols/{p}/rows/R001/attributes", {}),
+    ("put", "/protocols/{p}/draft-steps/S1/mapping", {"requirement": "R001"}),
+    ("post", "/protocols/{p}/findings/{q}/reason", {"reason": "r"}),
+]
+
+
+_OUT_OF_RANGE = [
+    (method, path.format(p=p, q=q), body)
+    for method, path, body in _ROUTES
+    for p, q in [(_TOO_BIG, 1), (0, 1), (1, _TOO_BIG), (1, 0)]
+    if "{q}" in path or q == 1
+]
+
+
+@pytest.mark.parametrize(("method", "path", "body"), _OUT_OF_RANGE)
+def test_a_protocol_or_proposal_id_out_of_range_is_a_client_error(
+    client: TestClient, decider: dict[str, str], method: str, path: str, body: dict[str, Any]
+) -> None:
+    r = client.request(method, path, json=body, headers=decider)
+    assert r.status_code == 422, r.text
+    assert any(e["loc"][0] == "path" for e in r.json()["detail"])
+
+
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [
+        (
+            "/protocols/1/missed-numbers",
+            {
+                "doc": "U",
+                "rev": 2**31,
+                "number": "N",
+                "kind": "not_a_requirement",
+                "justification": "j",
+            },
+        ),
+        ("/protocols/1/submit", {"expected_draft_hash": "x", "expected_latest_draft_rev": 2**31}),
+        ("/protocols/1/submit", {"expected_draft_hash": "x", "expected_latest_draft_rev": -1}),
+        ("/protocols/1/approve", {"submission_event_id": _TOO_BIG, "hash": "h"}),
+        (
+            "/protocols/1/approve",
+            {"submission_event_id": 1, "hash": "h", "expected_latest_draft_rev": 2**31},
+        ),
+    ],
+)
+def test_a_revision_or_event_id_out_of_range_in_the_body_is_a_client_error(
+    client: TestClient, decider: dict[str, str], path: str, body: dict[str, Any]
+) -> None:
+    r = client.post(path, json=body, headers=decider)
+    assert r.status_code == 422, r.text
+    assert any(e["loc"][0] == "body" for e in r.json()["detail"])
