@@ -26,7 +26,14 @@ from sqlalchemy.orm import Session
 
 from traceq import audit
 from traceq.proposals import decisions
-from traceq.proposals.store import PROPOSALS, RUN_PROPOSALS, RUNS, Imported, RunFiles
+from traceq.proposals.store import (
+    PROPOSALS,
+    RUN_PROPOSALS,
+    RUNS,
+    Imported,
+    RunFiles,
+    draft_document,
+)
 from traceq.reports import (
     PRE_REVIEW_TEMPLATE_VERSIONS,
     TEMPLATE_VERSION,
@@ -44,7 +51,14 @@ from traceq.reports import (
     render_pre_review_pdf,
     snapshot_hash,
 )
-from traceq.rounds.diff import RoundDiff, RoundDoc, RoundFindingItem, compute_round_diff
+from traceq.rounds.diff import (
+    FindingLabel,
+    PreviousFinding,
+    RoundDiff,
+    RoundDoc,
+    RoundFindingItem,
+    compute_round_diff,
+)
 from traceq.runs.api import FINDINGS_FILE, RUN_FILE, find_run, read_served
 from traceq.runs.completeness import COMPLETENESS_FILE
 from traceq.runs.schemas import Completeness, Findings
@@ -264,33 +278,10 @@ def _extract_documents(run: RunFiles) -> list[dict[str, Any]]:
             }
         )
 
-    rp = meta.get("review_package")
-    rp_doc: object = cast(dict[str, Any], rp).get("document") if isinstance(rp, dict) else None
-    if isinstance(rp_doc, dict):
-        rp_d = cast(dict[str, Any], rp_doc)
-        doc_id = rp_d.get("doc_id")
-        rev = rp_d.get("rev")
-        sha = rp_d.get("sha256")
-        if doc_id is not None and rev is not None and sha is not None:
-            rows.append(
-                {
-                    "doc_id": str(doc_id),
-                    "rev": int(rev),
-                    "doc_type": rp_d.get("type") or rp_d.get("doc_type") or "protocol_draft",
-                    "source": "review_package_draft",
-                    "sha256": str(sha),
-                }
-            )
-    elif run.draft is not None:
-        d = run.draft.document
+    drafted = draft_document(run)
+    if drafted is not None:
         rows.append(
-            {
-                "doc_id": d.doc_id,
-                "rev": d.rev,
-                "doc_type": "protocol_draft",
-                "source": "review_package_draft",
-                "sha256": d.sha256,
-            }
+            {**drafted, "doc_type": "protocol_draft", "source": "review_package_draft"},
         )
     return rows
 
@@ -441,43 +432,63 @@ def _load_round(session: Session, round_row: RowMapping) -> ReviewRound:
     )
 
 
+def _labels_for_run(session: Session, run_id: str) -> dict[int, FindingLabel]:
+    """What names each finding of a run, from its subject key: type, Test Step (or table row)
+    and requirement."""
+    labels: dict[int, FindingLabel] = {}
+    for row in session.execute(
+        select(PROPOSALS.c.id, PROPOSALS.c.subject)
+        .select_from(PROPOSALS.join(RUN_PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id))
+        .where(RUN_PROPOSALS.c.run_id == run_id)
+        .where(PROPOSALS.c.kind.in_(_FINDING_KINDS))
+    ).mappings():
+        subject = cast(dict[str, Any], row["subject"])
+        labels[int(row["id"])] = FindingLabel(
+            finding_type=subject.get("type"),
+            test_step=subject.get("test_step") or subject.get("row"),
+            requirement=subject.get("requirement"),
+        )
+    return labels
+
+
 def _finding_items_for_run(session: Session, run_id: str) -> list[RoundFindingItem]:
     standings = decisions.standings(session, run_id) or []
-    subject_hashes = {
-        int(row["id"]): str(row["subject_hash"])
-        for row in session.execute(
-            select(PROPOSALS.c.id, PROPOSALS.c.subject_hash)
-            .select_from(
-                PROPOSALS.join(RUN_PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
-            )
-            .where(RUN_PROPOSALS.c.run_id == run_id)
-            .where(PROPOSALS.c.kind.in_(_FINDING_KINDS))
-        ).mappings()
-    }
+    labels = _labels_for_run(session, run_id)
     items: list[RoundFindingItem] = []
     for s in standings:
-        if s.kind not in _FINDING_KINDS:
-            continue
-        sh = subject_hashes.get(s.proposal_id)
-        if sh is None:
+        if s.kind not in _FINDING_KINDS or s.proposal_id not in labels:
             continue
         decided_run_id = s.decisions[0].run_id if s.decisions else None
         items.append(
-            RoundFindingItem(subject_hash=sh, state=s.state, decided_run_id=decided_run_id)
+            RoundFindingItem(
+                proposal_id=s.proposal_id,
+                content_hash=s.content_hash,
+                state=s.state,
+                decided_run_id=decided_run_id,
+                kind=s.kind,
+                label=labels[s.proposal_id],
+            )
         )
     return items
 
 
-def _finding_hashes_for_run(session: Session, run_id: str) -> list[str]:
+def _previous_findings_for_run(session: Session, run_id: str) -> list[PreviousFinding]:
+    labels = _labels_for_run(session, run_id)
     return [
-        str(row["subject_hash"])
+        PreviousFinding(
+            proposal_id=int(row["proposal_id"]),
+            content_hash=str(row["content_hash"]),
+            kind=str(row["kind"]),
+            label=labels.get(int(row["proposal_id"])),
+        )
         for row in session.execute(
-            select(PROPOSALS.c.subject_hash)
+            select(RUN_PROPOSALS.c.proposal_id, RUN_PROPOSALS.c.content_hash, PROPOSALS.c.kind)
             .select_from(
                 PROPOSALS.join(RUN_PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
             )
             .where(RUN_PROPOSALS.c.run_id == run_id)
             .where(PROPOSALS.c.kind.in_(_FINDING_KINDS))
+            .order_by(RUN_PROPOSALS.c.seq)
         ).mappings()
     ]
 
@@ -502,7 +513,7 @@ def _diff_for_round(session: Session, current: ReviewRound) -> RoundDiff | None:
         current_run_id=current.run_id,
         previous_docs=[RoundDoc(d.doc_id, d.rev, d.sha256) for d in prev_docs],
         current_docs=[RoundDoc(d.doc_id, d.rev, d.sha256) for d in current.documents],
-        previous_finding_hashes=_finding_hashes_for_run(session, prev_run_id),
+        previous_findings=_previous_findings_for_run(session, prev_run_id),
         current_findings=_finding_items_for_run(session, current.run_id),
     )
 

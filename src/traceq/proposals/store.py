@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import (
     BigInteger,
@@ -92,11 +92,37 @@ def _count(session: Session, run_id: str) -> int:
     return session.execute(q).scalar_one()
 
 
+def draft_document(run: RunFiles) -> dict[str, Any] | None:
+    """The Protocol Draft a Review Package run read, as ``{doc_id, rev, sha256}``: the run's
+    own record of it, else the document its ``protocol_draft.json`` names."""
+    package: Any = run.meta.get("review_package")
+    named: Any = None
+    if isinstance(package, dict):
+        named = cast(dict[str, Any], package).get("document")
+    if isinstance(named, dict):
+        found = cast(dict[str, Any], named)
+        doc_id, rev, sha = found.get("doc_id"), found.get("rev"), found.get("sha256")
+        if doc_id is not None and rev is not None and sha is not None:
+            return {"doc_id": str(doc_id), "rev": int(rev), "sha256": str(sha)}
+    if run.draft is not None:
+        d = run.draft.document
+        return {"doc_id": d.doc_id, "rev": d.rev, "sha256": d.sha256}
+    return None
+
+
 def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
-    """Adds the run and its Proposals in the session's transaction."""
+    """Adds the run and its Proposals in the session's transaction. The run's documents are the
+    corpus documents it read and, for a Review Package run, its Protocol Draft: re-uploading a
+    revision is a run that holds that revision again, not one that removed it."""
     meta = run.meta
     run_id = str(meta["run_id"])
     equipment = str(meta["corpus"]["equipment"])
+    drafted = draft_document(run)
+    documents: list[Any] = list(meta["corpus"]["documents"])
+    if drafted is not None and not any(
+        d.get("doc_id") == drafted["doc_id"] and d.get("rev") == drafted["rev"] for d in documents
+    ):
+        documents.append(drafted)
     provenance: dict[str, Any] = {
         "equipment": equipment,
         "created": str(meta["created"]),
@@ -104,7 +130,7 @@ def import_run(session: Session, actor: audit.Actor, run: RunFiles) -> Imported:
         "mode": str(meta["mode"]),
         "pipeline_version": str(meta["pipeline_version"]),
         "prompts": meta["prompts"],
-        "documents": meta["corpus"]["documents"],
+        "documents": documents,
     }
     completeness_json = (
         None if run.completeness is None else run.completeness.model_dump(mode="json")

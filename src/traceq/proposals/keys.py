@@ -11,12 +11,19 @@ rests on. Both follow the spec's table:
   Content = detail text, cited site rule.
 - AI Finding: key = Equipment, layer, type, and its citations as a set. Content = detail text.
 - Draft finding (a Check Finding, layer Rule, on the Protocol Draft of a Review Package run,
-  spec #196): key = Equipment, layer, type, draft document and revision, the Test Step id (or
-  the traceability row's requirement id for ``requirement_not_tested``) and the requirement it
-  was compared with, since a Test Step the table lists under two requirements gives a finding
-  for each. Content = detail text, the rule (its type) and the values compared (AC and URS
-  limit as parsed). No quote text enters either: a re-run whose quote differs only in length
-  is the same Proposal with the same content, while a change in a compared value asks again.
+  spec #196, #375): key = Equipment, layer, type, draft document id (not its revision, so a
+  finding is the same finding across revisions), the Test Step id (or the traceability row's
+  requirement id for ``requirement_not_tested``), the requirement it was compared with (a
+  Test Step the table lists under two requirements gives a finding for each) and the cited
+  locations (document and page of each citation, no revision, no quote text), so two findings
+  of one Test Step and type are told apart by where they cite, not by order; only two findings
+  citing the same pages fall back to their order. Content = detail text, the rule (its type),
+  the values compared (AC, URS limit, capability as parsed) and what the finding rests on: the
+  Test Step as read (the requirements its header prints, its Acceptance Criterion as printed
+  and as parsed) and its requirement mapping (the requirements the table traces it to), or
+  for a table row its requirement and Test Step ids. No quote text enters either: a re-run
+  whose quote differs only in length is the same Proposal with the same content, while a
+  change in a Test Step, its mapping or its criterion asks again.
 - Drafted Test Step (``drafts.json``, spec #247): key = Equipment, requirement id. Content =
   the URS document and revision the requirement is printed in, description, method,
   instrument, the AC value, the AC citation's document, revision and page (no quote text) and
@@ -152,6 +159,32 @@ def _read(v: PrintedRead | None) -> JsonObject | None:
     return None if v is None else v.model_dump(mode="json", exclude_none=True)
 
 
+def _locations(cites: tuple[Cite, ...]) -> list[JsonObject]:
+    """Where a finding cites, as a set: document and page of each citation. The revision and
+    the quote are left out, so a finding keeps its identity across draft revisions and re-runs."""
+    return _as_set([{"doc": c.doc, "page": c.page} for c in cites])
+
+
+def _rests_on(draft: ProtocolDraft, f: DraftCheckFinding) -> JsonObject:
+    """What a decision on a draft finding rests on besides the finding's own values: the Test
+    Step as read, its Acceptance Criterion and its requirement mapping, or the table row."""
+    if f.test_step is not None:
+        step = next((s for s in draft.test_steps if s.id == f.test_step), None)
+        if step is None:
+            return {"test_step": f.test_step}
+        ac = step.acceptance
+        return {
+            "test_step": step.id,
+            "header_requirements": list(step.requirements),
+            "acceptance": None if ac is None else {"printed": ac.printed, "value": _read(ac.value)},
+            "mapped_to": [t.requirement for t in step.traced],
+        }
+    row = next((r for r in draft.trace_rows if r.requirement == f.row), None)
+    if row is None:
+        return {"row": f.row}
+    return {"row": row.requirement, "test_steps": list(row.test_steps)}
+
+
 def _draft(
     equipment: str, draft: ProtocolDraft, f: DraftCheckFinding
 ) -> tuple[JsonObject, JsonObject]:
@@ -161,17 +194,17 @@ def _draft(
         "layer": f.layer,
         "type": f.type,
         "doc": draft.document.doc_id,
-        "rev": draft.document.rev,
         **where,
         "requirement": f.requirement,
+        "cited": _locations(f.citations),
     }
     content = {
         "detail": f.detail,
         "rule": f.type,
         "ac": _read(f.ac),
         "urs_limit": _read(f.urs_limit),
-        # Only a finding that has one, so the hash of an older finding does not move.
         **({"capability": _read(f.capability)} if f.capability is not None else {}),
+        "rests_on": _rests_on(draft, f),
     }
     return subject, content
 

@@ -441,7 +441,15 @@ export function RoundsWorkbench({
                     <div className="flex items-center justify-between gap-2">
                       <dt className="text-ink-muted">{t("reviewRounds.diffFindingsPersisted")}</dt>
                       <dd className="m-0 font-semibold text-warn tabular-nums">
-                        {data.diff.findings_persisted}
+                        {data.diff.findings_persisted - data.diff.findings_persisted_changed}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-ink-muted">
+                        {t("reviewRounds.diffFindingsPersistedChanged")}
+                      </dt>
+                      <dd className="m-0 font-semibold text-warn tabular-nums">
+                        {data.diff.findings_persisted_changed}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -480,6 +488,27 @@ export function RoundsWorkbench({
                     </div>
                   </dl>
                 </div>
+              </div>
+            )}
+            {data.diff && data.diff.findings.some((f) => f.change !== "persisted") && (
+              <div className="mt-3 rounded-lg border border-border bg-surface p-3.5 shadow-xs">
+                <h3 className="m-0 text-xs font-semibold tracking-wide text-ink-muted uppercase">
+                  {t("reviewRounds.diffFindingsListTitle")}
+                </h3>
+                <ul className="mt-2.5 mb-0 list-none space-y-1.5 p-0 text-xs">
+                  {data.diff.findings
+                    .filter((f) => f.change !== "persisted")
+                    .map((f) => (
+                      <li key={`${f.proposal_id}-${f.change}`} className="flex gap-2">
+                        <span className="w-32 shrink-0 font-semibold text-ink">
+                          {t(`reviewRounds.diffFindingChange.${f.change}`)}
+                        </span>
+                        <span className="text-ink-muted">
+                          {[f.finding_type, f.test_step, f.requirement].filter(Boolean).join(" · ")}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
               </div>
             )}
           </section>

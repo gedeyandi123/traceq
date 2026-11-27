@@ -1770,6 +1770,25 @@ export interface components {
             /** Copy Hash */
             copy_hash?: string | null;
         };
+        /** @enum {string} */
+        FindingChange: "resolved" | "persisted" | "persisted_changed" | "new";
+        /**
+         * FindingChangeView
+         * @description One finding of either round and what became of it between them.
+         */
+        FindingChangeView: {
+            /** Proposal Id */
+            proposal_id: number;
+            /** Kind */
+            kind: string;
+            change: components["schemas"]["FindingChange"];
+            /** Finding Type */
+            finding_type: string | null;
+            /** Test Step */
+            test_step: string | null;
+            /** Requirement */
+            requirement: string | null;
+        };
         /**
          * Findings
          * @description The Pre-review of a run: Check Findings and AI Findings kept apart, and the
@@ -3082,6 +3101,8 @@ export interface components {
             findings_resolved: number;
             /** Findings Persisted */
             findings_persisted: number;
+            /** Findings Persisted Changed */
+            findings_persisted_changed: number;
             /** Findings New */
             findings_new: number;
             /** Decisions Carried Forward */
@@ -3090,6 +3111,8 @@ export interface components {
             decisions_changed: number;
             /** Decisions Undecided */
             decisions_undecided: number;
+            /** Findings */
+            findings: components["schemas"]["FindingChangeView"][];
         };
         /** @enum {string} */
         RoundEventKind: "opened" | "returned_for_revision" | "ready_for_protocol";

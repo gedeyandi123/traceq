@@ -656,10 +656,12 @@ def test_changed_content_is_changed_since_it_was_decided(
     assert now["decisions"] == []
     assert now["previous"] == made
     # The new content replaces no decision on it: an accept needs no reason.
-    decide(client, decider, now, OTHER_RUN, decision="accepted")
+    newer = decide(client, decider, now, OTHER_RUN, decision="accepted")
     assert place(proposals(client, decider, OTHER_RUN), "ai", 0)["state"] == "decided"
-    # The first run still shows its own content as decided.
-    assert place(proposals(client, decider), "ai", 0)["decisions"] == [made]
+    # The newest decision decides: the first run's content is back to what the older decision
+    # rested on, and that decision is not revived over the newer one (spec #375).
+    first = place(proposals(client, decider), "ai", 0)
+    assert (first["state"], first["decisions"], first["previous"]) == ("changed", [], newer)
 
 
 def test_a_changed_coverage_row_names_the_class_decided_earlier(

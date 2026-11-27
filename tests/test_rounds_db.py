@@ -10,7 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from traceq.db import engine, transaction
-from traceq.rounds.diff import RoundDoc, RoundFindingItem, compute_round_diff
+from traceq.rounds.diff import PreviousFinding, RoundDoc, RoundFindingItem, compute_round_diff
 
 
 def test_compute_round_diff_tracks_docs_findings_and_decisions() -> None:
@@ -28,11 +28,11 @@ def test_compute_round_diff_tracks_docs_findings_and_decisions() -> None:
             RoundDoc("FAT-1", 0, "b" * 64),  # unchanged
             RoundDoc("DRAFT-1", 0, "e" * 64),  # added
         ],
-        previous_finding_hashes=["h1", "h2"],
+        previous_findings=[PreviousFinding(1, "c1"), PreviousFinding(2, "c2")],
         current_findings=[
-            RoundFindingItem(subject_hash="h2", state="decided", decided_run_id="run-1"),
-            RoundFindingItem(subject_hash="h3", state="undecided", decided_run_id=None),
-            RoundFindingItem(subject_hash="h4", state="changed", decided_run_id="run-1"),
+            RoundFindingItem(2, "c2", state="decided", decided_run_id="run-1"),
+            RoundFindingItem(3, "c3", state="undecided", decided_run_id=None),
+            RoundFindingItem(4, "c4", state="changed", decided_run_id="run-1"),
         ],
     )
     assert diff.previous_round_number == 1
@@ -40,12 +40,12 @@ def test_compute_round_diff_tracks_docs_findings_and_decisions() -> None:
     assert diff.documents_revised == ("URS-1",)
     assert diff.documents_unchanged == ("FAT-1",)
     assert diff.documents_removed == ("OLD-1",)
-    assert diff.findings_resolved == 1  # h1
-    assert diff.findings_persisted == 1  # h2
-    assert diff.findings_new == 2  # h3, h4
-    assert diff.decisions_carried_forward == 1  # h2 decided on run-1
-    assert diff.decisions_changed == 1  # h4
-    assert diff.decisions_undecided == 1  # h3
+    assert diff.findings_resolved == 1  # 1
+    assert diff.findings_persisted == 1  # 2
+    assert diff.findings_new == 2  # 3, 4
+    assert diff.decisions_carried_forward == 1  # 2 decided on run-1
+    assert diff.decisions_changed == 1  # 4
+    assert diff.decisions_undecided == 1  # 3
 
 
 def test_0015_hardening_triggers_and_checks(fresh_database: Databases) -> None:
