@@ -432,9 +432,14 @@ class _RunsClient:
     def __init__(self, runs: list[dict[str, Any]]) -> None:
         self._runs = runs
 
-    def get(self, url: str, **_: Any) -> _FakeResp:
+    def get(self, url: str, **kwargs: Any) -> _FakeResp:
         assert url.endswith("/runs")
+        assert kwargs["headers"] == {"Authorization": "Bearer tok-ayu"}  # runs need a token
         return _FakeResp(200, self._runs)
+
+    def post(self, url: str, json: Any = None, **_: Any) -> _FakeResp:
+        assert url.endswith("/demo/token")
+        return _FakeResp(200, {"access_token": f"tok-{json['username']}"})
 
 
 def _two_rounds_args(**over: Any) -> Any:

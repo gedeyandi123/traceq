@@ -18,6 +18,7 @@ export const fetchRun = cache(async (runId: string): Promise<RunSummary | null> 
   try {
     const { data } = await api.GET("/runs/{run_id}", {
       params: { path: { run_id: runId } },
+      headers: await bearerHeaders(),
     });
     return data ?? null;
   } catch {

@@ -28,11 +28,11 @@ from traceq.uploads.runner import draft_doc_id, write_package
 from traceq.uploads.store import Job, blob_path, save_blob, usd
 
 
-def pdf(pages: int = 1, marker: str = "") -> bytes:
-    """A readable PDF of ``pages`` blank pages; ``marker`` makes its bytes differ."""
+def pdf(pages: int = 1, marker: str = "", side: float = 200) -> bytes:
+    """A readable PDF of ``pages`` blank square pages; ``marker`` makes its bytes differ."""
     writer = PdfWriter()
     for _ in range(pages):
-        writer.add_blank_page(width=200, height=200)
+        writer.add_blank_page(width=side, height=side)
     writer.add_metadata({"/Title": marker or "draft"})
     out = io.BytesIO()
     writer.write(out)
@@ -68,6 +68,26 @@ def test_an_oversize_file_is_refused_before_it_is_read() -> None:
 def test_a_pdf_over_the_page_cap_is_refused() -> None:
     with pytest.raises(Refused, match="cap is 2"):
         check_pdf(pdf(3), max_pages=2)
+
+
+def test_a_page_that_declares_a_huge_size_is_refused_before_it_is_decoded() -> None:
+    huge = pdf(1, side=200_000)
+    assert len(huge) < 2_000  # a tiny file that would rasterise to gigapixels
+    with pytest.raises(Refused, match=r"page 1 is .* the cap is 3600"):
+        check_pdf(huge)
+
+
+def test_the_page_size_cap_is_per_side_and_configurable() -> None:
+    assert check_pdf(pdf(1, side=842)).pages == 1
+    with pytest.raises(Refused, match="page 1"):
+        check_pdf(pdf(1, side=842), max_page_points=800)
+
+
+def test_pages_that_render_to_too_many_pixels_together_are_refused() -> None:
+    data = pdf(5, side=842)
+    assert check_pdf(data, max_render_pixels=100_000_000).pages == 5
+    with pytest.raises(Refused, match="too large together"):
+        check_pdf(data, max_render_pixels=20_000_000)
 
 
 def test_bytes_are_stored_under_their_hash_and_never_twice(tmp_path: Path) -> None:

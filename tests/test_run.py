@@ -11,12 +11,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi.testclient import TestClient
+from conftest import DemoIssuer, runs_client
 
 from traceq.ai import BudgetExceeded, PriceTable, Request, Response
 from traceq.ai.cost import Price
 from traceq.app import cli
-from traceq.app.api import create_app
 from traceq.documents import OcrUnavailable, pdf
 from traceq.runs.run import RunOutput, run
 from traceq.traceability.evidence import TRANSPORT_VOTES
@@ -552,11 +551,11 @@ def test_each_requirement_cites_its_evidence(recorded: RunOutput) -> None:
 
 
 def test_the_api_serves_the_run_and_opens_each_cited_page(
-    recorded: RunOutput, corpus_dir: Path
+    recorded: RunOutput, corpus_dir: Path, demo_issuer: DemoIssuer
 ) -> None:
     """The read-only API over a real run folder: the matrix as written, and every citation
     opens a document of the released corpus."""
-    client = TestClient(create_app(recorded.folder.parent, corpus_dir))
+    client = runs_client(recorded.folder.parent, corpus_dir, demo_issuer)
     run_id = recorded.folder.name
 
     assert [r["run_id"] for r in client.get("/runs").json()] == [run_id]

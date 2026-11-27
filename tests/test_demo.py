@@ -297,13 +297,18 @@ def test_the_demo_loads_the_review_package_draft_at_start(
     )
     demo = bring_up(settings)
     try:
-        assert httpx.get(f"{demo.api_url}/runs/{demo.run_id}").json()["review_package"] == {
+        token = httpx.post(f"{demo.issuer_url}/demo/token", json={"username": "citra"})
+        assert httpx.get(f"{demo.api_url}/runs/{demo.run_id}").status_code == 401
+        run = httpx.get(
+            f"{demo.api_url}/runs/{demo.run_id}",
+            headers={"Authorization": f"Bearer {token.json()['access_token']}"},
+        )
+        assert run.json()["review_package"] == {
             "package": "TP-201-OQ-draft",
             "version": "0.1.0",
             "doc_id": "OQ-TP201",
             "rev": 0,
         }
-        token = httpx.post(f"{demo.issuer_url}/demo/token", json={"username": "citra"})
         got = httpx.get(
             f"{demo.api_url}/runs/{demo.run_id}/protocol-draft",
             headers={"Authorization": f"Bearer {token.json()['access_token']}"},

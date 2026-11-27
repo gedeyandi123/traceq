@@ -26,13 +26,23 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/runs/{run_id}": {
       "get": {
         "summary": "Get Run",
         "operationId": "getRun",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "run_id",
@@ -73,6 +83,11 @@
         "summary": "Get Matrix",
         "description": "The traceability matrix: Coverage class and reason, and cited Evidence.",
         "operationId": "getMatrix",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "run_id",
@@ -113,6 +128,11 @@
         "summary": "Get Findings",
         "description": "The Pre-review: Check Findings, AI Findings kept apart, and missing documents.",
         "operationId": "getFindings",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "run_id",
@@ -153,6 +173,11 @@
         "summary": "Get Dropped",
         "description": "The claims the citation check dropped, each with its subject and reason.",
         "operationId": "getDropped",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "run_id",
@@ -197,6 +222,11 @@
         "summary": "Get Completeness",
         "description": "The URS completeness check; not found for a run written before it existed.",
         "operationId": "getCompleteness",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "run_id",
@@ -237,6 +267,11 @@
         "summary": "Get Document",
         "description": "A document the run read, as released: a citation links here with ``#page=N``.",
         "operationId": "getDocument",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "run_id",
