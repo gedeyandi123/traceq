@@ -13,9 +13,13 @@ from typing import Any, cast
 import typst
 from pydantic import BaseModel, ConfigDict
 
-TEMPLATE_VERSION = "1.0.0"
+TEMPLATE_VERSION_V1 = "1.0.0"
+TEMPLATE_VERSION = "2.0.0"
 TYPST_VERSION: str = version("typst")
-_TEMPLATE_PATHS = {TEMPLATE_VERSION: Path(__file__).parent / "pre_review_report_v1.typ"}
+_TEMPLATE_PATHS = {
+    TEMPLATE_VERSION_V1: Path(__file__).parent / "pre_review_report_v1.typ",
+    TEMPLATE_VERSION: Path(__file__).parent / "pre_review_report_v2.typ",
+}
 # A released template is frozen: stored exports re-render from it by their ``template_version``.
 # A changed layout is a new ``pre_review_report_vN.typ`` and a new entry here, never an edit.
 PRE_REVIEW_TEMPLATE_VERSIONS: tuple[str, ...] = tuple(_TEMPLATE_PATHS)
@@ -111,6 +115,51 @@ class PreReviewReportSnapshot(_Frozen):
     round_diff: ReportRoundDiff | None = None
 
 
+class ReportFindingV2(ReportFinding):
+    """A finding as template 2.0.0 prints it: the label of a type no practitioner has reviewed
+    ("not reviewed by a practitioner") and what became of it since the earlier round."""
+
+    label: str | None = None
+    change: str | None = None
+    """``resolved``, ``persisted``, ``persisted_changed`` or ``new``; none in the first round."""
+
+
+class ReportRoundDiffV2(ReportRoundDiff):
+    findings_persisted_changed: int = 0
+    """Of those persisted, the findings whose content changed."""
+
+
+class PreReviewReportSnapshotV2(_Frozen):
+    """The snapshot of template 2.0.0; ``PreReviewReportSnapshot`` stays the shape of 1.0.0,
+    which stored exports re-render from."""
+
+    generated_at: datetime
+    equipment: str
+    run_id: str
+    round_number: int
+    round_status: str
+    documents: tuple[ReportDocument, ...] = ()
+    coverage: ReportKindSummary
+    findings_summary: ReportKindSummary
+    check_findings: tuple[ReportFindingV2, ...] = ()
+    ai_findings: tuple[ReportFindingV2, ...] = ()
+    draft_findings: tuple[ReportFindingV2, ...] = ()
+    missing_documents: tuple[ReportMissingDocument, ...] = ()
+    dropped_claims: tuple[ReportDroppedClaim, ...] = ()
+    completeness: tuple[ReportUrsCompleteness, ...] = ()
+    round_diff: ReportRoundDiffV2 | None = None
+
+
+AnySnapshot = PreReviewReportSnapshot | PreReviewReportSnapshotV2
+
+
+def parse_pre_review_snapshot(data: Any, template_version: str) -> AnySnapshot:
+    """A stored snapshot in the shape of the template it was exported with."""
+    if template_version == TEMPLATE_VERSION_V1:
+        return PreReviewReportSnapshot.model_validate(data)
+    return PreReviewReportSnapshotV2.model_validate(data)
+
+
 # What the bundled fonts (Libertinus Serif, DejaVu Sans Mono) draw: Latin, Greek and Cyrillic
 # letters with their marks, general punctuation, sub- and superscripts, currency, letterlike
 # symbols, number forms, arrows, mathematical operators and the Latin ligatures. Any other
@@ -161,37 +210,39 @@ def _scrub(value: Any) -> Any:
     return value
 
 
-def typesettable_snapshot(snapshot: PreReviewReportSnapshot) -> PreReviewReportSnapshot:
+def typesettable_snapshot[S: AnySnapshot](snapshot: S) -> S:
     """The snapshot with every text typesettable. Built before it is hashed and stored, so the
     hash covers the text the report prints; a snapshot stored before this holds its text as it
     was and is scrubbed only when rendered."""
-    return PreReviewReportSnapshot.model_validate(_scrub(snapshot.model_dump(mode="python")))
+    return type(snapshot).model_validate(_scrub(snapshot.model_dump(mode="python")))
 
 
 def _canonical_json(data: Any) -> str:
     return json.dumps(data, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
 
-def snapshot_hash(snapshot: PreReviewReportSnapshot) -> str:
+def snapshot_hash(snapshot: AnySnapshot) -> str:
     """Returns the SHA-256 hex digest of the canonical JSON of ``snapshot``."""
     raw = _canonical_json(snapshot.model_dump(mode="json")).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
 
 
-def render_pre_review_pdf(
-    snapshot: PreReviewReportSnapshot, *, template_version: str = TEMPLATE_VERSION
-) -> bytes:
+def render_pre_review_pdf(snapshot: AnySnapshot, *, template_version: str | None = None) -> bytes:
     """Compiles the Indonesian Pre-Review Report PDF deterministically from ``snapshot``.
 
-    Dispatches to the template of ``template_version`` (the current one by default).
+    Dispatches to the template of ``template_version``; by default the one of the snapshot's
+    shape (a ``PreReviewReportSnapshot`` is 1.0.0, a ``PreReviewReportSnapshotV2`` the current).
 
     Uses Typst built-in fonts only (``ignore_system_fonts=True``) and pins ``timestamp`` to
     ``snapshot.generated_at`` so re-rendering the same snapshot yields byte-identical PDFs.
     Raises ``RuntimeError`` if Typst emits any compiler warning.
     """
-    template_path = _TEMPLATE_PATHS.get(template_version)
+    chosen = template_version or (
+        TEMPLATE_VERSION if isinstance(snapshot, PreReviewReportSnapshotV2) else TEMPLATE_VERSION_V1
+    )
+    template_path = _TEMPLATE_PATHS.get(chosen)
     if template_path is None:
-        raise ValueError(f"unsupported pre-review report template_version: {template_version!r}")
+        raise ValueError(f"unsupported pre-review report template_version: {chosen!r}")
     payload = _canonical_json(_scrub(snapshot.model_dump(mode="json")))
     ts = snapshot.generated_at
     ts = ts.replace(tzinfo=UTC) if ts.tzinfo is None else ts.astimezone(UTC)

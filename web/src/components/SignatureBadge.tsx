@@ -48,9 +48,9 @@ export function SignatureBadge({
           ? "border-fail-edge bg-fail-soft text-fail"
           : "border-border bg-surface text-ink-muted";
 
-  // A voided signature is not a valid signature: its check mark is never green.
-  const checkTone =
-    check === "failed" ? "text-fail" : check === "verified" && !voided ? "text-pass" : "text-ink-muted";
+  // The check beside "Hash cocok" is neutral, never green: a matching hash says the stored
+  // data is unchanged, not that anyone approved it. A failed check stays red.
+  const checkTone = check === "failed" ? "text-fail" : "text-ink-muted";
 
   return (
     <div
