@@ -2,10 +2,11 @@
 
 The uploaded PDF becomes a one-document Review Package beside the corpus (``traceq.documents.
 package``), and ``traceq.runs.run`` reads it exactly as ``traceq run --review-package`` does:
-the Equipment stages replay from the recordings, never sent; the draft is read with the
-recording its bytes already have, so a re-upload of the same bytes replays and costs nothing
-live. Only bytes with no recording go to Mode Cloud, and only when a live adapter is
-configured and the job holds a reservation (``max_usd`` is that reservation).
+the Equipment stages replay from the recordings, never sent. The draft is read page by page
+with a prompt that names its revision, so a recording belongs to the bytes *and* the revision
+they are uploaded as (``has_draft_recording``); the same bytes uploaded again are refused, not
+replayed. Only a revision with no recording goes to Mode Cloud, and only when a live adapter
+is configured and the job holds a reservation (``max_usd`` is that reservation).
 """
 
 from __future__ import annotations
@@ -18,9 +19,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from traceq.ai import LLM
+from traceq.ai import LLM, Recorder
+from traceq.documents import VERSIONS, CorpusDocument
+from traceq.documents.cache import IngestCache
 from traceq.documents.package import DATASET
-from traceq.runs.run import run
+from traceq.review.draft import DRAFT_STAGE_VERSION, draft_edition, draft_requests
+from traceq.runs.run import INGEST_DIR, run
 from traceq.uploads.store import Job
 
 
@@ -71,6 +75,34 @@ def draft_doc_id(equipment: str) -> str:
     """The id every revision of an Equipment's uploaded draft carries, so that a later upload
     is a revision of the same document."""
     return "OQ-" + equipment.replace("-", "")
+
+
+def has_draft_recording(settings: UploadSettings, sha256: str, rev: int) -> bool:
+    """Whether the run of these bytes uploaded as revision ``rev`` finds every page of the
+    draft recorded, so it replays with nothing sent: the recording keys are computed as the
+    run computes them (draft stage version, the prompt of the package version, the document
+    id, ``rev`` and the page text), from the ingest cache. ``False`` when the ingest is not
+    cached (the page text is unknown) or one page is not recorded."""
+    cache = IngestCache(None, reads=[settings.package_recordings / INGEST_DIR])
+    if (ingested := cache.get(sha256, VERSIONS["born_digital"])) is None:
+        return False
+    doc = CorpusDocument(
+        doc_id=draft_doc_id(settings.equipment),
+        rev=rev,
+        type="oq_protocol",
+        format="born_digital",
+        language=settings.language,
+        path=Path(),
+        sha256=sha256,
+    )
+    recorder = Recorder(
+        settings.package_recordings,
+        settings.model,
+        DRAFT_STAGE_VERSION,
+        reads=(settings.recordings,),
+    )
+    requests = draft_requests(doc, ingested.pages, draft_edition(settings.package_version))
+    return all(recorder.is_recorded(r) for r in requests)
 
 
 def write_package(settings: UploadSettings, job: Job, pdf: Path, dest: Path) -> Path:

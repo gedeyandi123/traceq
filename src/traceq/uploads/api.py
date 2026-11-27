@@ -14,12 +14,10 @@ No ``from __future__ import annotations``: FastAPI reads the annotations naming 
 per-application dependency (``principal``), a local name, at definition time.
 """
 
-import json
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
-from pathlib import Path
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -29,33 +27,14 @@ from sqlalchemy import Engine
 from traceq.audit import Actor
 from traceq.db import transaction
 from traceq.identity import Principal
+from traceq.rounds import latest_draft_revision
 from traceq.uploads import checks, store
-from traceq.uploads.runner import UploadSettings
+from traceq.uploads.runner import UploadSettings, draft_doc_id, has_draft_recording
 
 CLOUD_NOTICE = (
     "Mode Cloud sends the text of the document to an external model provider. Upload only"
     " synthetic data (ADR 0001): never a real plant document."
 )
-
-
-def has_model_recording(directory: Path, sha256: str, model: str) -> bool:
-    """Whether ``directory`` holds a recorded model answer for the document with this hash
-    and this model. The ingest file holds only the parse result, so it does not count: a
-    replay without the model recording would fail."""
-    for path in directory.glob("*.json"):
-        try:
-            text = path.read_text(encoding="utf-8")
-            if sha256 not in text:
-                continue
-            record: Any = json.loads(text)
-        except (OSError, ValueError):
-            continue
-        if not isinstance(record, dict):
-            continue
-        fields = cast(dict[str, Any], record)
-        if fields.get("doc_sha256") == sha256 and fields.get("model") == model:
-            return True
-    return False
 
 
 JobStatus = Literal["queued", "running", "succeeded", "failed"]
@@ -75,7 +54,8 @@ class UploadJobView(_Model):
     pages: int
     status: JobStatus
     reserved_usd: float
-    """The live budget held for it; 0 when its bytes are recorded and it replays."""
+    """The live budget held for it; 0 when this revision of its bytes is recorded and it
+    replays."""
     cost_usd: float | None
     run_id: str | None
     """The run it produced, once ``succeeded``."""
@@ -146,8 +126,23 @@ def create_router(
     ) -> store.Job:
         ceiling = store.usd(conf.budget_usd)
         with transaction(database()) as session:
-            recorded = has_model_recording(conf.package_recordings, checked.sha256, conf.model)
-            replays = store.replayable(session, checked.sha256, recorded)
+            store.lock_equipment(session, equipment)
+            if store.already_uploaded(session, equipment, checked.sha256):
+                raise store.DuplicateUpload(
+                    "these bytes were already uploaded for this Equipment; a revision needs"
+                    " a changed file"
+                )
+            rev = store.next_rev(
+                session,
+                equipment,
+                latest_draft_revision(session, equipment, draft_doc_id(equipment)),
+            )
+            replays = has_draft_recording(conf, checked.sha256, rev)
+            if not replays and (conf.live is None or conf.budget_usd <= 0):
+                raise store.BudgetRefused(
+                    f"no model recording exists for these bytes as revision {rev}, and reading"
+                    " them live is off (the live budget is 0)"
+                )
             estimate = (
                 Decimal(0) if replays else store.usd(checked.pages * conf.estimate_per_page_usd)
             )
@@ -155,6 +150,7 @@ def create_router(
                 session,
                 actor,
                 equipment=equipment,
+                rev=rev,
                 sha256=checked.sha256,
                 size_bytes=checked.size_bytes,
                 pages=checked.pages,
@@ -197,8 +193,9 @@ def create_router(
         equipment: str, request: Request, who: Annotated[Principal, Depends(principal)]
     ) -> UploadJobView:
         """Queues a Protocol Draft PDF as the Equipment's next revision. The body is the PDF.
-        Refused when it is not a PDF (415, 422), passes the size or page cap (413, 422), or
-        the live budget does not cover it (402)."""
+        Refused when it is not a PDF (415, 422), passes the size or page cap (413, 422), holds
+        bytes already uploaded for the Equipment (409), or has no recording as the revision it
+        would be and the live budget does not cover reading it live (402)."""
         conf = scoped(who, equipment)
         if (
             request.headers.get("content-type", "").split(";")[0].strip().lower()
@@ -228,6 +225,8 @@ def create_router(
             raise HTTPException(413, str(e)) from e
         except checks.Refused as e:
             raise HTTPException(422, str(e)) from e
+        except store.DuplicateUpload as e:
+            raise HTTPException(409, str(e)) from e
         except store.BudgetRefused as e:
             raise HTTPException(402, str(e)) from e
         return _view(job)

@@ -429,6 +429,18 @@ def _page_prompt(doc: CorpusDocument, page: int, text: str) -> str:
     return f"Document {doc.doc_id}, revision {doc.rev}, page {page}.\n\n<page>\n{text}\n</page>"
 
 
+def draft_requests(
+    doc: CorpusDocument, pages: Sequence[Page], edition: DraftEdition = DRAFT_EDITION_V1
+) -> list[Request]:
+    """The one request per page that ``read_draft`` sends. The prompt text carries the
+    document id, its revision and the page number, so the recording key of a page depends on
+    the revision: the same bytes read as another revision are other requests."""
+    return [
+        Request(edition.prompt, _page_prompt(doc, n, p.text), doc.sha256)
+        for n, p in enumerate(pages, 1)
+    ]
+
+
 def _holds(quote: str, *printed: str) -> bool:
     q = normalise(quote)
     return all(normalise(p) in q for p in printed if p.strip())
@@ -543,12 +555,7 @@ def read_draft(
 ) -> DraftReading:
     """The draft's Test Steps, traceability rows and (from edition 0.2.0) references, each
     with a verified citation. ``edition``: chosen by the package version (``draft_edition``)."""
-    answers = llm.complete(
-        [
-            Request(edition.prompt, _page_prompt(doc, n, p.text), doc.sha256)
-            for n, p in enumerate(pages, 1)
-        ]
-    )
+    answers = llm.complete(draft_requests(doc, pages, edition))
     out = DraftReading(doc, tuple(pages))
     reader = _Reader(doc, pages, out)
     for n, answer in enumerate(answers, 1):

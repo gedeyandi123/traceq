@@ -288,6 +288,19 @@ def _extract_documents(run: RunFiles) -> list[dict[str, Any]]:
     return rows
 
 
+def latest_draft_revision(session: Session, equipment: str, doc_id: str) -> int | None:
+    """The highest revision of the Protocol Draft ``doc_id`` that an imported run registered
+    for the Equipment; ``None`` when none is registered."""
+    latest = session.execute(
+        select(func.max(DOCUMENT_VERSIONS.c.rev)).where(
+            DOCUMENT_VERSIONS.c.equipment == equipment,
+            DOCUMENT_VERSIONS.c.doc_id == doc_id,
+            DOCUMENT_VERSIONS.c.source == "review_package_draft",
+        )
+    ).scalar_one()
+    return None if latest is None else int(latest)
+
+
 def register_import(
     session: Session, actor: audit.Actor, imported: Imported, run: RunFiles
 ) -> None:

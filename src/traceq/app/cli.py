@@ -43,8 +43,9 @@ application role). It refuses to start with only one of the two.
 ``--package-recordings``) turns on the browser upload of a Protocol Draft for that Equipment
 and runs the one upload worker inside the server. Uploaded files and packages are kept in DIR.
 ``--upload-budget-usd`` is the ceiling of live spend over all uploads: with 0 (the default)
-nothing is ever sent, and only bytes that already have a recording are accepted. Above 0 the
-Mode Cloud adapter is used for bytes with no recording, within the ceiling.
+nothing is ever sent, and an upload is accepted only when every page of its draft already has a
+recording as the revision it would become (the prompt names the revision). Above 0 the Mode
+Cloud adapter reads a revision with no recording, within the ceiling.
 
 ``traceq demo-issuer`` starts the demo OIDC issuer on ``http://127.0.0.1:PORT`` (never
 another interface): demo identities without a password, for the demo only.
