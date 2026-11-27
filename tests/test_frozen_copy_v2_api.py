@@ -442,3 +442,38 @@ def test_the_authors_of_a_copy_include_the_candidates_decisions(
     copy = parse_copy(submitted(client, decider, protocol)["submission"]["frozen_copy"])
     names = {a.name for a in authors(copy)}
     assert names == {"Ayu Kartika Sari"}
+
+
+# --- The whole path, the way the browser drives it --------------------------------------
+
+
+def test_the_path_from_the_draft_to_a_started_execution(
+    client: TestClient,
+    decider: dict[str, str],
+    approver: dict[str, str],
+    protocol: Any,
+) -> None:
+    """Start from the draft, map the step no requirement owned, decide, give the Stage, submit
+    naming the revision read, approve as someone who took no part, and start the Execution
+    from the approved copy (spec #375, ticket S4b)."""
+    view = read(client, decider)
+    assert view["source"]["rev"] == 0 and view["latest_draft_rev"] == 0
+    assert any(not s["resolved"] for s in view["draft_steps"])
+    ready(client, decider, protocol)
+    view = read(client, decider)
+    assert [s for s in view["draft_steps"] if not s["resolved"]] == []
+    assert view["draft_hash"] is not None
+
+    sub = submitted(client, decider, protocol)
+    assert isinstance(parse_copy(sub["submission"]["frozen_copy"]), ProtocolCopyV2)
+    approved = post_approve(client, approver, protocol, sub, view["latest_draft_rev"])
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["status"] == "approved"
+
+    started = client.post(f"/protocols/{protocol['id']}/execution", headers=decider)
+    assert started.status_code == 201, started.text
+    assert {r["requirement"] for r in started.json()["rows"] if r["kind"] == "test_step"} >= {
+        R002,
+        R026,
+        R030,
+    }

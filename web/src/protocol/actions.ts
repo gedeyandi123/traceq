@@ -20,6 +20,13 @@ function field(form: FormData, name: string): string | undefined {
   return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
 }
 
+/** The latest draft revision the page showed (`latest_draft_rev`), for a Protocol started from
+ * the Protocol Draft: the API refuses a signature without it and when a newer one arrived. */
+function latestRev(form: FormData): number | null {
+  const raw = field(form, "expected_latest_draft_rev");
+  return raw === undefined || !Number.isInteger(Number(raw)) ? null : Number(raw);
+}
+
 function errorFromResponse(response: Pick<Response, "status" | "headers">): ProtocolError | undefined {
   if (isReauthRequiredResponse(response)) return "reauth_required";
   return error(response.status);
@@ -31,6 +38,19 @@ function error(status: number): ProtocolError | undefined {
   if (status === 401) return "unauthorized";
   if (status === 403) return "forbidden";
   return status >= 200 && status < 300 ? undefined : "failed";
+}
+
+/** A 409 whose reason says a newer revision of the Protocol Draft arrived while the page was
+ * open: the caller must reload, which is not the same as the other conflicts. */
+async function staleDraft(response: Response): Promise<boolean> {
+  if (response.status !== 409) return false;
+  try {
+    const body: unknown = await response.clone().json();
+    const detail = typeof body === "object" && body !== null && "detail" in body ? body.detail : "";
+    return typeof detail === "string" && detail.includes("newer revision of the Protocol Draft");
+  } catch {
+    return false;
+  }
 }
 
 function back(runId: string, failed: ProtocolError | undefined): never {
@@ -54,6 +74,7 @@ export async function startProtocol(form: FormData): Promise<void> {
     const { response } = await api.POST("/runs/{run_id}/protocol", {
       params: { path: { run_id: runId } },
       headers: await bearerHeaders(),
+      body: { from_draft: field(form, "from_draft") === "true" },
     });
     failed = error(response.status);
   } catch {
@@ -188,9 +209,9 @@ export async function approveProtocol(form: FormData): Promise<void> {
     const { response } = await api.POST("/protocols/{protocol_id}/approve", {
       params: { path: { protocol_id: protocolId } },
       headers: await consumeSignatureBearerHeaders(),
-      body: { submission_event_id: eventId, hash },
+      body: { submission_event_id: eventId, hash, expected_latest_draft_rev: latestRev(form) },
     });
-    failed = errorFromResponse(response);
+    failed = (await staleDraft(response)) ? "stale_draft" : errorFromResponse(response);
   } catch {
     failed = "failed";
   }
@@ -230,9 +251,9 @@ export async function submitProtocol(form: FormData): Promise<void> {
     const { response } = await api.POST("/protocols/{protocol_id}/submit", {
       params: { path: { protocol_id: protocolId } },
       headers: await consumeSignatureBearerHeaders(),
-      body: { expected_draft_hash: draftHash },
+      body: { expected_draft_hash: draftHash, expected_latest_draft_rev: latestRev(form) },
     });
-    failed = errorFromResponse(response);
+    failed = (await staleDraft(response)) ? "stale_draft" : errorFromResponse(response);
   } catch {
     failed = "failed";
   }
@@ -361,6 +382,55 @@ export async function updateRowAttributesInline(
         stage,
         witness_required: witnessRequired,
       },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  return inlineResult(failed);
+}
+
+/** Inline action: maps a draft Test Step the table maps to none or several requirements (or the
+ * citation check dropped) to exactly one requirement. */
+export async function mapDraftStepInline(
+  _prevState: ProtocolFormActionState,
+  form: FormData,
+): Promise<ProtocolFormActionState> {
+  const protocolId = Number(field(form, "protocol_id"));
+  const step = field(form, "step") ?? "";
+  const requirement = field(form, "requirement");
+  if (!Number.isInteger(protocolId) || step === "") return { ok: false, error: "failed" };
+  if (requirement === undefined) return { ok: false, error: "invalid" };
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.PUT("/protocols/{protocol_id}/draft-steps/{step}/mapping", {
+      params: { path: { protocol_id: protocolId, step } },
+      headers: await bearerHeaders(),
+      body: { requirement },
+    });
+    failed = error(response.status);
+  } catch {
+    failed = "failed";
+  }
+  return inlineResult(failed);
+}
+
+/** Inline action: the written reason a row with an accepted finding is submitted as it is. */
+export async function giveFindingReasonInline(
+  _prevState: ProtocolFormActionState,
+  form: FormData,
+): Promise<ProtocolFormActionState> {
+  const protocolId = Number(field(form, "protocol_id"));
+  const proposalId = Number(field(form, "proposal_id"));
+  if (!Number.isInteger(protocolId) || !Number.isInteger(proposalId)) {
+    return { ok: false, error: "failed" };
+  }
+  let failed: ProtocolError | undefined;
+  try {
+    const { response } = await api.POST("/protocols/{protocol_id}/findings/{proposal_id}/reason", {
+      params: { path: { protocol_id: protocolId, proposal_id: proposalId } },
+      headers: await bearerHeaders(),
+      body: { reason: field(form, "reason") ?? "" },
     });
     failed = error(response.status);
   } catch {

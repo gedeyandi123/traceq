@@ -13,6 +13,8 @@ import {
   approveProtocol,
   editDraftedTestStep,
   editDraftedTestStepInline,
+  giveFindingReasonInline,
+  mapDraftStepInline,
   removeTestStep,
   removeTestStepInline,
   returnProtocol,
@@ -34,6 +36,7 @@ const PROTOCOL_ERRORS: readonly ProtocolError[] = [
   "forbidden",
   "unauthorized",
   "reauth_required",
+  "stale_draft",
   "failed",
 ];
 
@@ -139,6 +142,8 @@ export default async function ProtocolPage({
                 editInline: editDraftedTestStepInline,
                 answerInline: answerMissedNumberInline,
                 updateAttributesInline: updateRowAttributesInline,
+                mapInline: mapDraftStepInline,
+                giveReasonInline: giveFindingReasonInline,
               }
             : null
         }
@@ -147,6 +152,7 @@ export default async function ProtocolPage({
         initialReauthTarget={reauthTarget}
         error={PROTOCOL_ERRORS.find((e) => e === query.protocolError)}
         initialSelected={selected}
+        hasDraft={run.review_package != null}
       />
     </div>
   );

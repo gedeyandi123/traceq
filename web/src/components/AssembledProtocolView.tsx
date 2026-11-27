@@ -9,6 +9,7 @@ import type { SigningAuthState } from "@/auth/session";
 import type { ProtocolFormActionState } from "@/protocol/actions";
 import type { DecisionView } from "./Decisions";
 import { DecisionNoticeBanner } from "./FindingDecisionPanel";
+import { DraftSourcePanel, DraftStepsPanel } from "./DraftProtocolPanels";
 import { EarlierCopies, FrozenCopy } from "./FrozenCopy";
 import { MissedNumbers } from "./MissedNumbers";
 import { ProtocolChecklistPanel } from "./ProtocolChecklistPanel";
@@ -31,6 +32,7 @@ export type ProtocolError =
   | "forbidden"
   | "unauthorized"
   | "reauth_required"
+  | "stale_draft"
   | "failed";
 
 type Action = (formData: FormData) => void | Promise<void>;
@@ -55,6 +57,8 @@ export type ProtocolControls = {
   editInline?: InlineAction;
   answerInline?: InlineAction;
   updateAttributesInline?: InlineAction;
+  mapInline?: InlineAction;
+  giveReasonInline?: InlineAction;
 } | null;
 
 /** The approve and return actions, for a viewer with the approving role; `null` otherwise. */
@@ -97,6 +101,7 @@ export function AssembledProtocolView({
   initialReauthTarget = null,
   error,
   initialSelected = null,
+  hasDraft = false,
 }: {
   protocol: ProtocolView | null;
   runId: string;
@@ -107,6 +112,8 @@ export function AssembledProtocolView({
   initialReauthTarget?: string | null;
   error?: ProtocolError;
   initialSelected?: string | null;
+  /** The run read a Protocol Draft, so the Protocol can be started from it. */
+  hasDraft?: boolean;
 }) {
   const t = useTranslations("protocol");
   const { setDrawerOpen } = useRunShell();
@@ -116,6 +123,8 @@ export function AssembledProtocolView({
   const unansweredMissed = (protocol?.urs ?? [])
     .flatMap((u) => u.missed)
     .filter((m) => m.blocking).length;
+
+  const unresolvedSteps = (protocol?.draft_steps ?? []).filter((e) => !e.resolved).length;
 
   const [activeTab, setActiveTab] = useState<string>(rows !== null ? "rows" : "copy");
   const [rowFilter, setRowFilter] = useState<RowFilter>("all");
@@ -252,7 +261,11 @@ export function AssembledProtocolView({
   }, []);
 
   const normalizedDraftTab =
-    activeTab === "missed" || activeTab === "history" ? activeTab : "rows";
+    activeTab === "missed" ||
+    activeTab === "history" ||
+    (activeTab === "draftSteps" && protocol?.draft_steps)
+      ? activeTab
+      : "rows";
 
   return (
     <div className="space-y-4">
@@ -273,7 +286,7 @@ export function AssembledProtocolView({
       {protocol === null ? (
         <EmptyState title={t("none")}>
           <p className="m-0 mb-3 text-xs text-ink-muted">{t("noneBody")}</p>
-          <StartForm t={t} runId={runId} action={controls} again={false} />
+          <StartForm t={t} runId={runId} action={controls} again={false} hasDraft={hasDraft} />
         </EmptyState>
       ) : (
         <>
@@ -286,7 +299,10 @@ export function AssembledProtocolView({
             signingAuth={signingAuth}
             initialReauthTarget={initialReauthTarget}
             error={error}
+            hasDraft={hasDraft}
           />
+
+          <DraftSourcePanel t={t} protocol={protocol} />
 
           {rows !== null && (
             <>
@@ -297,6 +313,7 @@ export function AssembledProtocolView({
                   runId={runId}
                   protocolId={protocol.id}
                   draftHash={protocol.draft_hash}
+                  latestDraftRev={protocol.source ? (protocol.latest_draft_rev ?? null) : null}
                   controls={controls}
                   signingAuth={signingAuth}
                   initialReauthTarget={initialReauthTarget}
@@ -314,6 +331,16 @@ export function AssembledProtocolView({
                       {rows.length}
                     </span>
                   </TabsTrigger>
+                  {protocol.draft_steps && (
+                    <TabsTrigger value="draftSteps">
+                      <span>{t("draftFlow.steps.tab")}</span>
+                      {unresolvedSteps > 0 && (
+                        <span className="rounded-full border border-fail-edge bg-fail-soft px-1.5 py-0.5 text-[11px] font-semibold text-fail tabular-nums">
+                          {unresolvedSteps}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  )}
                   <TabsTrigger value="missed">
                     <span>{t("tabs.missed")}</span>
                     {unansweredMissed > 0 && (
@@ -368,6 +395,12 @@ export function AssembledProtocolView({
                     />
                   </section>
                 </TabsContent>
+
+                {protocol.draft_steps && (
+                  <TabsContent value="draftSteps">
+                    <DraftStepsPanel t={t} protocol={protocol} decisions={decisions} controls={controls} />
+                  </TabsContent>
+                )}
 
                 <TabsContent value="missed">
                   <MissedNumbers

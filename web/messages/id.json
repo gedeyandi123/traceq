@@ -621,7 +621,10 @@
       "coverage_undecided": "Memblokir: cakupan belum diputuskan atas isi run ini",
       "draft_undecided": "Memblokir: langkah uji rancangan belum diputuskan (terima, sunting, atau tolak)",
       "no_test_step": "Memblokir: belum ada langkah uji; terima atau sunting langkah uji rancangan, atau tulis satu",
-      "acceptance_not_shaped": "Memblokir: kriteria penerimaan belum ada atau berupa teks bebas; sunting rancangan untuk menetapkannya"
+      "acceptance_not_shaped": "Memblokir: kriteria penerimaan belum ada atau berupa teks bebas; sunting rancangan untuk menetapkannya",
+      "finding_undecided": "Memblokir: ada temuan draf tentang persyaratan ini yang belum diputuskan (terima atau tolak)",
+      "finding_reason_missing": "Memblokir: temuan diterima dan langkah uji tidak berubah; tulis alasan baris ini tetap diajukan apa adanya",
+      "stage_missing": "Memblokir: tetapkan tahap IQ atau OQ untuk langkah uji ini"
     },
     "checklist": {
       "title": "Yang memblokir pengajuan",
@@ -631,7 +634,11 @@
         "draft_undecided": "Langkah uji rancangan belum diputuskan: {count}",
         "no_test_step": "Baris langkah uji tanpa langkah uji: {count}",
         "acceptance_not_shaped": "Kriteria penerimaan belum ada atau berupa teks bebas: {count}",
-        "missed_undecided": "Nomor persyaratan terlewat tanpa jawaban: {count}"
+        "missed_undecided": "Nomor persyaratan terlewat tanpa jawaban: {count}",
+        "finding_undecided": "Temuan draf belum diputuskan: {count}",
+        "finding_reason_missing": "Temuan diterima pada baris tak berubah tanpa alasan tertulis: {count}",
+        "stage_missing": "Langkah uji tanpa tahap IQ atau OQ: {count}",
+        "draft_step_unresolved": "Langkah draf tanpa persyaratan (petakan atau tolak): {count}"
       },
       "ready": "Tidak ada yang memblokir: protokol dapat diajukan.",
       "moreBlockers": "+{count} lainnya",
@@ -674,6 +681,72 @@
     "acToSet": "Ditetapkan oleh manusia: {flag}",
     "noDrafts": "Tidak ada langkah uji rancangan",
     "vendorDraftNote": "Tidak perlu diputuskan; menerimanya menguji ulang persyaratan ini di lokasi.",
+    "draftFlow": {
+      "start": "Mulai protokol dari draf yang ditinjau",
+      "startNote": "Baris yang dicakup draf memakai langkah uji draf; sisanya (misalnya IQ) memakai rancangan TraceQ. Protokol terpaku pada revisi draf yang dibaca.",
+      "devOnly": "Hanya pengembangan (dev only)",
+      "awaiting": "Menunggu jawaban praktisi (#245)",
+      "notReviewed": "Belum ditinjau praktisi",
+      "labels": "Data sintetis. Apakah pabrik menjalankan draf yang ditinjaunya belum dijawab praktisi (#245).",
+      "source": {
+        "title": "Sumber: draf protokol",
+        "line": "{doc} rev {rev}, hash {hash}",
+        "pinned": "Protokol ini terpaku pada revisi itu dan tidak disinkronkan ulang saat revisi baru masuk.",
+        "latest": "Revisi terbaru draf saat halaman ini dibaca: {latest}. Penandatanganan menyebut revisi ini; bila ada yang lebih baru, API menolaknya.",
+        "newer": "Draf sudah sampai rev {latest}, protokol ini terpaku pada rev {rev}. Revisi baru tidak menghapus peringatan di sini: kembalikan atau tarik protokol ini, lalu mulai protokol baru dari revisi terbaru."
+      },
+      "steps": {
+        "tab": "Langkah draf",
+        "title": "Langkah uji pada draf yang dibaca",
+        "note": "Langkah yang oleh tabel keterunutan dipetakan ke nol atau beberapa persyaratan, atau yang dibuang pemeriksaan sitasi, tidak dapat dipakai sebelum seseorang memetakannya ke tepat satu persyaratan atau menolaknya.",
+        "unresolved": "Belum dapat dipakai",
+        "resolved": "Mewakili {requirement}",
+        "resolvedNone": "Ditolak",
+        "notRead": "Tidak terbaca: {why}",
+        "mapTo": "Petakan ke persyaratan",
+        "choose": "Pilih persyaratan",
+        "save": "Simpan pemetaan",
+        "mappedBy": "Dipetakan ke {requirement} oleh {name}, {when}",
+        "empty": "Draf ini tidak memiliki langkah uji."
+      },
+      "candidates": {
+        "title": "Langkah uji draf untuk persyaratan ini",
+        "stepDecision": "Keputusan atas langkah",
+        "criterionDecision": "Keputusan atas kriteria penerimaan",
+        "noCriterion": "Pembacaan draf tidak memuat kriteria penerimaan; sunting untuk menetapkannya.",
+        "mappedBy": "Dipetakan oleh {name}, {when}",
+        "ready": "Siap dipakai",
+        "printed": "Tercetak: {printed}"
+      },
+      "findings": {
+        "title": "Temuan draf tentang persyaratan ini",
+        "reasonTitle": "Alasan baris ini diajukan apa adanya",
+        "reasonHint": "Temuan ini diterima dan langkah uji belum diubah di protokol ini; tulis mengapa baris tetap diajukan.",
+        "reasonLabel": "Alasan",
+        "reasonSave": "Simpan alasan",
+        "reasonBy": "{name}, {when}",
+        "location": "Langkah {step}"
+      },
+      "row": {
+        "source": "Sumber",
+        "sources": { "draft": "Draf", "traceq_drafted": "Rancangan TraceQ", "traceq_written": "Ditulis orang" },
+        "findings": "{count} temuan"
+      },
+      "copy": {
+        "title": "Sumber dan keputusan draf (salinan versi 2)",
+        "source": "Draf: {doc} rev {rev}, hash {hash}, run {run}",
+        "steps": "Langkah draf yang dibuang atau dipetakan",
+        "stepLine": "{step}: {requirement}",
+        "stepUnmapped": "{step}: tanpa persyaratan",
+        "findings": "Temuan draf dan keputusannya",
+        "findingNoRow": "tanpa baris",
+        "findingNoDecision": "Tidak diputuskan",
+        "reason": "Alasan oleh {name}, {when}: {reason}",
+        "rowSource": "Sumber baris: {source}; {stage}",
+        "stageIs": "tahap {stage}",
+        "noStage": "tanpa tahap"
+      }
+    },
     "signedOut": "Masuk untuk melihat protokol",
     "signedOutBody": "Protokol dan keputusannya dibaca dengan token: masuk dengan identitas demo mana pun.",
     "notImported": "Run ini belum diimpor ke basis data",
@@ -687,6 +760,7 @@
       "unauthorized": "Ditolak API: token tidak diterima. Masuk lagi.",
       "reauth_required": "Autentikasi ulang diperlukan untuk tanda tangan elektronik. Silakan masuk ulang.",
       "failed": "Tidak tersimpan. Coba lagi.",
+      "stale_draft": "Tidak ditandatangani: revisi draf yang lebih baru masuk sejak halaman ini dibaca. Muat ulang halaman, baca temuan dan salinan terbaru, lalu coba lagi.",
       "invalid": "Tidak dikirim: langkah uji perlu deskripsi, metode, dan kriteria penerimaan dalam salah satu dari empat bentuk dengan nilainya; jawaban atas nomor yang terlewat perlu jenis jawaban."
     },
     "writtenStep": "Langkah uji tertulis, versi {version}",
