@@ -349,7 +349,12 @@ def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
     # The capability finding on OQ-04 (spec #375) is new; the 50 before it keep their keys.
     new = [p for p in proposed if p.subject.get("type") == CAPABILITY]
     assert [(p.subject["test_step"], p.ordinal) for p in new] == [("OQ-04", 0)]
-    earlier = [p for p in proposed if p.kind != "test_step" and p not in new]
+    # The draft Test Steps and their criteria (spec #375, S4a1) are new kinds after the findings.
+    draft_steps = [p for p in proposed if p.kind in ("draft_step", "draft_criterion")]
+    assert {p.kind for p in draft_steps} == {"draft_step", "draft_criterion"}
+    earlier = [
+        p for p in proposed if p.kind != "test_step" and p not in new and p not in draft_steps
+    ]
     assert len(earlier) == 50
 
     def keys(kept: list[Proposed]) -> str:

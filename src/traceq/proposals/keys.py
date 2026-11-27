@@ -24,6 +24,13 @@ rests on. Both follow the spec's table:
   for a table row its requirement and Test Step ids. No quote text enters either: a re-run
   whose quote differs only in length is the same Proposal with the same content, while a
   change in a Test Step, its mapping or its criterion asks again.
+- Draft Test Step (``draft_step``) and its Acceptance Criterion (``draft_criterion``), of the
+  Protocol Draft of a Review Package run (spec #375, S4a1): key = Equipment, draft document id
+  (not its revision), the Test Step id. Content = the requirements the draft's traceability
+  table maps the step to (the mapping), and for the step its header requirements, description,
+  method, instrument and why the read was dropped; for the criterion the AC as printed, as
+  parsed and the page it cites (no quote text, no revision). A change of the step, of its
+  mapping or of its criterion asks again (ADR 0012, "Binding to content").
 - Drafted Test Step (``drafts.json``, spec #247): key = Equipment, requirement id. Content =
   the URS document and revision the requirement is printed in, description, method,
   instrument, the AC value, the AC citation's document, revision and page (no quote text) and
@@ -47,9 +54,13 @@ from traceq.runs.schemas import (
     AiFinding,
     CheckFinding,
     Cite,
+    DraftAcceptance,
     DraftCheckFinding,
+    DraftCriterionProposal,
     DraftedTestStep,
     DraftedTestSteps,
+    DraftStepProposal,
+    DraftTestStep,
     Findings,
     Matrix,
     MatrixRow,
@@ -57,9 +68,13 @@ from traceq.runs.schemas import (
     ProtocolDraft,
 )
 
-type Kind = Literal["coverage", "check", "ai", "draft", "test_step"]
+type Kind = Literal[
+    "coverage", "check", "ai", "draft", "test_step", "draft_step", "draft_criterion"
+]
 """``draft``: a Check Finding on the Protocol Draft under review, kept apart from the
-Equipment's Check Findings. ``test_step``: an IQ/OQ Test Step the run drafted."""
+Equipment's Check Findings. ``test_step``: an IQ/OQ Test Step the run drafted.
+``draft_step`` and ``draft_criterion``: a Test Step the site's Protocol Draft prints and its
+Acceptance Criterion, for a Protocol started from the draft."""
 type JsonObject = dict[str, Any]
 
 
@@ -209,6 +224,55 @@ def _draft(
     return subject, content
 
 
+def _draft_step(
+    equipment: str, draft: ProtocolDraft, s: DraftTestStep
+) -> tuple[JsonObject, JsonObject, JsonObject]:
+    """The subject, content and stored payload of a draft Test Step's Proposal."""
+    mapped = tuple(t.requirement for t in s.traced)
+    subject = {"equipment": equipment, "doc": draft.document.doc_id, "test_step": s.id}
+    content = {
+        "header_requirements": list(s.requirements),
+        "mapped_to": list(mapped),
+        "description": s.description,
+        "method": s.method,
+        "instrument": s.instrument,
+        "not_read": s.not_read,
+    }
+    payload = DraftStepProposal(
+        document=draft.document,
+        id=s.id,
+        requirements=s.requirements,
+        mapped_to=mapped,
+        description=s.description,
+        method=s.method,
+        instrument=s.instrument,
+        not_read=s.not_read,
+    )
+    return subject, content, payload.model_dump(mode="json")
+
+
+def _draft_criterion(
+    equipment: str, draft: ProtocolDraft, s: DraftTestStep, ac: DraftAcceptance
+) -> tuple[JsonObject, JsonObject, JsonObject]:
+    mapped = tuple(t.requirement for t in s.traced)
+    subject = {"equipment": equipment, "doc": draft.document.doc_id, "test_step": s.id}
+    content = {
+        "mapped_to": list(mapped),
+        "printed": ac.printed,
+        "value": _read(ac.value),
+        "cited": _locations((ac.citation,)),
+    }
+    payload = DraftCriterionProposal(
+        document=draft.document,
+        id=s.id,
+        mapped_to=mapped,
+        printed=ac.printed,
+        value=ac.value,
+        citation=ac.citation,
+    )
+    return subject, content, payload.model_dump(mode="json")
+
+
 def _test_step(s: DraftedTestStep) -> JsonObject:
     cite = s.acceptance_citation
     return {
@@ -276,6 +340,16 @@ def proposals_of(
     if draft is not None:
         for i, d in enumerate(draft.findings):
             add("draft", *_draft(equipment, draft, d), d.model_dump(mode="json"), position=i)
+    if draft is not None:
+        for i, step in enumerate(draft.test_steps):
+            # A step the table maps to exactly one requirement is that requirement's; any
+            # other is told apart by its place in the draft (the table holds one or the other).
+            single = step.traced[0].requirement if len(step.traced) == 1 else None
+            place = None if single is not None else i
+            add("draft_step", *_draft_step(equipment, draft, step), single, place)
+            if step.acceptance is not None:
+                added = _draft_criterion(equipment, draft, step, step.acceptance)
+                add("draft_criterion", *added, single, place)
     if drafted is not None:
         for s in drafted.test_steps:
             add(

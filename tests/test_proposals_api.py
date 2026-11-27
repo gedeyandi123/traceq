@@ -51,6 +51,8 @@ PROTOCOL_ROUTES = {
     ("post", "/protocols/{protocol_id}/approve"),
     ("post", "/protocols/{protocol_id}/return"),
     ("put", "/protocols/{protocol_id}/rows/{requirement}/attributes"),
+    ("put", "/protocols/{protocol_id}/draft-steps/{step}/mapping"),
+    ("post", "/protocols/{protocol_id}/findings/{proposal_id}/reason"),
 }
 EXECUTION_ROUTES = {
     ("post", "/protocols/{protocol_id}/execution"),
@@ -170,6 +172,7 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
             round_id=1,
             export_id=1,
             requirement="URS-TP201-002",
+            step="OQ-02",
         )
         assert client.request(method, url).status_code == 401
         assert client.request(method, url, headers=good).status_code == 401
@@ -210,6 +213,7 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
                 round_id=1,
                 export_id=1,
                 requirement="URS-TP201-002",
+                step="OQ-02",
             ),
         )
         assert r.status_code == 401, (method, path)

@@ -538,7 +538,7 @@
     "/runs/{run_id}/protocol": {
       "post": {
         "summary": "Start Protocol",
-        "description": "Starts the Protocol of the run's Equipment from this imported run, in Draft status,\nwith its Audit Trail entry. Refused (409) while a Protocol of the Equipment is open\n(Draft or Submitted), once one is approved, and for a run whose folder has\n``drafts.json`` but which holds no drafted Test Step Proposals. Needs the deciding\nrole.",
+        "description": "Starts the Protocol of the run's Equipment from this imported run, in Draft status,\nwith its Audit Trail entry. With ``from_draft`` it starts from the Protocol Draft the\nrun read: pinned to the run and the draft's document, revision and hash, and never\nre-synced (a later revision is a new run: Return or Withdraw this one and start another\nfrom it). Refused (409) while a Protocol of the Equipment is open (Draft or Submitted),\nonce one is approved, for a run whose folder has ``drafts.json`` but which holds no\ndrafted Test Step Proposals, and with ``from_draft`` for a run that read no draft. Needs\nthe deciding role.",
         "operationId": "startProtocol",
         "security": [
           {
@@ -556,6 +556,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StartProtocol"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Successful Response",
@@ -1068,6 +1085,134 @@
         },
         "responses": {
           "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/draft-steps/{step}/mapping": {
+      "put": {
+        "summary": "Map Draft Step",
+        "description": "Maps a Test Step of the pinned Protocol Draft to exactly one requirement of the\nrun, when the draft's traceability table maps it to none or to several or the citation\ncheck dropped it; until then it is listed and unusable. Every mapping is kept with its\nauthor (the Approver may be none of them), and the latest counts; it does not carry\nover to another Protocol. Refused (409) unless the Protocol is in Draft status and was\nstarted from the draft, for a step the table maps to exactly one requirement, and\nwhile the step is edited into a written Test Step of this Protocol; 404 for an unknown\nstep or requirement. Needs the deciding role.",
+        "operationId": "mapDraftStep",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "step",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Step"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftMapping"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/findings/{proposal_id}/reason": {
+      "post": {
+        "summary": "Give Finding Reason",
+        "description": "Records why the row of a finding accepted on its content is submitted as it is: a\nnon-blank written reason (422 without one), every version kept with its author, the\nlatest counting. Needed to submit a row whose Test Step is not written in this\nProtocol. Refused (409) unless the Protocol is in Draft status and was started from the\ndraft, and for a finding not accepted; 404 for a finding the run does not hold. Needs\nthe deciding role.",
+        "operationId": "giveFindingReason",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingReason"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -2608,7 +2753,10 @@
           "coverage_undecided",
           "draft_undecided",
           "no_test_step",
-          "acceptance_not_shaped"
+          "acceptance_not_shaped",
+          "finding_undecided",
+          "finding_reason_missing",
+          "stage_missing"
         ]
       },
       "Check": {
@@ -2618,7 +2766,11 @@
           "draft_undecided",
           "no_test_step",
           "acceptance_not_shaped",
-          "missed_undecided"
+          "missed_undecided",
+          "finding_undecided",
+          "finding_reason_missing",
+          "stage_missing",
+          "draft_step_unresolved"
         ]
       },
       "CheckFinding": {
@@ -2703,6 +2855,14 @@
             },
             "type": "array",
             "title": "Numbers"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -3783,6 +3943,80 @@
         "title": "DraftComparator",
         "description": "The vendor facts of one document a requirement's matrix row holds: shown only, never\na finding."
       },
+      "DraftCriterionProposal": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/DraftDocument"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "mapped_to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Mapped To"
+          },
+          "printed": {
+            "type": "string",
+            "title": "Printed"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Limit"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Tolerance"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AmbiguousValue"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "ambiguous": "#/components/schemas/AmbiguousValue",
+                    "number": "#/components/schemas/Number",
+                    "range": "#/components/schemas/Limit",
+                    "text": "#/components/schemas/Text",
+                    "tolerance": "#/components/schemas/Tolerance"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Cite"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document",
+          "id",
+          "mapped_to",
+          "printed",
+          "value",
+          "citation"
+        ],
+        "title": "DraftCriterionProposal",
+        "description": "What a Proposal of kind ``draft_criterion`` holds: the Acceptance Criterion of a draft\nTest Step as printed, the value code read from it and its verified citation."
+      },
       "DraftDocument": {
         "properties": {
           "doc_id": {
@@ -3852,6 +4086,188 @@
         "title": "DraftFindingView",
         "description": "A finding on the Protocol Draft and the Proposal it was imported as."
       },
+      "DraftMapping": {
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement"
+        ],
+        "title": "DraftMapping",
+        "description": "The requirement a draft Test Step is mapped to."
+      },
+      "DraftMappingView": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "requirement": {
+            "type": "string",
+            "title": "Requirement"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "requirement",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "DraftMappingView",
+        "description": "A requirement a human mapped a draft Test Step to, who and when."
+      },
+      "DraftStepProposal": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/DraftDocument"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requirements"
+          },
+          "mapped_to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Mapped To"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
+          },
+          "not_read": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Read"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document",
+          "id",
+          "requirements",
+          "mapped_to",
+          "description",
+          "method",
+          "instrument",
+          "not_read"
+        ],
+        "title": "DraftStepProposal",
+        "description": "What a Proposal of kind ``draft_step`` holds (spec #375, S4a1): a Test Step of the\nProtocol Draft as read, with the requirements its traceability rows map it to. A human\naccepts or edits it; the Acceptance Criterion is the Proposal ``draft_criterion``."
+      },
+      "DraftStepView": {
+        "properties": {
+          "step": {
+            "$ref": "#/components/schemas/DraftStepProposal"
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/Proposal"
+          },
+          "mappings": {
+            "items": {
+              "$ref": "#/components/schemas/DraftMappingView"
+            },
+            "type": "array",
+            "title": "Mappings"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step",
+          "proposal",
+          "mappings",
+          "requirement",
+          "resolved"
+        ],
+        "title": "DraftStepView",
+        "description": "A Test Step of the Protocol's pinned Protocol Draft: the ones that stand for no\nrequirement are listed and unusable until a human maps one or rejects the step."
+      },
       "DraftTestStep": {
         "properties": {
           "id": {
@@ -3885,6 +4301,39 @@
               }
             ],
             "title": "Not Read"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "instrument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument"
           },
           "traced": {
             "items": {
@@ -4913,6 +5362,67 @@
         ],
         "title": "FindingChangeView",
         "description": "One finding of either round and what became of it between them."
+      },
+      "FindingReason": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "FindingReason",
+        "description": "Why a row on which a finding was accepted is submitted as it is."
+      },
+      "FindingReasonView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "reason",
+          "subject",
+          "issuer",
+          "name",
+          "at"
+        ],
+        "title": "FindingReasonView",
+        "description": "A Preparer's written reason on an accepted finding, who and when."
       },
       "Findings": {
         "properties": {
@@ -6182,7 +6692,9 @@
           "check",
           "ai",
           "draft",
-          "test_step"
+          "test_step",
+          "draft_step",
+          "draft_criterion"
         ]
       },
       "KindCounts": {
@@ -7509,6 +8021,37 @@
             "type": "boolean",
             "title": "Witness Required",
             "default": false
+          },
+          "step_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RowSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/RowCandidate"
+            },
+            "type": "array",
+            "title": "Candidates",
+            "default": []
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/RowFindingView"
+            },
+            "type": "array",
+            "title": "Findings",
+            "default": []
+          },
+          "changed": {
+            "type": "boolean",
+            "title": "Changed",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -7529,6 +8072,31 @@
         ],
         "title": "ProtocolRowView",
         "description": "One requirement of the run and what the Protocol holds for it."
+      },
+      "ProtocolSource": {
+        "properties": {
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "doc",
+          "rev",
+          "sha256"
+        ],
+        "title": "ProtocolSource",
+        "description": "The Protocol Draft a Protocol was started from: pinned at creation, with the run, and\nnever re-synced in Draft, Submitted or Returned. A later revision never clears a warning\non it; Return or Withdraw it and start a new one from the latest revision."
       },
       "ProtocolUrs": {
         "properties": {
@@ -7668,6 +8236,30 @@
             },
             "type": "array",
             "title": "Submissions"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProtocolSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft_steps": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DraftStepView"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Steps"
           }
         },
         "additionalProperties": false,
@@ -8586,6 +9178,67 @@
           "ready_for_protocol"
         ]
       },
+      "RowCandidate": {
+        "properties": {
+          "step": {
+            "$ref": "#/components/schemas/DraftStepProposal"
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/Proposal"
+          },
+          "criterion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftCriterionProposal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "criterion_proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Proposal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftMappingView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step",
+          "proposal",
+          "criterion",
+          "criterion_proposal",
+          "mapping",
+          "ready",
+          "accepted"
+        ],
+        "title": "RowCandidate",
+        "description": "A Test Step of the site's Protocol Draft that stands for the row's requirement, with its\nAcceptance Criterion and where each stands. Decided with ``recordDecision`` (accepted or\nrejected) or edited with ``editDraftedTestStep``; an edit made in another Protocol does not\ndecide it here."
+      },
       "RowDraft": {
         "properties": {
           "draft": {
@@ -8603,6 +9256,32 @@
         ],
         "title": "RowDraft",
         "description": "A drafted Test Step of the row's requirement, as the run drafted it, and the Proposal it\nwas imported as, decided with ``recordDecision`` (accepted or rejected)."
+      },
+      "RowFindingView": {
+        "properties": {
+          "finding": {
+            "$ref": "#/components/schemas/DraftCheckFinding"
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/Proposal"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/FindingReasonView"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "finding",
+          "proposal",
+          "reasons"
+        ],
+        "title": "RowFindingView",
+        "description": "A finding of the Protocol Draft about the row's requirement, its decision state and the\nreasons written for it in this Protocol."
       },
       "RowKind": {
         "type": "string",
@@ -8658,6 +9337,14 @@
         ],
         "title": "RowPrefill",
         "description": "What the row's write form starts from."
+      },
+      "RowSource": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "traceq_drafted",
+          "traceq_written"
+        ]
       },
       "RowTestStep": {
         "properties": {
@@ -8772,6 +9459,16 @@
             "type": "boolean",
             "title": "Witness Required",
             "default": false
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RowSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -8994,6 +9691,19 @@
           "IQ",
           "OQ"
         ]
+      },
+      "StartProtocol": {
+        "properties": {
+          "from_draft": {
+            "type": "boolean",
+            "title": "From Draft",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "StartProtocol",
+        "description": "How a Protocol is started."
       },
       "State": {
         "type": "string",

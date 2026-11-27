@@ -39,6 +39,10 @@ ALLOWED: dict[Kind, frozenset[Verdict]] = {
     # Edited only together with the written Test Step it produces, by the Protocol's edit
     # route, never by ``record`` (spec #247).
     "test_step": frozenset({"accepted", "rejected"}),
+    # A draft Test Step: edited only by the Protocol's edit route, as for ``test_step``. Its
+    # Acceptance Criterion is accepted or rejected: an edit types the criterion with the step.
+    "draft_step": frozenset({"accepted", "rejected"}),
+    "draft_criterion": frozenset({"accepted", "rejected"}),
 }
 
 DECISIONS = Table(
@@ -148,10 +152,10 @@ def _check(
     kind: Kind, proposed_class: str | None, verdict: Verdict, coverage: str | None, *, edit: bool
 ) -> None:
     if edit:
-        if kind != "test_step" or verdict != "edited":
-            raise Refused("the edit route records only edited on a drafted Test Step")
+        if kind not in ("test_step", "draft_step") or verdict != "edited":
+            raise Refused("the edit route records only edited on a drafted or a draft Test Step")
         if coverage is not None:
-            raise Refused("a drafted Test Step edited takes no class")
+            raise Refused("a Test Step edited takes no class")
         return
     if verdict not in ALLOWED[kind]:
         allowed = " or ".join(sorted(ALLOWED[kind]))

@@ -279,6 +279,7 @@ def test_decided_coverage_gives_a_test_step_row_blocking_until_its_draft_is_acce
         "acceptance_flag": None,
         "stage": None,
         "witness_required": False,
+        "source": "traceq_drafted",
     }
 
 
