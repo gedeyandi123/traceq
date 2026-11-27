@@ -83,7 +83,7 @@ from traceq_eval.ocr import score_ocr
 from traceq_eval.segmentation import Alignment, align
 from traceq_eval.submission import Citation, Finding, Submission
 
-SCORER_VERSION = "0.8.0"
+SCORER_VERSION = "0.9.0"
 
 Split = Literal["dev", "held_out"]
 DEV = frozenset({"TP-201"})
