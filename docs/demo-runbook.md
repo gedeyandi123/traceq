@@ -2,12 +2,14 @@
 
 Panduan menjalankan demo TraceQ untuk sesi praktisi: persiapan, alur end to end (Proposal Decisions, Protocol Assembly, Execution & Deviations, Ronde Tinjauan, Laporan Kualifikasi, dan login Keycloak dengan tanda tangan elektronik), kasus uji langkah demi langkah, hal yang diketahui salah, dan pemulihan. Perintah dasarnya ada di `README.md` (bagian "Demo"). Dokumen ini tidak mengulanginya kecuali bila urutannya penting.
 
-**Status:** gladi penuh terakhir yang tercatat di bagian 5 dilakukan pada 17 Nov 2026 (rilis 0.1.1, rekaman `haiku-r10`, `main` e3bb58e, 17 kasus), sebelum langkah 5 sampai 8 (Protocol Assembly, Eksekusi & Deviasi, Ronde Tinjauan, Laporan Kualifikasi, Keycloak dan tanda tangan elektronik). Kasus bagian 11 sampai 15 punya kolom "Hasil" sendiri; sel yang kosong belum diverifikasi ulang pada stack demo saat ini. Demo memakai rekaman r10 atas keputusan owner. Riwayat gladi sebelumnya ada di riwayat git berkas ini.
+**Status:** gladi penuh terakhir yang tercatat di bagian 5 dilakukan pada 17 Nov 2026 (rilis 0.1.1, rekaman `haiku-r10`, `main` e3bb58e, 17 kasus). Kasus bagian 10 sampai 15 punya kolom "Hasil" sendiri; sel yang kosong belum diverifikasi ulang pada stack demo saat ini. Bagian 16 (alur end to end dari unggah draf sampai Laporan Kualifikasi, epic #375, tiket #392) ditulis dari kode cabang `feat/e2e-review-loop` dan **belum dijalankan**: kolom "Hasil" K59 sampai K86 sengaja kosong sampai sesi utama menggladinya di browser. Demo memakai rekaman r10 untuk Equipment dan `haiku-oq-draft-r8` untuk draf atas keputusan owner. Riwayat gladi sebelumnya ada di riwayat git berkas ini.
 
 ## 1. Apa yang ditunjukkan demo, dan apa yang tidak
 
 - **Ditunjukkan:** matriks ketertelusuran TP-201 (38 persyaratan) dengan bukti yang dikutip sampai halaman PDF, temuan pra-tinjauan (aturan dan AI), keputusan manusia (terima, ubah kelas, tolak) yang tercatat di Audit Trail, peran baca saja, dan skor eval dengan k/n.
 - **Bukan panggilan LLM langsung:** run diputar ulang dari rekaman `recordings/haiku-r10` dan tidak mengirim apa pun ke API. "Biaya run: 0,039 USD" di layar eval adalah biaya panggilan yang direkam saat dijalankan live (`cost_usd`), bukan biaya demo (`live_cost_usd` = 0).
+- **Unggah draf (bagian 16):** bila demo dinyalakan dengan paket 0.2.0, halaman unggah menerima PDF draf. Mode-nya **putar ulang dengan anggaran 0**: hanya berkas yang byte-nya sudah punya rekaman (draf paket 0.2.0 rev 0 dan rev 1) yang bisa diproses; berkas lain ditolak 402 dan tidak ada yang dikirim ke penyedia model. Halaman unggah hanya untuk satu Equipment (`TP-201`).
+- **Label evidence:** setiap angka tentang putaran tinjauan adalah k/n "dev only" (set pengembangan, kunci ditulis proyek sendiri). Tiga jenis temuan baru (`ac_outside_documented_capability`, `unit_error`, `outdated_reference`) tampil dengan label "Belum ditinjau praktisi" (di laporan: "not reviewed by a practitioner"). Tidak ada klaim hemat waktu, hemat putaran, atau "compliant".
 - **Data fiktif:** pabrik, vendor (Pressora Maschinenbau GmbH), mesin dan persona demo semuanya sintetis (ADR 0001).
 - **AI hanya memberi saran:** setiap Proposal menunggu keputusan manusia (ADR 0002, ADR 0009).
 - **Dua mode login:** persona demo bawaan tidak memakai kata sandi dan bukan kontrol akses sungguhan. Mode Keycloak OIDC dengan tanda tangan elektronik berotentikasi ulang tersedia di bagian 15 (ADR 0005, ADR 0007).
@@ -123,6 +125,8 @@ Siapkan jawabannya sebelum praktisi menemukannya. Angka di bawah dari laporan sc
 | "Run ini belum dinilai" | Eval screen tidak jalan, atau run baru belum dinilai | Ulangi langkah eval di bagian 3 dengan run id baru |
 | Halaman pertama lambat atau gagal | UI dijalankan dengan `npm run dev` | Pakai `npm run build` lalu `npm start` |
 | Token kedaluwarsa | Masa berlaku token demo 8 jam | Keluar lalu Masuk lagi |
+| Unggahan ditolak 402 "Anggaran panggilan langsung tidak cukup" | Demo berjalan dengan anggaran 0 dan byte berkas tidak punya rekaman (bukan PDF rev 0 atau rev 1 paket 0.2.0, atau hasil `--release` yang byte-nya berbeda) | Buat ulang PDF dari paket 0.2.0 (bagian 16.1); jangan menaikkan anggaran di demo |
+| Halaman unggah "Unggahan tidak aktif" | Demo dinyalakan tanpa paket | Nyalakan dengan `--review-package` dan `--package-recordings` (bagian 10) |
 
 Reset menghapus seluruh keputusan dan Audit Trail. Ini sengaja, dan justru karena itu reset bukan bukti ketahanan Audit Trail.
 
@@ -137,22 +141,29 @@ Ctrl-C pada `demo.py`, eval screen dan `npm start`. Postgres tetap jalan; matika
 - Baris cakupan tanpa "Tolak": apakah "Ubah kelas" cukup untuk menolak usulan AI?
 - D9 (#100): apakah FAT-M-02 dan FAT-M-09 layak menjadi temuan? Di rekaman r10 keduanya tidak lagi tampil, karena `ai_review` kini melaporkan "Kriteria penerimaan menyimpang dari URS" hanya untuk protokol milik site; tanyakan tanpa menunjukkannya di layar.
 
-## 10. Draf protokol OQ (irisan 3, spec #196)
+## 10. Draf protokol OQ (irisan 3, spec #196; diperluas oleh epic #375)
 
-Layar "Draf protokol" menampilkan draf protokol OQ milik site dari Review Package `TP-201-OQ-draft` 0.1.0: setiap langkah uji dalam urutan draf dengan kriteria penerimaan (KP) seperti terbaca, nilai URS yang dibandingkan, pembanding per dokumen vendor (datasheet, FAT, SAT: langkah FAT/SAT dan data desain dari matriks, atau "tidak ada"; hanya ditampilkan), dan temuannya atau "Tidak dibandingkan" dengan alasannya; lalu temuan tentang seluruh dokumen. Langkah uji yang tercetak di draf tetapi bacaannya dibuang oleh pemeriksaan kutipan tetap tampil di tempatnya dengan "Tidak terbaca: …" dan alasannya (run live pertama r1 punya tiga: OQ-01, OQ-03 dan OQ-12; r3 tidak punya). Langkah uji OQ yang dirancang TraceQ sendiri tidak tampil di sini. Draf dimuat bersama paket saat demo dinyalakan; tidak ada unggahan.
+Layar "Draf protokol" (`/runs/<id>/draft`) menampilkan draf protokol OQ milik site dari Review Package `TP-201-OQ-draft`: setiap langkah uji dalam urutan draf dengan kriteria penerimaan (KP) seperti terbaca, nilai URS yang dibandingkan, pembanding per dokumen vendor (datasheet, FAT, SAT: langkah FAT/SAT dan data desain dari matriks, atau "tidak ada"; hanya ditampilkan), dan temuannya atau "Tidak dibandingkan" dengan alasannya; lalu temuan tentang seluruh dokumen. Langkah uji yang tercetak di draf tetapi bacaannya dibuang oleh pemeriksaan kutipan tetap tampil di tempatnya dengan "Tidak terbaca: …" dan alasannya. Langkah uji OQ yang dirancang TraceQ sendiri tidak tampil di sini (layar Protokol, bagian 11 dan 16).
 
-**Menyalakan dengan paket.** Ganti perintah demo di bagian 3 langkah 1 dengan:
+Ada dua paket, dan keduanya hanya dibaca saat dinyalakan:
+
+- **0.1.0** (rekaman `haiku-oq-draft-r3`, satu revisi, dua jenis temuan): paket irisan 3. Kasus K18 sampai K27 di bawah dicatat pada paket ini (26 langkah uji).
+- **0.2.0** (rekaman `haiku-oq-draft-r8`, revisi 0 dan revisi 1, lima jenis temuan): paket epic #375. Dipakai oleh bagian 16. Jenis `ac_deviates_from_urs` dan `requirement_not_tested` berlaku sejak 0.1.0; `ac_outside_documented_capability`, `unit_error` dan `outdated_reference` baru di 0.2.0 dan berlabel "Belum ditinjau praktisi". Angka K18 sampai K27 (26 langkah uji, 5 temuan) **tidak berlaku** untuk 0.2.0; amati ulang dan isi di kolom Hasil bila kasus diulang pada 0.2.0.
+
+**Menyalakan dengan paket 0.1.0 (tanpa unggah di bagian 16 yang bermakna):** ganti perintah demo di bagian 3 langkah 1 dengan:
 
 `uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01 --recordings recordings/haiku-r10 --review-package recordings/TP-201-OQ-draft-0.1.0 --package-recordings recordings/haiku-oq-draft-r3`
 
-Run-nya menjadi run Review Package: Pre-review peralatan diputar ulang dari r10 tanpa perubahan, draf dibaca dari rekaman paket, keduanya hanya dibaca. Tunggu baris `demo: … with the Review Package …` lalu `demo: ready`. Kedua opsi paket wajib bersama; satu saja ditolak sebelum database disentuh.
+**Menyalakan dengan paket 0.2.0 (dipakai bagian 16):** sama, dengan `--review-package recordings/TP-201-OQ-draft-0.2.0 --package-recordings recordings/haiku-oq-draft-r8`. Kode `demo.py` menyalakan API dengan `--uploads uploads-demo --upload-equipment TP-201 --upload-budget-usd 0` setiap kali paket diberikan (`serve_args` di `src/traceq/app/demo.py`), jadi halaman unggah aktif dan tidak ada panggilan langsung yang mungkin. Tanpa paket, halaman unggah menjawab "Unggahan tidak aktif" (404 dari API).
+
+Run-nya menjadi run Review Package: Pre-review peralatan diputar ulang dari r10 tanpa perubahan, draf dibaca dari rekaman paket (tanpa revisi dipilih, yang dibaca revisi terbaru paket), keduanya hanya dibaca. Tunggu baris `demo: … Review Package …` lalu `demo: ready`. Kedua opsi paket wajib bersama; satu saja ditolak sebelum database disentuh.
 
 **Batas yang harus diketahui presenter:**
 
-- Rekaman draf di `recordings/haiku-oq-draft-r3` adalah **run live ketiga** (Claude Haiku, 19 Nov, prompt dengan aturan tabel yang berlanjut ke halaman berikutnya; `recordings/README.md`), berlabel "dev only; labels not reviewed": kunci jawaban paket belum ditinjau. Angka di bawah berasal dari rekaman itu. Semua 26 langkah uji terbaca dan kedua halaman tabel ketertelusuran terbaca. Ini satu sampel: jangan menyebut angkanya sebagai hasil aturan baru. (r1, run live pertama: tiga langkah uji tidak terbaca karena kutipan berisi judul langkah; r2 tidak di-merge; angka keduanya di `recordings/README.md`.)
+- Rekaman draf adalah satu sampel model (Claude Haiku) pada suhu bawaan, berlabel "dev only; labels not reviewed": kunci jawaban paket belum ditinjau praktisi. Angka per rekaman ada di `recordings/README.md`. Dengan dua cacat per jenis baru, angkanya hitungan asap (smoke count), bukan statistik, dan tidak bisa membedakan aturan dari aturan yang cocok dengan kunci milik penulisnya sendiri. Jangan menyebutnya sebagai hasil aturan.
 - Kutipan ke draf (OQ-TP201) **bukan link**: API hanya menyajikan dokumen korpus, dan draf bukan dokumen korpus. Arahkan kursor untuk melihat kutipannya. Kutipan ke URS dan pembanding tetap membuka PDF.
 - Draf dibaca dengan token: tanpa masuk, layar meminta masuk.
-- Penilaian (bagian 3 langkah 2) untuk run Review Package memerlukan `--package world/tp201-oq-draft.yaml`; layar eval untuk run ini belum dilatih.
+- Penilaian (bagian 3 langkah 2) untuk run Review Package memerlukan `--package world/tp201-oq-draft.yaml` (0.1.0) atau `--package world/tp201-oq-draft-0.2.0.yaml --draft-rev <n>` (0.2.0); layar eval untuk run ini belum dilatih.
 
 | ID | Kasus | Langkah | Hasil yang diharapkan | Hasil |
 |---|---|---|---|---|
@@ -240,6 +251,8 @@ Layar "Eksekusi & Deviasi" (`/runs/<id>/execution`, tab di header run, terpisah 
 
 Layar **Dokumen & Ronde** (`/runs/<id>/rounds`, di bilah sisi antara Draf Protokol dan Protokol IQ/OQ) menampilkan versi dokumen peralatan (`Aktif` / `Digantikan`), riwayat ronde tinjauan pra-protokol (`R1`, `R2`, …), diff lintas-ronde, penutupan ronde (*"Tutup ronde"*), serta penerbitan dan pengunduhan **Laporan Pra-Tinjauan (PDF)**.
 
+**Jalur lama (benih).** Bagian 16 menggantikan jalur ini untuk demo penuh: ronde kedua sekarang berasal dari unggahan revisi 1, bukan dari dua run identik. Seed `two-rounds` tetap berguna bila hanya ingin menunjukkan layar ronde tanpa paket.
+
 **Menyalakan & persiapan dua ronde (`--stage two-rounds`).** Setelah `scripts/demo.py` menyalakan stack demo, jalankan `uv run python scripts/demo_seed.py --stage two-rounds` untuk menutup ronde R1 (`returned_for_revision`) dan membuka ronde R2 dengan dokumen revisi pada peralatan `TP-201`. Pastikan `typst` terpasang bila menerbitkan ekspor PDF baru.
 
 **Dua run harus ada di `runs-demo/` sebelum seeding.** `demo.py` hanya membuat satu run. Buat run kedua dari korpus dan rekaman yang sama (replay, tanpa panggilan API):
@@ -287,4 +300,69 @@ Akun demo Keycloak (kata sandi seluruhnya `demo`): `ayu` & `bima` (`qualificatio
 | K57 | Autentikasi ulang 60 detik & `SignatureBadge` pada 5 aksi penandatanganan | Masuk sebagai `dewi` (`demo`) → buka `/runs/<id>/report`, isi `conclusion_note` & tanggal rekualifikasi → klik **Terbitkan Laporan Kualifikasi (PDF)** → klik **Autentikasi Ulang dengan Keycloak** | Redirect ke `/api/auth/reauth` (`prompt=login&max_age=0&login_hint`), setelah memasukkan kata sandi `demo`, dialog terbuka kembali otomatis dengan `conclusion_note` & tanggal tetap terisi (`sessionStorage`), hitungan mundur 60 detik tampil dari `auth_time`, dan konfirmasi 1-klik menerbitkan laporan dengan `SignatureBadge` berlabel *Electronic Signature — designed for 21 CFR Part 11, CPOB Annex 7, and draft EU GMP Annex 11 (2025), not validated (ADR 0007)* | |
 | K58 | Penutupan & pembekuan sumber daya | Setelah verifikasi: `Ctrl-C` pada `demo.py`, hentikan server web, dan jalankan `docker compose --profile keycloak stop keycloak` | Proses web/API berhenti dan kontainer Keycloak berhenti untuk membebaskan RAM | |
 
-Kolom "Hasil" diisi oleh sesi utama setelah kasus dijalankan di browser pada stack yang dibangun dari cabang integrasi.
+Kolom "Hasil" diisi oleh sesi utama setelah kasus dijalankan di browser pada stack yang dibangun dari cabang integrasi. Lencana tanda tangan sekarang tertulis "Hash cocok" (netral): artinya hash konten cocok, bukan bahwa tanda tangan sudah divalidasi.
+
+## 16. Alur end to end dari draf (epic #375, tiket #392)
+
+Bagian ini menjalankan seluruh putaran tinjauan di browser pada data sintetis: unggah draf (revisi 0), temuan dan keputusan, unggah revisi 1, diff ronde, Protocol dari draf, pengajuan, persetujuan, Eksekusi, Deviasi dan Laporan. Semuanya dibaca dari kode cabang `feat/e2e-review-loop` (`src/traceq/app/demo.py`, `src/traceq/uploads/`, `web/src/`, `web/messages/id.json`); **belum ada yang digladi di browser**. Kolom "Hasil" dikosongkan untuk sesi utama. Label yang berlaku di setiap layar: "Hanya pengembangan (dev only)" dan, untuk tiga jenis temuan baru, "Belum ditinjau praktisi".
+
+### 16.1 Persiapan khusus bagian ini
+
+1. **PDF draf.** Halaman unggah hanya menerima byte yang sudah punya rekaman (anggaran 0). Buat kedua PDF dari paket 0.2.0: `uv run python -m traceq_dataset.review_package world/tp201-oq-draft-0.2.0.yaml --release dist`. Hasilnya `dist/TP-201-OQ-draft/OQ-TP201_rev0.pdf` dan `OQ-TP201_rev1.pdf` (nama di manifes paket; hash rev 0 yang dicatat manifes: `a127013e…`). Perintah ini memakai Typst (versi manifes: 0.15.2) dan menulis ulang `recordings/TP-201-OQ-draft-0.2.0/manifest.json`; cek `git status` sesudahnya: berkas itu harus tidak berubah. Berkas yang byte-nya berbeda ditolak 402 (K64).
+2. **Nyalakan** dengan paket 0.2.0 (bagian 10): `uv run python scripts/demo.py <CORPUS_DIR>/t0-2026-06-01 --recordings recordings/haiku-r10 --review-package recordings/TP-201-OQ-draft-0.2.0 --package-recordings recordings/haiku-oq-draft-r8`, UI dengan `npm run build` lalu `npm start` (bagian 3). Peran: Ayu dan Bima memutuskan dan melaksanakan, Dewi menyetujui, Eko menjadi Saksi, Citra membaca (bagian 11 dan 12).
+3. **Mulai dari database yang direset.** Protocol yang sudah Disetujui menghalangi Protocol baru untuk Equipment yang sama, dan nomor revisi unggahan berjalan dari 0 per database.
+
+### 16.2 Alur (urutan cerita)
+
+1. **Unggah revisi 0.** Masuk sebagai Ayu → `/equipment` → "Unggah draf" pada TP-201 (`/equipment/TP-201/upload`). Peringatan "Hanya data sintetis" selalu tampil sebelum berkas dipilih; batas "Maksimal 10 MB dan 40 halaman. Hanya PDF." Pilih `OQ-TP201_rev0.pdf` → "Unggah". Tabel menampilkan "Rev 0", awalan SHA-256, jumlah halaman, "diputar ulang dari rekaman, tanpa biaya langsung", dan status Antre → Berjalan → Selesai (halaman memeriksa setiap 2 detik). Dari baris yang selesai: "Buka draf" dan "Buka ronde tinjauan".
+2. **Temuan draf (Pre-review).** Tab "Draf protokol" pada run hasil unggahan: setiap temuan menyebut jenisnya, kutipan draf dan kalimat sumbernya. Jenis `ac_outside_documented_capability`, `unit_error` dan `outdated_reference` berlabel "Belum ditinjau praktisi". Terima atau tolak setiap temuan; menolak butuh alasan tertulis.
+3. **Unggah revisi 1.** Kembali ke halaman unggah, pilih `OQ-TP201_rev1.pdf`. Baris baru "Rev 1" menjadi Selesai.
+4. **Diff ronde.** Tab "Dokumen & Ronde" pada run revisi 1 → "Ronde Tinjauan & Diff": panel "Diff Lintas-Ronde (vs R…)" menampilkan hitungan, daftar "Temuan yang perlu dilihat dulu" (memuat Selesai, "Bertahan, berubah" dan Baru; temuan Bertahan yang tidak berubah hanya masuk hitungan) dan keputusan. Status temuan: **Selesai** (resolved), **Bertahan** (persisted), **Bertahan, berubah** (persisted-but-changed), **Baru** (new). Keputusan atas temuan yang tidak berubah **Terbawa**; keputusan atas Langkah uji atau kriteria yang berubah **Terbuka ulang / berubah**. Diff ini tidak menggantikan membaca ulang draf. Ronde dari run yang dinyalakan bersama demo adalah R1 (lihat 16.4).
+5. **Protocol dari draf.** Tab "Protokol (disusun di TraceQ)" pada run revisi 1 → "Mulai protokol dari draf yang ditinjau". Catatan layar: baris yang dicakup draf memakai langkah uji draf, sisanya (misalnya IQ) memakai rancangan TraceQ; Protocol terpaku pada revisi draf yang dibaca ("Sumber: draf protokol", dokumen, rev, hash). Labelnya: "Hanya pengembangan (dev only)", "Belum ditinjau praktisi", "Menunggu jawaban praktisi (#245)" (apakah pabrik menjalankan draf yang ditinjaunya belum dijawab).
+6. **Langkah draf yang tidak dapat dipakai.** Tab "Langkah draf": langkah yang dipetakan ke nol atau beberapa persyaratan, atau yang dibuang pemeriksaan kutipan, berstatus "Belum dapat dipakai" dan memblokir sampai seseorang memilih tepat satu persyaratan ("Petakan ke persyaratan" → "Simpan pemetaan") atau menolaknya.
+7. **Keputusan per baris.** Setiap baris menampilkan sumbernya (Draf, Rancangan TraceQ atau Ditulis orang), Langkah uji, kriteria penerimaan dengan kutipan, persyaratan dan temuannya. Putuskan "Keputusan atas langkah" dan "Keputusan atas kriteria penerimaan"; tetapkan **tahap IQ atau OQ** per Langkah uji (tanpa tahap: "Memblokir: tetapkan tahap IQ atau OQ untuk langkah uji ini"). Temuan yang belum diputuskan memblokir. Bila temuan diterima dan Langkah uji tidak berubah, wajib "Alasan baris ini diajukan apa adanya" (tertulis).
+8. **Ajukan.** "Ajukan protokol" (daftar "Yang memblokir pengajuan" harus nol). Layar membaca revisi draf terbaru dan mengirimnya sebagai `expected_latest_draft_rev`. Bila revisi yang lebih baru masuk sejak halaman dibaca, API menjawab 409 dan layar menulis "Tidak ditandatangani: revisi draf yang lebih baru masuk sejak halaman ini dibaca. Muat ulang halaman, …". Revisi baru tidak menghapus peringatan pada Protocol yang terpaku pada revisi lama: kembalikan atau tarik, lalu mulai Protocol baru.
+9. **Setujui oleh orang lain.** Masuk sebagai Dewi → "Setujui protokol" (tanda tangan demo; bagian 15 untuk Keycloak). Penyetuju bukan Penyusun dan bukan orang yang memutuskan temuan atau memetakan langkah pada run itu (diperiksa dari salinan beku). Di demo, penolakan terhadap Ayu/Bima terjadi karena peran (tidak punya peran menyetujui); aturan pemisahan tugas itu sendiri ditunjukkan oleh tes. Salinan beku versi 2 memuat sumber draf (dokumen, rev, hash, run), langkah yang dibuang atau dipetakan, setiap temuan dengan keputusan, penulis dan alasan, dan Tahap.
+10. **Eksekusi, Deviasi, Laporan.** Sama dengan bagian 12 dan 14 (Eko sebagai Saksi, Dewi menutup Deviasi dan menerbitkan Laporan Kualifikasi). Lencana tanda tangan tertulis **"Hash cocok"** (netral, bukan hijau, bukan "Terverifikasi"): label tampilan saja, artinya hash konten cocok, bukan bahwa tanda tangan telah divalidasi.
+11. **Laporan Pra-Tinjauan.** Tab "Ekspor Laporan" → "Terbitkan Laporan Pra-Tinjauan (PDF)" → "Unduh PDF". Berkas memakai template **2.0.0** (`src/traceq/reports/pre_review_report_v2.typ`): menandai setiap temuan dengan status ronde (resolved, persisted, persisted-but-changed, new), memuat label "dev only" dan "not reviewed by a practitioner" untuk tiga jenis baru, dan tidak mengklaim hemat waktu atau putaran. Template 1.0.0 tetap beku agar ekspor lama tetap terverifikasi.
+
+### 16.3 Kasus uji gladi (kolom Hasil diisi sesi utama)
+
+| ID | Kasus | Langkah | Hasil yang diharapkan | Hasil |
+|---|---|---|---|---|
+| K59 | Halaman unggah aktif dengan paket | Nyalakan dengan paket 0.2.0 (16.1), masuk sebagai Ayu, buka `/equipment/TP-201/upload` | Judul "Unggah Draf Protokol · TP-201"; peringatan "Hanya data sintetis"; batas "Maksimal 10 MB dan 40 halaman. Hanya PDF."; keadaan kosong "Belum ada unggahan" | |
+| K60 | Unggahan tidak aktif tanpa paket | Nyalakan tanpa `--review-package`, buka halaman yang sama | "Unggahan tidak aktif" ("Server ini tidak mengaktifkan unggahan draf.") | |
+| K61 | Tanpa masuk, pembaca, dan Equipment lain | Keluar, buka halaman unggah; masuk sebagai Citra; lalu buka `/equipment/XX-000/upload` | Tanpa masuk: "Anda belum masuk" dengan tombol masuk. Citra: "Tidak dapat mengunggah" (perlu peran penentu). Equipment lain: ditolak (403 dari API), bukan halaman unggahan | |
+| K62 | Unggah rev 0 | Ayu → pilih `OQ-TP201_rev0.pdf` → "Unggah" | Baris "Rev 0", status Antre/Berjalan lalu "Selesai", catatan "diputar ulang dari rekaman, tanpa biaya langsung", tautan "Buka draf" dan "Buka ronde tinjauan" | |
+| K63 | Berkas bukan PDF atau terlalu besar | Pilih berkas teks, lalu berkas di atas 10 MB | "Berkas ditolak: bukan PDF yang dapat dibaca, atau melebihi batas halaman." / "Berkas melebihi batas ukuran."; tidak ada baris baru | |
+| K64 | Berkas tanpa rekaman ditolak (anggaran 0) | Unggah PDF lain (bukan rev 0 atau rev 1 paket) | "Anggaran panggilan langsung tidak cukup untuk unggahan ini." (402); tidak ada yang dikirim ke penyedia model | |
+| K65 | Temuan draf rev 0 | Buka draf run hasil K62 | Setiap temuan menyebut jenis, kutipan draf dan kalimat sumber; tiga jenis baru berlabel "Belum ditinjau praktisi"; catat jumlah dan jenis temuan di kolom Hasil | |
+| K66 | Putuskan temuan | Terima satu temuan; tolak satu tanpa alasan, lalu dengan alasan | Tanpa alasan ditahan; keputusan tercatat dengan nama dan alasan; hitungan "k/n usulan sudah diputuskan" berubah | |
+| K67 | Unggah rev 1 | Pilih `OQ-TP201_rev1.pdf` → "Unggah" | Baris "Rev 1" Selesai; baris "Rev 0" tetap; revisi bernomor berurutan | |
+| K68 | Unggah ulang byte yang sama | Unggah `OQ-TP201_rev1.pdf` sekali lagi | Diterima sebagai revisi berikutnya tanpa biaya (diputar ulang); catat apa adanya di kolom Hasil | |
+| K69 | Diff ronde: empat status | Tab "Dokumen & Ronde" → "Ronde Tinjauan & Diff" pada run rev 1 | Diff terhadap ronde rev 0 menampilkan hitungan dan daftar "Temuan yang perlu dilihat dulu" dengan status Selesai, "Bertahan, berubah" dan Baru (jumlah Bertahan ada di hitungan, bukan di daftar); catat jumlah per status dan bandingkan dengan `recordings/README.md` (r8: rev 1 memperbaiki sebagian, mempertahankan satu, menambah satu, dan satu perbaikan salah) | |
+| K70 | Keputusan terbawa dan terbuka ulang | Pada diff K69, lihat keputusan K66 | Keputusan atas temuan tak berubah "Terbawa"; atas langkah atau kriteria yang berubah "Terbuka ulang / berubah" | |
+| K71 | Dokumen yang diunggah ulang bukan "dihapus" | Tab "Versi Dokumen" pada run rev 1 | OQ-TP201 rev 1 "Revisi baru", rev 0 "Digantikan"; tidak ada di "Dokumen yang Dihapus dari Ronde Sebelumnya" | |
+| K72 | Mulai Protocol dari draf | Run rev 1 → tab Protokol → "Mulai protokol dari draf yang ditinjau" | Status "Draft (sedang disusun)"; "Sumber: draf protokol" dengan dokumen, rev 1 dan hash; label "Hanya pengembangan (dev only)", "Belum ditinjau praktisi" dan "Menunggu jawaban praktisi (#245)" | |
+| K73 | Langkah draf yang belum dapat dipakai | Tab "Langkah draf" | Langkah tanpa atau lebih dari satu persyaratan, dan langkah yang dibuang pemeriksaan kutipan, "Belum dapat dipakai"; pemblokir "Langkah draf tanpa persyaratan (petakan atau tolak)" lebih dari nol bila ada | |
+| K74 | Petakan atau tolak langkah | "Petakan ke persyaratan" → pilih satu → "Simpan pemetaan"; tolak satu lain | "Dipetakan ke … oleh Ayu …" / "Ditolak"; pemblokir berkurang; langkah tidak mendarat di dua baris | |
+| K75 | Tahap IQ/OQ wajib | Coba ajukan tanpa tahap pada satu Langkah uji | Pemblokir "Langkah uji tanpa tahap IQ atau OQ: n"; setelah ditetapkan, baris menulis tahapnya | |
+| K76 | Temuan diterima pada baris tak berubah | Terima satu temuan draf; jangan ubah langkahnya | Pemblokir "Temuan diterima pada baris tak berubah tanpa alasan tertulis"; hilang setelah "Simpan alasan"; temuan belum diputuskan memblokir sebagai "Temuan draf belum diputuskan" | |
+| K77 | Ajukan dan salinan beku v2 | Setelah semua pemblokir nol: "Ajukan protokol" | Status "Diajukan"; "Sumber dan keputusan draf (salinan versi 2)" memuat draf, langkah dibuang atau dipetakan, temuan beserta keputusan, penulis dan alasan, "Sumber baris" dan tahap; hash SHA-256 tampil | |
+| K78 | Pengajuan basi ditolak (409) | Baca halaman Protokol di tab pertama; unggah revisi baru di tab lain (ulangi K68); ajukan dari tab pertama | "Tidak ditandatangani: revisi draf yang lebih baru masuk sejak halaman ini dibaca. Muat ulang halaman, …"; Protocol tetap Draft | |
+| K79 | Peringatan revisi baru pada Protocol terpaku | Setelah K68, buka tab Protokol | "Draf sudah sampai rev … protokol ini terpaku pada rev …" dengan arahan kembalikan atau tarik; peringatan tidak hilang sendiri | |
+| K80 | Persetujuan basi ditolak (409) | Setelah diajukan, unggah revisi baru, lalu Dewi menyetujui dari halaman yang dibaca sebelumnya | Ditolak dengan pesan K78; tidak ada tanda tangan | |
+| K81 | Persetujuan oleh orang lain | Dewi → "Setujui protokol" | "Disetujui oleh Dewi Anggraini Lestari, …"; lencana tanda tangan berlabel "Hash cocok" dalam nada netral (bukan hijau, bukan "Terverifikasi") | |
+| K82 | Pemisahan tugas (tes, bukan layar) | Tidak ada persona demo yang memegang peran memutuskan dan menyetujui sekaligus; jalankan tes pemisahan tugas | Aturan "Penyetuju bukan Penyusun, bukan pemutus temuan, bukan pemeta langkah" ditunjukkan oleh tes; catat nama berkas tes dan hasilnya | |
+| K83 | Eksekusi dan Deviasi dari Protocol draf | Bagian 12 (K39 sampai K47) pada Protocol K81 | Baris eksekusi mengikuti salinan beku versi 2; Tahap IQ/OQ tampil; kriteria batas eksklusif atau toleransi dinilai persis atau tidak dibentuk, tidak dipaksa jadi rentang inklusif | |
+| K84 | Laporan Kualifikasi | Bagian 14 (K54) | Hitungan IQ/OQ sesuai Tahap; ekspor PDF terbit dan terunduh | |
+| K85 | Laporan Pra-Tinjauan 2.0.0 | Tab "Ekspor Laporan" → Terbitkan → Unduh PDF; buka berkasnya | Template 2.0.0: status ronde per temuan (resolved, persisted, persisted-but-changed, new), label "dev only" dan "not reviewed by a practitioner" untuk tiga jenis baru, bagian "Temuan Draf Protokol (Review Package, dev only)", tanpa klaim waktu atau putaran dihemat | |
+| K86 | Lebar layar dan label | Ulangi K62, K69 dan K72 pada 390, 1366 dan 1440 px | Tanpa overflow horizontal halaman; label "dev only" dan "Belum ditinjau praktisi" terbaca; status tidak hanya dibedakan warna | |
+
+### 16.4 Yang tidak bisa dipastikan dari kode (periksa saat gladi)
+
+- **Ronde dari run saat start.** Setiap impor membuka satu ronde berurutan (`register_import`). Run yang dibuat `demo.py` (paket 0.2.0 tanpa revisi dipilih, jadi revisi terbaru paket) menjadi R1; unggahan rev 0 dan rev 1 menjadi R2 dan R3. Diff K69 seharusnya membandingkan R3 dengan R2, tetapi belum dicoba; catat ronde mana yang tampil sebagai pembanding dan apakah R1 membingungkan presenter. Belum pasti dari kode apakah ronde terbuka harus ditutup lebih dulu.
+- **Hash PDF paket.** Rev 0 harus byte-identik dengan rekaman (`a127013e…`); hasil `--release` pada mesin lain bergantung pada versi Typst dan font.
+- **Run yang dipakai untuk Protocol.** Diasumsikan run unggahan rev 1, bukan R1.
+- **Jenis temuan dan jumlahnya** pada rev 0 dan rev 1 di run demo belum diamati di browser; angka di `recordings/README.md` adalah angka scorer, bukan tampilan layar.
+- **Teks UI** dalam bagian ini dicocokkan dari `web/messages/id.json`; urutan layar tepat dan posisi tombol belum dilihat di browser.
