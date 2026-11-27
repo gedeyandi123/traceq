@@ -51,7 +51,7 @@ describe("SignatureBadge", () => {
     render(wrap(<SignatureBadge signature={DEMO_SIG} />));
     expect(screen.getByText("Dewi Lestari")).toBeTruthy();
     expect(screen.getByText(/Disetujui \(approved\)/i)).toBeTruthy();
-    expect(screen.getByText(/Terverifikasi/i)).toBeTruthy();
+    expect(screen.getByText(/Hash cocok/i)).toBeTruthy();
     expect(screen.getByText(/Demo signature/i)).toBeTruthy();
     const hashEl = screen.getByTitle("a".repeat(64));
     expect(hashEl.textContent).toBe("aaaaaaaaaaaa…");
@@ -78,14 +78,14 @@ describe("SignatureBadge", () => {
   it("renders a signature that was not checked as 'not checked', never as verified", () => {
     render(wrap(<SignatureBadge signature={{ ...DEMO_SIG, verified: null }} />));
     expect(screen.getByText("Belum Diperiksa")).toBeTruthy();
-    expect(screen.queryByText("Terverifikasi")).toBeNull();
+    expect(screen.queryByText("Hash cocok")).toBeNull();
     expect(screen.queryByText(/Verifikasi Gagal/i)).toBeNull();
   });
 
   it("renders a signature whose hash does not match as a failed verification", () => {
     render(wrap(<SignatureBadge signature={{ ...DEMO_SIG, verified: false }} />));
     expect(screen.getByText(/Verifikasi Gagal/i)).toBeTruthy();
-    expect(screen.queryByText("Terverifikasi")).toBeNull();
+    expect(screen.queryByText("Hash cocok")).toBeNull();
   });
 
   it("does not show the green check for a voided signature", () => {
