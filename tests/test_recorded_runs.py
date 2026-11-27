@@ -351,6 +351,8 @@ def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
     # The capability finding on OQ-04 (spec #375) is new; the 50 before it keep their keys.
     new = [p for p in proposed if p.subject.get("type") == CAPABILITY]
     assert [(p.subject["test_step"], p.ordinal) for p in new] == [("OQ-04", 0)]
+    # Its key names the Datasheet row it compares with (#393, C3), read from the run's output.
+    assert [p.subject["datasheet_row"] for p in new] == ["maximum main compression force"]
     # The draft Test Steps and their criteria (spec #375, S4a1) are new kinds after the findings.
     draft_steps = [p for p in proposed if p.kind in ("draft_step", "draft_criterion")]
     assert {p.kind for p in draft_steps} == {"draft_step", "draft_criterion"}
