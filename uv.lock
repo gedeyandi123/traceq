@@ -2845,6 +2845,8 @@ dependencies = [
     { name = "anthropic" },
     { name = "docling" },
     { name = "fastapi" },
+    { name = "httpx" },
+    { name = "jsonschema" },
     { name = "numpy" },
     { name = "openpyxl" },
     { name = "pillow" },
@@ -2871,7 +2873,6 @@ ocr = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "import-linter" },
     { name = "pyright" },
     { name = "pytest" },
@@ -2884,6 +2885,8 @@ requires-dist = [
     { name = "anthropic", specifier = ">=2.8.0" },
     { name = "docling", specifier = ">=2.150.0" },
     { name = "fastapi", specifier = ">=0.162.5" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "onnxruntime", marker = "extra == 'ocr'", specifier = "==1.31.1" },
     { name = "openpyxl", specifier = ">=3.1.5" },
@@ -2905,7 +2908,6 @@ provides-extras = ["ocr"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28.1" },
     { name = "import-linter", specifier = ">=2.16" },
     { name = "pyright", specifier = ">=1.1.414" },
     { name = "pytest", specifier = ">=8.4" },

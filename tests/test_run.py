@@ -4,6 +4,7 @@ the submission scored by the real scorer. The LLM is a scripted fake; nothing is
 from __future__ import annotations
 
 import json
+import math
 import re
 import shutil
 from collections.abc import Callable, Sequence
@@ -13,7 +14,7 @@ from typing import Any
 import pytest
 from conftest import DemoIssuer, runs_client
 
-from traceq.ai import BudgetExceeded, PriceTable, Request, Response
+from traceq.ai import BudgetExceeded, PriceTable, Request, Response, Sent
 from traceq.ai.cost import Price
 from traceq.app import cli
 from traceq.documents import OcrUnavailable, pdf
@@ -991,3 +992,67 @@ def test_a_replayed_run_reports_live_time_zero(
     recordings = recorded.folder.parents[1] / "recordings"
     out = run(corpus_dir, tmp_path, recordings, MODEL, clock=lambda: next(ticks))
     assert out.metadata["duration"] == {"total_seconds": 7.25, "live_seconds": 0.0}
+    assert "latency" not in out.metadata  # a batch adapter's recordings carry no latency
+    assert "adapter" not in out.metadata
+
+
+class _OneAtATimeLLM(ScriptedLLM):
+    """Sends one request at a time, as Mode Pabrik does: the n-th call took n seconds and was
+    asked twice when n is even."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.singles = 0
+
+    def send(self, request: Request) -> Sent:
+        self.singles += 1
+        (response,) = self.complete([request])
+        return Sent(response, attempts=2 - self.singles % 2, latency_s=float(self.singles))
+
+    def describe(self) -> dict[str, Any]:
+        return {"adapter": "one-at-a-time", "singles": self.singles}
+
+
+def test_a_one_at_a_time_run_reports_its_latency_live_and_on_replay(
+    corpus_dir: Path, tmp_path: Path, seeded: Callable[[Path], Path]
+) -> None:
+    recordings = seeded(tmp_path / "rec")
+    llm = _OneAtATimeLLM()
+    out = run(corpus_dir, tmp_path / "runs", recordings, MODEL, live=llm, prices=PRICES)
+    n = llm.singles
+    assert n == out.metadata["calls"]["live"] > 20
+    latency = {
+        "calls": n,
+        "median_s": (n + 1) / 2,
+        "p95_s": float(math.ceil(0.95 * n)),
+        "total_s": n * (n + 1) / 2,
+        "attempts": n + n // 2,
+    }
+    assert out.metadata["latency"] == latency
+    assert out.metadata["adapter"] == {"adapter": "one-at-a-time", "singles": n}
+    assert "review_package" not in out.metadata
+
+    replayed = run(corpus_dir, tmp_path / "replay", recordings, MODEL)
+    assert replayed.metadata["calls"]["live"] == 0
+    assert replayed.metadata["latency"] == latency
+    assert "adapter" not in replayed.metadata
+
+
+def test_a_live_run_stops_at_its_call_brake(
+    corpus_dir: Path, tmp_path: Path, seeded: Callable[[Path], Path]
+) -> None:
+    recordings = seeded(tmp_path / "rec")
+    llm = _OneAtATimeLLM()
+    with pytest.raises(BudgetExceeded, match="--max-live-calls 5"):
+        run(
+            corpus_dir,
+            tmp_path / "runs",
+            recordings,
+            MODEL,
+            live=llm,
+            prices=PRICES,
+            max_live_calls=5,
+        )
+    assert llm.singles == 5
+    assert len(list(recordings.glob("*.json"))) == 5
+    assert not (tmp_path / "runs").exists()

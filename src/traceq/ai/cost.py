@@ -8,13 +8,14 @@ request is assumed to use its whole ``max_tokens``.
 from __future__ import annotations
 
 import math
+import time
 import tomllib
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib.resources import files
 from typing import Any
 
-from traceq.ai.port import Request, Response
+from traceq.ai.port import LLMError, Request, Response
 
 CHARS_PER_TOKEN = 3
 
@@ -66,14 +67,46 @@ class PriceTable:
 
 
 class Budget:
-    """What a live run may spend. Checked before every send; actual cost counted after."""
+    """What a live run may spend. Checked before every send; actual cost counted after.
 
-    def __init__(self, max_usd: float, prices: PriceTable) -> None:
+    Besides dollars, two brakes for a model priced at 0 (spec #442): ``max_calls`` refuses
+    the send that would pass that many live calls, and ``deadline_seconds`` stops live sending
+    once that long has passed since the first send (``LLMError``). Both are checked before each
+    send, so with a one-at-a-time adapter a call is never cut off half-way."""
+
+    def __init__(
+        self,
+        max_usd: float,
+        prices: PriceTable,
+        *,
+        max_calls: int | None = None,
+        deadline_seconds: float | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self.max_usd = max_usd
         self.prices = prices
         self.spent_usd = 0.0
+        self.max_calls = max_calls
+        self.deadline_seconds = deadline_seconds
+        self.calls = 0
+        self._clock = clock
+        self._first_send: float | None = None
 
     def authorise(self, model: str, requests: Sequence[Request]) -> float:
+        if self.max_calls is not None and self.calls + len(requests) > self.max_calls:
+            raise BudgetExceeded(
+                f"{len(requests)} more live calls (sent {self.calls}) would pass"
+                f" --max-live-calls {self.max_calls}; run the same command again to resume"
+            )
+        if self.deadline_seconds is not None:
+            now = self._clock()
+            if self._first_send is None:
+                self._first_send = now
+            elif now - self._first_send >= self.deadline_seconds:
+                raise LLMError(
+                    f"live sending passed --deadline-minutes {self.deadline_seconds / 60:g}"
+                    f" after {self.calls} live calls; run the same command again to resume"
+                )
         try:
             estimate = self.prices.estimate_usd(model, requests)
         except KeyError as e:
@@ -87,3 +120,4 @@ class Budget:
 
     def charge(self, responses: Sequence[Response]) -> None:
         self.spent_usd += self.prices.response_cost_usd(responses)
+        self.calls += len(responses)

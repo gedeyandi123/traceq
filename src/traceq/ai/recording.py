@@ -6,7 +6,9 @@ again carries a sample index, which enters the key only when it is not 0: the fi
 keeps the key it always had. A recording
 holds the request, the response, the tokens and the model. Without a live adapter every
 call must already be recorded; with one, only the calls not yet recorded are sent, after the
-budget has authorised them.
+budget has authorised them. An adapter that sends one request at a time (``OneAtATime``,
+Mode Pabrik) is charged and saved call by call, and its recordings carry two more keys:
+``attempts`` and ``latency_s``.
 
 A recorder writes to one store, ``store``, and also reads the stores in ``reads``, which it
 never writes: a Review Package run writes the package's recordings and replays the Equipment
@@ -25,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from traceq.ai.cost import Budget
-from traceq.ai.port import LLM, Request, Response, sha256
+from traceq.ai.port import LLM, OneAtATime, Request, Response, Sent, sha256
 
 
 class MissingRecording(LookupError):
@@ -37,6 +39,11 @@ class Call:
     request: Request
     response: Response
     replayed: bool
+    attempts: int | None = None
+    """How many times a one-at-a-time adapter asked (from its recording on replay); none for
+    a batch adapter."""
+    latency_s: float | None = None
+    """Seconds the one-at-a-time adapter waited for the answer; none for a batch adapter."""
 
 
 class Recorder:
@@ -97,13 +104,19 @@ class Recorder:
     def _path(self, r: Request) -> Path:
         return self.store / f"{self.key(r)}.json"
 
-    def _recorded(self, r: Request, stores: Sequence[Path]) -> Response | None:
+    def _recorded(self, r: Request, stores: Sequence[Path]) -> Call | None:
         name = f"{self.key(r)}.json"
         for store in stores:
             path = store / name
             if path.exists():
                 data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-                return Response(**data["response"])
+                return Call(
+                    r,
+                    Response(**data["response"]),
+                    replayed=True,
+                    attempts=data.get("attempts"),
+                    latency_s=data.get("latency_s"),
+                )
         return None
 
     def is_recorded(self, r: Request) -> bool:
@@ -120,11 +133,11 @@ class Recorder:
         """``send`` false: only the stores in ``reads`` answer, and a call not recorded there
         fails, even with a live adapter."""
         stores = (self.store, *self.reads) if send else self.reads
-        found: dict[int, Response] = {}
+        found: dict[int, Call] = {}
         for i, r in enumerate(requests):
-            response = self._recorded(r, stores)
-            if response is not None:
-                found[i] = response
+            call = self._recorded(r, stores)
+            if call is not None:
+                found[i] = call
         misses = [i for i in range(len(requests)) if i not in found]
         if misses and (not send or self.live is None or self.budget is None):
             where = ", ".join(str(s) for s in stores) or "no store"
@@ -133,23 +146,33 @@ class Recorder:
                 f"{len(misses)} of {len(requests)} '{requests[misses[0]].prompt.name}' calls"
                 f" are not recorded in {where} for {self._model}; {hint}"
             )
-        sent: dict[int, Response] = {}
+        sent: dict[int, Call] = {}
         if misses and send and self.live is not None and self.budget is not None:
-            batch = [requests[i] for i in misses]
-            self.budget.authorise(self._model, batch)
-            answers = self.live.complete(batch)
-            self.budget.charge(answers)
-            for i, a in zip(misses, answers, strict=True):
-                sent[i] = a
-                self._save(requests[i], a)
+            if isinstance(self.live, OneAtATime):
+                # Charged and saved one by one: a failure loses at most the call in flight.
+                for i in misses:
+                    r = requests[i]
+                    self.budget.authorise(self._model, [r])
+                    one = self.live.send(r)
+                    self.budget.charge([one.response])
+                    self._save(r, one.response, one)
+                    sent[i] = Call(r, one.response, False, one.attempts, one.latency_s)
+            else:
+                batch = [requests[i] for i in misses]
+                self.budget.authorise(self._model, batch)
+                answers = self.live.complete(batch)
+                self.budget.charge(answers)
+                for i, a in zip(misses, answers, strict=True):
+                    sent[i] = Call(requests[i], a, replayed=False)
+                    self._save(requests[i], a)
         out: list[Response] = []
-        for i, r in enumerate(requests):
-            response = found.get(i) or sent[i]
-            self.calls.append(Call(r, response, replayed=i in found))
-            out.append(response)
+        for i in range(len(requests)):
+            call = found.get(i) or sent[i]
+            self.calls.append(call)
+            out.append(call.response)
         return out
 
-    def _save(self, r: Request, a: Response) -> None:
+    def _save(self, r: Request, a: Response, sent: Sent | None = None) -> None:
         self.store.mkdir(parents=True, exist_ok=True)
         record: dict[str, Any] = {
             "key": self.key(r),
@@ -173,6 +196,9 @@ class Recorder:
         }
         if r.sample:
             record["sample"] = r.sample
+        if sent is not None:  # a one-at-a-time adapter only: every other recording is unchanged
+            record["attempts"] = sent.attempts
+            record["latency_s"] = sent.latency_s
         text = json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         self._path(r).write_text(text, encoding="utf-8", newline="\n")
 

@@ -1,7 +1,8 @@
-"""The LLM port (ADR 0004, ADR 0008): Mode Cloud now, Mode Pabrik later.
+"""The LLM port (ADR 0004, ADR 0008): Mode Cloud and Mode Pabrik.
 
 A request asks for one JSON object that follows ``schema``. Requests go in batches, so the
-Mode Cloud adapter can send them through the Batch API.
+Mode Cloud adapter can send them through the Batch API; an adapter that sends one request at
+a time (Mode Pabrik) says so by being ``OneAtATime``.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 
 def sha256(text: str) -> str:
@@ -65,3 +66,29 @@ class LLM(Protocol):
     def complete(self, requests: Sequence[Request]) -> list[Response]:
         """One response per request, in request order."""
         ...
+
+
+@dataclass(frozen=True)
+class Sent:
+    """One request answered on its own, with how the answer was got."""
+
+    response: Response
+    attempts: int
+    """How many times the request was asked: an unusable answer is asked again."""
+    latency_s: float
+    """Seconds spent waiting for the endpoint over all attempts, pacing and back-off apart."""
+
+
+@runtime_checkable
+class OneAtATime(LLM, Protocol):
+    """An LLM that sends one request at a time (no batch). A recorder then charges and saves
+    each answer before the next request goes, so a failure loses at most the call in flight."""
+
+    def send(self, request: Request) -> Sent: ...
+
+
+@runtime_checkable
+class Described(Protocol):
+    """An adapter that reports how it ran, for the run metadata (never a secret)."""
+
+    def describe(self) -> dict[str, Any]: ...
