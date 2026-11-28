@@ -57,7 +57,15 @@ export function formatWhen(t: When, iso: string, options?: FormatWhenOptions): s
 
   const explicitTz = options?.timeZone?.trim();
   const envTz = process.env.NEXT_PUBLIC_TRACEQ_TIMEZONE?.trim();
-  const timeZone = explicitTz || envTz || DEFAULT_TIME_ZONE;
+  let timeZone = explicitTz || envTz || DEFAULT_TIME_ZONE;
+
+  let formatters: Formatters;
+  try {
+    formatters = formattersFor(timeZone);
+  } catch {
+    timeZone = DEFAULT_TIME_ZONE;
+    formatters = formattersFor(timeZone);
+  }
 
   const explicitLabel = options?.tzLabel?.trim();
   const envLabel = process.env.NEXT_PUBLIC_TRACEQ_TZ_LABEL?.trim();
@@ -67,6 +75,9 @@ export function formatWhen(t: When, iso: string, options?: FormatWhenOptions): s
     ZONE_LABELS[timeZone] ||
     shortZoneName(at, timeZone);
 
-  const { date, time } = formattersFor(timeZone);
-  return t("when", { date: date.format(at), time: time.format(at), tz });
+  return t("when", {
+    date: formatters.date.format(at),
+    time: formatters.time.format(at),
+    tz,
+  });
 }

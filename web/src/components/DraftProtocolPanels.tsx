@@ -68,7 +68,7 @@ function formShape(
       nominal: v.nominal ?? 0,
       tolerance: v.tolerance ?? 0,
       tolerance_unit: tolUnit,
-      unit: v.unit ?? "",
+      unit,
     };
   }
   if (v.type === "exclusive_range") return v as Acceptance;
