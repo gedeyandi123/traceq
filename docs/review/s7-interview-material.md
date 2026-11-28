@@ -13,6 +13,7 @@ Tanyakan dengan bahasa praktisi dan catat kata demi kata di lembar catatan (`pra
 ### A. Dua pertanyaan terbuka ADR 0010 (validasi tesis)
 
 1. **Penyebab putaran tinjau-dan-revisi (ADR 0010):** dalam proses tinjau-dan-revisi protokol kualifikasi, waktu paling banyak habis di mana — pada cacat dokumen yang bisa diperiksa sebelum tanda tangan, atau pada antrean menunggu tinjauan dan persetujuan?
+   - **Penulis draf protokol (CPOB 12.14):** siapa yang biasanya menyusun draf protokol pertama kali — vendor mesin / jasa validasi pihak ketiga, atau tim internal pabrik?
 2. **Keterlihatan AC tidak terjangkau di dokumen vendor (ADR 0010):** apakah *Acceptance Criterion* (AC) yang disetujui tetapi tidak terjangkau oleh mesin biasanya sudah terlihat di dokumen vendor (Datasheet, DQ, FAT, SAT) sebelum eksekusi, atau baru ketahuan saat uji?
    - Saat menilai temuan demo (`ac_outside_documented_capability`, `unit_error`, `outdated_reference`), minta praktisi menilai setiap temuan sebagai **berguna / tidak berguna / ragu** beserta alasannya.
    - Tanyakan batas jenis baru: apakah satuan yang setara (`2 jam` vs `120 menit`, `1,5 cm` vs `15 mm`) serta acuan tanpa revisi / standar eksternal memang bukan temuan? Catat bila hasil FAT/SAT dan kemampuan utilitas pabrik (udara tekan, HVAC) juga seharusnya masuk atau tetap di luar jangkauan Datasheet.
@@ -26,10 +27,12 @@ Tanyakan dengan bahasa praktisi dan catat kata demi kata di lembar catatan (`pra
    - Bagaimana aturan pemisahan tugas di pabrik: apakah penyetuju (QA/Approver) memang dilarang merangkap Penyusun, pemutus temuan, pemeta langkah, sekaligus pengunggah/pengimpor revisi draf yang dipakai (ADR 0012)?
    - Bila revisi draf baru masuk saat Protocol dari revisi lama masih terbuka, apakah menolak pengajuan/persetujuan salinan lama (`409`, harus Kembalikan lalu Tarik dan mulai ulang) sesuai kebiasaan pabrik?
    - Apakah kriteria batas eksklusif (`< 0,8 µm`) dan toleransi (`380 V ± 10 %`) wajib dinilai persis (dan teks bebas dibentuk dulu sebelum eksekusi)? Apakah ketiadaan **cetak/ekspor Protocol** untuk tanda tangan basah menjadi penghalang (`#245`)?
+   - **Pelulusan tahap bersyarat & eksekusi kertas:** apakah pabrik rutin memakai pelulusan bersyarat untuk lanjut ke tahap berikutnya (CPOB 12.18), dan apakah di ruang mesin/ruang bersih pelaksana tetap mencatat di lembar kertas terlebih dahulu baru menyalin ke sistem?
+   - **Status tanda tangan elektronik (PP 71/2019 & CPOB Aneks 7 §14):** apakah tim QA/legal pabrik menerima tanda tangan elektronik internal perusahaan (non-PSrE) yang terikat ke catatan elektronik, atau tetap mewajibkan tanda tangan tersertifikasi PSrE / tanda tangan basah?
 
 ### C. Apakah pabrik menerima model cloud? (`#343`, `#442`, ADR 0004)
 
-5. **Penerimaan model cloud vs wajib on-prem:** Mode Cloud mengirim teks dokumen ke penyedia LLM eksternal (hanya boleh dengan izin tertulis QA, IT, dan manajemen untuk dokumen nyata; ADR 0001). Apakah pabrik menerima pemrosesan cloud dengan syarat tertentu (klasifikasi data, de-identifikasi, pengawasan vendor SaaS, persetujuan tertulis), atau menolak penuh sehingga wajib berjalan lokal (*on-premise*, Mode Pabrik)?
+5. **Penerimaan model cloud vs wajib on-prem:** Mode Cloud mengirim teks dokumen ke penyedia LLM eksternal (hanya boleh dengan izin tertulis QA, IT, dan manajemen untuk dokumen nyata; ADR 0001). Apakah pabrik menerima pemrosesan cloud dengan syarat tertentu (klasifikasi data, de-identifikasi, pengawasan vendor SaaS, persetujuan tertulis), **menerima GPU cloud yang berlokasi di dalam negeri Indonesia**, atau menolak penuh sehingga wajib berjalan lokal di server pabrik (*on-premise*, Mode Pabrik)?
 
 **Data rujukan untuk pertanyaan C (`dev only`, [`docs/eval/mode-pabrik-spike.md`](../eval/mode-pabrik-spike.md)):**
 
@@ -67,7 +70,9 @@ Catat setiap jawaban praktisi yang membantah bawaan. Tidak ada perubahan yang di
 
 ## 3. Kesiapan penjadwalan `#245`
 
-Bahan wawancara untuk putaran tinjauan draf (`#394`) dan hasil `#343a` (`#442`) sudah lengkap di `docs/review/`. Untuk menjalankan sesi setelah tanggal ditetapkan pada `#245`:
+Bahan wawancara untuk putaran tinjauan draf (`#394`) dan hasil `#343a` (`#442`) sudah lengkap di `docs/review/` (lihat juga ringkasan konteks regulasi & benchmark di [`docs/research/2026-11-indonesia-pharma-qualification-context.md`](../research/2026-11-indonesia-pharma-qualification-context.md)). Untuk menjalankan sesi setelah tanggal ditetapkan pada `#245`:
+
+- **Saran peserta:** selain Supervisor/Manajer Validasi, sertakan **1 perwakilan QA** (peran penyetuju dan pemegang veto/keputusan pembelian `D14`).
 
 1. Ikuti urutan demo dan aturan presenter di [`docs/review/practitioner-session-pack.md`](practitioner-session-pack.md) (bagian 1–6) dan [`docs/demo-runbook.md`](../demo-runbook.md) (bagian 16).
 2. Gunakan [`docs/review/tp201-practitioner-q16.md`](tp201-practitioner-q16.md) (bagian D) untuk menuntaskan pertanyaan `F1–F6`, `D13`, `D14`, `D9`, `D15`, dan `D16`.
