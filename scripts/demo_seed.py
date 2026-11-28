@@ -5,14 +5,17 @@ Usage:
     uv run python scripts/demo_seed.py --stage completed-execution [--ready-file FILE]
     uv run python scripts/demo_seed.py --stage qualification-report [--ready-file FILE]
     uv run python scripts/demo_seed.py --stage two-rounds [--ready-file FILE] [--second-run-id ID]
+    uv run python scripts/demo_seed.py --stage stale-pin [--ready-file FILE]
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +27,9 @@ DEFAULT_API_URL = "http://127.0.0.1:8000"
 DEFAULT_ISSUER_URL = "http://127.0.0.1:9000"
 KEYCLOAK_ISSUER_URL = "http://127.0.0.1:8080/realms/traceq"
 """The Keycloak realm URL of docs/demo-runbook.md section 15 (``Settings.keycloak_url``)."""
+DEFAULT_EQUIPMENT = "TP-201"
+DEFAULT_REV0_PDF = Path("dist/TP-201-OQ-draft/OQ-TP201_rev0.pdf")
+DEFAULT_REV1_PDF = Path("dist/TP-201-OQ-draft/OQ-TP201_rev1.pdf")
 
 _RANGE = re.compile(
     r"(?P<lo>-?\d+(?:[.,]\d+)?)\s*(?:[-–—]|to)\s*(?P<hi>-?\d+(?:[.,]\d+)?)"
@@ -76,7 +82,7 @@ def _pick_two_rounds(
     return str(ordered[0]["run_id"])
 
 
-def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str, str, str, str]:
+def _resolve_connection(args: argparse.Namespace) -> tuple[str, str, str | None, str]:
     api_url: str = args.api_url or DEFAULT_API_URL
     idp: str = getattr(args, "idp", None) or "demo"
     issuer_url: str = args.issuer_url or (
@@ -93,6 +99,11 @@ def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str
             issuer_url = KEYCLOAK_ISSUER_URL
         if not getattr(args, "review_package", False):
             run_id = run_id or str(meta["run_id"])
+    return api_url.rstrip("/"), issuer_url.rstrip("/"), run_id, idp
+
+
+def _resolve_target(args: argparse.Namespace, client: Any) -> tuple[str, str, str, str]:
+    api_url, issuer_url, run_id, idp = _resolve_connection(args)
     # Listing runs needs a token: the run routes are not open to an anonymous caller.
     if run_id is None and getattr(args, "stage", None) == "two-rounds":
         run_id = _pick_two_rounds(client, api_url, args, _token(client, issuer_url, "ayu", idp=idp))
@@ -109,7 +120,72 @@ def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str
             run_id = str(rp_item["run_id"])
         else:
             run_id = str(items[0]["run_id"])
-    return api_url.rstrip("/"), issuer_url.rstrip("/"), run_id, idp
+    return api_url, issuer_url, run_id, idp
+
+
+def _has_review_package(client: Any, api_url: str, run_id: str, headers: dict[str, str]) -> bool:
+    resp = _checked(
+        client.get(f"{api_url}/runs/{run_id}", headers=headers),
+        f"Reading run {run_id}",
+    )
+    return resp.json().get("review_package") is not None
+
+
+def _upload_draft_pdf(
+    client: Any,
+    api_url: str,
+    equipment: str,
+    pdf_path: Path,
+    headers: dict[str, str],
+    *,
+    timeout_s: float = 120.0,
+    poll_interval_s: float = 0.25,
+) -> str:
+    """Uploads a Protocol Draft PDF for ``equipment``, waits for ``succeeded``, returns id."""
+    data = pdf_path.read_bytes()
+    resp = client.post(
+        f"{api_url}/equipment/{equipment}/drafts",
+        headers={**headers, "Content-Type": "application/pdf"},
+        content=data,
+    )
+    if resp.status_code == 409:
+        sha256 = hashlib.sha256(data).hexdigest()
+        listing = _checked(
+            client.get(f"{api_url}/equipment/{equipment}/drafts", headers=headers),
+            f"Listing draft uploads for {equipment}",
+        ).json()
+        existing = next(
+            (
+                j
+                for j in listing.get("jobs") or []
+                if j.get("sha256") == sha256 and j.get("status") != "failed"
+            ),
+            None,
+        )
+        if existing is None:
+            _checked(resp, f"Uploading draft PDF {pdf_path}")
+            raise RuntimeError(f"Uploading draft PDF {pdf_path} returned 409 without an active job")
+        job: dict[str, Any] = existing
+    else:
+        job = _checked(resp, f"Uploading draft PDF {pdf_path}").json()
+
+    job_id = int(job["id"])
+    deadline = time.monotonic() + timeout_s
+    while job.get("status") in ("queued", "running"):
+        if time.monotonic() >= deadline:
+            raise RuntimeError(
+                f"Upload job {job_id} ({pdf_path}) did not finish within {timeout_s}s"
+            )
+        time.sleep(poll_interval_s)
+        job = _checked(
+            client.get(f"{api_url}/uploads/{job_id}", headers=headers),
+            f"Polling upload job {job_id}",
+        ).json()
+    if job.get("status") != "succeeded" or not job.get("run_id"):
+        status = job.get("status")
+        msg = job.get("message")
+        raise RuntimeError(f"Upload job {job_id} ({pdf_path}) ended with {status}: {msg}")
+    return str(job["run_id"])
 
 
 def _passing_value(acceptance: dict[str, Any]) -> dict[str, Any]:
@@ -129,6 +205,21 @@ def _passing_value(acceptance: dict[str, Any]) -> dict[str, Any]:
         else:
             val = 1.0
         return {"type": "number", "value": val}
+    if kind == "exclusive_range":
+        lo = acceptance.get("min")
+        hi = acceptance.get("max")
+        if lo is not None and hi is not None:
+            val = (float(lo) + float(hi)) / 2.0
+        elif lo is not None:
+            val = float(lo) + 1.0
+        elif hi is not None:
+            hi_f = float(hi)
+            val = hi_f / 2.0 if hi_f > 0 else hi_f - 1.0
+        else:
+            val = 1.0
+        return {"type": "number", "value": val}
+    if kind == "tolerance":
+        return {"type": "number", "value": float(acceptance["nominal"])}
     if kind == "one_of":
         choices = acceptance.get("allowed") or []
         val = str(choices[0]) if choices else "ok"
@@ -189,32 +280,34 @@ def _shape_acceptances(
         _checked(rej, f"Rejecting draft {proposal_id} of {row['requirement']}")
         # A row holds one Test Step: the edit is refused while any other draft step standing for
         # the row is accepted (accept-all accepted every one of them). Newest decision first.
-        for cand in row.get("candidates") or []:
-            other = cand["proposal"]
-            decisions = other.get("decisions") or []
-            if (
-                other["id"] != proposal_id
-                and other.get("state") == "decided"
-                and decisions
-                and decisions[0]["decision"] == "accepted"
-            ):
-                more = client.post(
-                    f"{api_url}/runs/{proto['run_id']}/proposals/{other['id']}/decisions",
-                    headers=ayu,
-                    json={
-                        "decision": "rejected",
-                        "reason": "Demo seed: the row holds one Test Step, the edited draft",
-                    },
-                )
-                _checked(more, f"Rejecting draft {other['id']} of {row['requirement']}")
+        for coll_key in ("candidates", "drafts"):
+            for cand in row.get(coll_key) or []:
+                other = cand["proposal"]
+                decisions = other.get("decisions") or []
+                if (
+                    other["id"] != proposal_id
+                    and other.get("state") == "decided"
+                    and decisions
+                    and decisions[0]["decision"] == "accepted"
+                ):
+                    more = client.post(
+                        f"{api_url}/runs/{proto['run_id']}/proposals/{other['id']}/decisions",
+                        headers=ayu,
+                        json={
+                            "decision": "rejected",
+                            "reason": "Demo seed: the row holds one Test Step, the edited draft",
+                        },
+                    )
+                    _checked(more, f"Rejecting draft {other['id']} of {row['requirement']}")
         edit = client.post(
             f"{api_url}/protocols/{protocol_id}/drafts/{proposal_id}/edit",
             headers=ayu,
             json={
                 "reason": "Demo seed: acceptance criterion set so the row can be executed",
                 "test_step": {
-                    "description": step["description"],
-                    "method": step["method"],
+                    "description": (step.get("description") or "").strip()
+                    or f"Test {row['requirement']}",
+                    "method": (step.get("method") or "").strip() or "Verify per procedure.",
                     "instrument": step.get("instrument"),
                     "acceptance": _demo_acceptance(str(row["text"])),
                 },
@@ -228,7 +321,8 @@ def _shape_acceptances(
 def _blocking(proto: dict[str, Any]) -> str:
     """What still blocks submission: the non-zero checks of the checklist, the rows' blockers."""
     checks = [
-        f"{c['check']} ({c['count']}): {c.get('requirements') or c.get('numbers')}"
+        f"{c['check']} ({c['count']}): "
+        f"{c.get('requirements') or c.get('numbers') or c.get('steps')}"
         for c in proto.get("checklist") or []
         if c["count"]
     ]
@@ -236,6 +330,437 @@ def _blocking(proto: dict[str, Any]) -> str:
         f"{r['requirement']}: {r['blockers']}" for r in proto.get("rows") or [] if r["blockers"]
     ]
     return "; ".join([*checks, *rows])
+
+
+def _post_decision(
+    client: Any,
+    api_url: str,
+    run_id: str,
+    proposal: dict[str, Any],
+    headers: dict[str, str],
+    decision: str,
+    *,
+    reason: str | None = None,
+) -> Any:
+    payload: dict[str, Any] = {"decision": decision}
+    effective_reason = reason
+    if effective_reason is None and proposal.get("state") == "decided":
+        effective_reason = "Demo seed: decision updated"
+    if effective_reason is not None:
+        payload["reason"] = effective_reason
+    resp = client.post(
+        f"{api_url}/runs/{run_id}/proposals/{proposal['id']}/decisions",
+        headers=headers,
+        json=payload,
+    )
+    return _checked(resp, f"Recording {decision} on proposal {proposal['id']}").json()
+
+
+def _resolve_draft_steps(
+    client: Any, api_url: str, protocol_id: int, proto: dict[str, Any], ayu: dict[str, str]
+) -> dict[str, Any]:
+    """Maps or rejects every unresolved draft Test Step on a Protocol started from the draft."""
+    draft_steps = proto.get("draft_steps") or []
+    if not any(not ds.get("resolved") for ds in draft_steps):
+        return proto
+    run_id = str(proto["run_id"])
+    test_step_reqs = {
+        str(r["requirement"])
+        for r in proto.get("rows") or []
+        if r.get("decided_class") != "covered_by_vendor"
+    }
+    assigned_reqs = {str(ds["requirement"]) for ds in draft_steps if ds.get("requirement")}
+    rejected_any = False
+    for ds in draft_steps:
+        if ds.get("resolved"):
+            continue
+        step = ds["step"]
+        step_id = str(step["id"])
+        readable = (
+            step.get("not_read") is None
+            and bool((step.get("description") or "").strip())
+            and bool((step.get("method") or "").strip())
+        )
+        candidates = [*(step.get("mapped_to") or []), *(step.get("requirements") or [])]
+        target = next(
+            (r for r in candidates if str(r) in test_step_reqs and str(r) not in assigned_reqs),
+            None,
+        )
+        if readable and target is not None:
+            resp = client.put(
+                f"{api_url}/protocols/{protocol_id}/draft-steps/{step_id}/mapping",
+                headers=ayu,
+                json={"requirement": str(target)},
+            )
+            if resp.status_code < 400:
+                proto = resp.json()
+                assigned_reqs.add(str(target))
+                continue
+        _post_decision(
+            client,
+            api_url,
+            run_id,
+            ds["proposal"],
+            ayu,
+            "rejected",
+            reason="Demo seed: unresolved draft step not usable",
+        )
+        rejected_any = True
+    if rejected_any:
+        proto = _checked(
+            client.get(f"{api_url}/runs/{run_id}/protocol", headers=ayu),
+            f"Re-reading Protocol {protocol_id}",
+        ).json()
+    return proto
+
+
+def _is_currently_accepted(
+    proposal: dict[str, Any] | None, mapping: dict[str, Any] | None = None
+) -> bool:
+    if proposal is None or proposal.get("state") != "decided":
+        return False
+    decisions = proposal.get("decisions") or []
+    if not decisions or decisions[0].get("decision") != "accepted":
+        return False
+    if mapping is not None and decisions[0].get("at") and mapping.get("at"):
+        return str(decisions[0]["at"]) > str(mapping["at"])
+    return True
+
+
+def _write_demo_test_step(
+    client: Any,
+    api_url: str,
+    protocol_id: int,
+    row: dict[str, Any],
+    ayu: dict[str, str],
+) -> dict[str, Any]:
+    req = str(row["requirement"])
+    prefill = row.get("prefill") or {}
+    acceptance = prefill.get("acceptance")
+    if acceptance is None or acceptance.get("type") == "text":
+        acceptance = _demo_acceptance(str(row["text"]))
+    payload = {
+        "test_step": {
+            "description": (prefill.get("description") or "").strip() or f"Verify {req}",
+            "method": (prefill.get("method") or "").strip()
+            or "Inspect and verify per approved procedure.",
+            "instrument": prefill.get("instrument"),
+            "acceptance": acceptance,
+        }
+    }
+    resp = client.post(
+        f"{api_url}/protocols/{protocol_id}/test-steps/{req}", headers=ayu, json=payload
+    )
+    return _checked(resp, f"Writing Test Step for {req}").json()
+
+
+def _resolve_row_candidates(
+    client: Any,
+    api_url: str,
+    protocol_id: int,
+    run_id: str,
+    row: dict[str, Any],
+    ayu: dict[str, str],
+) -> None:
+    req = str(row["requirement"])
+    candidates = row.get("candidates") or []
+    test_step = row.get("test_step")
+    if test_step is not None and test_step.get("origin") == "written":
+        for cand in candidates:
+            if not cand.get("ready"):
+                _post_decision(
+                    client,
+                    api_url,
+                    run_id,
+                    cand["proposal"],
+                    ayu,
+                    "rejected",
+                    reason="Demo seed: written Test Step already in force",
+                )
+        return
+    if test_step is not None and test_step.get("origin") == "accepted_draft":
+        active_pid = int(test_step["proposal_id"])
+        for cand in candidates:
+            if int(cand["proposal"]["id"]) != active_pid and not cand.get("ready"):
+                _post_decision(
+                    client,
+                    api_url,
+                    run_id,
+                    cand["proposal"],
+                    ayu,
+                    "rejected",
+                    reason="Demo seed: another draft Test Step is active on this row",
+                )
+        return
+
+    primary = next(
+        (c for c in candidates if _is_currently_accepted(c["proposal"], c.get("mapping"))),
+        None,
+    )
+    if primary is None:
+        primary = next(
+            (
+                c
+                for c in candidates
+                if c["step"].get("not_read") is None
+                and bool((c["step"].get("description") or "").strip())
+                and bool((c["step"].get("method") or "").strip())
+            ),
+            candidates[0],
+        )
+    primary_pid = int(primary["proposal"]["id"])
+    for cand in candidates:
+        if int(cand["proposal"]["id"]) != primary_pid and (
+            not cand.get("ready") or _is_currently_accepted(cand["proposal"], cand.get("mapping"))
+        ):
+            _post_decision(
+                client,
+                api_url,
+                run_id,
+                cand["proposal"],
+                ayu,
+                "rejected",
+                reason="Demo seed: row takes a single draft Test Step",
+            )
+    p_step = primary["step"]
+    c_prop = primary.get("criterion_proposal")
+    readable = (
+        p_step.get("not_read") is None
+        and bool((p_step.get("description") or "").strip())
+        and bool((p_step.get("method") or "").strip())
+    )
+    if readable and c_prop is not None:
+        if not _is_currently_accepted(primary["proposal"], primary.get("mapping")):
+            _post_decision(client, api_url, run_id, primary["proposal"], ayu, "accepted")
+        if not _is_currently_accepted(c_prop, primary.get("mapping")):
+            _post_decision(client, api_url, run_id, c_prop, ayu, "accepted")
+    else:
+        edit = client.post(
+            f"{api_url}/protocols/{protocol_id}/drafts/{primary_pid}/edit",
+            headers=ayu,
+            json={
+                "reason": "Demo seed: edited draft step with shaped acceptance criterion",
+                "test_step": {
+                    "description": (p_step.get("description") or "").strip() or f"Test {req}",
+                    "method": (p_step.get("method") or "").strip() or "Verify per procedure.",
+                    "instrument": (p_step.get("instrument") or "").strip() or None,
+                    "acceptance": _demo_acceptance(str(row["text"])),
+                },
+            },
+        )
+        _checked(edit, f"Editing draft {primary_pid} of {req}")
+
+
+def _resolve_row_traceq_drafts(
+    client: Any,
+    api_url: str,
+    protocol_id: int,
+    run_id: str,
+    row: dict[str, Any],
+    ayu: dict[str, str],
+) -> None:
+    drafts = row.get("drafts") or []
+    test_step = row.get("test_step")
+    if test_step is not None and test_step.get("origin") == "written":
+        for d in drafts:
+            if d["proposal"].get("state") != "decided":
+                _post_decision(
+                    client,
+                    api_url,
+                    run_id,
+                    d["proposal"],
+                    ayu,
+                    "rejected",
+                    reason="Demo seed: written Test Step already in force",
+                )
+        return
+    if test_step is not None and test_step.get("origin") == "accepted_draft":
+        active_pid = int(test_step["proposal_id"])
+        for d in drafts:
+            if int(d["proposal"]["id"]) != active_pid and d["proposal"].get("state") != "decided":
+                _post_decision(
+                    client,
+                    api_url,
+                    run_id,
+                    d["proposal"],
+                    ayu,
+                    "rejected",
+                    reason="Demo seed: another draft Test Step is active on this row",
+                )
+        return
+
+    chosen = next(
+        (
+            d
+            for d in drafts
+            if not (
+                d["proposal"].get("state") == "decided"
+                and (d["proposal"].get("decisions") or [{}])[0].get("decision") == "rejected"
+            )
+        ),
+        None,
+    )
+    if chosen is None:
+        _write_demo_test_step(client, api_url, protocol_id, row, ayu)
+        return
+    chosen_pid = int(chosen["proposal"]["id"])
+    for d in drafts:
+        if int(d["proposal"]["id"]) != chosen_pid and d["proposal"].get("state") != "decided":
+            _post_decision(
+                client,
+                api_url,
+                run_id,
+                d["proposal"],
+                ayu,
+                "rejected",
+                reason="Demo seed: row takes a single Test Step",
+            )
+    if chosen["proposal"].get("state") != "decided":
+        _post_decision(client, api_url, run_id, chosen["proposal"], ayu, "accepted")
+
+
+def _resolve_draft_protocol_rows(
+    client: Any, api_url: str, protocol_id: int, proto: dict[str, Any], ayu: dict[str, str]
+) -> dict[str, Any]:
+    """Resolves Test Steps, findings/reasons, stages, and missed numbers on a draft Protocol."""
+    run_id = str(proto["run_id"])
+    for row in proto.get("rows") or []:
+        if row.get("kind") != "test_step":
+            continue
+        if row.get("candidates"):
+            _resolve_row_candidates(client, api_url, protocol_id, run_id, row, ayu)
+        else:
+            _resolve_row_traceq_drafts(client, api_url, protocol_id, run_id, row, ayu)
+
+    proto = _checked(
+        client.get(f"{api_url}/runs/{run_id}/protocol", headers=ayu),
+        f"Re-reading Protocol {protocol_id}",
+    ).json()
+    proto = _shape_acceptances(client, api_url, protocol_id, proto, ayu)
+
+    for row in proto.get("rows") or []:
+        req = str(row["requirement"])
+        blockers = set(row.get("blockers") or [])
+        accepted_new_finding = False
+        for f in row.get("findings") or []:
+            fp = f["proposal"]
+            if fp.get("state") != "decided":
+                _post_decision(client, api_url, run_id, fp, ayu, "accepted")
+                accepted_new_finding = True
+        if "finding_reason_missing" in blockers or accepted_new_finding:
+            for f in row.get("findings") or []:
+                fp = f["proposal"]
+                decisions = fp.get("decisions") or []
+                is_accepted = accepted_new_finding or (
+                    fp.get("state") == "decided"
+                    and bool(decisions)
+                    and decisions[0].get("decision") == "accepted"
+                )
+                if not is_accepted:
+                    continue
+                reasons = f.get("reasons") or []
+                latest_at = decisions[0].get("at") if decisions else None
+                has_current = bool(reasons) and (
+                    latest_at is None or str(reasons[-1]["at"]) > str(latest_at)
+                )
+                if not has_current:
+                    resp = client.post(
+                        f"{api_url}/protocols/{protocol_id}/findings/{fp['id']}/reason",
+                        headers=ayu,
+                        json={
+                            "reason": (
+                                "Demo seed: finding acknowledged and justified for submission."
+                            )
+                        },
+                    )
+                    _checked(resp, f"Recording finding reason on {req}")
+        if row.get("kind") == "test_step" and (
+            "stage_missing" in blockers or row.get("stage") is None
+        ):
+            stage = "OQ" if (row.get("step_source") == "draft" or row.get("candidates")) else "IQ"
+            resp = client.put(
+                f"{api_url}/protocols/{protocol_id}/rows/{req}/attributes",
+                headers=ayu,
+                json={"stage": stage, "witness_required": bool(row.get("witness_required", False))},
+            )
+            _checked(resp, f"Setting stage {stage} on {req}")
+
+    for u in proto.get("urs") or []:
+        if u.get("numbers") != "checked":
+            continue
+        for m in u.get("missed") or []:
+            if m.get("blocking"):
+                resp = client.post(
+                    f"{api_url}/protocols/{protocol_id}/missed-numbers",
+                    headers=ayu,
+                    json={
+                        "doc": u["doc"],
+                        "rev": int(u["rev"]),
+                        "number": m["number"],
+                        "kind": "not_tested_here",
+                        "justification": "Demo seed: missed number disposition recorded.",
+                    },
+                )
+                _checked(resp, f"Recording disposition for missed number {m['number']}")
+
+    return _checked(
+        client.get(f"{api_url}/runs/{run_id}/protocol", headers=ayu),
+        f"Re-reading Protocol {protocol_id}",
+    ).json()
+
+
+def _ensure_submitted_protocol(
+    client: Any,
+    api_url: str,
+    run_id: str,
+    ayu: dict[str, str],
+    *,
+    from_draft: bool = False,
+) -> dict[str, Any]:
+    imp = client.post(f"{api_url}/runs/{run_id}/import", headers=ayu)
+    imp.raise_for_status()
+
+    _decide_proposals(
+        client,
+        api_url,
+        run_id,
+        ayu,
+        kinds=("coverage", "draft") if from_draft else None,
+    )
+
+    proto_resp = client.get(f"{api_url}/runs/{run_id}/protocol", headers=ayu)
+    if proto_resp.status_code == 404:
+        if from_draft:
+            proto_resp = client.post(
+                f"{api_url}/runs/{run_id}/protocol", headers=ayu, json={"from_draft": True}
+            )
+        else:
+            proto_resp = client.post(f"{api_url}/runs/{run_id}/protocol", headers=ayu)
+    proto_resp.raise_for_status()
+    proto: dict[str, Any] = proto_resp.json()
+    protocol_id = int(proto["id"])
+
+    if proto["status"] == "draft":
+        if from_draft:
+            proto = _resolve_draft_steps(client, api_url, protocol_id, proto, ayu)
+            proto = _resolve_draft_protocol_rows(client, api_url, protocol_id, proto, ayu)
+        else:
+            proto = _shape_acceptances(client, api_url, protocol_id, proto, ayu)
+        draft_hash = proto.get("draft_hash")
+        if not draft_hash:
+            raise RuntimeError(
+                f"Protocol {protocol_id} cannot be submitted, a check blocks it: {_blocking(proto)}"
+            )
+        submit_body: dict[str, Any] = {"expected_draft_hash": str(draft_hash)}
+        if proto.get("latest_draft_rev") is not None:
+            submit_body["expected_latest_draft_rev"] = int(proto["latest_draft_rev"])
+        sub = client.post(
+            f"{api_url}/protocols/{protocol_id}/submit",
+            headers=ayu,
+            json=submit_body,
+        )
+        proto = _checked(sub, f"Submitting Protocol {protocol_id}").json()
+    return proto
 
 
 def _ensure_approved_protocol(
@@ -246,72 +771,58 @@ def _ensure_approved_protocol(
     ayu: dict[str, str],
     *,
     idp: str = "demo",
+    from_draft: bool = False,
 ) -> dict[str, Any]:
-    imp = client.post(f"{api_url}/runs/{run_id}/import", headers=ayu)
-    imp.raise_for_status()
-
-    proposals_resp = client.get(f"{api_url}/runs/{run_id}/proposals", headers=ayu)
-    proposals_resp.raise_for_status()
-    for p in proposals_resp.json():
-        if p["state"] not in ("undecided", "changed"):
-            continue
-        url = f"{api_url}/runs/{run_id}/proposals/{p['id']}/decisions"
-        r = client.post(url, headers=ayu, json={"decision": "accepted"})
-        if r.status_code in (409, 422) and p.get("kind") == "coverage":
-            r = client.post(
-                url,
-                headers=ayu,
-                json={
-                    "decision": "edited",
-                    "coverage": "gap",
-                    "reason": "Demo seed: no proposed coverage class",
-                },
-            )
-        elif r.status_code == 409 and p.get("kind") == "test_step":
-            r = client.post(
-                url,
-                headers=ayu,
-                json={
-                    "decision": "rejected",
-                    "reason": "Demo seed: requirement already has an active Test Step",
-                },
-            )
-        if r.status_code not in (200, 201):
-            raise RuntimeError(f"Decision failed on proposal {p['id']}: {r.status_code} {r.text}")
-
-    proto_resp = client.get(f"{api_url}/runs/{run_id}/protocol", headers=ayu)
-    if proto_resp.status_code == 404:
-        proto_resp = client.post(f"{api_url}/runs/{run_id}/protocol", headers=ayu)
-    proto_resp.raise_for_status()
-    proto: dict[str, Any] = proto_resp.json()
-    protocol_id = int(proto["id"])
-
-    if proto["status"] == "draft":
-        proto = _shape_acceptances(client, api_url, protocol_id, proto, ayu)
-        draft_hash = proto.get("draft_hash")
-        if not draft_hash:
-            raise RuntimeError(
-                f"Protocol {protocol_id} cannot be submitted, a check blocks it: {_blocking(proto)}"
-            )
-        sub = client.post(
-            f"{api_url}/protocols/{protocol_id}/submit",
-            headers=_token(client, issuer_url, "ayu", idp=idp),
-            json={"expected_draft_hash": str(draft_hash)},
-        )
-        proto = _checked(sub, f"Submitting Protocol {protocol_id}").json()
-
+    proto = _ensure_submitted_protocol(client, api_url, run_id, ayu, from_draft=from_draft)
     if proto["status"] == "submitted":
+        protocol_id = int(proto["id"])
         submission = proto["submission"]
+        approve_body: dict[str, Any] = {
+            "submission_event_id": int(submission["event_id"]),
+            "hash": str(submission["hash"]),
+        }
+        if proto.get("latest_draft_rev") is not None:
+            approve_body["expected_latest_draft_rev"] = int(proto["latest_draft_rev"])
         app = client.post(
             f"{api_url}/protocols/{protocol_id}/approve",
             headers=_token(client, issuer_url, "dewi", idp=idp),
-            json={
-                "submission_event_id": int(submission["event_id"]),
-                "hash": str(submission["hash"]),
-            },
+            json=approve_body,
         )
         proto = _checked(app, f"Approving Protocol {protocol_id}").json()
     return proto
+
+
+def _run_stale_pin(
+    client: Any,
+    api_url: str,
+    issuer_url: str,
+    equipment: str,
+    rev0_pdf: Path,
+    rev1_pdf: Path,
+    ayu: dict[str, str],
+    *,
+    idp: str = "demo",
+) -> dict[str, Any]:
+    """Uploads rev0, submits a Protocol pinned to rev0 without approving, then uploads rev1."""
+    del issuer_url, idp  # signature reserved for symmetric stage runners
+    rev0_run_id = _upload_draft_pdf(client, api_url, equipment, rev0_pdf, ayu)
+    _ensure_submitted_protocol(client, api_url, rev0_run_id, ayu, from_draft=True)
+    rev1_run_id = _upload_draft_pdf(client, api_url, equipment, rev1_pdf, ayu)
+    proto = _checked(
+        client.get(f"{api_url}/runs/{rev0_run_id}/protocol", headers=ayu),
+        f"Reading Protocol of {rev0_run_id}",
+    ).json()
+    source = proto.get("source") or {}
+    return {
+        "stage": "stale-pin",
+        "equipment": equipment,
+        "rev0_run_id": rev0_run_id,
+        "rev1_run_id": rev1_run_id,
+        "protocol_id": proto["id"],
+        "protocol_status": proto["status"],
+        "pinned_rev": source.get("rev"),
+        "latest_rev": proto.get("latest_draft_rev"),
+    }
 
 
 def _ensure_completed_execution(
@@ -376,12 +887,21 @@ def _ensure_completed_execution(
     return execution
 
 
-def _decide_proposals(client: Any, api_url: str, run_id: str, ayu: dict[str, str]) -> None:
+def _decide_proposals(
+    client: Any,
+    api_url: str,
+    run_id: str,
+    ayu: dict[str, str],
+    *,
+    kinds: tuple[str, ...] | None = None,
+) -> None:
     imp = client.post(f"{api_url}/runs/{run_id}/import", headers=ayu)
     imp.raise_for_status()
     proposals_resp = client.get(f"{api_url}/runs/{run_id}/proposals", headers=ayu)
     proposals_resp.raise_for_status()
     for p in proposals_resp.json():
+        if kinds is not None and p.get("kind") not in kinds:
+            continue
         if p["state"] not in ("undecided", "changed"):
             continue
         url = f"{api_url}/runs/{run_id}/proposals/{p['id']}/decisions"
@@ -468,7 +988,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument(
         "--stage",
-        choices=("approved-protocol", "completed-execution", "qualification-report", "two-rounds"),
+        choices=(
+            "approved-protocol",
+            "completed-execution",
+            "qualification-report",
+            "two-rounds",
+            "stale-pin",
+        ),
         required=True,
     )
     parser.add_argument("--ready-file", type=Path)
@@ -478,16 +1004,50 @@ def main() -> int:
     parser.add_argument("--run-id")
     parser.add_argument("--second-run-id")
     parser.add_argument("--review-package", action="store_true")
+    parser.add_argument("--from-draft", action="store_true")
+    parser.add_argument("--draft-pdf", type=Path)
+    parser.add_argument("--equipment", default=DEFAULT_EQUIPMENT)
+    parser.add_argument("--rev0-pdf", type=Path, default=DEFAULT_REV0_PDF)
+    parser.add_argument("--rev1-pdf", type=Path, default=DEFAULT_REV1_PDF)
     args = parser.parse_args()
 
     with httpx.Client(timeout=30) as client:
-        api_url, issuer_url, run_id, idp = _resolve_target(args, client)
-        ayu = _token(client, issuer_url, "ayu", idp=idp)
-        if args.stage == "two-rounds":
-            rounds_summary = _ensure_two_rounds(client, api_url, run_id, args.second_run_id, ayu)
-            print(json.dumps({"stage": args.stage, **rounds_summary}))
+        if args.stage == "stale-pin":
+            api_url, issuer_url, _, idp = _resolve_connection(args)
+            ayu = _token(client, issuer_url, "ayu", idp=idp)
+            print(
+                json.dumps(
+                    _run_stale_pin(
+                        client,
+                        api_url,
+                        issuer_url,
+                        args.equipment,
+                        args.rev0_pdf,
+                        args.rev1_pdf,
+                        ayu,
+                        idp=idp,
+                    )
+                )
+            )
             return 0
-        proto = _ensure_approved_protocol(client, api_url, issuer_url, run_id, ayu, idp=idp)
+        if args.draft_pdf is not None:
+            api_url, issuer_url, _, idp = _resolve_connection(args)
+            ayu = _token(client, issuer_url, "ayu", idp=idp)
+            run_id = _upload_draft_pdf(client, api_url, args.equipment, args.draft_pdf, ayu)
+            from_draft = True
+        else:
+            api_url, issuer_url, run_id, idp = _resolve_target(args, client)
+            ayu = _token(client, issuer_url, "ayu", idp=idp)
+            if args.stage == "two-rounds":
+                rounds_summary = _ensure_two_rounds(
+                    client, api_url, run_id, args.second_run_id, ayu
+                )
+                print(json.dumps({"stage": args.stage, **rounds_summary}))
+                return 0
+            from_draft = bool(args.from_draft or _has_review_package(client, api_url, run_id, ayu))
+        proto = _ensure_approved_protocol(
+            client, api_url, issuer_url, run_id, ayu, idp=idp, from_draft=from_draft
+        )
         summary: dict[str, Any] = {
             "run_id": run_id,
             "protocol_id": proto["id"],
