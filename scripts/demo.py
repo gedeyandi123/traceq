@@ -38,6 +38,14 @@ def main() -> int:
         type=Path,
         help="the recordings of the package's draft calls (only read)",
     )
+    p.add_argument(
+        "--upload-drafts",
+        action="store_true",
+        help=(
+            "enable replay-only draft uploads with --package-recordings"
+            " without pre-loading a draft at start"
+        ),
+    )
     p.add_argument("--runs", type=Path)
     p.add_argument("--issuer-port", type=int)
     p.add_argument("--api-port", type=int)
@@ -56,6 +64,7 @@ def main() -> int:
         "api_port": a.api_port,
         "review_package": a.review_package,
         "package_recordings": a.package_recordings,
+        "upload_drafts": a.upload_drafts,
         "ready_file": a.ready_file,
         "idp": a.idp,
     }

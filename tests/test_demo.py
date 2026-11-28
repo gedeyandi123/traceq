@@ -473,3 +473,49 @@ def test_keycloak_pkce_token_exchanges_code_with_s256_and_prompt_login(
     assert seen["token_data"]["grant_type"] == "authorization_code"
     assert seen["token_data"]["code"] == "auth-code-1"
     assert "code_verifier" in seen["token_data"]
+
+
+def test_upload_drafts_mode_serves_uploads_in_replay_mode_with_zero_budget(
+    tmp_path: Path,
+) -> None:
+    """Issue #449: --upload-drafts turns on replay-only uploads without a pre-loaded package."""
+    settings = DemoSettings(
+        corpus=tmp_path / "corpus",
+        equipment="TP-201",
+        recordings=R10,
+        uploads=tmp_path / "uploads",
+        upload_drafts=True,
+        package_recordings=PACKAGE_RUN,
+    )
+    args = serve_args(settings)
+    assert args[args.index("--uploads") + 1] == str(tmp_path / "uploads")
+    assert args[args.index("--upload-equipment") + 1] == "TP-201"
+    assert args[args.index("--recordings") + 1] == str(R10)
+    assert args[args.index("--package-recordings") + 1] == str(PACKAGE_RUN)
+    assert args[args.index("--upload-budget-usd") + 1] == "0"
+    assert "--live" not in args
+
+
+def test_upload_drafts_requires_package_recordings_and_forbids_review_package(
+    tmp_path: Path,
+) -> None:
+    """Issue #449: --upload-drafts needs --package-recordings and forbids --review-package."""
+    no_rec = DemoSettings(
+        corpus=tmp_path / "no-corpus",
+        equipment="TP-201",
+        recordings=R10,
+        upload_drafts=True,
+    )
+    with pytest.raises(DemoError, match="--package-recordings"):
+        bring_up(no_rec)
+
+    both = DemoSettings(
+        corpus=tmp_path / "no-corpus",
+        equipment="TP-201",
+        recordings=R10,
+        upload_drafts=True,
+        review_package=PACKAGE,
+        package_recordings=PACKAGE_RUN,
+    )
+    with pytest.raises(DemoError, match="--review-package"):
+        bring_up(both)

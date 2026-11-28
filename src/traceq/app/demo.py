@@ -70,6 +70,9 @@ class DemoSettings:
     """A released Review Package directory for this corpus and Equipment."""
     package_recordings: Path | None = None
     """The recordings of the package's draft calls and ingest."""
+    upload_drafts: bool = False
+    """Enable replay-only draft uploads at budget 0 using ``package_recordings`` without
+    pre-loading a Review Package draft at start."""
     ready_file: Path | None = None
     """Optional path written with JSON readiness metadata once the demo run is imported."""
 
@@ -325,7 +328,12 @@ def _demo_import_token(issuer_url: str, idp: Literal["demo", "keycloak"], userna
 
 def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: None) -> Demo:
     """Everything the demo command does except waiting. Raises ``DemoError``."""
-    if (settings.review_package is None) != (settings.package_recordings is None):
+    if settings.upload_drafts:
+        if settings.review_package is not None:
+            raise DemoError("--upload-drafts cannot be combined with --review-package")
+        if settings.package_recordings is None:
+            raise DemoError("--upload-drafts needs --package-recordings")
+    elif (settings.review_package is None) != (settings.package_recordings is None):
         raise DemoError("a Review Package needs both --review-package and --package-recordings")
     check_corpus(settings.corpus, settings.equipment)
     check_pair(settings.corpus, settings.equipment, settings.recordings)
@@ -354,7 +362,12 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
         raise DemoError(f"could not reset the database: {e}") from e
 
     log(f"replaying the {settings.equipment} recordings (nothing is sent to an LLM)")
-    if settings.review_package is not None:
+    if settings.upload_drafts:
+        log(
+            f"uploads on (replay only, budget 0) with {settings.package_recordings};"
+            " no draft pre-loaded"
+        )
+    elif settings.review_package is not None:
         log(f"Review Package {settings.review_package}: draft loaded, uploads on, replay only")
     from traceq.ai import MissingRecording
     from traceq.documents import OcrUnavailable
@@ -369,7 +382,7 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
             MODEL,
             equipment=settings.equipment,
             review_package=settings.review_package,
-            package_recordings=settings.package_recordings,
+            package_recordings=None if settings.upload_drafts else settings.package_recordings,
         )
     except (MissingRecording, OcrUnavailable, FileNotFoundError, ValueError) as e:
         raise DemoError(f"the replay failed: {e}") from e
@@ -455,7 +468,9 @@ def serve_args(
         "--database",
         database_url,
     ]
-    if settings.review_package is not None and settings.package_recordings is not None:
+    if (
+        settings.review_package is not None or settings.upload_drafts
+    ) and settings.package_recordings is not None:
         args += [
             "--uploads",
             str(settings.uploads),
