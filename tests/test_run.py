@@ -1106,7 +1106,9 @@ def test_a_review_package_run_one_call_at_a_time_reports_the_drafts_latency(
     tmp_path: Path,
 ) -> None:
     """The Equipment calls replay from Haiku's r10, whose recordings carry no latency; only the
-    draft's calls are sent, one at a time, so they are all the latency counts."""
+    draft's calls are sent, one at a time, so they are all the latency counts. The package is
+    TP-201-OQ-draft-0.1.0, for the wiring only, because its Haiku recordings answer the fake;
+    the Mode Pabrik measurement (spec #442, T2) reads 0.2.0."""
     store = tmp_path / "package"
     shutil.copytree(RECORDINGS / "haiku-oq-draft-r3" / "ingest", store / "ingest")
     free = PriceTable(batch_discount=0.5, models={HAIKU: Price(0.0, 0.0)})
@@ -1140,6 +1142,7 @@ def test_a_review_package_run_one_call_at_a_time_reports_the_drafts_latency(
     assert out.metadata["latency"] == {**draft, "draft": draft}
     assert out.metadata["format"] == {**answers, "draft": answers}
     assert "latency" not in out.metadata["review_package"]
+    assert "format" not in out.metadata["review_package"]
 
     replayed = package_run(tmp_path / "replay", None)
     assert replayed.metadata["calls"]["live"] == 0

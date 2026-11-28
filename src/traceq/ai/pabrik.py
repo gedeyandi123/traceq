@@ -27,7 +27,8 @@ before it travel with the answer (``Sent``) into its recording.
 before every request and every back-off, so it is passed by at most the one request in flight.
 
 The key is sent only in the ``Authorization`` header: it is never logged, recorded, described
-or put in an error text. Never called in CI.
+or put in an error text, and neither is any piece of it of 8 characters or more that an
+endpoint echoes back. Never called in CI.
 """
 
 from __future__ import annotations
@@ -64,6 +65,12 @@ __all__ = [
 
 FORMAT_RETRIES = 2
 """How many times an unusable answer is asked again."""
+
+ERROR_TEXT_CHARS = 500
+"""How much of an endpoint's error text an ``LLMError`` keeps, after the key is scrubbed."""
+
+KEY_PIECE_CHARS = 8
+"""The shortest piece of the key scrubbed from an error text."""
 
 _THINK = re.compile(r"\A\s*<think>.*?</think>\s*", re.DOTALL)
 _FENCE = re.compile(r"\A\s*```[A-Za-z]*[ \t]*\r?\n(.*?)\r?\n?```\s*\Z", re.DOTALL)
@@ -290,7 +297,8 @@ class PabrikLLM:
                     except ValueError:
                         return None, seconds
                 if code != 429 and code < 500:
-                    text = response.text[:500]
+                    # Scrubbed whole, then cut: a cut first could split the key past the scrub.
+                    text = self._scrub(response.text)[:ERROR_TEXT_CHARS]
                     raise LLMError(
                         self._scrub(f"'{name}': HTTP {code} from {self.base_url}: {text}")
                     )
@@ -349,7 +357,16 @@ class PabrikLLM:
         return text, stripped, cast(int, tokens[0]), cast(int, tokens[1])
 
     def _scrub(self, text: str) -> str:
-        return text.replace(self._key, "***")
+        """``text`` with the key, and any piece of it of ``KEY_PIECE_CHARS`` characters or more
+        (an endpoint may echo part of a key), replaced by ``***``."""
+        key = self._key
+        shortest = min(KEY_PIECE_CHARS, len(key))  # a short key is scrubbed whole
+        for size in range(len(key), shortest - 1, -1):
+            for start in range(len(key) - size + 1):
+                piece = key[start : start + size]
+                if piece in text:
+                    text = text.replace(piece, "***")
+        return text
 
 
 def _strip(text: str) -> tuple[str, tuple[str, ...]]:

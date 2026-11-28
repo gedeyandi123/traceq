@@ -344,6 +344,35 @@ def test_a_call_that_keeps_timing_out_fails() -> None:
         _llm(endpoint, timeout_s=30.0, transport_retries=1).send(REQUEST)
 
 
+def _no_part_of_the_key(text: str) -> bool:
+    """No piece of the key of 8 characters or more is in ``text``."""
+    return all(KEY[i : i + 8] not in text for i in range(len(KEY) - 7))
+
+
+@pytest.mark.parametrize(
+    "echo",
+    [
+        "x" * 490 + KEY + "y" * 50,  # the key across the 500th character of the text
+        f"invalid key {KEY[:12]}...",  # part of the key echoed back
+        f"invalid key ...{KEY[-9:]}",
+    ],
+)
+def test_an_error_text_never_carries_any_part_of_the_key(echo: str) -> None:
+    endpoint = Endpoint(lambda _: httpx.Response(403, text=echo))
+    with pytest.raises(LLMError, match="HTTP 403") as raised:
+        _llm(endpoint).send(REQUEST)
+    assert _no_part_of_the_key(str(raised.value))
+    assert "***" in str(raised.value)
+
+
+def test_a_key_shorter_than_a_piece_is_scrubbed_whole() -> None:
+    endpoint = Endpoint(lambda _: httpx.Response(401, text="invalid key abc123"))
+    llm = PabrikLLM(api_key="abc123", transport=httpx.MockTransport(endpoint))
+    with pytest.raises(LLMError, match="HTTP 401") as raised:
+        llm.send(REQUEST)
+    assert "abc123" not in str(raised.value)
+
+
 def test_a_client_error_fails_at_once_without_the_key() -> None:
     def refused(request: httpx.Request) -> httpx.Response:
         echoed = request.headers["authorization"]
@@ -667,6 +696,35 @@ def test_a_pabrik_run_is_refused_before_anything_runs(
     assert cli.main(argv) == 2
     assert message in capsys.readouterr().err
     assert ran.args == ()
+
+
+def test_a_live_pabrik_review_package_run_reaches_the_run_with_its_package(
+    ran: _Ran, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(API_KEY_ENV, KEY)
+    argv = [
+        *ARGV,
+        "--llm",
+        "pabrik",
+        "--live",
+        "--recordings",
+        "rec/sealion-r1",
+        "--review-package",
+        "release/TP-201-OQ-draft",
+        "--package-recordings",
+        "rec/sealion-oq-draft-r1",
+        "--draft-rev",
+        "0",
+    ]
+    assert cli.main(argv) == 0
+    assert ran.args[2:4] == (Path("rec/sealion-r1"), PABRIK_MODEL)
+    assert ran.kwargs["review_package"] == Path("release/TP-201-OQ-draft")
+    assert ran.kwargs["package_recordings"] == Path("rec/sealion-oq-draft-r1")
+    assert ran.kwargs["draft_rev"] == 0
+    assert ran.kwargs["equipment"] == "TP-201"
+    live = ran.kwargs["live"]
+    assert isinstance(live, PabrikLLM)
+    assert live.model == PABRIK_MODEL
 
 
 def test_a_failed_llm_call_exits_2_with_its_message(
