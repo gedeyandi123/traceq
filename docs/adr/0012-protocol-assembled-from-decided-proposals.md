@@ -45,6 +45,13 @@ Decided by the owner on 27 November 2026 (ticket #393, spec #375): "Larang pengu
 
 Accepted on 28 November 2026 by the owner's answer (quoted): "Tolak keduanya: pengunggah DAN pengimpor (Disarankan)" (ticket #393, spec #375, audit finding C5/S1). It extends the amendment of 27 November above to a revision that arrived by an import: the import route (`POST /runs/{id}/import`, through which the demo start imports too; there is no other import command) named nobody, so whoever brought the revision in that way could approve the Protocol started from it. For a Protocol started from the Protocol Draft, nobody who uploaded the bytes of the pinned revision (an upload job holding them, whatever its status) and nobody who registered that revision by importing the run that first read it may approve it: both are refused (409, the same code `uploader_approves`, the message saying "uploaded" or "imported" for the person refused). The registrant is recorded in `document_versions` (`subject`, `issuer`, `name`) when the import registers the revision, which replaces "no new identity is stored" above; a revision registered before this was recorded names no registrant, and its uploader is still refused. Submitting, returning and withdrawing stay unrestricted, and another Approver can approve.
 
+## Amended 28 November 2026: an Approved Protocol may be exported as a deterministic PDF
+
+Decided by the owner on 28 November 2026 (`"setuju semua rekomendasimu"`), following the consolidated Indonesian pharma qualification audit (CPOB 2024 Bab 10.1 hybrid documentation and Aneks 7 §8 clear electronic printouts).
+
+- **Deterministic PDF from the frozen copy.** Once a Protocol reaches `approved`, TraceQ may render a printable PDF (Typst) on-the-fly directly from its already-frozen approved copy (`submission_hash`, frozen rows in order with structured Acceptance Criteria and `IQ`/`OQ` stage, Vendor References, Electronic Signature metadata with the ADR 0007 label, and an optional wet-signature sign-off table for hybrid paper execution).
+- **No status or schema expansion.** No new Protocol status, database table, or approval flow is introduced; exporting or printing does not alter the frozen copy or its hash.
+
 ## Considered Options
 
 - **Execute the site's Protocol Draft (reversed in part, see Amended 26 November 2026):** its Test Steps and Acceptance Criteria are read with verified citations, but no human decides them, and the Review Package holds only an OQ draft.
@@ -55,7 +62,7 @@ Accepted on 28 November 2026 by the owner's answer (quoted): "Tolak keduanya: pe
 
 ## Consequences
 
-- Known limits, stated in the product: one Test Step per requirement; no printed or exported Protocol (not in the order of ADR 0010; on the practitioner agenda, #245); no new version after approval until step 6.
+- Known limits, stated in the product: one Test Step per requirement; printable/exported PDF of an Approved Protocol is permitted by the 28 November 2026 amendment (drafts remain non-printable); no new version after approval until step 6.
 - The document Pre-review reviewed is not the one executed unless the Protocol is started from the draft (amendment of 26 November 2026).
 - Execution and the Qualification Report (steps 5b and 7) are per Stage, so a combined IQ/OQ Protocol is debt for step 7; a Stage set by a human per Test Step is the likely way out.
 - Status changes are appended events, since the tables refuse UPDATE. A demo rehearsal starts again from a reset database, because an approved Protocol blocks a new one.
