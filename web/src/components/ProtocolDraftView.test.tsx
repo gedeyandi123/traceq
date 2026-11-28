@@ -10,7 +10,16 @@ import messages from "../../messages/id.json";
 import type { DecisionView } from "./Decisions";
 import { counts, decision, RUN_ID } from "./decisions.fixture";
 import { openBlockingModal, openDialogCount } from "./modal.fixture";
-import { deviates, draftView, notReadStep, notTested, proposal } from "./protocolDraft.fixture";
+import {
+  deviates,
+  draftView,
+  notReadStep,
+  notTested,
+  outdatedReference,
+  outsideCapability,
+  proposal,
+  unitError,
+} from "./protocolDraft.fixture";
 import { ProtocolDraftView } from "./ProtocolDraftView";
 import { RunShellProvider, useRunShell } from "./RunShellContext";
 
@@ -231,4 +240,43 @@ test("J/K shortcuts do nothing while a modal dialog is open (#349)", () => {
   fireEvent.keyDown(button, { key: "k" });
   expect(openDialogCount()).toBe(1);
   expect(document.activeElement).toBe(button);
+});
+
+test("a finding of a type no practitioner has reviewed carries its label in the table and the Drawer", async () => {
+  renderDraft(draftView([{ finding: outsideCapability, proposal: null }]), {
+    access: { mode: "readOnly", why: "notImported" },
+  });
+  const row = within(stepRows()[2]!);
+  expect(row.getByText("Kriteria penerimaan di luar kemampuan yang tercantum di datasheet")).toBeDefined();
+  expect(row.getByText("Belum ditinjau praktisi")).toBeDefined();
+
+  fireEvent.click(row.getByRole("button", { name: "OQ-03" }));
+  const dialog = await screen.findByRole("dialog", { name: "OQ-03" });
+  expect(within(dialog).getByText("Belum ditinjau praktisi")).toBeDefined();
+  expect(within(dialog).getByText(outsideCapability.detail)).toBeDefined();
+});
+
+test("a unit error is named and labelled as not reviewed by a practitioner", () => {
+  renderDraft(draftView([{ finding: unitError, proposal: null }]), {
+    access: { mode: "readOnly", why: "notImported" },
+  });
+  const row = within(stepRows()[2]!);
+  expect(row.getByText("Satuan kriteria penerimaan salah")).toBeDefined();
+  expect(row.getByText("Belum ditinjau praktisi")).toBeDefined();
+});
+
+test("an outdated reference is named and labelled as not reviewed by a practitioner", () => {
+  renderDraft(draftView([{ finding: outdatedReference, proposal: null }]), {
+    access: { mode: "readOnly", why: "notImported" },
+  });
+  const row = within(stepRows()[2]!);
+  expect(row.getByText("Acuan dokumen dengan revisi lebih lama dari revisi terkini")).toBeDefined();
+  expect(row.getByText("Belum ditinjau praktisi")).toBeDefined();
+});
+
+test("a finding of a reviewed type carries no such label", () => {
+  renderDraft(draftView([{ finding: deviates, proposal: null }]), {
+    access: { mode: "readOnly", why: "notImported" },
+  });
+  expect(screen.queryByText("Belum ditinjau praktisi")).toBeNull();
 });

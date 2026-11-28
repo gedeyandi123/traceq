@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 
 import type { ProtocolRowView } from "@/api/client";
+import { DraftLabels, NotReviewedLabel } from "./DraftProtocolPanels";
 import { formatValue } from "./MatrixTable";
 import { PdfCitationButton } from "./ui/PdfCitationModal";
 import { CoverageStatusBadge, DecisionStateBadge, StageBadge } from "./ui/StatusBadge";
@@ -140,6 +141,22 @@ export function ProtocolRowsTable({
                             : t("acToSet", { flag: step.acceptance_flag ?? "" })}
                         </span>
                       </div>
+                    </div>
+                  )}
+                  {(r.step_source === "draft" || r.findings.length > 0) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-muted">
+                      {r.step_source === "draft" && (
+                        <span>
+                          {t("draftFlow.row.source")}: {t("draftFlow.row.sources.draft")}
+                        </span>
+                      )}
+                      {r.findings.length > 0 && (
+                        <span className="font-semibold text-fail">
+                          {t("draftFlow.row.findings", { count: r.findings.length })}
+                        </span>
+                      )}
+                      {r.findings.some((f) => f.finding.label) && <NotReviewedLabel t={t} />}
+                      <DraftLabels t={t} />
                     </div>
                   )}
                   {r.blockers.map((b) => (

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import DemoIssuer, runs_client
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -38,8 +39,33 @@ def run_folder_schema() -> dict[str, Any]:
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create_app(RUNS, CORPUS))
+def client(demo_issuer: DemoIssuer) -> TestClient:
+    return runs_client(RUNS, CORPUS, demo_issuer)
+
+
+def test_every_run_route_needs_a_bearer_token(demo_issuer: DemoIssuer) -> None:
+    anonymous = runs_client(RUNS, CORPUS, demo_issuer, signed_in=False)
+    for path in (
+        "/runs",
+        f"/runs/{RUN_ID}",
+        f"/runs/{RUN_ID}/matrix",
+        f"/runs/{RUN_ID}/findings",
+        f"/runs/{RUN_ID}/dropped",
+        f"/runs/{RUN_ID}/completeness",
+        f"/runs/{RUN_ID}/documents/FAT-TP201-M/0",
+    ):
+        r = anonymous.get(path)
+        assert r.status_code == 401, path
+        assert r.headers["www-authenticate"] == "Bearer"
+    assert anonymous.head(f"/runs/{RUN_ID}/documents/FAT-TP201-M/0").status_code == 401
+    bad = {"Authorization": "Bearer not-a-token"}
+    assert anonymous.get("/runs", headers=bad).status_code == 401
+
+
+def test_the_composed_application_without_an_issuer_serves_no_run() -> None:
+    bare = TestClient(create_app(RUNS, CORPUS))
+    assert bare.get("/runs").status_code == 401
+    assert bare.get(f"/runs/{RUN_ID}/matrix").status_code == 401
 
 
 def test_lists_runs_without_scores(client: TestClient) -> None:
@@ -59,7 +85,9 @@ def test_lists_runs_without_scores(client: TestClient) -> None:
     assert client.get(f"/runs/{RUN_ID}").json() == r.json()[0]
 
 
-def test_a_review_package_run_names_its_package_and_draft(tmp_path: Path) -> None:
+def test_a_review_package_run_names_its_package_and_draft(
+    tmp_path: Path, demo_issuer: DemoIssuer
+) -> None:
     """So a run screen can link to the Protocol Draft without a token (spec #196, ticket
     #210): the package, its version and the draft document, from ``run.json``."""
     folder = tmp_path / RUN_ID
@@ -72,7 +100,7 @@ def test_a_review_package_run_names_its_package_and_draft(tmp_path: Path) -> Non
         "test_steps": 26,
     }
     (folder / "run.json").write_text(json.dumps(meta), encoding="utf-8")
-    got = TestClient(create_app(tmp_path)).get(f"/runs/{RUN_ID}").json()
+    got = runs_client(tmp_path, None, demo_issuer).get(f"/runs/{RUN_ID}").json()
     assert got["review_package"] == {
         "package": "TP-201-OQ-draft",
         "version": "0.1.0",
@@ -121,12 +149,14 @@ def test_serves_the_completeness_check_as_written(client: TestClient) -> None:
     assert r.json()["urs"][0]["missed"] == [{"number": "URS-TP201-003", "page": 1}]
 
 
-def test_a_run_written_before_the_completeness_check_has_none(tmp_path: Path) -> None:
+def test_a_run_written_before_the_completeness_check_has_none(
+    tmp_path: Path, demo_issuer: DemoIssuer
+) -> None:
     folder = tmp_path / RUN_ID
     folder.mkdir()
     for name in ("run.json", "matrix.json", "findings.json"):
         (folder / name).write_bytes((RUNS / RUN_ID / name).read_bytes())
-    r = TestClient(create_app(tmp_path)).get(f"/runs/{RUN_ID}/completeness")
+    r = runs_client(tmp_path, None, demo_issuer).get(f"/runs/{RUN_ID}/completeness")
     assert r.status_code == 404
     assert "did not run" in r.json()["detail"]
 
@@ -161,7 +191,26 @@ def test_document_headers_and_head_precheck(client: TestClient) -> None:
     assert client.head(f"/runs/{RUN_ID}/documents/SAT-TP201/0").status_code == 404
 
 
-def test_a_document_the_run_did_not_read_is_not_served(client: TestClient, tmp_path: Path) -> None:
+@pytest.mark.parametrize("method", ["get", "head"])
+def test_document_answers_304_for_a_matching_etag_only(client: TestClient, method: str) -> None:
+    url = f"/runs/{RUN_ID}/documents/FAT-TP201-M/0"
+    call = getattr(client, method)
+    etag = call(url).headers["etag"]
+    hit = call(url, headers={"If-None-Match": etag})
+    assert hit.status_code == 304
+    assert hit.content == b""
+    assert hit.headers["etag"] == etag
+    assert hit.headers["cache-control"] == "private, max-age=300"
+    assert call(url, headers={"If-None-Match": f'W/{etag}, "other"'}).status_code == 304
+    assert call(url, headers={"If-None-Match": '"other"'}).status_code == 200
+    # An unknown document is never a 304, even with a matching-looking tag.
+    missing = f"/runs/{RUN_ID}/documents/SAT-TP201/0"
+    assert call(missing, headers={"If-None-Match": etag}).status_code == 404
+
+
+def test_a_document_the_run_did_not_read_is_not_served(
+    client: TestClient, tmp_path: Path, demo_issuer: DemoIssuer
+) -> None:
     assert client.get(f"/runs/{RUN_ID}/documents/SAT-TP201/0").status_code == 404
     assert client.get(f"/runs/{RUN_ID}/documents/FAT-TP201-M/1").status_code == 404
     # The served corpus holds other bytes than the run read: not the page it cited.
@@ -173,13 +222,11 @@ def test_a_document_the_run_did_not_read_is_not_served(client: TestClient, tmp_p
         (corpus / d["path"]).write_bytes(data)
         d["sha256"] = hashlib.sha256(data).hexdigest()
     (corpus / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
-    other = TestClient(create_app(RUNS, corpus))
+    other = runs_client(RUNS, corpus, demo_issuer)
     assert other.get(f"/runs/{RUN_ID}/documents/FAT-TP201-M/0").status_code == 404
     # Without a corpus no document is served.
-    assert (
-        TestClient(create_app(RUNS)).get(f"/runs/{RUN_ID}/documents/FAT-TP201-M/0").status_code
-        == 404
-    )
+    no_corpus = runs_client(RUNS, None, demo_issuer)
+    assert no_corpus.get(f"/runs/{RUN_ID}/documents/FAT-TP201-M/0").status_code == 404
 
 
 @pytest.mark.parametrize(

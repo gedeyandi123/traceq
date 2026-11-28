@@ -3,10 +3,11 @@
 
 A decision belongs to a Proposal and the content hash it was made on. Decisions are only
 added; the current one is the latest for that Proposal and content. For the run a screen
-shows, a Proposal is **decided** when a decision exists for its content (also one made on
-another run), **changed** since it was decided when decisions exist only for other content,
-and **undecided** otherwise. A decision and its Audit Trail entry are written in the session's
-one transaction.
+shows, a Proposal is **decided** when its newest decision (also one made on another run) was
+made on its content, **changed** since it was decided when its newest decision was made on
+other content (so content that reverts to what an older decision rested on does not revive
+that decision over a newer one), and **undecided** when there is none. A decision and its
+Audit Trail entry are written in the session's one transaction.
 """
 
 from __future__ import annotations
@@ -38,6 +39,10 @@ ALLOWED: dict[Kind, frozenset[Verdict]] = {
     # Edited only together with the written Test Step it produces, by the Protocol's edit
     # route, never by ``record`` (spec #247).
     "test_step": frozenset({"accepted", "rejected"}),
+    # A draft Test Step: edited only by the Protocol's edit route, as for ``test_step``. Its
+    # Acceptance Criterion is accepted or rejected: an edit types the criterion with the step.
+    "draft_step": frozenset({"accepted", "rejected"}),
+    "draft_criterion": frozenset({"accepted", "rejected"}),
 }
 
 DECISIONS = Table(
@@ -147,10 +152,10 @@ def _check(
     kind: Kind, proposed_class: str | None, verdict: Verdict, coverage: str | None, *, edit: bool
 ) -> None:
     if edit:
-        if kind != "test_step" or verdict != "edited":
-            raise Refused("the edit route records only edited on a drafted Test Step")
+        if kind not in ("test_step", "draft_step") or verdict != "edited":
+            raise Refused("the edit route records only edited on a drafted or a draft Test Step")
         if coverage is not None:
-            raise Refused("a drafted Test Step edited takes no class")
+            raise Refused("a Test Step edited takes no class")
         return
     if verdict not in ALLOWED[kind]:
         allowed = " or ".join(sorted(ALLOWED[kind]))
@@ -288,9 +293,13 @@ def standings(session: Session, run_id: str) -> list[Standing] | None:
     out: list[Standing] = []
     for h in held:
         every = made.get(h.id, [])
+        # The newest decision decides: when content goes back to what an older decision
+        # was made on, that decision is not revived over a newer one made on other content.
         same = tuple(d for d in every if d.content_hash == h.content_hash)
-        state: State = "decided" if same else "changed" if every else "undecided"
+        current = bool(every) and every[0].content_hash == h.content_hash
+        state: State = "decided" if current else "changed" if every else "undecided"
         previous = every[0] if state == "changed" else None
+        same = same if current else ()
         previous_class = None
         if previous is not None and h.kind == "coverage":
             previous_class = (

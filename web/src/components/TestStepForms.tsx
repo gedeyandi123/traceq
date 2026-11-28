@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, ChevronDown, History } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
-import type { ProtocolRowView, RowDraft, Value } from "@/api/client";
+import type { ProtocolRowView, Value } from "@/api/client";
 import type { components } from "@/api/schema";
 import type { ProtocolFormActionState } from "@/protocol/actions";
 import { SHAPES, type Acceptance } from "@/protocol/form";
@@ -297,7 +297,8 @@ export function WriteForm({
  * the Test Step it gives. */
 export function EditDraftForm({
   t,
-  d,
+  proposalId,
+  start,
   runId,
   protocolId,
   edit,
@@ -305,14 +306,22 @@ export function EditDraftForm({
   onDirtyChange,
 }: {
   t: T;
-  d: RowDraft;
+  /** The Proposal the `edited` decision is recorded on (the drafted Test Step, or the draft's step). */
+  proposalId: number;
+  /** What the form starts from: the draft as read; a free-text or missing criterion is set by a human. */
+  start: {
+    description: string | null;
+    method: string | null;
+    instrument: string | null;
+    acceptance: Value | null;
+  };
   runId: string;
   protocolId: number;
   edit: Action;
   editInline?: InlineAction;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const x = d.draft;
+  const x = start;
   const editActionFn = editInline ?? wrapLegacyAction(edit);
   const [reason, setReason] = useState("");
   const [state, formAction, isPending] = useActionState(
@@ -350,17 +359,22 @@ export function EditDraftForm({
         <>
           <ActionFeedback t={t} state={state} />
           <form
-            key={`edit-${d.proposal.id}-${state.submittedAt ?? 0}`}
+            key={`edit-${proposalId}-${state.submittedAt ?? 0}`}
             action={formAction}
             className="space-y-3"
             aria-label={t("form.edit")}
           >
             <Hidden runId={runId} protocolId={protocolId} />
-            <input type="hidden" name="proposal_id" value={d.proposal.id} />
+            <input type="hidden" name="proposal_id" value={proposalId} />
             <Fields
               t={t}
-              id={`edit-${d.proposal.id}`}
-              start={{ ...x, acceptance: shaped(x.acceptance) }}
+              id={`edit-${proposalId}`}
+              start={{
+                description: x.description ?? "",
+                method: x.method ?? "",
+                instrument: x.instrument,
+                acceptance: shaped(x.acceptance),
+              }}
               onDirty={() => onDirtyChange?.(true)}
             />
             <label className="block space-y-1 text-xs font-medium text-ink">

@@ -60,7 +60,7 @@ Pertanyaan 1–4 dari runbook bagian 9, pertanyaan 5 dari grilling irisan 3 (18 
 3. **Menolak usulan cakupan:** baris cakupan tidak punya "Tolak". Apakah "Ubah kelas" dengan alasan sudah cukup untuk menolak usulan AI?
 4. **D9, tanpa ditunjukkan di layar:** FAT menguji turret 20–60 rpm, sedangkan URS meminta 20–70 rpm (FAT-M-02, juga FAT-M-09 untuk paddle feeder). Apakah ini layak menjadi temuan terhadap FAT, atau cukup dicatat dan diuji ulang di OQ? Kalau F1 di awal sesi sudah menjawabnya, lewati.
 5. **Kepadatan draf, kalau ada waktu:** "Biasanya berapa komentar reviewer pada draf pertama protokol OQ, dan berapa yang menyangkut AC?" Bacakan pertanyaannya saja, tanpa angka dari proyek.
-   *Catatan presenter, jangan dibacakan:* paket review irisan 3 merencanakan 6–10 cacat di satu draf OQ. Kalau jawaban praktisi jauh lebih kecil, paket itu diberi label "lebih padat dari draf biasa" (`docs/design/synthetic-dataset.md` §11).
+   *Catatan presenter, jangan dibacakan:* paket review irisan 3 merencanakan 6–14 cacat di satu draf OQ. Kalau jawaban praktisi jauh lebih kecil, paket itu diberi label "lebih padat dari draf biasa" (`docs/design/synthetic-dataset.md` §11).
 
 Lalu, kalau masih ada waktu: D13 (siapa QA approver dan Witness) dan D14 (siapa yang memutuskan alat kerja baru), dari `tp201-practitioner-q16.md`.
 
@@ -83,3 +83,49 @@ Isi selama sesi, kata demi kata. Hasilnya dicatat di #133, dan perubahan kunci a
 Hasilnya: k dari 7 temuan dinilai berguna oleh satu praktisi.
 
 **Jawaban lain:** F1–F6, lima pertanyaan bagian 4, D13, D14, dan hal yang disebut praktisi tanpa ditanya.
+
+## 6. Perluasan: draf protokol dan langkah 5 sampai 8 (epic #375)
+
+Bagian 1 sampai 5 dibuat untuk demo r10 (matriks dan temuan atas dokumen vendor). Bagian ini menambah bahan untuk demo putaran tinjauan draf (`docs/demo-runbook.md` bagian 16) dan untuk langkah sesudahnya (Protocol, Eksekusi, Deviasi, Laporan). Sesi mengikuti demo seluruh putaran, bukan sebuah tanggal (ADR 0010, amandemen 26 Nov 2026; tanggalnya ditetapkan pemilik di #245). Bagian ini hanya mencatat pertanyaan yang sudah tercantum di #375 (S7), #245 dan ADR 0010 dan 0012. **Jawabannya tidak diberikan di sini**, dan tidak ada angka dari proyek yang dibacakan sebagai fakta lapangan.
+
+### 6.1 Aturan presenter untuk bagian draf
+
+- Semua temuan draf berasal dari data sintetis; kuncinya ditulis proyek sendiri, jadi setiap angka adalah k/n "dev only" dari hitungan asap dengan dua cacat per jenis baru. Jangan menyebutnya akurasi.
+- Tiga jenis baru (`ac_outside_documented_capability`, `unit_error`, `outdated_reference`) tampil "Belum ditinjau praktisi". Katakan itu sebelum praktisi menilai, dan jangan menyebut mana temuan yang "benar" menurut kunci sebelum praktisi menilai.
+- Jangan menyebut waktu, putaran atau tenaga yang dihemat, dan jangan memakai kata "compliant" atau "sesuai regulasi". Tanda tangan di demo adalah tanda tangan demo dan lencananya hanya "Hash cocok" (hash isi cocok, bukan validasi tanda tangan).
+- Diff ronde menunjukkan di mana melihat dulu; ia tidak menggantikan membaca ulang draf. Katakan itu.
+- Tunjukkan aliran yang sama dengan runbook bagian 16: unggah rev 0, temuan dan keputusan, unggah rev 1, diff, Protocol dari draf, pengajuan, persetujuan oleh orang lain, Eksekusi, Deviasi, Laporan.
+
+### 6.2 Pertanyaan tentang draf dan jenis temuan baru
+
+Dari #375 (cerita pengguna 3 sampai 11, 20 dan 21; S7) dan ADR 0010. Tanyakan dengan kata-kata praktisi, catat kata demi kata di lembar bagian 5.
+
+1. **Gesekan terbesar.** Dalam putaran tinjau-dan-revisi protokol, di mana waktu paling banyak habis, dan apa yang paling membuat frustrasi? (Laporan satu praktisi, n = 1, dasar ADR 0010; di sini ditanyakan ulang tanpa menggiring.)
+2. **Kriteria penerimaan yang tidak terjangkau.** Apakah kriteria penerimaan yang disetujui tetapi tidak terjangkau oleh peralatan terlihat dari dokumen vendor (datasheet), atau baru ketahuan saat uji? Apakah temuan "di luar kemampuan yang tercantum di datasheet" berguna, tidak berguna, atau diragukan, dan bagaimana praktisi menimbangnya terhadap hasil FAT atau SAT yang tidak dipakai sebagai pembanding?
+3. **Kesalahan satuan.** Apakah kesalahan satuan (dimensi tidak cocok, atau angka benar dengan satuan salah kelipatan sepuluh) memang jenis kesalahan yang terjadi pada draf? Apakah satuan yang setara (2 jam dan 120 menit; 1,5 cm dan 15 mm) benar-benar tidak perlu ditandai?
+4. **Acuan usang.** Bagaimana pabrik mengetahui bahwa acuan SOP atau dokumen dalam draf bukan revisi terkini? Apakah acuan tanpa revisi atau acuan ke standar eksternal dianggap wajar?
+5. **Penilaian temuan.** Untuk tiap jenis, minta penilaian berguna, tidak berguna, atau ragu per temuan (seperti bagian 5). Jenis yang ditolak praktisi dihapus beserta angkanya (#375, Further Notes).
+6. **Kepadatan draf.** Sama dengan pertanyaan 5 di bagian 4 (berapa komentar reviewer pada draf pertama protokol OQ).
+7. **Diff ronde.** Apakah penanda Selesai, Bertahan, "Bertahan, berubah" dan Baru membantu menentukan di mana melihat dulu? Apakah keputusan atas temuan yang tidak berubah boleh terbawa, dan atas langkah yang berubah harus ditanyakan lagi?
+8. **Kalimat sumber dan kutipan.** Apakah kutipan draf dan kalimat sumber pada temuan cukup untuk memeriksa tanpa percaya begitu saja?
+
+### 6.3 Pertanyaan tentang Protocol dari draf dan langkah 5 sampai 8
+
+Dari #375 (S7 dan cerita 12 sampai 18) dan #245; dua pertanyaan terbuka ADR 0010 ada di nomor 1 dan 2.
+
+1. **Apakah pabrik menjalankan draf yang ditinjaunya?** Bila tidak, jalur draf ke Protocol dihapus (ADR 0012). Bila ya, apakah baris yang dicakup draf dan sisanya (misalnya IQ) dari rancangan TraceQ cukup wajar?
+2. **Apakah pabrik menerima model cloud?** Mode Cloud mengirim teks ke penyedia eksternal; apakah itu dapat diterima, dan dengan syarat apa (#343)? Rujukan angka `dev only` dari pengukuran #343a (`aisingapore/Qwen-SEA-LION-v4.5-27B-IT` berstatus `tidak layak (format)` pada aturan format, sehingga `#343b` tetap ditunda) ada di `docs/review/s7-interview-material.md` dan `docs/eval/mode-pabrik-spike.md`.
+3. **Cetak dan tanda tangan basah.** Apakah pabrik mencetak Protocol dan menandatanganinya di kertas sebelum ada tanda tangan elektronik? Protocol di TraceQ tidak punya cetak atau ekspor (#245).
+4. **IQ dan OQ.** Biasanya satu Protocol gabungan atau dua? Demo memakai satu Protocol dengan Tahap IQ atau OQ per Langkah uji.
+5. **Alasan tertulis.** Bila temuan disetujui sebagai nyata tetapi baris diajukan tanpa perubahan, apakah wajar diwajibkan alasan tertulis? Bagaimana hal serupa dicatat sekarang?
+6. **Pemisahan tugas.** Siapa yang menyetujui di pabrik, dan apakah wajar bila penyetuju bukan Penyusun, bukan orang yang memutuskan temuan, dan bukan orang yang memetakan langkah? (Berkaitan dengan D13 dan D14 di `tp201-practitioner-q16.md`.)
+7. **Revisi baru saat menunggu persetujuan.** Bila revisi draf baru datang sesudah Protocol diajukan, apakah kembalikan atau tarik lalu mulai ulang sesuai kebiasaan pabrik? Apakah penolakan menandatangani salinan basi (409) sejalan dengan praktik?
+8. **Bentuk kriteria penerimaan.** Batas eksklusif (`< 0,8 µm`) dan toleransi (`380 V ± 10 %`) dinilai persis atau ditolak sebagai belum berbentuk, bukan dipaksa menjadi rentang inklusif. Bagaimana kriteria teks bebas pada langkah fungsional biasanya diputuskan lulus atau gagalnya?
+9. **Eksekusi, Deviasi, Laporan.** Apakah alur hasil, Retest, Deviasi, Saksi dan Laporan Kualifikasi di demo sesuai urutan yang dikenal praktisi? (Batas yang diketahui ada di runbook bagian 12 dan 14.)
+10. **Daftar kerja ulang bila bawaan dibantah.** Catat jawaban yang membantah bawaan (default `[D]`) ke dalam daftar kerja ulang S7 (`docs/review/s7-interview-material.md`, #394): jenis temuan dihapus, jalur draf ke Protocol dihapus, aturan pemisahan tugas diubah, atau kebutuhan model lokal sesudah `#343a`. Tidak ada satu pun yang diubah di sesi.
+
+### 6.4 Lembar catatan tambahan
+
+| # | Pertanyaan (6.2 atau 6.3) | Jawaban praktisi, kata demi kata | Bawaan yang terbantah (ya / tidak / belum jelas) |
+|---|---|---|---|
+| | | | |

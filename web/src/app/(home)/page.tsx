@@ -4,8 +4,9 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 import { api } from "@/api/client";
-import { currentSession } from "@/auth/session";
+import { bearerHeaders, currentSession } from "@/auth/session";
 import { formatWhen } from "@/components/formatWhen";
+import { signedOutPrompt } from "@/components/signedOutPrompt";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState, ModeBadge } from "@/components/ui/ui";
 
@@ -21,10 +22,12 @@ export default async function RunsPage() {
   const t = await getTranslations("runs");
   const when = await getTranslations("decisions");
   const signin = await getTranslations("signin");
-  const [{ data }, session] = await Promise.all([
-    api.GET("/runs").catch(() => ({ data: undefined })),
-    currentSession(),
-  ]);
+  const session = await currentSession();
+  // The run routes need a token: a signed-out viewer is asked to sign in, not told the API is down.
+  const { data } =
+    session === null
+      ? { data: undefined }
+      : await api.GET("/runs", { headers: await bearerHeaders() }).catch(() => ({ data: undefined }));
 
   return (
     <div className="space-y-5">
@@ -47,7 +50,8 @@ export default async function RunsPage() {
         </Alert>
       )}
 
-      {data === undefined && <EmptyState title={t("unavailableTitle")}>{t("unavailable")}</EmptyState>}
+      {session === null && (await signedOutPrompt("/"))}
+      {session !== null && data === undefined && <EmptyState title={t("unavailableTitle")}>{t("unavailable")}</EmptyState>}
       {data?.length === 0 && <EmptyState title={t("emptyTitle")}>{t("empty")}</EmptyState>}
 
       {data !== undefined && data.length > 0 && (

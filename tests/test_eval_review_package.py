@@ -22,6 +22,7 @@ from traceq_dataset.review_package import (
 from traceq_eval import __main__ as cli
 from traceq_eval.citations import PageTexts
 from traceq_eval.oracle import perfect_review
+from traceq_eval.report import markdown
 from traceq_eval.score import ReviewPackage, score
 from traceq_eval.submission import Submission
 
@@ -375,3 +376,92 @@ def test_cli_scores_a_package_and_ratchets_only_against_its_own_baseline(
     plain = {k: v for k, v in best.items() if k not in ("review_package", "draft_steps")}
     equipment.write_text(json.dumps(plain), encoding="utf-8")
     assert main(equipment, "--baseline", str(base)) == 2
+
+
+# --- Spec #375: ac_outside_documented_capability, unit_error, outdated_reference ----------
+
+
+def _declaring(review: ReviewPackage, test_step: str, new_type: str) -> ReviewPackage:
+    """The package whose key types the defect of ``test_step`` as ``new_type``, flagged as
+    no practitioner has reviewed it (S1 lands the real keys; this is the schema's test)."""
+    key = copy.deepcopy(review.key)
+    d = next(d for d in key["defects.yaml"] if d.get("test_step") == test_step)
+    d["type"] = new_type
+    d["not_reviewed_by_practitioner"] = True
+    return ReviewPackage(review.id, review.version, review.equipment, review.draft, key)
+
+
+@pytest.mark.parametrize(
+    "new_type", ["ac_outside_documented_capability", "unit_error", "outdated_reference"]
+)
+def test_a_key_may_declare_a_new_type_and_the_labels_carry_the_practitioner_field(
+    new_type: str, key: dict, pages: PageTexts, review: ReviewPackage
+) -> None:
+    declaring = _declaring(review, "OQ-01", new_type)
+    best = perfect_review(key, declaring).model_dump(mode="json", exclude_none=True)
+    report = _score(best, key, pages, declaring)
+    rp = report["review_package"]
+    assert rp["labels"] == [
+        "dev only",
+        "labels not reviewed",
+        f"{new_type}: not reviewed by a practitioner",
+    ]
+    assert rp["not_reviewed_types"] == [new_type]
+    assert rp["counts"][f"recall_by_type.{new_type}"] == {"k": 1, "n": 1, "rate": 1.0}
+    assert rp["counts"]["recall_by_type.ac_deviates_from_urs"] == {"k": 5, "n": 5, "rate": 1.0}
+    assert rp["counts"]["precision"] == {"k": 8, "n": 8, "rate": 1.0}
+    flagged = [d["test_step"] for d in rp["defects"] if d.get("not_reviewed_by_practitioner")]
+    assert flagged == ["OQ-01"]
+    md = markdown(report)
+    assert f"{new_type} (not reviewed by a practitioner)" in md
+    assert f"({'; '.join(rp['labels'])})" in md
+
+
+def test_a_finding_of_a_type_the_key_does_not_declare_is_not_graded(
+    best: dict, key: dict, pages: PageTexts, review: ReviewPackage
+) -> None:
+    """0.1.0 declares two types. A rule of a newer type raising findings on its draft (on a
+    Clean Trap, on a defective step and on a step with nothing planted) leaves the counts,
+    the Clean Traps and the defects exactly as they were, and is reported as not graded."""
+    before = _score(best, key, pages, review)["review_package"]
+    trap = review.key["clean_traps.yaml"][0]
+    defect = next(d for d in review.key["defects.yaml"] if d.get("test_step"))
+    sub = copy.deepcopy(best)
+    for new_type, test_step, loc in (
+        ("unit_error", trap["test_step"], trap["location"]),
+        ("ac_outside_documented_capability", defect["test_step"], defect["locations"][0]),
+        ("outdated_reference", "OQ-02", defect["locations"][0]),
+    ):
+        sub["findings"].append(
+            {"type": new_type, "test_step": test_step, "citations": [_cite(loc)]}
+        )
+    after = _score(sub, key, pages, review)["review_package"]
+    assert after["labels"] == ["dev only", "labels not reviewed"]
+    assert "not_reviewed_types" not in after
+    assert after["counts"] == before["counts"]
+    assert after["clean_traps"] == before["clean_traps"]
+    assert after["defects"] == before["defects"]
+    m = dict(after["metrics"])
+    assert m.pop("findings_of_types_not_in_key") == 3
+    assert m == before["metrics"]
+    assert [f["status"] for f in after["findings"][-3:]] == ["not_graded"] * 3
+    assert after["findings"][: len(before["findings"])] == before["findings"]
+    assert "findings_of_types_not_in_key" not in before["metrics"]
+
+
+def test_an_ungraded_finding_still_has_its_citations_checked(
+    best: dict, key: dict, pages: PageTexts, review: ReviewPackage
+) -> None:
+    """Not graded is not exempt from the gates: a fabricated quote still fails."""
+    sub = copy.deepcopy(best)
+    trap = review.key["clean_traps.yaml"][0]
+    sub["findings"].append(
+        {
+            "type": "unit_error",
+            "test_step": trap["test_step"],
+            "citations": [_cite(trap["location"], quote="this text is not in the draft")],
+        }
+    )
+    report = _score(sub, key, pages, review)
+    assert not report["gates"]["passed"]
+    assert report["gates"]["fabricated_citation"]["count"] >= 1

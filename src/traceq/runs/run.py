@@ -9,7 +9,10 @@ Steps as AI Findings pending review; ``run.json`` is the run
 metadata: the run settings, model, prompt hashes, tokens, cost in USD, which calls were
 replayed, which claims the citation check dropped, the wall-clock duration with the time spent
 waiting for live calls apart (0 for a replayed run), and per document read its ingest engine,
-seconds per page and peak RAM; ``completeness.json`` is the URS completeness check (printed
+seconds per page and peak RAM (a Mode Pabrik run adds ``latency``, the seconds its calls
+waited for their answers, and ``format``, what was stripped from the answers and why answers
+were asked again, both rebuilt from the recordings also on replay; when live, ``adapter``, how
+it asked and what came back); ``completeness.json`` is the URS completeness check (printed
 requirement numbers that did not become a requirement, and URS text no requirement
 quotes). Ingest output is cached in ``<recordings>/ingest`` beside the LLM recordings, so
 a replay reads no document whose ingest is cached. Every scan is read by OCR before any LLM
@@ -46,22 +49,33 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import secrets
+import statistics
 import time
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from traceq.ai import LLM, Budget, PriceTable, Recorder
-from traceq.ai.port import Request, Response, sha256
+from traceq.ai import LLM, Budget, Call, Described, OneAtATime, PriceTable, Recorder
+from traceq.ai.port import Request, Response, Sent, sha256
 from traceq.documents import Corpus, IngestCache, Ingested, ReviewPackage
 from traceq.protocols import PROMPTS as DRAFT_PROMPTS
 from traceq.protocols import draft
 from traceq.review import PROMPTS as REVIEW_PROMPTS
 from traceq.review import review
-from traceq.review.draft import DRAFT_PROMPT, DraftReading, DraftRow, draft_rows, read_draft
-from traceq.review.draft_rules import DraftFinding, draft_findings
+from traceq.review.draft import (
+    DRAFT_STAGE_VERSION,
+    DraftEdition,
+    DraftReading,
+    DraftRow,
+    draft_edition,
+    draft_rows,
+    read_draft,
+)
+from traceq.review.draft_rules import Datasheet, DraftFinding, draft_findings
 from traceq.runs.completeness import COMPLETENESS_FILE, completeness
 from traceq.runs.drafts import drafts
 from traceq.runs.findings import findings
@@ -110,6 +124,70 @@ class _Timed:
             self.seconds += self._clock() - start
 
 
+class _TimedOne(_Timed):
+    """The timed view of an adapter that sends one request at a time: it stays one."""
+
+    def __init__(self, live: OneAtATime, clock: Clock) -> None:
+        super().__init__(live, clock)
+        self._one = live
+
+    def send(self, request: Request) -> Sent:
+        start = self._clock()
+        try:
+            return self._one.send(request)
+        finally:
+            self.seconds += self._clock() - start
+
+
+def _timed(live: LLM, clock: Clock) -> _Timed:
+    return _TimedOne(live, clock) if isinstance(live, OneAtATime) else _Timed(live, clock)
+
+
+def _latency(calls: Sequence[Call]) -> dict[str, Any] | None:
+    """Median, 95th percentile (nearest rank) and total of the seconds the calls waited for
+    their answers, from the recordings that carry them (Mode Pabrik); none when no call does.
+    ``attempts``: how many times those calls were asked in all."""
+    timed = [c for c in calls if c.latency_s is not None]
+    seconds = sorted(c.latency_s for c in timed if c.latency_s is not None)
+    if not seconds:
+        return None
+    return {
+        "calls": len(seconds),
+        "median_s": round(statistics.median(seconds), 3),
+        "p95_s": round(seconds[math.ceil(0.95 * len(seconds)) - 1], 3),
+        "total_s": round(sum(seconds), 3),
+        "attempts": sum(c.attempts or 1 for c in timed),
+    }
+
+
+def _answer_format(calls: Sequence[Call]) -> dict[str, Any] | None:
+    """How the answers of a one-at-a-time adapter came, from their recordings (Mode Pabrik):
+    what was stripped from the answers used and the kinds of unusable answers asked again;
+    none when no call carries them."""
+    carried = [c for c in calls if c.stripped is not None or c.unusable is not None]
+    if not carried:
+        return None
+    stripped: Counter[str] = Counter({"think": 0, "fence": 0})
+    unusable: Counter[str] = Counter()
+    for c in carried:
+        stripped.update(c.stripped or ())
+        unusable.update(c.unusable or ())
+    return {"calls": len(carried), "stripped": dict(stripped), "unusable": dict(unusable)}
+
+
+def _with_draft(
+    measure: Callable[[Sequence[Call]], dict[str, Any] | None],
+    calls: Sequence[Call],
+    draft_calls: Sequence[Call] | None,
+) -> dict[str, Any] | None:
+    """``measure`` over all the calls, with the draft's calls apart under ``draft``."""
+    whole = measure(calls)
+    if whole is None:
+        return None
+    draft = measure(draft_calls) if draft_calls is not None else None
+    return whole | ({"draft": draft} if draft is not None else {})
+
+
 @dataclass(frozen=True)
 class _Draft:
     reading: DraftReading
@@ -119,28 +197,38 @@ class _Draft:
 
 
 def _read_package(
-    package: ReviewPackage, corpus: Corpus, traced: Traceability, llm: LLM, store: Path
+    package: ReviewPackage,
+    draft_rev: int | None,
+    corpus: Corpus,
+    traced: Traceability,
+    llm: LLM,
+    store: Path,
+    edition: DraftEdition,
 ) -> _Draft:
-    """Read the package's Protocol Draft from a corpus of its own, after the Equipment
-    stages: the draft never enters them. Its ingest goes to the package store."""
-    if len(package.documents) != 1:
-        raise ValueError(
-            f"Review Package {package.package} holds {len(package.documents)} documents;"
-            " one Protocol Draft is expected"
-        )
+    """Read the chosen revision of the package's Protocol Draft from a corpus of its own,
+    after the Equipment stages: the draft never enters them. Its ingest goes to the package
+    store. ``edition``: the draft prompt the package version selects."""
+    doc = package.draft(draft_rev)
     drafts = Corpus(
         root=package.root,
         equipment=corpus.equipment,
-        documents=package.documents,
+        documents=(doc,),
         cache=IngestCache(store / INGEST_DIR),
     )
-    doc = package.documents[0]
     ingested = drafts.ingest(doc)
-    reading = read_draft(doc, ingested.pages, llm)
+    reading = read_draft(doc, ingested.pages, llm, edition)
     urs = corpus.current("urs")
     language = urs[0].language if urs else "en"
     rows = draft_rows(reading, traced, language)
-    return _Draft(reading, rows, draft_findings(reading, rows), ingested)
+    datasheets = [
+        Datasheet(d.doc_id, d.rev, d.language, tuple(corpus.pages(d)))
+        for d in corpus.current("datasheet")
+        if corpus.readable(d)
+    ]
+    register: dict[str, int] = {}
+    for d in corpus.documents:  # the current revision of every document of the corpus
+        register[d.doc_id] = max(d.rev, register.get(d.doc_id, d.rev))
+    return _Draft(reading, rows, draft_findings(reading, rows, datasheets, register), ingested)
 
 
 class _Asked:
@@ -180,11 +268,18 @@ def run(
     review_package: Path | None = None,
     package_recordings: Path | None = None,
     answers: LLM | None = None,
+    draft_rev: int | None = None,
+    max_live_calls: int | None = None,
+    deadline_seconds: float | None = None,
 ) -> RunOutput:
     """``now``: the start time the run id and ``created`` carry. ``clock``: what the run's
     duration is measured with. ``review_package``: a released Review Package directory for
     this corpus and Equipment; its recordings and ingest cache go to ``package_recordings``,
-    while ``recordings`` is only read and the Equipment stages only replay."""
+    while ``recordings`` is only read and the Equipment stages only replay. ``draft_rev``: the
+    revision of the package's draft to read (the latest when none); the draft read is keyed on
+    ``DRAFT_STAGE_VERSION``, the Equipment stages on ``PIPELINE_VERSION``, and read with the
+    draft prompt the package's version selects (``draft_edition``). ``max_live_calls`` and
+    ``deadline_seconds``: the brakes of a live run besides ``max_usd`` (``Budget``)."""
     if answers is not None and (
         live is not None or review_package is not None or answers.model != model
     ):
@@ -194,6 +289,7 @@ def run(
     now = now or dt.datetime.now(dt.UTC)
     run_id = f"{now:%Y%m%dT%H%M%SZ}-{secrets.token_hex(3)}"
     package: ReviewPackage | None = None
+    edition: DraftEdition | None = None
     store, reads = recordings, tuple[Path, ...]()
     if review_package is not None:
         if package_recordings is None or package_recordings.resolve() == recordings.resolve():
@@ -202,6 +298,9 @@ def run(
                 f" recordings {recordings}, which it only reads"
             )
         package = ReviewPackage.load(review_package)
+        package.draft(draft_rev)  # refused before anything is read or written
+        # The package version selects the draft prompt: 0.1.0 keeps its own and its recordings.
+        edition = draft_edition(package.version)
         store, reads = package_recordings, (recordings,)
     corpus = Corpus.load(
         corpus_dir,
@@ -212,8 +311,18 @@ def run(
     if package is not None:
         package.check_fits(corpus_dir, corpus.equipment)
     scans = [(d, corpus.read(d)) for d in corpus.documents if d.format == "scan"]
-    budget = Budget(max_usd, prices) if live is not None else None
-    timed = _Timed(live, clock) if live is not None else None
+    budget = (
+        Budget(
+            max_usd,
+            prices,
+            max_calls=max_live_calls,
+            deadline_seconds=deadline_seconds,
+            clock=clock,
+        )
+        if live is not None
+        else None
+    )
+    timed = _timed(live, clock) if live is not None else None
     recorder = Recorder(store, model, PIPELINE_VERSION, live=timed, budget=budget, reads=reads)
     asked = _Asked(answers) if answers is not None else None
     llm: LLM = asked or recorder
@@ -225,12 +334,18 @@ def run(
     reviewed = review(corpus, equipment_llm, traced)
     drafted = draft(corpus, equipment_llm, traced, vendor_reuse=vendor_reuse)
     equipment_calls = len(recorder.calls)
-    on_draft = None if package is None else _read_package(package, corpus, traced, recorder, store)
+    on_draft = (
+        None
+        if package is None or edition is None
+        else _read_package(
+            package, draft_rev, corpus, traced, recorder.stage(DRAFT_STAGE_VERSION), store, edition
+        )
+    )
 
     prompt_hashes = {p.name: p.hash for p in (*PROMPTS, *REVIEW_PROMPTS, *DRAFT_PROMPTS)}
-    if package is not None:
+    if edition is not None:
         # Only in a Review Package run, so an Equipment run's ``system.prompt`` is unchanged.
-        prompt_hashes[DRAFT_PROMPT.name] = DRAFT_PROMPT.hash
+        prompt_hashes[edition.prompt.name] = edition.prompt.hash
     system = SystemInfo(
         name=SYSTEM_NAME,
         model=model,
@@ -318,6 +433,21 @@ def run(
             for d in dict.fromkeys((*traced.vendor.not_read, *reviewed.not_read))
         ],
     }
+    # Mode Pabrik only (spec #442): a Mode Cloud run's metadata is unchanged.
+    package_calls = calls[equipment_calls:] if package is not None else None
+    latency = _with_draft(_latency, calls, package_calls)
+    if latency is not None:
+        metadata["latency"] = latency
+    answer_format = _with_draft(_answer_format, calls, package_calls)
+    if answer_format is not None:
+        metadata["format"] = answer_format
+    if max_live_calls is not None or deadline_seconds is not None:
+        metadata["brakes"] = {
+            "max_live_calls": max_live_calls,
+            "deadline_seconds": deadline_seconds,
+        }
+    if isinstance(live, Described):
+        metadata["adapter"] = live.describe()
     if package is not None and on_draft is not None:
         draft_calls = calls[equipment_calls:]
         draft_responses = [c.response for c in draft_calls]

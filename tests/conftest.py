@@ -23,16 +23,21 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 import pytest
 import uvicorn
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
+from fastapi import Depends, FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import URL, Connection, create_engine, make_url, text
 from sqlalchemy.exc import OperationalError
 
 from traceq.app.demo import ADMIN_URL as DEMO_ADMIN_URL
 from traceq.db import APP_ROLE, OWNER_ROLE, engine, ensure_roles, upgrade
 from traceq.documents import Corpus, OcrUnavailable, scan
+from traceq.identity import IdentitySettings, Verifier, authenticate
 from traceq.identity.issuer import create_issuer, new_signing_key
+from traceq.runs.api import create_router as runs_router
 from traceq_dataset import render
 from traceq_dataset.corpus import Corpus as DatasetCorpus
 from traceq_dataset.corpus import build_corpus
@@ -271,3 +276,20 @@ def demo_issuer() -> Iterator[DemoIssuer]:
         server.should_exit = True
         thread.join(timeout=10)
         sock.close()
+
+
+def runs_client(
+    runs: Path, corpus: Path | None, issuer: DemoIssuer, *, signed_in: bool = True
+) -> TestClient:
+    """The run-folder routes alone behind a verified bearer token; ``signed_in`` False sends
+    no token."""
+    app = FastAPI()
+    verifier = Verifier(IdentitySettings(issuer=issuer.url, audience=issuer.audience))
+    app.include_router(runs_router(runs, corpus), dependencies=[Depends(authenticate(verifier))])
+    client = TestClient(app)
+    if signed_in:
+        persona = httpx.get(f"{issuer.url}/demo/personas").json()[0]
+        r = httpx.post(f"{issuer.url}/demo/token", json={"username": persona["username"]})
+        r.raise_for_status()
+        client.headers["Authorization"] = f"Bearer {r.json()['access_token']}"
+    return client

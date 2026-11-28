@@ -13,10 +13,13 @@ from __future__ import annotations
 import json
 import math
 import sys
+import threading
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, cast
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -33,6 +36,8 @@ from traceq.registry import create_router as registry_router
 from traceq.rounds import create_router as rounds_router
 from traceq.rounds import register_import as register_round_import
 from traceq.runs.api import create_router as runs_router
+from traceq.uploads import UploadSettings, Worker, package_runner
+from traceq.uploads import create_router as uploads_router
 
 
 def create_app(
@@ -41,23 +46,49 @@ def create_app(
     *,
     identity: IdentitySettings | None = None,
     database: URL | str | None = None,
+    uploads: UploadSettings | None = None,
+    run_worker: bool = False,
 ) -> FastAPI:
     """``runs``: the directory ``traceq run`` writes run folders into. ``corpus``: the
     released corpus the runs read, for opening a cited page (none: no document route).
     ``identity``: the trusted issuer; ``database``: the database, connected as the
-    application role. Both or neither."""
+    application role. Both or neither. ``uploads``: where drafts may be uploaded (needs the
+    database); ``run_worker``: also run the one upload worker in this process."""
     if (identity is None) != (database is None):
         raise ValueError("configure both a trusted issuer and a database, or neither")
+    if uploads is not None and database is None:
+        raise ValueError("uploads need the trusted issuer and the database")
+    if run_worker and uploads is None:
+        raise ValueError("a worker needs the upload settings")
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+        if not run_worker or uploads is None or db is None:
+            yield
+            return
+        stop = threading.Event()
+        worker = Worker(db, package_runner(uploads, runs), uploads.blobs, runs)
+        thread = threading.Thread(
+            target=worker.loop, args=(stop,), name="upload-worker", daemon=True
+        )
+        thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            thread.join(timeout=5)
+
     app = FastAPI(
+        lifespan=lifespan,
         title="TraceQ",
         version="0.1.0",
         summary="Run folders read-only; Proposals in the database, behind a token.",
     )
-    app.include_router(runs_router(runs, corpus))
     verifier = None if identity is None else Verifier(identity)
     db = None if database is None else engine(make_url(database))
     principal = authenticate(verifier)
     fresh_auth = require_fresh_auth(verifier)
+    app.include_router(runs_router(runs, corpus), dependencies=[Depends(principal)])
     app.include_router(
         proposals_router(
             runs,
@@ -71,6 +102,7 @@ def create_app(
     app.include_router(execution_router(db, principal, fresh_auth=fresh_auth))
     app.include_router(rounds_router(runs, db, principal))
     app.include_router(registry_router(runs, db, principal))
+    app.include_router(uploads_router(db, principal, uploads))
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error_handler(

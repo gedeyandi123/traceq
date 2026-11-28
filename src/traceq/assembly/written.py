@@ -36,15 +36,19 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.orm import Session
 
 from traceq import audit
-from traceq.assembly import lifecycle
+from traceq.assembly import draft_source, lifecycle
 from traceq.assembly.lifecycle import AssembledProtocol, Conflict, NotFound
 from traceq.proposals import decisions
 from traceq.proposals.store import PROPOSALS, RUN_PROPOSALS
-from traceq.traceability.values import Number, OneOf, Present, Range
+from traceq.runs.schemas import DraftStepProposal
+from traceq.traceability.values import ExclusiveRange, Number, OneOf, Present, Range, ToleranceBand
 
-type Acceptance = Annotated[Range | Number | OneOf | Present, Field(discriminator="type")]
-"""The shapes an Acceptance Criterion a human sets may take: range (one or two bounds, with
-unit), number (an exact value with unit), one of (allowed values), present (no value). Free
+type Acceptance = Annotated[
+    Range | ExclusiveRange | ToleranceBand | Number | OneOf | Present, Field(discriminator="type")
+]
+"""The shapes an Acceptance Criterion may take: range (one or two bounds, ends included, with
+unit), exclusive range (a strict bound), tolerance (a nominal value and its tolerance), number
+(an exact value with unit), one of (allowed values), present (no value). Free
 text is not one: Execution must judge every Test Step by code (ADR 0002)."""
 
 
@@ -65,9 +69,14 @@ class WrittenContent(BaseModel):
         a = self.acceptance
         if isinstance(a, Present) and a.value is not None:
             raise ValueError("present takes no value")
-        if isinstance(a, Range | Number) and not a.unit.strip():
+        if isinstance(a, Range | ExclusiveRange | ToleranceBand | Number) and not a.unit.strip():
             raise ValueError("a range or a number needs a unit")
-        if isinstance(a, Range) and a.min is not None and a.max is not None and a.min > a.max:
+        if (
+            isinstance(a, Range | ExclusiveRange)
+            and a.min is not None
+            and a.max is not None
+            and a.min > a.max
+        ):
             raise ValueError("a range's lower bound is above its upper bound")
         if isinstance(a, OneOf) and not all(v.strip() for v in a.allowed):
             raise ValueError("one of needs non-blank allowed values")
@@ -267,6 +276,20 @@ def _accepted_drafts(session: Session, run_id: str, requirement: str) -> list[in
     ]
 
 
+def _accepted_in(
+    session: Session, protocol: AssembledProtocol, requirement: str, *, ignoring: int | None = None
+) -> list[int]:
+    """The Test Steps currently accepted for the requirement in the Protocol: a draft Test
+    Step standing for it, and TraceQ's own drafted ones unless the draft covers it (a row holds
+    one source, so TraceQ's drafts are not used there). ``ignoring``: one Proposal left out."""
+    steps = draft_source.accepted_steps(session, protocol, requirement, ignoring=ignoring)
+    if protocol.draft is not None and draft_source.covered(session, protocol, requirement):
+        return steps
+    return steps + [
+        p for p in _accepted_drafts(session, protocol.run_id, requirement) if p != ignoring
+    ]
+
+
 def write(
     session: Session,
     actor: audit.Actor,
@@ -284,7 +307,7 @@ def write(
     if content is None:
         if current(earlier) is None:
             raise Conflict(f"{requirement} has no written Test Step to remove")
-    elif _accepted_drafts(session, protocol.run_id, requirement):
+    elif _accepted_in(session, protocol, requirement):
         raise Conflict(
             f"a drafted Test Step of {requirement} is accepted: reject it, or replace that"
             " decision, before writing one, so the row holds one Test Step"
@@ -303,16 +326,36 @@ def edit(
     """Records the ``edited`` decision on a drafted Test Step of the Protocol's run, with its
     Reason for Change, and the version of the written Test Step it produces, edited from it."""
     protocol = _draft_protocol(session, protocol_id)
-    requirement = session.execute(
-        select(RUN_PROPOSALS.c.requirement)
+    held = session.execute(
+        select(RUN_PROPOSALS.c.requirement, PROPOSALS.c.kind)
         .join(PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
         .where(
             RUN_PROPOSALS.c.run_id == protocol.run_id,
             RUN_PROPOSALS.c.proposal_id == proposal_id,
-            PROPOSALS.c.kind == "test_step",
+            PROPOSALS.c.kind.in_(("test_step", "draft_step")),
         )
-    ).scalar_one_or_none()
-    if requirement is None:
+    ).first()
+    if held is None:
+        raise NotFound(f"run {protocol.run_id} holds no drafted Test Step {proposal_id}")
+    requirement: str | None = held.requirement
+    if held.kind == "draft_step":
+        if protocol.draft is None:
+            raise Conflict(
+                f"Protocol {protocol_id} was not started from the Protocol Draft: a draft Test"
+                " Step is edited only in one that was"
+            )
+        requirement = draft_source.steps_of(session, protocol).get(proposal_id)
+        if requirement is None:
+            raise Conflict(
+                f"draft Test Step {proposal_id} stands for no requirement in Protocol"
+                f" {protocol_id}: map it to one first"
+            )
+    elif requirement is not None and draft_source.covered(session, protocol, requirement):
+        raise Conflict(
+            f"the Protocol Draft covers {requirement}: its Test Step comes from the draft, not"
+            " from a Test Step TraceQ drafted, so the row holds one source"
+        )
+    if requirement is None:  # a drafted Test Step always names its requirement
         raise NotFound(f"run {protocol.run_id} holds no drafted Test Step {proposal_id}")
     lifecycle.lock_requirement(session, protocol.equipment, requirement)
     earlier = versions_of(session, protocol_id).get(requirement, ())
@@ -320,7 +363,7 @@ def edit(
         raise Conflict(
             f"{requirement} has a written Test Step: change it instead of editing a draft"
         )
-    if [p for p in _accepted_drafts(session, protocol.run_id, requirement) if p != proposal_id]:
+    if _accepted_in(session, protocol, requirement, ignoring=proposal_id):
         raise Conflict(
             f"another drafted Test Step of {requirement} is accepted: reject it, or replace"
             " that decision, first, so the row holds one Test Step"
@@ -337,15 +380,35 @@ def guard_accepting(session: Session, run_id: str, proposal_id: int) -> None:
     holds a written Test Step for its requirement. Takes the requirement's lock, so a write
     for it cannot land in between. Anything else passes: ``decisions.record`` judges it."""
     held = session.execute(
-        select(PROPOSALS.c.kind, PROPOSALS.c.equipment, RUN_PROPOSALS.c.requirement)
+        select(
+            PROPOSALS.c.kind,
+            PROPOSALS.c.equipment,
+            RUN_PROPOSALS.c.requirement,
+            RUN_PROPOSALS.c.proposed,
+        )
         .join(PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
         .where(RUN_PROPOSALS.c.run_id == run_id, RUN_PROPOSALS.c.proposal_id == proposal_id)
     ).first()
-    if held is None or held.kind != "test_step" or held.requirement is None:
+    if held is None or held.kind not in ("test_step", "draft_step"):
         return
     equipment = cast(str, held.equipment)
+    if held.kind == "draft_step":
+        _guard_accepting_draft_step(session, run_id, equipment, proposal_id, held.proposed)
+        return
+    if held.requirement is None:
+        return
     requirement = cast(str, held.requirement)
     lifecycle.lock_requirement(session, equipment, requirement)
+    for p in lifecycle.of_equipment(session, equipment):
+        if (
+            p.run_id == run_id
+            and p.status in lifecycle.OPEN
+            and draft_source.covered(session, p, requirement)
+        ):
+            raise decisions.Conflict(
+                f"the Protocol Draft covers {requirement} in Protocol {p.id}: its Test Step"
+                " comes from the draft, not from a Test Step TraceQ drafted"
+            )
     if [p for p in _accepted_drafts(session, run_id, requirement) if p != proposal_id]:
         raise decisions.Conflict(
             f"another drafted Test Step of {requirement} is accepted: reject it, or replace"
@@ -357,3 +420,56 @@ def guard_accepting(session: Session, run_id: str, proposal_id: int) -> None:
                 f"Protocol {p.id} of {equipment} holds a written Test Step for {requirement}:"
                 " remove it before accepting a draft, so the row holds one Test Step"
             )
+
+
+def _guard_accepting_draft_step(
+    session: Session, run_id: str, equipment: str, proposal_id: int, proposed: dict[str, Any]
+) -> None:
+    """Accepting a draft Test Step as read: it needs a readable step (a description and a
+    method; a dropped reading is edited, never accepted), a requirement it stands for in an
+    open Protocol of the run or from the traceability table, and it takes the requirement's
+    lock, so a manual Test Step written at the same time cannot land beside it."""
+    step = DraftStepProposal.model_validate(proposed)
+    if step.not_read is not None:
+        raise decisions.Conflict(
+            f"the draft Test Step {step.id} could not be read ({step.not_read}): edit it into a"
+            " Test Step instead of accepting it"
+        )
+    if not (step.description or "").strip() or not (step.method or "").strip():
+        raise decisions.Conflict(
+            f"the draft Test Step {step.id} has no readable description and method: edit it"
+            " into a Test Step instead of accepting it"
+        )
+    open_here = [
+        p
+        for p in lifecycle.of_equipment(session, equipment)
+        if p.status in lifecycle.OPEN and p.run_id == run_id and p.draft is not None
+    ]
+    requirements = {
+        r for p in open_here if (r := draft_source.steps_of(session, p).get(proposal_id))
+    }
+    if len(step.mapped_to) == 1:
+        requirements.add(step.mapped_to[0])
+    if not requirements:
+        raise decisions.Conflict(
+            f"the draft Test Step {step.id} stands for no requirement: map it to one in the"
+            " Protocol before accepting it"
+        )
+    for requirement in sorted(requirements):
+        lifecycle.lock_requirement(session, equipment, requirement)
+    for requirement in sorted(requirements):
+        for p in open_here:
+            if draft_source.accepted_steps(session, p, requirement, ignoring=proposal_id):
+                raise decisions.Conflict(
+                    f"another draft Test Step of {requirement} is accepted: reject it, or"
+                    " replace that decision, first, so the row holds one Test Step"
+                )
+        for p in lifecycle.of_equipment(session, equipment):
+            if p.status in lifecycle.OPEN and current(
+                versions_of(session, p.id).get(requirement, ())
+            ):
+                raise decisions.Conflict(
+                    f"Protocol {p.id} of {equipment} holds a written Test Step for"
+                    f" {requirement}: remove it before accepting a draft, so the row holds one"
+                    " Test Step"
+                )

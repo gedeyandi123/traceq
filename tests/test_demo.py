@@ -30,6 +30,7 @@ from traceq.app.demo import (
     check_pair,
     reset_database,
     run_demo,
+    serve_args,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -253,6 +254,27 @@ def test_a_review_package_needs_its_recordings_before_anything_starts(tmp_path: 
             bring_up(settings)
 
 
+def test_the_demo_serves_uploads_in_replay_mode_with_a_zero_budget(tmp_path: Path) -> None:
+    """Ticket #392: with a Review Package the API starts with uploads on, replaying only."""
+    settings = DemoSettings(
+        corpus=tmp_path / "corpus",
+        equipment="TP-201",
+        recordings=R10,
+        uploads=tmp_path / "uploads",
+        review_package=PACKAGE,
+        package_recordings=PACKAGE_RUN,
+    )
+    args = serve_args(settings)
+    assert args[args.index("--uploads") + 1] == str(tmp_path / "uploads")
+    assert args[args.index("--upload-equipment") + 1] == "TP-201"
+    assert args[args.index("--recordings") + 1] == str(R10)
+    assert args[args.index("--package-recordings") + 1] == str(PACKAGE_RUN)
+    assert args[args.index("--upload-budget-usd") + 1] == "0"
+    assert "--live" not in args
+    bare = serve_args(DemoSettings(corpus=tmp_path, equipment="TP-201", recordings=R10))
+    assert "--uploads" not in bare
+
+
 def test_the_demo_loads_the_review_package_draft_at_start(
     demo_database: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -269,24 +291,36 @@ def test_the_demo_loads_the_review_package_draft_at_start(
         issuer_port=_free_port(),
         api_port=_free_port(),
         compose=False,
+        uploads=tmp_path / "uploads",
         review_package=PACKAGE,
         package_recordings=PACKAGE_RUN,
     )
     demo = bring_up(settings)
     try:
-        assert httpx.get(f"{demo.api_url}/runs/{demo.run_id}").json()["review_package"] == {
+        token = httpx.post(f"{demo.issuer_url}/demo/token", json={"username": "citra"})
+        assert httpx.get(f"{demo.api_url}/runs/{demo.run_id}").status_code == 401
+        run = httpx.get(
+            f"{demo.api_url}/runs/{demo.run_id}",
+            headers={"Authorization": f"Bearer {token.json()['access_token']}"},
+        )
+        assert run.json()["review_package"] == {
             "package": "TP-201-OQ-draft",
             "version": "0.1.0",
             "doc_id": "OQ-TP201",
             "rev": 0,
         }
-        token = httpx.post(f"{demo.issuer_url}/demo/token", json={"username": "citra"})
         got = httpx.get(
             f"{demo.api_url}/runs/{demo.run_id}/protocol-draft",
             headers={"Authorization": f"Bearer {token.json()['access_token']}"},
         ).json()
         assert got["imported"] is True and len(got["test_steps"]) == 26
         assert got["findings"] and all(f["proposal"] for f in got["findings"])
+        ayu = httpx.post(f"{demo.issuer_url}/demo/token", json={"username": "ayu"})
+        listed = httpx.get(
+            f"{demo.api_url}/equipment/TP-201/drafts",
+            headers={"Authorization": f"Bearer {ayu.json()['access_token']}"},
+        )
+        assert listed.status_code == 200
     finally:
         demo.stop()
     assert sorted(p.stat().st_mtime_ns for p in PACKAGE_RUN.rglob("*")) == before

@@ -39,6 +39,16 @@ _Avoid_: template, form, checklist
 **Protocol Draft**:
 A site's Protocol document before its approval, as received for Pre-review. A Protocol assembled in TraceQ is not a Protocol Draft at any status, even when it was started from one (ADR 0012, amended 26 November 2026). A Protocol Draft can have several revisions, each a document version.
 
+**Pinned Revision**:
+The revision of a Protocol Draft that a Protocol started from it was read from, recorded with the run, draft document and hash. The Protocol never re-syncs to a newer revision: while the Pinned Revision is older than the latest, submitting and approving it are refused, and it is returned or withdrawn and a new Protocol started from the latest (ADR 0012, amended 27 November 2026).
+
+**Review Round**:
+One pass of Pre-review over one revision of a Protocol Draft. The round-over-round diff names each finding resolved, persisted, persisted-but-changed or new; a finding is never resolved by a person marking it (ADR 0010 and 0012, 26 November 2026).
+_Avoid_: iteration, cycle
+
+**Row Source**:
+Where one Protocol row takes its Test Step from: the site's Protocol Draft, TraceQ's own drafted Test Step, or a Test Step written by a person. A row has exactly one, recorded in the Frozen Copy (ADR 0012, amended 26 November 2026).
+
 **Preparer**:
 The person who submits a Protocol for approval.
 _Avoid_: author, owner
@@ -50,6 +60,10 @@ _Avoid_: reviewer, signer
 **Protocol Approval**:
 The recorded act that makes a submitted Protocol an approved one, bound by an Electronic Signature (`approved`) or a Demo signature in demo mode.
 _Avoid_: sign-off, signature
+
+**Frozen Copy**:
+The content of a Protocol fixed when it is submitted, with its SHA-256 hash; the Approver signs this copy, not the live Protocol. Version 2, for a Protocol started from a Protocol Draft, also records the draft's document version, revision, hash and run, each row's Row Source and Stage, the dropped and mapped draft steps, and every finding with its decision, author and written reason. Approval covers TraceQ's copy, not the site's document (ADR 0012).
+_Avoid_: snapshot, export
 
 **Test Step**:
 One verification step in a Protocol that produces a Result.
@@ -143,6 +157,10 @@ What an Electronic Signature asserts: prepared, reviewed, approved, executed, or
 A second person who directly verifies the performance of a critical Test Step and confirms its Result; never the Performer.
 _Avoid_: checker, second signer
 
+**Separation of Duties**:
+The rule that the person who approves a record is not one who produced it. For a Protocol, the Approver is not the Preparer, not a person who decided a finding or mapped a draft step on that run, and neither a person who uploaded the bytes of the Pinned Revision nor the person whose import registered it (ADR 0012, amended 26, 27 and 28 November 2026). The Deviation Closure and Witness rules are in ADR 0013.
+_Avoid_: segregation (except as the name of the planted Defect Type `segregation_of_duties`)
+
 **Reason for Change**:
 The mandatory written reason that accompanies every correction to GMP data.
 _Avoid_: comment, note
@@ -188,6 +206,13 @@ _Avoid_: rules engine, fallback mode
 **Review Package**:
 One site Protocol Draft with its own answer key (two revisions from version 0.2.0), which refers to a frozen Equipment package without changing it. Pre-review of a site document is scored on it.
 _Avoid_: test set, review bundle
+
+**Defect Type**:
+The kind of error planted in a Review Package and named in its answer key (for example `missing_signature`, `unit_error`, `outdated_reference`, `ac_outside_documented_capability`). A new Defect Type is a scoring-rule change in its own PR, with its manifest and key merged before any rule or prompt for it (ADR 0010, amended 26 November 2026). The last three are marked "not reviewed by a practitioner".
+_Avoid_: error class, bug type
+
+**Upload Job**:
+One queued, running, finished or failed browser upload of a Protocol Draft revision for one Equipment. It records the revision and the uploader's identity, reserves its cost from the upload budget before it is queued, and is taken in order by one background worker (spec #375).
 
 **Pre-review**:
 The automated review of a Protocol Draft or an Execution before human review: deterministic rules first (Check Findings), then the LLM for the rest (AI Findings).

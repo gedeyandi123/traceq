@@ -9,7 +9,8 @@ loaded.
 
 With a Review Package (spec #196) the run is a Review Package run: the Equipment recordings
 replay as before and the Protocol Draft is read from the package recordings, both only read
-in replay, so the draft and its findings are loaded and imported at start, with no upload.
+in replay, so the draft and its findings are loaded and imported at start. The API also
+serves the browser upload of a Protocol Draft, replay only (budget 0: nothing is sent).
 """
 
 from __future__ import annotations
@@ -63,6 +64,8 @@ class DemoSettings:
     """Identity provider mode: ``demo`` (local demo-issuer) or ``keycloak`` (Compose IdP)."""
     keycloak_url: str = "http://127.0.0.1:8080/realms/traceq"
     """Issuer URL used when ``idp == 'keycloak'``."""
+    uploads: Path = Path("uploads-demo")
+    """Where uploaded drafts are stored; on only with a Review Package."""
     review_package: Path | None = None
     """A released Review Package directory for this corpus and Equipment."""
     package_recordings: Path | None = None
@@ -352,7 +355,7 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
 
     log(f"replaying the {settings.equipment} recordings (nothing is sent to an LLM)")
     if settings.review_package is not None:
-        log(f"with the Review Package {settings.review_package} (draft loaded, no upload)")
+        log(f"Review Package {settings.review_package}: draft loaded, uploads on, replay only")
     from traceq.ai import MissingRecording
     from traceq.documents import OcrUnavailable
     from traceq.runs.run import run
@@ -393,22 +396,15 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
         api = subprocess.Popen(
             [
                 *cli,
-                "serve",
-                "--runs",
-                str(settings.runs),
-                "--corpus",
-                str(settings.corpus),
-                "--port",
-                str(settings.api_port),
-                "--issuer",
-                issuer_url,
-                "--role-claim",
-                role_claim,
-                "--database",
-                app_url.render_as_string(hide_password=False),
+                *serve_args(
+                    settings,
+                    issuer_url=issuer_url,
+                    role_claim=role_claim,
+                    database_url=app_url.render_as_string(hide_password=False),
+                ),
             ]
         )
-        _wait(f"{api_url}/runs", "API", api)
+        _wait(f"{api_url}/openapi.json", "API", api)
         log(f"importing {run_id} as {DEMO_PERSONA}")
         access_token = _demo_import_token(issuer_url, settings.idp, DEMO_PERSONA)
         imported = httpx.post(
@@ -433,6 +429,46 @@ def bring_up(settings: DemoSettings, log: Callable[[str], None] = lambda _msg: N
         _stop(api, issuer)
         raise
     return Demo(issuer=issuer, api=api, run_id=run_id, issuer_url=issuer_url, api_url=api_url)
+
+
+def serve_args(
+    settings: DemoSettings,
+    *,
+    issuer_url: str = "",
+    role_claim: str = "roles",
+    database_url: str = "",
+) -> list[str]:
+    """The ``traceq`` arguments that start the API. With a Review Package, uploads are on in
+    replay mode: the budget is 0, so no live call can be made."""
+    args = [
+        "serve",
+        "--runs",
+        str(settings.runs),
+        "--corpus",
+        str(settings.corpus),
+        "--port",
+        str(settings.api_port),
+        "--issuer",
+        issuer_url,
+        "--role-claim",
+        role_claim,
+        "--database",
+        database_url,
+    ]
+    if settings.review_package is not None and settings.package_recordings is not None:
+        args += [
+            "--uploads",
+            str(settings.uploads),
+            "--upload-equipment",
+            settings.equipment,
+            "--recordings",
+            str(settings.recordings),
+            "--package-recordings",
+            str(settings.package_recordings),
+            "--upload-budget-usd",
+            "0",
+        ]
+    return args
 
 
 def _write_ready_file(path: Path, payload: dict[str, str]) -> None:

@@ -12,6 +12,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Annotated, Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
@@ -37,7 +38,7 @@ from traceq.assembly.submission import FrozenRow, FrozenTestStep, ProtocolCopy
 from traceq.assembly.written import Acceptance
 from traceq.execution import lifecycle
 from traceq.proposals.keys import digest
-from traceq.traceability.values import Number, OneOf, Range
+from traceq.traceability.values import ExclusiveRange, Number, OneOf, Range, ToleranceBand
 
 type OutcomeKind = Literal["value", "not_performable"]
 type Verdict = Literal["pass", "fail"]
@@ -513,6 +514,33 @@ def judge(acceptance: Acceptance, req: RecordAttemptRequest) -> Verdict:
             return "fail"
         return "pass"
 
+    if isinstance(acceptance, ExclusiveRange):
+        if not isinstance(val, NumberResultValue):
+            raise InvalidResult(
+                f"exclusive range Acceptance Criterion requires a number value, got {val.type}"
+            )
+        x = Decimal(repr(val.value))
+        lo, hi = acceptance.min, acceptance.max
+        if lo is not None and hi is not None and lo > hi:
+            return "fail"
+        if lo is not None:
+            below = Decimal(repr(lo))
+            if x < below or (acceptance.min_exclusive and x == below):
+                return "fail"
+        if hi is not None:
+            above = Decimal(repr(hi))
+            if x > above or (acceptance.max_exclusive and x == above):
+                return "fail"
+        return "pass"
+
+    if isinstance(acceptance, ToleranceBand):
+        if not isinstance(val, NumberResultValue):
+            raise InvalidResult(
+                f"tolerance Acceptance Criterion requires a number value, got {val.type}"
+            )
+        low, high = acceptance.limits()
+        return "pass" if low <= Decimal(repr(val.value)) <= high else "fail"
+
     if isinstance(acceptance, Number):
         if not isinstance(val, NumberResultValue):
             raise InvalidResult(
@@ -583,6 +611,15 @@ def _format_acceptance(a: Acceptance) -> str:
         if a.min is not None:
             return f">= {a.min} {a.unit}"
         return f"<= {a.max} {a.unit}"
+    if isinstance(a, ExclusiveRange):
+        parts: list[str] = []
+        if a.min is not None:
+            parts.append(f"{'>' if a.min_exclusive else '>='} {a.min}")
+        if a.max is not None:
+            parts.append(f"{'<' if a.max_exclusive else '<='} {a.max}")
+        return f"{' and '.join(parts)} {a.unit}"
+    if isinstance(a, ToleranceBand):
+        return f"{a.nominal} {a.unit} ± {a.tolerance} {a.tolerance_unit}"
     if isinstance(a, Number):
         return f"{a.value} {a.unit}"
     if isinstance(a, OneOf):
@@ -596,7 +633,8 @@ def _format_result(step: FrozenTestStep, req: RecordAttemptRequest) -> str:
         return f"not performable ({reason})"
     val = req.value
     if isinstance(val, NumberResultValue):
-        unit = step.acceptance.unit if isinstance(step.acceptance, Range | Number) else ""
+        a = step.acceptance
+        unit = a.unit if isinstance(a, Range | ExclusiveRange | ToleranceBand | Number) else ""
         return f"{val.value} {unit}".strip()
     if isinstance(val, OneOfResultValue):
         return f"not one of these: {val.value}" if val.not_one_of else val.value

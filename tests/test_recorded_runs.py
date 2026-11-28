@@ -21,7 +21,7 @@ import pytest
 
 from traceq.ai import BudgetExceeded, MissingRecording, Request, Response
 from traceq.app import cli
-from traceq.proposals.keys import digest, proposals_of
+from traceq.proposals.keys import Proposed, digest, proposals_of
 from traceq.review.draft import urs_limit
 from traceq.review.printed import Limit
 from traceq.runs.run import RunOutput, run
@@ -51,6 +51,37 @@ def _pages(tag: str) -> PageTexts:
 
 def _json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+CAPABILITY = "ac_outside_documented_capability"
+
+
+def _graded(section: dict[str, Any]) -> dict[str, Any]:
+    """0.1.0's Review Package section as its key grades it: the rules that came after 0.1.0
+    (spec #375) raise findings of types its key does not declare, which the scorer leaves
+    ungraded (``not_graded``), so the replay compares only the findings of the key's types."""
+    return {
+        **section,
+        "findings": [f for f in section["findings"] if f["status"] != "not_graded"],
+        "metrics": {
+            k: v for k, v in section["metrics"].items() if k != "findings_of_types_not_in_key"
+        },
+    }
+
+
+def _with_units_compared(section: dict[str, Any]) -> dict[str, Any]:
+    """The recorded section of 0.1.0 as the one unit table (S2b, spec #375) reads it: OQ-24
+    (`dB(A)` for `dBA`) and OQ-27 (`2 jam` for 120 menit) are compared now, so 17 Test Steps
+    are not compared instead of 19; no finding, no score moves."""
+    steps = [
+        {**t, "compared": True, "not_compared": None} if t["id"] in {"OQ-24", "OQ-27"} else t
+        for t in section["test_steps"]
+    ]
+    return {
+        **section,
+        "test_steps": steps,
+        "metrics": {**section["metrics"], "not_compared": section["metrics"]["not_compared"] - 2},
+    }
 
 
 @pytest.mark.parametrize("tag", sorted(WORLDS))
@@ -144,9 +175,11 @@ def test_review_package_run_replays_the_equipment_run_unchanged(
         "cost_usd": ANY,
         "test_steps": 26,
         "trace_rows": 28,
-        # compared: OQ-03..08 and OQ-23 (one-sided URS limits in the same unit); every Test
-        # Step is read and both pages of the traceability table are read
-        "not_compared": 19,
+        # compared: OQ-03..08 and OQ-23 (one-sided URS limits in the same unit), and OQ-24 and
+        # OQ-27, whose unit the one unit table converts (`dB(A)` for `dBA`, `2 jam` for 120
+        # menit; S2b, spec #375); every Test Step is read and both pages of the traceability
+        # table are read
+        "not_compared": 17,
         "ingest": ANY,
     }
     assert "review_package" not in plain.metadata
@@ -205,14 +238,20 @@ def test_review_package_run_replays_at_tolerance_0(runs: tuple[RunOutput, RunOut
     assert out.metadata["calls"]["live"] == 0
     assert out.metadata["cost_usd"] == recorded["cost_usd"]
     rp, rec = out.metadata["review_package"], recorded["review_package"]
-    assert {k: rp[k] for k in ("tokens", "cost_usd", "not_compared")} == {
-        k: rec[k] for k in ("tokens", "cost_usd", "not_compared")
-    }
+    assert {k: rp[k] for k in ("tokens", "cost_usd")} == {k: rec[k] for k in ("tokens", "cost_usd")}
+    # S2b (spec #375): the unit table compares OQ-24 and OQ-27, which the recorded run left out.
+    assert (rec["not_compared"], rp["not_compared"]) == (19, 17)
     assert rp["calls"] == {"total": 8, "replayed": 8, "live": 0}
     assert out.metadata["prompts"] == recorded["prompts"]
     assert out.metadata["dropped"] == recorded["dropped"]
     assert got["gates"] == expected["gates"]
-    assert got["review_package"] == expected["review_package"]
+    assert _graded(got["review_package"]) == _with_units_compared(expected["review_package"])
+    # The capability rule raises one finding on 0.1.0's draft (OQ-04, "minimal 105 kN" against
+    # the Datasheet's 100 kN maximum, a Clean Trap of 0.1.0): its key declares no such type, so
+    # it is neither a match, nor wrong, nor on a trap, and no number of 0.1.0 moves.
+    (extra,) = [f for f in got["review_package"]["findings"] if f["status"] == "not_graded"]
+    assert (extra["type"], extra["test_step"], extra["clean_traps"]) == (CAPABILITY, "OQ-04", [])
+    assert got["review_package"]["metrics"]["findings_of_types_not_in_key"] == 1
     assert got["review_package"]["metrics"]["ac_read_right"] == 26
     assert [d["id"] for d in out.metadata["dropped"] if d["claim"] == "draft_step"] == []
 
@@ -246,7 +285,9 @@ def test_review_package_run_reports_its_draft_findings(
     """Rule findings on the live run's readings, each with its Test Step id or table row; the
     scorer's Review Package section grades them against the package key."""
     _, out = runs
-    on_draft = [f for f in out.submission.findings if f.test_step or f.row]
+    all_on_draft = [f for f in out.submission.findings if f.test_step or f.row]
+    assert [(f.type, f.test_step or f.row) for f in all_on_draft][-1] == (CAPABILITY, "OQ-04")
+    on_draft = [f for f in all_on_draft if f.type != CAPABILITY]  # 0.1.0's key does not grade it
     assert [(f.type, f.test_step or f.row) for f in on_draft] == [
         ("ac_deviates_from_urs", "OQ-03"),
         ("ac_deviates_from_urs", "OQ-05"),
@@ -269,8 +310,9 @@ def test_review_package_run_reports_its_draft_findings(
 
     rows: dict[str, Any] = _json(out.folder / "protocol_draft.json")
     assert [(f["type"], f.get("test_step") or f.get("row")) for f in rows["findings"]] == [
-        (f.type, f.test_step or f.row) for f in on_draft
+        (f.type, f.test_step or f.row) for f in all_on_draft
     ]
+    assert [f["label"] for f in rows["findings"]] == [None] * 5 + ["not reviewed by a practitioner"]
     oq05 = next(s for s in rows["test_steps"] if s["id"] == "OQ-05")
     (traced,) = oq05["traced"]
     assert (traced["compared"], traced["deviates"], oq05["compared"]) == (True, True, True)
@@ -283,10 +325,16 @@ def test_review_package_run_reports_its_draft_findings(
     ]
 
 
-PROPOSAL_KEYS = "56878c4a2b92f26f84b3d4adc1e3a8a24453d790225a61a3517bc42598913801"
-"""The digest of every (kind, subject hash, ordinal, content hash) of the Coverage, Check, AI
-and draft Proposals of the demo run (r10 with the Review Package run r3), taken before the
-drafted Test Steps became Proposals (spec #247): decisions on them must still apply."""
+PROPOSAL_KEYS = "d687e2d086d9b056aa8624d45c49309a3d9f6e6c93856256e89c7bf1bf1a4d69"
+"""The digest of every (kind, subject hash, ordinal, content hash) of the Coverage, Check and AI
+Proposals of the demo run (r10 with the Review Package run r3), taken before the drafted Test
+Steps became Proposals (spec #247): decisions on them must still apply."""
+DRAFT_PROPOSAL_KEYS = "f6ce07c7509eda958fdc3ba11d3dcacfcaf0d70fd5c52114c9ba7428a6da0690"
+"""The same for the draft findings of that run. Moved on purpose by spec #375, ticket S3: a
+finding's key drops the draft revision and adds the cited locations, and its content adds the
+Test Step, its mapping and its Acceptance Criterion. Decisions made before S3 do not carry.
+Moved again by S8 (ticket #393): the key drops the page of each citation and the content adds the
+Test Step's description, method and instrument. Decisions made before S8 do not carry."""
 
 
 def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
@@ -300,12 +348,25 @@ def test_the_demo_runs_proposals_keep_their_keys_and_add_its_drafted_test_steps(
         ProtocolDraft.model_validate(_json(out.folder / "protocol_draft.json")),
         DraftedTestSteps.model_validate(_json(out.folder / "drafts.json")),
     )
-    earlier = [p for p in proposed if p.kind != "test_step"]
+    # The capability finding on OQ-04 (spec #375) is new; the 50 before it keep their keys.
+    new = [p for p in proposed if p.subject.get("type") == CAPABILITY]
+    assert [(p.subject["test_step"], p.ordinal) for p in new] == [("OQ-04", 0)]
+    # Its key names the Datasheet row it compares with (#393, C3), read from the run's output.
+    assert [p.subject["datasheet_row"] for p in new] == ["maximum main compression force"]
+    # The draft Test Steps and their criteria (spec #375, S4a1) are new kinds after the findings.
+    draft_steps = [p for p in proposed if p.kind in ("draft_step", "draft_criterion")]
+    assert {p.kind for p in draft_steps} == {"draft_step", "draft_criterion"}
+    earlier = [
+        p for p in proposed if p.kind != "test_step" and p not in new and p not in draft_steps
+    ]
     assert len(earlier) == 50
-    assert digest([[p.kind, p.subject_hash, p.ordinal, p.content_hash] for p in earlier]) == (
-        PROPOSAL_KEYS
-    )
-    steps = proposed[len(earlier) :]
+
+    def keys(kept: list[Proposed]) -> str:
+        return digest([[p.kind, p.subject_hash, p.ordinal, p.content_hash] for p in kept])
+
+    assert keys([p for p in earlier if p.kind != "draft"]) == PROPOSAL_KEYS
+    assert keys([p for p in earlier if p.kind == "draft"]) == DRAFT_PROPOSAL_KEYS
+    steps = [p for p in proposed if p.kind == "test_step"]
     assert all(p.kind == "test_step" and p.position is None for p in steps)
     assert len(steps) == len({p.subject_hash for p in steps}) == 31
     without_ac = [p for p in steps if p.proposed["acceptance"] is None]

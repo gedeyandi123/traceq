@@ -1,0 +1,273 @@
+# TP-201-OQ-draft answer key: test_steps.yaml. Review Package 0.2.0, dev only; ac_outside_documented_capability, unit_error and outdated_reference not reviewed by a practitioner.
+# Generated, do not edit:
+#   uv run python -m traceq_dataset.review_package world/<file>.yaml
+# Refers to corpus-v0.1.1. Never sent to an LLM (design section 6).
+- id: OQ-01
+  requirements: [URS-TP201-001]
+  acceptance: {type: range, min: 32, unit: stasiun}
+  location: {doc: OQ-TP201, rev: 0, page: 1, field: OQ-01.acceptance, text: minimal 32 stasiun}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: number, value: 36, unit: stasiun}
+    location: {doc: OQ-TP201, rev: 1, page: 1, field: OQ-01.acceptance, text: 36 stasiun punch}
+- id: OQ-02
+  requirements: [URS-TP201-002]
+  acceptance: {type: range, min: 20, max: 70, unit: rpm}
+  location: {doc: OQ-TP201, rev: 0, page: 1, field: OQ-02.acceptance, text: 20 s/d 70 rpm}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, min: 20, max: 70, unit: rpm}
+    location: {doc: OQ-TP201, rev: 1, page: 1, field: OQ-02.acceptance, text: 20 s/d 70 rpm}
+- id: OQ-03
+  requirements: [URS-TP201-003]
+  acceptance: {type: range, min: 100000, unit: tablet/jam}
+  location: {doc: OQ-TP201, rev: 0, page: 2, field: OQ-03.acceptance, text: minimal 100.000 tablet/jam}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, min: 110000, unit: tablet/jam}
+    location: {doc: OQ-TP201, rev: 1, page: 2, field: OQ-03.acceptance, text: minimal 110.000 tablet/jam}
+- id: OQ-04
+  requirements: [URS-TP201-004]
+  acceptance: {type: range, min: 105, unit: kN}
+  location: {doc: OQ-TP201, rev: 0, page: 2, field: OQ-04.acceptance, text: minimal 105 kN}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, min: 100, unit: kN}
+    location: {doc: OQ-TP201, rev: 1, page: 2, field: OQ-04.acceptance, text: minimal 100 kN}
+- id: OQ-05
+  requirements: [URS-TP201-005]
+  acceptance: {type: range, min: 20, unit: kN}
+  location: {doc: OQ-TP201, rev: 0, page: 2, field: OQ-05.acceptance, text: ≥ 20 kN}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, min: 20, unit: kN}
+    location: {doc: OQ-TP201, rev: 1, page: 2, field: OQ-05.acceptance, text: ≥ 20 kN}
+- id: OQ-06
+  requirements: [URS-TP201-006]
+  acceptance: {type: range, max: 25, unit: mm}
+  location: {doc: OQ-TP201, rev: 0, page: 2, field: OQ-06.acceptance, text: ≤ 25 mm}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, max: 25, unit: mm}
+    location: {doc: OQ-TP201, rev: 1, page: 2, field: OQ-06.acceptance, text: ≤ 25 mm}
+- id: OQ-07
+  requirements: [URS-TP201-007]
+  acceptance: {type: range, max: 18, unit: cm}
+  location: {doc: OQ-TP201, rev: 0, page: 3, field: OQ-07.acceptance, text: maks. 18 cm}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, max: 18, unit: mm}
+    location: {doc: OQ-TP201, rev: 1, page: 3, field: OQ-07.acceptance, text: maks. 18 mm}
+- id: OQ-08
+  requirements: [URS-TP201-010]
+  acceptance: {type: range, max: 1.6, unit: µm}
+  location: {doc: OQ-TP201, rev: 0, page: 3, field: OQ-08.acceptance, text: 'Ra maks. 1,6 µm'}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, max: 0.8, unit: µm}
+    location: {doc: OQ-TP201, rev: 1, page: 3, field: OQ-08.acceptance, text: 'Ra maks. 0,8 µm'}
+- id: OQ-09
+  requirements: [URS-TP201-014]
+  acceptance: {type: text, value: Sistem mengoreksi kedalaman pengisian secara otomatis berdasarkan gaya
+      tekan}
+  location: {doc: OQ-TP201, rev: 0, page: 3, field: OQ-09.acceptance, text: Sistem mengoreksi kedalaman
+      pengisian secara otomatis berdasarkan gaya tekan}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Sistem mengoreksi kedalaman pengisian secara otomatis berdasarkan
+        gaya tekan}
+    location: {doc: OQ-TP201, rev: 1, page: 3, field: OQ-09.acceptance, text: Sistem mengoreksi kedalaman
+        pengisian secara otomatis berdasarkan gaya tekan}
+- id: OQ-10
+  requirements: [URS-TP201-015]
+  acceptance: {type: text, value: Tablet di luar batas ditolak otomatis ke saluran reject}
+  location: {doc: OQ-TP201, rev: 0, page: 3, field: OQ-10.acceptance, text: Tablet di luar batas ditolak
+      otomatis ke saluran reject}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Tablet di luar batas ditolak otomatis ke saluran reject}
+    location: {doc: OQ-TP201, rev: 1, page: 3, field: OQ-10.acceptance, text: Tablet di luar batas ditolak
+        otomatis ke saluran reject}
+- id: OQ-11
+  requirements: [URS-TP201-016]
+  acceptance: {type: range, max: 0.5, unit: '% FS'}
+  location: {doc: OQ-TP201, rev: 0, page: 4, field: OQ-11.acceptance, text: 'maks. ± 0,5 % FS'}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, max: 1, unit: '% FS'}
+    location: {doc: OQ-TP201, rev: 1, page: 4, field: OQ-11.acceptance, text: maks. ± 1 % FS}
+- id: OQ-12
+  requirements: [URS-TP201-017]
+  acceptance: {type: range, min: 10, max: 60, unit: rpm}
+  location: {doc: OQ-TP201, rev: 0, page: 4, field: OQ-12.acceptance, text: 10–60 rpm}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, min: 10, max: 60, unit: rpm}
+    location: {doc: OQ-TP201, rev: 1, page: 4, field: OQ-12.acceptance, text: 10–60 rpm}
+- id: OQ-13
+  requirements: [URS-TP201-018]
+  acceptance: {type: text, value: Mesin berhenti saat setiap pintu dibuka dan alarm tampil di HMI}
+  location: {doc: OQ-TP201, rev: 0, page: 4, field: OQ-13.acceptance, text: Mesin berhenti saat setiap
+      pintu dibuka dan alarm tampil di HMI}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Mesin berhenti saat setiap pintu dibuka dan alarm tampil di HMI}
+    location: {doc: OQ-TP201, rev: 1, page: 4, field: OQ-13.acceptance, text: Mesin berhenti saat setiap
+        pintu dibuka dan alarm tampil di HMI}
+- id: OQ-14
+  requirements: [URS-TP201-019]
+  acceptance: {type: text, value: Mesin berhenti segera dan tidak dapat dijalankan sebelum reset}
+  location: {doc: OQ-TP201, rev: 0, page: 4, field: OQ-14.acceptance, text: Mesin berhenti segera dan
+      tidak dapat dijalankan sebelum reset}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Mesin berhenti segera dan tidak dapat dijalankan sebelum reset}
+    location: {doc: OQ-TP201, rev: 1, page: 4, field: OQ-14.acceptance, text: Mesin berhenti segera dan
+        tidak dapat dijalankan sebelum reset}
+- id: OQ-15
+  requirements: [URS-TP201-020]
+  acceptance: {type: text, value: Mesin berhenti otomatis dan alarm overload tampil di HMI}
+  location: {doc: OQ-TP201, rev: 1, page: 5, field: OQ-15.acceptance, text: Mesin berhenti otomatis dan
+      alarm overload tampil di HMI}
+  revisions: [1]
+- id: OQ-16
+  requirements: [URS-TP201-021]
+  acceptance: {type: text, value: Setiap level hanya dapat mengakses fungsi sesuai haknya}
+  location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-16.acceptance, text: Setiap level hanya dapat mengakses
+      fungsi sesuai haknya}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Setiap level hanya dapat mengakses fungsi sesuai haknya}
+    location: {doc: OQ-TP201, rev: 1, page: 5, field: OQ-16.acceptance, text: Setiap level hanya dapat
+        mengakses fungsi sesuai haknya}
+- id: OQ-17
+  requirements: [URS-TP201-022]
+  acceptance: {type: text, value: 'Setiap perubahan tercatat dengan nilai lama, nilai baru, pengguna dan
+      waktu'}
+  location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-17.acceptance, text: 'Setiap perubahan tercatat
+      dengan nilai lama, nilai baru, pengguna dan waktu'}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: 'Setiap perubahan tercatat dengan nilai lama, nilai baru, pengguna
+        dan waktu'}
+    location: {doc: OQ-TP201, rev: 1, page: 5, field: OQ-17.acceptance, text: 'Setiap perubahan tercatat
+        dengan nilai lama, nilai baru, pengguna dan waktu'}
+- id: OQ-18
+  requirements: [URS-TP201-023]
+  acceptance: {type: text, value: Alarm tercatat beserta waktu dan pengguna}
+  location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-18.acceptance, text: Alarm tercatat beserta waktu
+      dan pengguna}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Alarm tercatat beserta waktu dan pengguna}
+    location: {doc: OQ-TP201, rev: 1, page: 5, field: OQ-18.acceptance, text: Alarm tercatat beserta waktu
+        dan pengguna}
+- id: OQ-19
+  requirements: [URS-TP201-024]
+  acceptance: {type: text, value: Resep yang dipulihkan identik dengan resep asli}
+  location: {doc: OQ-TP201, rev: 0, page: 5, field: OQ-19.acceptance, text: Resep yang dipulihkan identik
+      dengan resep asli}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Resep yang dipulihkan identik dengan resep asli}
+    location: {doc: OQ-TP201, rev: 1, page: 6, field: OQ-19.acceptance, text: Resep yang dipulihkan identik
+        dengan resep asli}
+- id: OQ-20
+  requirements: [URS-TP201-025]
+  acceptance: {type: text, value: Jam HMI sama dengan sumber waktu pabrik}
+  location: {doc: OQ-TP201, rev: 0, page: 6, field: OQ-20.acceptance, text: Jam HMI sama dengan sumber
+      waktu pabrik}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Jam HMI sama dengan sumber waktu pabrik}
+    location: {doc: OQ-TP201, rev: 1, page: 6, field: OQ-20.acceptance, text: Jam HMI sama dengan sumber
+        waktu pabrik}
+- id: OQ-21
+  requirements: [URS-TP201-026]
+  acceptance: {type: number, value: 400, unit: V}
+  location: {doc: OQ-TP201, rev: 0, page: 6, field: OQ-21.acceptance, text: '400 V, 3 fase'}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: tolerance, nominal: 380, tolerance: 10, tolerance_unit: '%', unit: V}
+    location: {doc: OQ-TP201, rev: 1, page: 6, field: OQ-21.acceptance, text: '380 V ± 10 %, 3 fase'}
+- id: OQ-22
+  requirements: [URS-TP201-027]
+  acceptance: {type: range, min: 6, max: 7, unit: bar}
+  location: {doc: OQ-TP201, rev: 1, page: 6, field: OQ-22.acceptance, text: 6 s/d 7 bar}
+  revisions: [1]
+- id: OQ-23
+  requirements: [URS-TP201-028]
+  acceptance: {type: range, min: 300, unit: m²/jam}
+  location: {doc: OQ-TP201, rev: 0, page: 6, field: OQ-23.acceptance, text: minimal 300 m²/jam}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, min: 300, unit: m³/jam}
+    location: {doc: OQ-TP201, rev: 1, page: 7, field: OQ-23.acceptance, text: minimal 300 m³/jam}
+- id: OQ-24
+  requirements: [URS-TP201-029]
+  acceptance: {type: range, max: 90, unit: dB(A)}
+  location: {doc: OQ-TP201, rev: 0, page: 6, field: OQ-24.acceptance, text: maks. 90 dB(A)}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, max: 90, unit: dB(A)}
+    location: {doc: OQ-TP201, rev: 1, page: 7, field: OQ-24.acceptance, text: maks. 90 dB(A)}
+- id: OQ-25
+  requirements: [URS-TP201-030]
+  acceptance: {type: range, max: 3, unit: m}
+  location: {doc: OQ-TP201, rev: 0, page: 7, field: OQ-25.acceptance, text: tinggi maks. 3 m}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, max: 3, unit: m}
+    location: {doc: OQ-TP201, rev: 1, page: 7, field: OQ-25.acceptance, text: tinggi maks. 3 m}
+- id: OQ-26
+  requirements: [URS-TP201-031]
+  acceptance: {type: range, min: 18, max: 25, unit: °C}
+  location: {doc: OQ-TP201, rev: 0, page: 7, field: OQ-26.acceptance, text: 18 s/d 25 °C}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, min: 18, max: 25, unit: °C}
+    location: {doc: OQ-TP201, rev: 1, page: 7, field: OQ-26.acceptance, text: 18 s/d 25 °C}
+- id: OQ-27
+  requirements: [URS-TP201-032]
+  acceptance: {type: range, max: 2, unit: jam}
+  location: {doc: OQ-TP201, rev: 0, page: 7, field: OQ-27.acceptance, text: maks. 2 jam}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: range, max: 2, unit: jam}
+    location: {doc: OQ-TP201, rev: 1, page: 8, field: OQ-27.acceptance, text: maks. 2 jam}
+- id: OQ-28
+  requirements: [URS-TP201-033]
+  acceptance: {type: text, value: Semua bagian kontak produk dapat dilepas tanpa alat khusus}
+  location: {doc: OQ-TP201, rev: 0, page: 7, field: OQ-28.acceptance, text: Semua bagian kontak produk
+      dapat dilepas tanpa alat khusus}
+  revisions: [0, 1]
+  later:
+  - rev: 1
+    acceptance: {type: text, value: Semua bagian kontak produk dapat dilepas tanpa alat khusus}
+    location: {doc: OQ-TP201, rev: 1, page: 8, field: OQ-28.acceptance, text: Semua bagian kontak produk
+        dapat dilepas tanpa alat khusus}

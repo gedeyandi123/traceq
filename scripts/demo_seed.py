@@ -55,12 +55,14 @@ _SECOND_RUN_HINT = (
 )
 
 
-def _pick_two_rounds(client: Any, api_url: str, args: argparse.Namespace) -> str:
+def _pick_two_rounds(
+    client: Any, api_url: str, args: argparse.Namespace, headers: dict[str, str]
+) -> str:
     """Round 1 = the older of the two oldest runs by ``created``, round 2 = the newer.
 
     Sets ``args.second_run_id`` unless given explicitly; returns the round 1 run id.
     """
-    resp = client.get(f"{api_url}/runs")
+    resp = client.get(f"{api_url}/runs", headers=headers)
     resp.raise_for_status()
     ordered = sorted(resp.json(), key=lambda r: str(r["created"]))
     if args.second_run_id is not None:
@@ -91,10 +93,11 @@ def _resolve_target(args: argparse.Namespace, client: httpx.Client) -> tuple[str
             issuer_url = KEYCLOAK_ISSUER_URL
         if not getattr(args, "review_package", False):
             run_id = run_id or str(meta["run_id"])
+    # Listing runs needs a token: the run routes are not open to an anonymous caller.
     if run_id is None and getattr(args, "stage", None) == "two-rounds":
-        run_id = _pick_two_rounds(client, api_url, args)
+        run_id = _pick_two_rounds(client, api_url, args, _token(client, issuer_url, "ayu", idp=idp))
     if run_id is None:
-        runs = client.get(f"{api_url}/runs")
+        runs = client.get(f"{api_url}/runs", headers=_token(client, issuer_url, "ayu", idp=idp))
         runs.raise_for_status()
         items = runs.json()
         if not items:
@@ -165,8 +168,9 @@ def _shape_acceptances(
     client: Any, api_url: str, protocol_id: int, proto: dict[str, Any], ayu: dict[str, str]
 ) -> dict[str, Any]:
     """Sets a shaped Acceptance Criterion, as a person does, on every row blocked by
-    ``acceptance_not_shaped``: its accepted draft is rejected, then edited (the edit route
-    is refused while that draft stays accepted). Returns the latest Protocol view."""
+    ``acceptance_not_shaped``: its accepted draft is rejected, with any other accepted draft step
+    of the row, then edited (the edit route is refused while another draft stays accepted).
+    Returns the latest Protocol view."""
     for row in proto.get("rows") or []:
         if "acceptance_not_shaped" not in (row.get("blockers") or []):
             continue
@@ -183,6 +187,26 @@ def _shape_acceptances(
             },
         )
         _checked(rej, f"Rejecting draft {proposal_id} of {row['requirement']}")
+        # A row holds one Test Step: the edit is refused while any other draft step standing for
+        # the row is accepted (accept-all accepted every one of them). Newest decision first.
+        for cand in row.get("candidates") or []:
+            other = cand["proposal"]
+            decisions = other.get("decisions") or []
+            if (
+                other["id"] != proposal_id
+                and other.get("state") == "decided"
+                and decisions
+                and decisions[0]["decision"] == "accepted"
+            ):
+                more = client.post(
+                    f"{api_url}/runs/{proto['run_id']}/proposals/{other['id']}/decisions",
+                    headers=ayu,
+                    json={
+                        "decision": "rejected",
+                        "reason": "Demo seed: the row holds one Test Step, the edited draft",
+                    },
+                )
+                _checked(more, f"Rejecting draft {other['id']} of {row['requirement']}")
         edit = client.post(
             f"{api_url}/protocols/{protocol_id}/drafts/{proposal_id}/edit",
             headers=ayu,
@@ -393,7 +417,7 @@ def _ensure_two_rounds(
     ayu: dict[str, str],
 ) -> dict[str, Any]:
     if second_run_id is None:
-        runs = client.get(f"{api_url}/runs")
+        runs = client.get(f"{api_url}/runs", headers=ayu)
         runs.raise_for_status()
         items = [str(i["run_id"]) for i in runs.json() if str(i["run_id"]) != first_run_id]
         if not items:

@@ -23,6 +23,12 @@ export type DraftFindingView = components["schemas"]["DraftFindingView"];
 export type PrintedRead = NonNullable<components["schemas"]["DraftAcceptance"]["value"]>;
 export type ProtocolView = components["schemas"]["ProtocolView"];
 export type ProtocolRowView = components["schemas"]["ProtocolRowView"];
+export type DraftMappingView = components["schemas"]["DraftMappingView"];
+export type RowCandidate = components["schemas"]["RowCandidate"];
+export type RowFindingView = components["schemas"]["RowFindingView"];
+export type FrozenFinding = components["schemas"]["FrozenFinding"];
+export type ProtocolCopyV2 = components["schemas"]["ProtocolCopyV2"];
+export type ProtocolCopy = components["schemas"]["ProtocolCopy"];
 export type ProtocolEvent = components["schemas"]["ProtocolEvent"];
 export type RowDraft = components["schemas"]["RowDraft"];
 export type ProtocolUrs = components["schemas"]["ProtocolUrs"];
@@ -70,6 +76,8 @@ export type LatestQualificationReportSummary =
   components["schemas"]["LatestQualificationReportSummary"];
 export type ElectronicSignatureView = components["schemas"]["ElectronicSignatureView"];
 export type SignatureMeaning = components["schemas"]["SignatureMeaning"];
+export type DraftUploads = components["schemas"]["DraftUploads"];
+export type UploadJobView = components["schemas"]["UploadJobView"];
 
 /** The typed client over the generated OpenAPI schema (ADR 0003). */
 export const api = createClient<paths>({ baseUrl: API_URL, cache: "no-store" });

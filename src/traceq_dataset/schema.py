@@ -580,7 +580,9 @@ class RiskAssessment(Model):
 class DefectType(StrEnum):
     """Planted defect types (design section 7, taxonomy), plus the two v0 scenarios that a
     reviewer flags although they are not review errors: a delivered item that does not meet
-    the URS (S6) and an ambiguous value (S7)."""
+    the URS (S6) and an ambiguous value (S7). ``ac_outside_documented_capability`` and
+    ``unit_error`` (with ``outdated_reference``) are the Review Package types that no
+    practitioner has reviewed yet (spec #375)."""
 
     MISSING_SIGNATURE = "missing_signature"
     IMPOSSIBLE_DATE_ORDER = "impossible_date_order"
@@ -597,6 +599,8 @@ class DefectType(StrEnum):
     INCONSISTENT_DATA = "inconsistent_data"
     AC_DEVIATES_FROM_URS = "ac_deviates_from_urs"
     REQUIREMENT_NOT_TESTED = "requirement_not_tested"
+    AC_OUTSIDE_DOCUMENTED_CAPABILITY = "ac_outside_documented_capability"
+    UNIT_ERROR = "unit_error"
     GDP_CORRECTION = "gdp_correction"
     LEFTOVER_FROM_OTHER_EQUIPMENT = "leftover_from_other_equipment"
     DESIGN_CONFLICT = "design_conflict"

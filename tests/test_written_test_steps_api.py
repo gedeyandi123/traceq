@@ -162,6 +162,7 @@ def test_a_written_test_step_is_the_rows_test_step_with_no_reason_for_change(
         "acceptance_flag": None,
         "stage": None,
         "witness_required": False,
+        "source": "traceq_written",
     }
     [v] = got["written"]
     assert (v["version"], v["removed"], v["test_step"], v["name"]) == (

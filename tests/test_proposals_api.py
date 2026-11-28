@@ -51,6 +51,8 @@ PROTOCOL_ROUTES = {
     ("post", "/protocols/{protocol_id}/approve"),
     ("post", "/protocols/{protocol_id}/return"),
     ("put", "/protocols/{protocol_id}/rows/{requirement}/attributes"),
+    ("put", "/protocols/{protocol_id}/draft-steps/{step}/mapping"),
+    ("post", "/protocols/{protocol_id}/findings/{proposal_id}/reason"),
 }
 EXECUTION_ROUTES = {
     ("post", "/protocols/{protocol_id}/execution"),
@@ -78,8 +80,18 @@ ROUNDS_ROUTES = {
 REGISTRY_ROUTES = {
     ("get", "/equipment"),
 }
+UPLOAD_ROUTES = {
+    ("get", "/equipment/{equipment}/drafts"),
+    ("post", "/equipment/{equipment}/drafts"),
+    ("get", "/uploads/{job_id}"),
+}
 DATABASE_ROUTES = (
-    DECISION_ROUTES | PROTOCOL_ROUTES | EXECUTION_ROUTES | ROUNDS_ROUTES | REGISTRY_ROUTES
+    DECISION_ROUTES
+    | PROTOCOL_ROUTES
+    | EXECUTION_ROUTES
+    | ROUNDS_ROUTES
+    | REGISTRY_ROUTES
+    | UPLOAD_ROUTES
 )
 
 type Edit = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
@@ -169,12 +181,15 @@ def test_default_settings_answer_401_on_every_database_route_also_for_a_demo_tok
             attempt_number=1,
             round_id=1,
             export_id=1,
+            job_id=1,
+            equipment="TP-201",
             requirement="URS-TP201-002",
+            step="OQ-02",
         )
         assert client.request(method, url).status_code == 401
         assert client.request(method, url, headers=good).status_code == 401
-    # The run-folder routes still work.
-    assert client.get(f"/runs/{RUN_ID}/matrix").status_code == 200
+    # The run-folder routes need a token too, and none can be verified here.
+    assert client.get(f"/runs/{RUN_ID}/matrix").status_code == 401
 
 
 def test_the_api_refuses_to_start_with_only_an_issuer_or_only_a_database(
@@ -209,7 +224,10 @@ def test_only_database_routes_write_and_each_needs_a_token(client: TestClient) -
                 attempt_number=1,
                 round_id=1,
                 export_id=1,
+                job_id=1,
+                equipment="TP-201",
                 requirement="URS-TP201-002",
+                step="OQ-02",
             ),
         )
         assert r.status_code == 401, (method, path)
@@ -656,10 +674,12 @@ def test_changed_content_is_changed_since_it_was_decided(
     assert now["decisions"] == []
     assert now["previous"] == made
     # The new content replaces no decision on it: an accept needs no reason.
-    decide(client, decider, now, OTHER_RUN, decision="accepted")
+    newer = decide(client, decider, now, OTHER_RUN, decision="accepted")
     assert place(proposals(client, decider, OTHER_RUN), "ai", 0)["state"] == "decided"
-    # The first run still shows its own content as decided.
-    assert place(proposals(client, decider), "ai", 0)["decisions"] == [made]
+    # The newest decision decides: the first run's content is back to what the older decision
+    # rested on, and that decision is not revived over the newer one (spec #375).
+    first = place(proposals(client, decider), "ai", 0)
+    assert (first["state"], first["decisions"], first["previous"]) == ("changed", [], newer)
 
 
 def test_a_changed_coverage_row_names_the_class_decided_earlier(

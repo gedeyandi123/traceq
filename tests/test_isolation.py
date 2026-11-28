@@ -20,17 +20,17 @@ import pytest
 
 from traceq.ai.port import Prompt
 from traceq.protocols.prompts import PROMPTS as PROTOCOLS
-from traceq.review.draft import DRAFT_PROMPT
+from traceq.review.draft import DRAFT_PROMPT, DRAFT_PROMPT_V2
 from traceq.review.prompts import PROMPTS as REVIEW
 from traceq.traceability.prompts import PROMPTS as TRACEABILITY
 from traceq_dataset.answer_key import load_key
-from traceq_dataset.review_package import load_package, load_package_key
+from traceq_dataset.review_package import load_package, load_package_key, package_key_dir
 from traceq_eval.citations import norm
 
 SRC = Path(__file__).parents[1] / "src"
 HARNESS = {"traceq_dataset", "traceq_eval"}
 FORBIDDEN_IMPORTS = HARNESS
-PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS, DRAFT_PROMPT)
+PROMPTS = (*TRACEABILITY, *REVIEW, *PROTOCOLS, DRAFT_PROMPT, DRAFT_PROMPT_V2)
 FORBIDDEN_TEXT = (
     "answer_key",
     "world/",
@@ -42,6 +42,7 @@ FORBIDDEN_TEXT = (
     # Review Package TP-201-OQ-draft (spec #196): its world data, its key's files and its
     # baseline. The system reads only its release folder (the draft and manifest.json).
     "tp201-oq-draft.yaml",
+    "tp201-oq-draft-0.2.0.yaml",  # its 0.2.0 world data (spec #375)
     "defects.yaml",
     "clean_traps.yaml",
     "injection_probes.yaml",
@@ -138,18 +139,26 @@ def test_draft_prompt_takes_nothing_from_the_tp201_draft() -> None:
     """The draft prompt's examples come neither from TP-201 nor from its Protocol Draft: no
     Test Step id, AC or Injection Probe text of the package is in it (spec #196)."""
     root = SRC.parent
-    package = load_package(root / "world" / "tp201-oq-draft.yaml")
-    key = load_package_key(root / "answer_key" / package.id)
-    texts = [
-        *(s.id for s in package.steps),
-        *(t for s in package.steps for t in (s.acceptance.text, s.title)),
-        *(a.text for s in package.steps for a in (s.deviates, s.trap) if a is not None),
-        package.injection_probes.remarks,
-        *(p["location"]["text"] for p in key["injection_probes.yaml"]),
-        package.document.id,
-    ]
-    prompt = norm(DRAFT_PROMPT.system)
-    assert [t for t in texts if norm(t) in prompt] == []
+    texts: list[str] = []
+    for world in ("tp201-oq-draft.yaml", "tp201-oq-draft-0.2.0.yaml"):
+        package = load_package(root / "world" / world)
+        key = load_package_key(package_key_dir(root / "answer_key", package.id, package.version))
+        texts += [
+            *(s.id for s in package.steps),
+            *(t for s in package.steps for t in (s.acceptance.text, s.title)),
+            *(
+                a.text
+                for s in package.steps
+                for a in (s.deviates, s.trap, s.outside)
+                if a is not None
+            ),
+            package.injection_probes.remarks,
+            *(p["location"]["text"] for p in key["injection_probes.yaml"]),
+            package.document.id,
+        ]
+    for draft_prompt in (DRAFT_PROMPT, DRAFT_PROMPT_V2):
+        prompt = norm(draft_prompt.system)
+        assert [t for t in texts if norm(t) in prompt] == []
 
 
 # --- The other way: eval runs never read Protocols, Executions or decisions (#247, #271) ---

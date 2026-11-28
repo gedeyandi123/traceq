@@ -30,8 +30,10 @@ from traceq.reports import (
     QUALIFICATION_TEMPLATE_VERSIONS,
     TEMPLATE_VERSION,
     PreReviewReportSnapshot,
+    PreReviewReportSnapshotV2,
     QualificationReportSnapshot,
     QualificationReportSnapshotV1,
+    parse_pre_review_snapshot,
     parse_qualification_snapshot,
     render_pre_review_pdf,
     render_qualification_pdf,
@@ -39,6 +41,7 @@ from traceq.reports import (
 
 FIXTURES = Path(__file__).parent / "fixtures" / "reports"
 # Rendered with typst 0.15.2 and ``ignore_system_fonts=True``; see the module docstring.
+PRE_REVIEW_V2_SHA256 = "80849e3bd3d5af84187a466b47d9ba7716eb4dad10625737cdb617bb7d457d45"
 PRE_REVIEW_V1_SHA256 = "3b221354d989ee257f442429b72e5cc5f7946174a97eb28ee211a6e9ebb6ea7a"
 QUALIFICATION_V1_SHA256 = "2d191823dc158c184b8c457c41855222163cf83f16befaade365a99a836f2ed3"
 QUALIFICATION_V2_SHA256 = "2c8f7cb4b6f56810c13f71b286f94416a9c15cc345fc9efaf7094669087ebb29"
@@ -57,6 +60,19 @@ def test_pre_review_template_v1_renders_to_the_committed_sha256() -> None:
     pdf = render_pre_review_pdf(snapshot, template_version="1.0.0")
     assert _sha(pdf) == PRE_REVIEW_V1_SHA256
     assert _sha(render_pre_review_pdf(snapshot)) == PRE_REVIEW_V1_SHA256
+
+
+def test_a_stored_v1_export_still_parses_and_renders_under_its_own_version() -> None:
+    snapshot = parse_pre_review_snapshot(_load("pre_review_v1"), "1.0.0")
+    assert type(snapshot) is PreReviewReportSnapshot
+    assert _sha(render_pre_review_pdf(snapshot, template_version="1.0.0")) == PRE_REVIEW_V1_SHA256
+
+
+def test_pre_review_template_v2_renders_to_the_committed_sha256() -> None:
+    snapshot = parse_pre_review_snapshot(_load("pre_review_v2"), "2.0.0")
+    assert isinstance(snapshot, PreReviewReportSnapshotV2)
+    assert _sha(render_pre_review_pdf(snapshot, template_version="2.0.0")) == PRE_REVIEW_V2_SHA256
+    assert _sha(render_pre_review_pdf(snapshot)) == PRE_REVIEW_V2_SHA256
 
 
 def test_qualification_template_v1_renders_to_the_committed_sha256() -> None:
@@ -79,7 +95,7 @@ def test_qualification_template_v2_renders_to_the_committed_sha256() -> None:
 
 def test_every_supported_template_version_has_a_golden_render() -> None:
     # A new template version without a golden here would be unguarded again.
-    assert PRE_REVIEW_TEMPLATE_VERSIONS == (TEMPLATE_VERSION,) == ("1.0.0",)
+    assert PRE_REVIEW_TEMPLATE_VERSIONS == ("1.0.0", TEMPLATE_VERSION) == ("1.0.0", "2.0.0")
     assert QUALIFICATION_TEMPLATE_VERSIONS == ("1.0.0", "2.0.0")
 
 

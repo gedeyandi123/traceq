@@ -31,6 +31,49 @@ export const deviates: DraftFindingView["finding"] = {
   ],
 };
 
+/** A finding of a type no practitioner has reviewed (spec #375): the API carries its label. */
+export const outsideCapability: DraftFindingView["finding"] = {
+  type: "ac_outside_documented_capability",
+  layer: "rule",
+  test_step: "OQ-03",
+  row: null,
+  requirement: "URS-TP201-020",
+  detail: "OQ-03 requires at least 105 kN, above the maximum 100 kN the Datasheet DS-TP201 states",
+  ac: { ...noiseLimit, min: 105, max: null, unit: "kN" },
+  urs_limit: null,
+  capability: { type: "number", value: 100, unit: "kN" },
+  label: "not reviewed by a practitioner",
+  citations: [cite(DRAFT, 2, "OQ-03 minimal 105 kN"), cite({ doc: "DS-TP201", rev: 0 }, 1, "Maximum main compression force 100 kN")],
+};
+
+/** A unit error (spec #375, S2b): the URS number in a unit off by a power of ten; the label comes from the API. */
+export const unitError: DraftFindingView["finding"] = {
+  type: "unit_error",
+  layer: "rule",
+  test_step: "OQ-03",
+  row: null,
+  requirement: "URS-TP201-020",
+  detail: "OQ-03 prints at most 18 cm where URS-TP201-020 says at most 18 mm: the number is the URS number and the unit is off by a factor of 10.",
+  ac: { ...noiseLimit, max: 18, unit: "cm" },
+  urs_limit: { ...noiseLimit, max: 18, unit: "mm" },
+  label: "not reviewed by a practitioner",
+  citations: [cite(DRAFT, 2, "OQ-03 maks. 18 cm"), cite(URS, 2, "Tinggi maksimal 18 mm.")],
+};
+
+/** An outdated reference (spec #375, S2c): a normative citation of a revision lower than the register's; the label comes from the API. */
+export const outdatedReference: DraftFindingView["finding"] = {
+  type: "outdated_reference",
+  layer: "rule",
+  test_step: "OQ-03",
+  row: null,
+  requirement: "URS-TP201-020",
+  detail: "OQ-03 cites SOP-VAL-002 Rev. 1 in its method, but the register holds SOP-VAL-002 at Rev. 2: the citation may be superseded.",
+  ac: null,
+  urs_limit: null,
+  label: "not reviewed by a practitioner",
+  citations: [cite(DRAFT, 2, "Koreksi catatan sesuai SOP-VAL-002 Rev. 1.")],
+};
+
 export const notTested: DraftFindingView["finding"] = {
   type: "requirement_not_tested",
   layer: "rule",

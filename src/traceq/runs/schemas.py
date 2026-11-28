@@ -326,6 +326,11 @@ class DraftTestStep(_Model):
     """``None``: not read."""
     not_read: str | None = None
     """Why the step's reading was dropped; then nothing else about it is read or compared."""
+    description: str | None = None
+    method: str | None = None
+    instrument: str | None = None
+    """The step's own fields as printed, each verified against its page (package 0.2.0 and
+    later); ``None`` when the step prints none or the edition does not read them."""
     traced: tuple[DraftTraced, ...]
     compared: bool
     not_compared: str | None
@@ -353,6 +358,11 @@ class DraftCheckFinding(_Model):
     detail: str
     ac: PrintedRead | None
     urs_limit: PrintedRead | None
+    capability: PrintedRead | None = None
+    """The capability the Datasheet states, for ``ac_outside_documented_capability``."""
+    label: str | None = None
+    """"not reviewed by a practitioner" on a type no practitioner has reviewed (spec #375);
+    ``None`` on the others."""
     citations: tuple[Cite, ...]
 
 
@@ -376,6 +386,36 @@ class ProtocolDraft(_Model):
     vendor_documents: tuple[VendorDocument, ...] = ()
     """The run's current datasheets, FAT and SAT protocols, in that order: beside each Test
     Step, each of them shows its facts for the step's requirement or "none"."""
+
+
+class DraftStepProposal(_Model):
+    """What a Proposal of kind ``draft_step`` holds (spec #375, S4a1): a Test Step of the
+    Protocol Draft as read, with the requirements its traceability rows map it to. A human
+    accepts or edits it; the Acceptance Criterion is the Proposal ``draft_criterion``."""
+
+    document: DraftDocument
+    id: str
+    requirements: tuple[str, ...]
+    """The requirement ids the step's own header prints."""
+    mapped_to: tuple[str, ...]
+    """The requirements the draft's traceability table traces it to, in table order."""
+    description: str | None
+    method: str | None
+    instrument: str | None
+    not_read: str | None
+    """Why the citation check dropped the step's reading, or ``None``."""
+
+
+class DraftCriterionProposal(_Model):
+    """What a Proposal of kind ``draft_criterion`` holds: the Acceptance Criterion of a draft
+    Test Step as printed, the value code read from it and its verified citation."""
+
+    document: DraftDocument
+    id: str
+    mapped_to: tuple[str, ...]
+    printed: str
+    value: PrintedRead | None
+    citation: Cite
 
 
 # --- drafts.json (ADR 0002; read on import, spec #247) ---------------------------------

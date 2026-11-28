@@ -24,6 +24,7 @@ from traceq.review.draft import (
     Comparator,
     DraftReading,
     DraftRow,
+    FieldReading,
     Read,
     StepNotRead,
     in_draft_order,
@@ -87,8 +88,14 @@ def _finding(f: DraftFinding) -> DraftCheckFinding:
         detail=f.detail,
         ac=_value(f.ac),
         urs_limit=_value(f.urs),
+        capability=_value(f.capability),
+        label=f.label,
         citations=tuple(_cite(c) for c in f.citations),
     )
+
+
+def _text(f: FieldReading | None) -> str | None:
+    return None if f is None else f.text
 
 
 def _not_read(s: StepNotRead) -> DraftTestStep:
@@ -129,6 +136,9 @@ def protocol_draft(
             else DraftTestStep(
                 id=r.step.id,
                 requirements=r.step.requirements,
+                description=_text(r.step.description),
+                method=_text(r.step.method),
+                instrument=_text(r.step.instrument),
                 acceptance=DraftAcceptance(
                     printed=r.step.printed,
                     value=_value(r.step.value),

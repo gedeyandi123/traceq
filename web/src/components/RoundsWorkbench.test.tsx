@@ -183,11 +183,30 @@ const sampleRounds: RunRoundsView = {
     documents_unchanged: ["URS-TP201"],
     documents_removed: [],
     findings_resolved: 2,
-    findings_persisted: 1,
+    findings_persisted: 2,
+    findings_persisted_changed: 1,
     findings_new: 1,
     decisions_carried_forward: 10,
     decisions_changed: 2,
     decisions_undecided: 3,
+    findings: [
+      {
+        proposal_id: 1,
+        kind: "draft",
+        change: "persisted_changed",
+        finding_type: "ac_deviates_from_urs",
+        test_step: "OQ-03",
+        requirement: "URS-TP201-003",
+      },
+      {
+        proposal_id: 2,
+        kind: "draft",
+        change: "persisted",
+        finding_type: "ac_deviates_from_urs",
+        test_step: "OQ-24",
+        requirement: "URS-TP201-024",
+      },
+    ],
   },
 };
 
@@ -232,6 +251,16 @@ describe("RoundsWorkbench", () => {
     expect(screen.getByText("Diff Lintas-Ronde (vs R1)")).toBeDefined();
     expect(screen.getByText("Revisi sertifikat FAT diperlukan")).toBeDefined();
     expect(screen.getByRole("button", { name: /Tutup ronde/ })).toBeDefined();
+    // A persisted-but-changed finding is shown as that, and a plain persisted one is not listed.
+    expect(screen.getAllByText("Bertahan, berubah")).toHaveLength(2);
+    // The finding type is its Indonesian label, never the raw code.
+    expect(
+      screen.getByText("Kriteria penerimaan lebih longgar dari URS · OQ-03 · URS-TP201-003"),
+    ).toBeDefined();
+    expect(screen.queryByText(/ac_deviates_from_urs/)).toBeNull();
+    // The figures here are dev-only and claim nothing about time saved or compliance.
+    expect(screen.getByText(/Hanya data pengembangan/)).toBeDefined();
+    expect(screen.queryByText(/OQ-24/)).toBeNull();
   });
 
   it("hides close round button for approver and read-only, while allowing approver to issue export", async () => {

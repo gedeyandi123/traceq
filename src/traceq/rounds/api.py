@@ -18,7 +18,7 @@ from traceq.db import transaction
 from traceq.identity import Principal
 from traceq.reports import ReportNotReproducible
 from traceq.rounds import store
-from traceq.rounds.diff import RoundDiff
+from traceq.rounds.diff import FindingChange, RoundDiff
 from traceq.rounds.store import (
     CloseOutcome,
     Conflict,
@@ -87,6 +87,17 @@ class ReviewRoundView(_Model):
     exports: list[ReportExportView]
 
 
+class FindingChangeView(_Model):
+    """One finding of either round and what became of it between them."""
+
+    proposal_id: int
+    kind: str
+    change: FindingChange
+    finding_type: str | None
+    test_step: str | None
+    requirement: str | None
+
+
 class RoundDiffView(_Model):
     previous_round_number: int
     previous_run_id: str
@@ -96,10 +107,12 @@ class RoundDiffView(_Model):
     documents_removed: tuple[str, ...]
     findings_resolved: int
     findings_persisted: int
+    findings_persisted_changed: int
     findings_new: int
     decisions_carried_forward: int
     decisions_changed: int
     decisions_undecided: int
+    findings: list[FindingChangeView]
 
 
 class RunRoundsView(_Model):
@@ -188,10 +201,22 @@ def _diff_view(d: RoundDiff) -> RoundDiffView:
         documents_removed=d.documents_removed,
         findings_resolved=d.findings_resolved,
         findings_persisted=d.findings_persisted,
+        findings_persisted_changed=d.findings_persisted_changed,
         findings_new=d.findings_new,
         decisions_carried_forward=d.decisions_carried_forward,
         decisions_changed=d.decisions_changed,
         decisions_undecided=d.decisions_undecided,
+        findings=[
+            FindingChangeView(
+                proposal_id=f.proposal_id,
+                kind=f.kind,
+                change=f.change,
+                finding_type=None if f.label is None else f.label.finding_type,
+                test_step=None if f.label is None else f.label.test_step,
+                requirement=None if f.label is None else f.label.requirement,
+            )
+            for f in d.findings
+        ],
     )
 
 

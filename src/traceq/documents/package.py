@@ -65,6 +65,26 @@ class ReviewPackage:
             ),
         )
 
+    def draft(self, rev: int | None = None) -> CorpusDocument:
+        """The Protocol Draft of revision ``rev``, or of the latest revision when none is
+        chosen. A package holds several revisions of its draft; a run reads exactly one
+        document of the chosen revision, and ``ValueError`` says otherwise."""
+        if not self.documents:
+            raise ValueError(f"Review Package {self.package} holds no Protocol Draft")
+        chosen = max(d.rev for d in self.documents) if rev is None else rev
+        of_rev = [d for d in self.documents if d.rev == chosen]
+        if not of_rev:
+            held = ", ".join(str(r) for r in sorted({d.rev for d in self.documents}))
+            raise ValueError(
+                f"Review Package {self.package} has no draft revision {chosen} (it holds {held})"
+            )
+        if len(of_rev) != 1:
+            raise ValueError(
+                f"Review Package {self.package} holds {len(of_rev)} documents of revision"
+                f" {chosen}; exactly one Protocol Draft is expected"
+            )
+        return of_rev[0]
+
     def check_fits(self, corpus_root: Path, equipment: str) -> None:
         """``ValueError`` unless ``corpus_root`` is the release the package refers to and
         ``equipment`` is the package's Equipment."""

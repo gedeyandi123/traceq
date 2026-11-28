@@ -10,11 +10,13 @@ dependencies = [
     "anthropic>=2.8.0",
     "docling>=2.150.0",
     "fastapi>=0.162.5",
+    "httpx>=0.28.1",
+    "jsonschema>=4.26.0",
     "numpy>=2.5.4",
     "openpyxl>=3.1.5",
     "pillow>=13.0.0",
     "psycopg[binary]>=3.3.9",
-    "pydantic>=2.11",
+    "pydantic>=2.12",
     "pyjwt[crypto]>=2.15.1",
     "pypdf>=6",
     "pypdfium2>=5.15.2",
@@ -28,7 +30,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "import-linter>=2.16",
     "pyright>=1.1.414",
     "pytest>=8.4",
@@ -105,7 +106,7 @@ name = "TraceQ modules are layered: app > execution > assembly, rounds > proposa
 type = "layers"
 layers = [
     "traceq.app",
-    "traceq.registry",
+    "traceq.registry | traceq.uploads",
     "traceq.execution",
     "traceq.assembly | traceq.rounds",
     "traceq.proposals",
@@ -133,6 +134,7 @@ source_modules = [
 forbidden_modules = [
     "traceq.app",
     "traceq.registry",
+    "traceq.uploads",
     "traceq.execution",
     "traceq.assembly",
     "traceq.rounds",

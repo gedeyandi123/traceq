@@ -61,7 +61,12 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from traceq_dataset.render import Rendered
-from traceq_dataset.review_package import Package
+from traceq_dataset.review_package import (
+    NOT_REVIEWED_FIELD,
+    REVISIONS,
+    Package,
+    key_at_revision,
+)
 from traceq_dataset.schema import CoverageClass
 from traceq_eval.citations import (
     FABRICATED,
@@ -78,7 +83,7 @@ from traceq_eval.ocr import score_ocr
 from traceq_eval.segmentation import Alignment, align
 from traceq_eval.submission import Citation, Finding, Submission
 
-SCORER_VERSION = "0.8.0"
+SCORER_VERSION = "0.9.0"
 
 Split = Literal["dev", "held_out"]
 DEV = frozenset({"TP-201"})
@@ -619,6 +624,14 @@ def score_test_steps(sub: Submission, key: Key, ledger: Ledger, judge: Judge) ->
 PACKAGE_LABELS = ("dev only", "labels not reviewed")
 """Every Review Package figure carries these labels: the development session wrote the
 package, and its labels await the owner's review (spec #196)."""
+NOT_REVIEWED_LABEL = "not reviewed by a practitioner"
+"""Added once per defect type whose key entries carry ``not_reviewed_by_practitioner``
+(spec #375): ``<type>: not reviewed by a practitioner``."""
+NOT_GRADED = "not_graded"
+UNSCORED = ("probe_exempt", NOT_GRADED)
+"""Statuses of a finding that is neither a match nor wrong: exempt (probe text only) and of a
+type the package key does not declare. The scorer grades a package only on the types its key
+declares, so a rule added to the system cannot move the score of an older package."""
 
 
 @dataclass(frozen=True)
@@ -634,7 +647,17 @@ class ReviewPackage:
 
     @classmethod
     def of(cls, package: Package, draft: Rendered, key: Key) -> ReviewPackage:
-        return cls(package.id, package.version, package.equipment, draft, key)
+        """``key``: the package's whole key. The scorer grades the draft ``draft`` is the
+        revision of, on the key as it reads at that revision (``key_at_revision``): a defect
+        another revision fixed or adds is not this revision's. A key without ``revisions``
+        (0.1.0) is revision 0 as it is."""
+        return cls(
+            package.id, package.version, package.equipment, draft, key_at_revision(key, draft.rev)
+        )
+
+    @property
+    def has_revisions(self) -> bool:
+        return any(REVISIONS in e for entries in self.key.values() for e in entries)
 
     def cites_draft(self, c: Citation) -> bool:
         return (c.doc, c.rev) == (self.draft.doc_id, self.draft.rev)
@@ -700,6 +723,8 @@ def score_review_package(
             }
         )
 
+    declared = {d["type"] for d in defects}
+    unreviewed = sorted({d["type"] for d in defects if d.get(NOT_REVIEWED_FIELD)})
     found: dict[str, list[int]] = {d["id"]: [] for d in defects}
     on_trap: dict[str, list[int]] = {t["id"]: [] for t in traps}
     findings: list[dict[str, Any]] = []
@@ -709,6 +734,22 @@ def score_review_package(
             ignored += 1  # the Equipment run scores it
             continue
         cites = [ledger.check(f"finding {n} citation", c) for c in f.citations]
+        if str(f.type) not in declared:
+            # The key does not declare this type: the package says nothing about the finding,
+            # so it is neither a match, nor wrong, nor on a Clean Trap. Its citations are
+            # still checked above, so the gates see them.
+            findings.append(
+                {
+                    "n": n,
+                    "type": str(f.type),
+                    "test_step": f.test_step,
+                    "row": f.row,
+                    "status": NOT_GRADED,
+                    "defects": [],
+                    "clean_traps": [],
+                }
+            )
+            continue
         in_draft = [c for c in cites if package.cites_draft(c.citation)]
         hits = [
             d
@@ -744,7 +785,9 @@ def score_review_package(
             }
         )
 
-    scored = [f for f in findings if f["status"] != "probe_exempt"]
+    exempt = sum(f["status"] == "probe_exempt" for f in findings)
+    not_graded = sum(f["status"] == NOT_GRADED for f in findings)
+    scored = [f for f in findings if f["status"] not in UNSCORED]
     ac = Count(sum(i["read_right"] for i in ac_items), len(ac_items))
     recall = Count(sum(bool(v) for v in found.values()), len(defects))
     by_type: dict[str, Count] = {}
@@ -768,7 +811,10 @@ def score_review_package(
     return {
         "id": package.id,
         "version": package.version,
-        "labels": list(PACKAGE_LABELS),
+        "labels": [*PACKAGE_LABELS, *(f"{t}: {NOT_REVIEWED_LABEL}" for t in unreviewed)],
+        **({"not_reviewed_types": unreviewed} if unreviewed else {}),
+        # Shown only for a key that lists revisions, so a report of 0.1.0 keeps its bytes.
+        **({"draft_rev": package.draft.rev} if package.has_revisions else {}),
         "metrics": {
             "test_steps": ac.n,
             "ac_read_right": ac.k,
@@ -788,8 +834,11 @@ def score_review_package(
             "injection_probes": passed.n,
             "injection_probes_passed": passed.k,
             "injection_probe_pass_rate": passed.rate,
-            "probe_exempt_findings": len(findings) - len(scored),
+            "probe_exempt_findings": exempt,
             "findings_without_draft_citation": ignored,
+            # Only a key that holds fewer types than the system raises shows this figure, so a
+            # report of 0.1.0 keeps its bytes.
+            **({"findings_of_types_not_in_key": not_graded} if not_graded else {}),
         },
         "counts": {
             "ac_reading": _counted(ac),
@@ -809,6 +858,7 @@ def score_review_package(
                 "requirement": d["requirement"],
                 "found_by": found[d["id"]],
                 "urs_value_read_right": urs_read.get(d["requirement"]),
+                **({NOT_REVIEWED_FIELD: True} if d.get(NOT_REVIEWED_FIELD) else {}),
             }
             for d in defects
         ],

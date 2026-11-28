@@ -428,6 +428,9 @@ export function ProtocolDraftView({
                                     <div className="font-semibold text-fail">
                                       {t(`types.${f.finding.type}`)}
                                     </div>
+                                    {f.finding.label && (
+                                      <div className="text-xs text-ink-muted">{t("notReviewed")}</div>
+                                    )}
                                     {f.proposal && <DecisionStateBadge state={f.proposal.state} />}
                                   </div>
                                 ))}
@@ -490,6 +493,9 @@ export function ProtocolDraftView({
                         <div className="font-bold text-ink">
                           {t(`types.${f.finding.type}`)}
                         </div>
+                        {f.finding.label && (
+                          <div className="text-xs text-ink-muted">{t("notReviewed")}</div>
+                        )}
                         <p className="m-0 text-ink">{f.finding.detail}</p>
                       </div>
                       <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">

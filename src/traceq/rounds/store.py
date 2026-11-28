@@ -25,26 +25,43 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.orm import Session
 
 from traceq import audit
+from traceq.db.locks import lock_equipment
 from traceq.proposals import decisions
-from traceq.proposals.store import PROPOSALS, RUN_PROPOSALS, RUNS, Imported, RunFiles
+from traceq.proposals.store import (
+    PROPOSALS,
+    RUN_PROPOSALS,
+    RUNS,
+    Imported,
+    RunFiles,
+    draft_document,
+)
 from traceq.reports import (
     PRE_REVIEW_TEMPLATE_VERSIONS,
     TEMPLATE_VERSION,
     TYPST_VERSION,
-    PreReviewReportSnapshot,
+    PreReviewReportSnapshotV2,
     ReportDocument,
     ReportDroppedClaim,
-    ReportFinding,
+    ReportFindingV2,
     ReportKindSummary,
     ReportMissingDocument,
-    ReportRoundDiff,
+    ReportRoundDiffV2,
     ReportUrsCompleteness,
     check_rendered_pdf,
     check_template_supported,
+    parse_pre_review_snapshot,
     render_pre_review_pdf,
     snapshot_hash,
+    typesettable_snapshot,
 )
-from traceq.rounds.diff import RoundDiff, RoundDoc, RoundFindingItem, compute_round_diff
+from traceq.rounds.diff import (
+    FindingLabel,
+    PreviousFinding,
+    RoundDiff,
+    RoundDoc,
+    RoundFindingItem,
+    compute_round_diff,
+)
 from traceq.runs.api import FINDINGS_FILE, RUN_FILE, find_run, read_served
 from traceq.runs.completeness import COMPLETENESS_FILE
 from traceq.runs.schemas import Completeness, Findings
@@ -53,7 +70,6 @@ type RoundEventKind = Literal["opened", "returned_for_revision", "ready_for_prot
 type RoundStatus = Literal["open", "returned_for_revision", "ready_for_protocol"]
 type CloseOutcome = Literal["returned_for_revision", "ready_for_protocol"]
 
-_EQUIPMENT_LOCK_NS = 5
 _ROUND_LOCK_NS = 6
 _FINDING_KINDS = ("check", "ai", "draft")
 
@@ -70,7 +86,12 @@ DOCUMENT_VERSIONS = Table(
     Column("sha256", Text),
     Column("first_seen_run_id", Text),
     Column("at", DateTime(timezone=True)),
+    Column("subject", Text),
+    Column("issuer", Text),
+    Column("name", Text),
 )
+"""``subject``, ``issuer`` and ``name``: who registered the version, by the import that first
+read it (migration 0024); NULL on a row registered before."""
 REVIEW_ROUNDS = Table(
     "review_rounds",
     _META,
@@ -175,12 +196,6 @@ class ReviewRound:
     exports: tuple[ReportExport, ...]
 
 
-def _lock_equipment(session: Session, equipment: str) -> None:
-    session.execute(
-        select(func.pg_advisory_xact_lock(_EQUIPMENT_LOCK_NS, func.hashtext(equipment)))
-    )
-
-
 def _lock_round(session: Session, round_id: int) -> None:
     session.execute(
         select(func.pg_advisory_xact_lock(_ROUND_LOCK_NS, func.hashtext(str(round_id))))
@@ -264,42 +279,36 @@ def _extract_documents(run: RunFiles) -> list[dict[str, Any]]:
             }
         )
 
-    rp = meta.get("review_package")
-    rp_doc: object = cast(dict[str, Any], rp).get("document") if isinstance(rp, dict) else None
-    if isinstance(rp_doc, dict):
-        rp_d = cast(dict[str, Any], rp_doc)
-        doc_id = rp_d.get("doc_id")
-        rev = rp_d.get("rev")
-        sha = rp_d.get("sha256")
-        if doc_id is not None and rev is not None and sha is not None:
-            rows.append(
-                {
-                    "doc_id": str(doc_id),
-                    "rev": int(rev),
-                    "doc_type": rp_d.get("type") or rp_d.get("doc_type") or "protocol_draft",
-                    "source": "review_package_draft",
-                    "sha256": str(sha),
-                }
-            )
-    elif run.draft is not None:
-        d = run.draft.document
+    drafted = draft_document(run)
+    if drafted is not None:
         rows.append(
-            {
-                "doc_id": d.doc_id,
-                "rev": d.rev,
-                "doc_type": "protocol_draft",
-                "source": "review_package_draft",
-                "sha256": d.sha256,
-            }
+            {**drafted, "doc_type": "protocol_draft", "source": "review_package_draft"},
         )
     return rows
+
+
+def latest_draft_revision(session: Session, equipment: str, doc_id: str) -> int | None:
+    """The highest revision of the Protocol Draft ``doc_id`` that an imported run registered
+    for the Equipment; ``None`` when none is registered."""
+    latest = session.execute(
+        select(func.max(DOCUMENT_VERSIONS.c.rev)).where(
+            DOCUMENT_VERSIONS.c.equipment == equipment,
+            DOCUMENT_VERSIONS.c.doc_id == doc_id,
+            DOCUMENT_VERSIONS.c.source == "review_package_draft",
+        )
+    ).scalar_one()
+    return None if latest is None else int(latest)
 
 
 def register_import(
     session: Session, actor: audit.Actor, imported: Imported, run: RunFiles
 ) -> None:
-    """Opens a 1:1 review round and records document versions for a newly imported run."""
-    _lock_equipment(session, imported.equipment)
+    """Opens a 1:1 review round and records document versions for a newly imported run.
+
+    ``actor`` is who imported it (the principal of ``POST /runs/{id}/import``, or the uploader
+    for a run the upload worker imports): a version first registered here
+    names them as its registrant, and a version registered before keeps its own."""
+    lock_equipment(session, imported.equipment)
 
     docs = _extract_documents(run)
     if docs:
@@ -315,6 +324,9 @@ def register_import(
                         "source": d["source"],
                         "sha256": d["sha256"],
                         "first_seen_run_id": imported.run_id,
+                        "subject": actor.subject,
+                        "issuer": actor.issuer,
+                        "name": actor.name,
                     }
                     for d in docs
                 ]
@@ -441,43 +453,63 @@ def _load_round(session: Session, round_row: RowMapping) -> ReviewRound:
     )
 
 
+def _labels_for_run(session: Session, run_id: str) -> dict[int, FindingLabel]:
+    """What names each finding of a run, from its subject key: type, Test Step (or table row)
+    and requirement."""
+    labels: dict[int, FindingLabel] = {}
+    for row in session.execute(
+        select(PROPOSALS.c.id, PROPOSALS.c.subject)
+        .select_from(PROPOSALS.join(RUN_PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id))
+        .where(RUN_PROPOSALS.c.run_id == run_id)
+        .where(PROPOSALS.c.kind.in_(_FINDING_KINDS))
+    ).mappings():
+        subject = cast(dict[str, Any], row["subject"])
+        labels[int(row["id"])] = FindingLabel(
+            finding_type=subject.get("type"),
+            test_step=subject.get("test_step") or subject.get("row"),
+            requirement=subject.get("requirement"),
+        )
+    return labels
+
+
 def _finding_items_for_run(session: Session, run_id: str) -> list[RoundFindingItem]:
     standings = decisions.standings(session, run_id) or []
-    subject_hashes = {
-        int(row["id"]): str(row["subject_hash"])
-        for row in session.execute(
-            select(PROPOSALS.c.id, PROPOSALS.c.subject_hash)
-            .select_from(
-                PROPOSALS.join(RUN_PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
-            )
-            .where(RUN_PROPOSALS.c.run_id == run_id)
-            .where(PROPOSALS.c.kind.in_(_FINDING_KINDS))
-        ).mappings()
-    }
+    labels = _labels_for_run(session, run_id)
     items: list[RoundFindingItem] = []
     for s in standings:
-        if s.kind not in _FINDING_KINDS:
-            continue
-        sh = subject_hashes.get(s.proposal_id)
-        if sh is None:
+        if s.kind not in _FINDING_KINDS or s.proposal_id not in labels:
             continue
         decided_run_id = s.decisions[0].run_id if s.decisions else None
         items.append(
-            RoundFindingItem(subject_hash=sh, state=s.state, decided_run_id=decided_run_id)
+            RoundFindingItem(
+                proposal_id=s.proposal_id,
+                content_hash=s.content_hash,
+                state=s.state,
+                decided_run_id=decided_run_id,
+                kind=s.kind,
+                label=labels[s.proposal_id],
+            )
         )
     return items
 
 
-def _finding_hashes_for_run(session: Session, run_id: str) -> list[str]:
+def _previous_findings_for_run(session: Session, run_id: str) -> list[PreviousFinding]:
+    labels = _labels_for_run(session, run_id)
     return [
-        str(row["subject_hash"])
+        PreviousFinding(
+            proposal_id=int(row["proposal_id"]),
+            content_hash=str(row["content_hash"]),
+            kind=str(row["kind"]),
+            label=labels.get(int(row["proposal_id"])),
+        )
         for row in session.execute(
-            select(PROPOSALS.c.subject_hash)
+            select(RUN_PROPOSALS.c.proposal_id, RUN_PROPOSALS.c.content_hash, PROPOSALS.c.kind)
             .select_from(
                 PROPOSALS.join(RUN_PROPOSALS, PROPOSALS.c.id == RUN_PROPOSALS.c.proposal_id)
             )
             .where(RUN_PROPOSALS.c.run_id == run_id)
             .where(PROPOSALS.c.kind.in_(_FINDING_KINDS))
+            .order_by(RUN_PROPOSALS.c.seq)
         ).mappings()
     ]
 
@@ -502,7 +534,7 @@ def _diff_for_round(session: Session, current: ReviewRound) -> RoundDiff | None:
         current_run_id=current.run_id,
         previous_docs=[RoundDoc(d.doc_id, d.rev, d.sha256) for d in prev_docs],
         current_docs=[RoundDoc(d.doc_id, d.rev, d.sha256) for d in current.documents],
-        previous_finding_hashes=_finding_hashes_for_run(session, prev_run_id),
+        previous_findings=_previous_findings_for_run(session, prev_run_id),
         current_findings=_finding_items_for_run(session, current.run_id),
     )
 
@@ -617,12 +649,18 @@ def _combine_kind_summaries(items: list[decisions.KindCounts]) -> ReportKindSumm
     )
 
 
+def _label_of(proposed: dict[str, Any]) -> str | None:
+    """The label a finding carries ("not reviewed by a practitioner"), if its payload has one."""
+    label = proposed.get("label")
+    return label if isinstance(label, str) and label else None
+
+
 def _build_snapshot(
     session: Session,
     runs: Path,
     current: ReviewRound,
     generated_at: datetime,
-) -> PreReviewReportSnapshot:
+) -> PreReviewReportSnapshotV2:
     counts = decisions.counts(session, current.run_id)
     if counts is None:
         raise NotFound(f"run {current.run_id} is not imported")
@@ -637,9 +675,11 @@ def _build_snapshot(
         ).mappings()
     }
 
-    check_findings: list[ReportFinding] = []
-    ai_findings: list[ReportFinding] = []
-    draft_findings: list[ReportFinding] = []
+    diff = _diff_for_round(session, current)
+    change_of = {} if diff is None else {f.proposal_id: str(f.change) for f in diff.findings}
+    check_findings: list[ReportFindingV2] = []
+    ai_findings: list[ReportFindingV2] = []
+    draft_findings: list[ReportFindingV2] = []
 
     for s in standings:
         if s.kind not in _FINDING_KINDS:
@@ -647,7 +687,7 @@ def _build_snapshot(
         prop = proposed_by_id.get(s.proposal_id, {})
         cites = tuple(_format_cite(c) for c in _dict_items(prop.get("citations")))
         latest = s.decisions[0] if s.decisions else s.previous
-        item = ReportFinding(
+        item = ReportFindingV2(
             position=s.position or 0,
             finding_type=str(prop.get("type") or s.kind),
             doc=str(prop["doc"]) if prop.get("doc") is not None else None,
@@ -658,6 +698,8 @@ def _build_snapshot(
             reason=latest.reason if latest is not None else None,
             decided_by=latest.actor.name if (s.state == "decided" and latest is not None) else None,
             decided_at=latest.at if (s.state == "decided" and latest is not None) else None,
+            label=_label_of(prop),
+            change=change_of.get(s.proposal_id),
         )
         if s.kind == "check":
             check_findings.append(item)
@@ -718,11 +760,10 @@ def _build_snapshot(
                 )
             )
 
-    diff = _diff_for_round(session, current)
     report_diff = (
         None
         if diff is None
-        else ReportRoundDiff(
+        else ReportRoundDiffV2(
             previous_round_number=diff.previous_round_number,
             previous_run_id=diff.previous_run_id,
             documents_added=diff.documents_added,
@@ -731,6 +772,7 @@ def _build_snapshot(
             documents_removed=diff.documents_removed,
             findings_resolved=diff.findings_resolved,
             findings_persisted=diff.findings_persisted,
+            findings_persisted_changed=diff.findings_persisted_changed,
             findings_new=diff.findings_new,
             decisions_carried_forward=diff.decisions_carried_forward,
             decisions_changed=diff.decisions_changed,
@@ -738,7 +780,7 @@ def _build_snapshot(
         )
     )
 
-    return PreReviewReportSnapshot(
+    snapshot = PreReviewReportSnapshotV2(
         generated_at=generated_at,
         equipment=current.equipment,
         run_id=current.run_id,
@@ -764,6 +806,7 @@ def _build_snapshot(
         completeness=tuple(completeness_rows),
         round_diff=report_diff,
     )
+    return typesettable_snapshot(snapshot)
 
 
 def export_pre_review(
@@ -859,7 +902,7 @@ def render_stored_export_pdf(session: Session, round_id: int, export_id: int) ->
         raise NotFound(f"no export {export_id} for review round {round_id}")
     template_version = str(row["template_version"])
     check_template_supported(template_version, PRE_REVIEW_TEMPLATE_VERSIONS)
-    snapshot = PreReviewReportSnapshot.model_validate(row["snapshot_json"])
+    snapshot = parse_pre_review_snapshot(row["snapshot_json"], template_version)
     pdf_bytes = render_pre_review_pdf(snapshot, template_version=template_version)
     check_rendered_pdf(
         pdf_bytes, str(row["pdf_sha256"]), stored_typst_version=str(row["typst_version"])

@@ -72,6 +72,12 @@ export function EquipmentRegistryView({ items }: { items: EquipmentSummary[] }) 
                     <span className="text-[11px] font-normal text-ink-muted tabular-nums">
                       {t("runCount", { count: eq.run_count })}
                     </span>
+                    <Link
+                      href={`/equipment/${encodeURIComponent(eq.equipment)}/upload`}
+                      className="text-[11px] font-semibold text-accent no-underline hover:underline"
+                    >
+                      {t("uploadLink")}
+                    </Link>
                   </div>
                 </th>
 

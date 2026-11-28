@@ -19,34 +19,67 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Path as PathParam
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from traceq import audit
-from traceq.assembly import approval, attributes, lifecycle, missed, submission, written
+from traceq.assembly import (
+    approval,
+    attributes,
+    draft_source,
+    lifecycle,
+    missed,
+    submission,
+    written,
+)
 from traceq.assembly.attributes import Stage
 from traceq.assembly.lifecycle import EventKind, Status
 from traceq.assembly.missed import MissedKind, UrsMissed
 from traceq.assembly.rows import (
     Blocker,
+    DraftCandidate,
     DraftOfRow,
+    DraftStepListing,
     PrefillOrigin,
     ProtocolRow,
+    RowFinding,
     RowKind,
+    RowSource,
+    draft_listing,
     rows_of,
     step_of,
 )
-from traceq.assembly.submission import Check, ProtocolCopy
+from traceq.assembly.submission import Check, ProtocolCopy, ProtocolCopyV2
 from traceq.assembly.written import Acceptance, WrittenContent, WrittenVersion
 from traceq.db import transaction
+from traceq.db.ranges import BIGINT_MAX, INTEGER_MAX
 from traceq.identity import Principal, reauthentication_required
 from traceq.proposals import decisions
 from traceq.proposals.api import Proposal, actor_of, proposal_view
 from traceq.runs.api import DRAFTS_FILE, find_run
-from traceq.runs.schemas import Cite, Completeness, DraftedTestStep, EvidenceStep, UnquotedText
+from traceq.runs.schemas import (
+    Cite,
+    Completeness,
+    DraftCheckFinding,
+    DraftCriterionProposal,
+    DraftedTestStep,
+    DraftStepProposal,
+    EvidenceStep,
+    UnquotedText,
+)
 from traceq.traceability.coverage import CoverageClass
 from traceq.traceability.values import Value
+
+ProtocolId = Annotated[int, PathParam(ge=1, le=BIGINT_MAX)]
+"""A Protocol id in a path: beyond the ``bigint`` range it is a 422, not a 500."""
+ProposalId = Annotated[int, PathParam(ge=1, le=BIGINT_MAX)]
+"""A Proposal id in a path, bounded the same way."""
+Rev = Annotated[int, Field(ge=0, le=INTEGER_MAX)]
+"""A document revision number in a body: within the ``integer`` column that stores it."""
+EventId = Annotated[int, Field(ge=1, le=BIGINT_MAX)]
+"""An event id in a body: within the ``bigint`` range."""
 
 
 class _Model(BaseModel):
@@ -68,6 +101,9 @@ class ProtocolEvent(_Model):
     """The name shown for the person at the time."""
     at: datetime
     electronic_signature: audit.ElectronicSignatureView | None = None
+    latest_draft_rev: int | None = None
+    """For ``submitted`` and ``approved`` of a Protocol started from the Protocol Draft: the
+    latest revision of the draft the Equipment had when it was recorded."""
 
 
 class RowDraft(_Model):
@@ -92,11 +128,14 @@ class RowTestStep(_Model):
     description: str
     method: str
     instrument: str | None
-    acceptance: Value | None
+    acceptance: Value | Acceptance | None
     """The Acceptance Criterion; ``null`` while it is "to be set by a human"."""
     acceptance_flag: str | None
     stage: Stage | None = None
     witness_required: bool = False
+    source: RowSource | None = None
+    """Where the Test Step comes from: the site's Protocol Draft (``draft``), a Test Step
+    TraceQ drafted (``traceq_drafted``) or one a person wrote (``traceq_written``)."""
 
 
 class WrittenVersionView(_Model):
@@ -132,7 +171,84 @@ class RowPrefill(_Model):
     method: str
     instrument: str | None
     acceptance: Acceptance | None
-    """``null`` when the source has no Acceptance Criterion in one of the four shapes."""
+    """``null`` when the source has no Acceptance Criterion in an Acceptance shape."""
+
+
+class DraftMappingView(_Model):
+    """A requirement a human mapped a draft Test Step to, who and when."""
+
+    version: int
+    requirement: str
+    subject: str
+    issuer: str
+    name: str
+    at: datetime
+
+
+class FindingReasonView(_Model):
+    """A Preparer's written reason on an accepted finding, who and when."""
+
+    id: int
+    version: int
+    reason: str
+    subject: str
+    issuer: str
+    name: str
+    at: datetime
+
+
+class RowCandidate(_Model):
+    """A Test Step of the site's Protocol Draft that stands for the row's requirement, with its
+    Acceptance Criterion and where each stands. Decided with ``recordDecision`` (accepted or
+    rejected) or edited with ``editDraftedTestStep``; an edit made in another Protocol does not
+    decide it here."""
+
+    step: DraftStepProposal
+    proposal: Proposal
+    criterion: DraftCriterionProposal | None
+    """``null`` when the draft's reading of the step holds no Acceptance Criterion."""
+    criterion_proposal: Proposal | None
+    mapping: DraftMappingView | None
+    """The human mapping in force, for a step the table maps to none or to several
+    requirements; ``null`` when the table maps it to exactly one."""
+    ready: bool
+    """Nothing is left to decide here: the step, and its criterion once the step is accepted."""
+    accepted: bool
+    """Accepted with its criterion accepted: usable as the row's Test Step."""
+
+
+class RowFindingView(_Model):
+    """A finding of the Protocol Draft about the row's requirement, its decision state and the
+    reasons written for it in this Protocol."""
+
+    finding: DraftCheckFinding
+    proposal: Proposal
+    reasons: list[FindingReasonView]
+    """Every reason, oldest first; the latest counts."""
+
+
+class DraftStepView(_Model):
+    """A Test Step of the Protocol's pinned Protocol Draft: the ones that stand for no
+    requirement are listed and unusable until a human maps one or rejects the step."""
+
+    step: DraftStepProposal
+    proposal: Proposal
+    mappings: list[DraftMappingView]
+    """Every mapping of it in this Protocol, oldest first."""
+    requirement: str | None
+    """The requirement it stands for in this Protocol; ``null``: unusable."""
+    resolved: bool
+    """It stands for a requirement, or a person rejected it."""
+
+
+class ProtocolSource(_Model):
+    """The Protocol Draft a Protocol was started from: pinned at creation, with the run, and
+    never re-synced in Draft, Submitted or Returned. A later revision never clears a warning
+    on it; Return or Withdraw it and start a new one from the latest revision."""
+
+    doc: str
+    rev: int
+    sha256: str
 
 
 class ProtocolRowView(_Model):
@@ -164,9 +280,21 @@ class ProtocolRowView(_Model):
     blockers: list[Blocker]
     """What blocks this row: ``coverage_undecided``; for a Test Step row ``draft_undecided``
     (a drafted Test Step not decided), ``no_test_step``, ``acceptance_not_shaped`` (its Test
-    Step is an accepted draft whose Acceptance Criterion is missing or free text)."""
+    Step is an accepted draft whose Acceptance Criterion is missing or free text). In a
+    Protocol started from the Protocol Draft also ``finding_undecided``,
+    ``finding_reason_missing`` and ``stage_missing``."""
     stage: Stage | None = None
     witness_required: bool = False
+    step_source: RowSource | None = None
+    """Where the row's Test Step comes from; ``null`` while it has none."""
+    candidates: list[RowCandidate] = []
+    """In a Protocol started from the Protocol Draft: its Test Steps that stand for the
+    requirement. When there are some, ``drafts`` is empty: a row holds one source."""
+    findings: list[RowFindingView] = []
+    """In a Protocol started from the Protocol Draft: the findings about the requirement."""
+    changed: bool = False
+    """The row's Test Step is one a person wrote or edited in this Protocol: an accepted
+    finding on it then needs no written reason."""
 
 
 # The spec called a human's ruling on a missed number its "answer"; the code names it a
@@ -239,6 +367,11 @@ class ChecklistItem(_Model):
     """The rows concerned."""
     numbers: list[MissedKey]
     """For ``missed_undecided``: the numbers concerned."""
+    steps: list[str] = []
+    """For ``draft_step_unresolved``: the draft Test Steps concerned. The checks
+    ``finding_undecided``, ``finding_reason_missing``, ``stage_missing`` and
+    ``draft_step_unresolved`` are listed only for a Protocol started from the Protocol Draft;
+    that one is frozen as a version 2 copy when submitted."""
 
 
 class SubmissionView(_Model):
@@ -249,7 +382,7 @@ class SubmissionView(_Model):
     hash: str
     """The SHA-256 of the copy's canonical JSON (keys sorted, no spaces, UTF-8)."""
     at: datetime
-    frozen_copy: ProtocolCopy
+    frozen_copy: ProtocolCopyV2 | ProtocolCopy
     """Every row, its decisions in force and who made them, its Test Step and every version
     of its written one; the missed numbers with every version of their dispositions; the
     unquoted text."""
@@ -292,6 +425,20 @@ class ProtocolView(_Model):
     live rows. ``null`` in any other status."""
     submissions: list[SubmissionView]
     """Every submission, oldest first: those before the current one were returned to Draft."""
+    source: ProtocolSource | None = None
+    """The Protocol Draft it was started from, pinned with ``run_id``; ``null`` for a Protocol
+    assembled from TraceQ's own drafted Test Steps."""
+    latest_draft_rev: int | None = None
+    """For a Protocol started from the draft, in any status: the latest revision of that draft
+    the Equipment has now. A Protocol never re-syncs: when it is above ``source.rev`` the
+    Protocol is pinned to an older revision. Submitting and approving name the one the caller
+    read (``expected_latest_draft_rev``) and are refused with 409 when a newer one arrived
+    since."""
+    draft_steps: list[DraftStepView] | None = None
+    """In Draft status, for a Protocol started from the draft: every Test Step of the pinned
+    draft in draft order, with the requirement it stands for; the ones that stand for none
+    (the table maps them to none or several requirements, or the citation check dropped them)
+    are unusable until a human maps them with ``mapDraftStep`` or rejects them."""
 
 
 class Withdrawal(_Model):
@@ -302,10 +449,14 @@ class Withdrawal(_Model):
 class Approval(_Model):
     """What the Approver read: approval is bound to that submission and its hash."""
 
-    submission_event_id: int
+    submission_event_id: EventId
     """The ``event_id`` of the current submission."""
     hash: str
     """The ``hash`` of the current submission's frozen copy."""
+    expected_latest_draft_rev: Rev | None = None
+    """For a Protocol started from the draft: the ``latest_draft_rev`` the Approver's view
+    showed; needed (422 without it). 409 when the Protocol is pinned to an older revision than
+    the latest (whatever was read), or when another than the latest was read. Ignored otherwise."""
 
 
 class SubmitRequest(_Model):
@@ -313,6 +464,10 @@ class SubmitRequest(_Model):
 
     expected_draft_hash: str = Field(min_length=1)
     """The ``draft_hash`` of the Protocol view the Preparer was reading."""
+    expected_latest_draft_rev: Rev | None = None
+    """For a Protocol started from the draft: the ``latest_draft_rev`` of that view; needed
+    (422 without it). 409 when the Protocol is pinned to an older revision than the latest
+    (whatever was read), or when another than the latest was read. Ignored otherwise."""
 
 
 class Return(_Model):
@@ -339,12 +494,34 @@ class MissedDisposition(_Model):
     later one replaces it, and every one is kept."""
 
     doc: str
-    rev: int
+    rev: Rev
     number: str
     """URS document, revision and printed number: what the disposition is keyed by."""
     kind: MissedKind
     justification: str
     """Why: never blank."""
+
+
+class StartProtocol(_Model):
+    """How a Protocol is started."""
+
+    from_draft: bool = False
+    """Start from the site's Protocol Draft the run read instead of from TraceQ's own drafted
+    Test Steps alone (ADR 0012, amended 26 November 2026): pinned to the run and the draft's
+    document, revision and hash."""
+
+
+class DraftMapping(_Model):
+    """The requirement a draft Test Step is mapped to."""
+
+    requirement: str
+
+
+class FindingReason(_Model):
+    """Why a row on which a finding was accepted is submitted as it is."""
+
+    reason: str
+    """Never blank."""
 
 
 class DraftEdit(_Model):
@@ -373,6 +550,7 @@ def _event(
         electronic_signature=audit.signature_view(
             sig, verified=audit.verified_against(sig, expected_hash)
         ),
+        latest_draft_rev=e.latest_draft_rev,
     )
 
 
@@ -395,11 +573,66 @@ def _version(v: WrittenVersion) -> WrittenVersionView:
     )
 
 
+def _mapping(m: draft_source.Mapping) -> DraftMappingView:
+    return DraftMappingView(
+        version=m.version,
+        requirement=m.requirement,
+        subject=m.actor.subject,
+        issuer=m.actor.issuer,
+        name=m.actor.name,
+        at=m.at,
+    )
+
+
+def _candidate(c: DraftCandidate) -> RowCandidate:
+    return RowCandidate(
+        step=c.step,
+        proposal=proposal_view(c.standing),
+        criterion=c.criterion,
+        criterion_proposal=None
+        if c.criterion_standing is None
+        else proposal_view(c.criterion_standing),
+        mapping=None if c.mapping is None else _mapping(c.mapping),
+        ready=c.ready,
+        accepted=c.accepted,
+    )
+
+
+def _finding(f: RowFinding) -> RowFindingView:
+    return RowFindingView(
+        finding=f.finding,
+        proposal=proposal_view(f.standing),
+        reasons=[
+            FindingReasonView(
+                id=x.id,
+                version=x.version,
+                reason=x.reason,
+                subject=x.actor.subject,
+                issuer=x.actor.issuer,
+                name=x.actor.name,
+                at=x.at,
+            )
+            for x in f.reasons
+        ],
+    )
+
+
+def _draft_step(e: DraftStepListing) -> DraftStepView:
+    return DraftStepView(
+        step=e.step,
+        proposal=proposal_view(e.standing),
+        mappings=[_mapping(m) for m in e.mappings],
+        requirement=e.requirement,
+        resolved=e.resolved,
+    )
+
+
 def _row_step(r: ProtocolRow) -> RowTestStep | None:
     step = step_of(r)
     if step is None:
         return None
     return RowTestStep(
+        source=step.source,
         origin=step.origin,
         proposal_id=step.proposal_id,
         version=step.version,
@@ -478,6 +711,10 @@ def _row(r: ProtocolRow) -> ProtocolRowView:
         blockers=list(r.blockers),
         stage=stage,
         witness_required=witness_required,
+        step_source=r.source,
+        candidates=[_candidate(c) for c in r.candidates],
+        findings=[_finding(f) for f in r.findings],
+        changed=r.changed,
     )
 
 
@@ -487,6 +724,7 @@ def _item(b: submission.Blocking) -> ChecklistItem:
         count=b.count,
         requirements=list(b.requirements),
         numbers=[MissedKey(doc=d, rev=r, number=n) for d, r, n in b.numbers],
+        steps=list(b.steps),
     )
 
 
@@ -513,6 +751,17 @@ def _submission(
             )
         ),
     )
+
+
+CONFLICT_CODE_HEADER = "X-TraceQ-Conflict"
+"""Names a 409 about the Protocol Draft (its revision, or who uploaded it) by a stable code
+(``pinned_behind``, ``stale_draft``, ``uploader_approves``), so a client does not read the
+words."""
+
+
+def _signing_conflict(e: Exception) -> HTTPException:
+    code = draft_source.conflict_code(e)
+    return HTTPException(409, str(e), headers={CONFLICT_CODE_HEADER: code} if code else None)
 
 
 def create_router(
@@ -554,6 +803,8 @@ def create_router(
             else:
                 expected = None
             event_views.append(_event(e, sigs.get(e.id), expected))
+        listing = draft_listing(session, p)[0] if draft and p.draft is not None else None
+        unresolved = () if listing is None else tuple(e.step.id for e in listing if not e.resolved)
         return ProtocolView(
             id=p.id,
             equipment=p.equipment,
@@ -562,19 +813,40 @@ def create_router(
             events=event_views,
             rows=None if rows is None else [_row(r) for r in rows],
             urs=None if urs is None else [_urs(u) for u in urs],
-            checklist=None if rows is None else [_item(b) for b in submission.checklist(rows, urs)],
-            draft_hash=None if rows is None else submission.draft_hash(p, rows, urs),
+            checklist=None
+            if rows is None
+            else [
+                _item(b)
+                for b in submission.checklist(
+                    rows, urs, from_draft=p.draft is not None, unresolved=unresolved
+                )
+            ],
+            draft_hash=None
+            if rows is None
+            else submission.draft_hash(session, p, rows, urs, unresolved),
             submission=submissions[-1] if frozen else None,
             submissions=submissions,
+            source=None
+            if p.draft is None
+            else ProtocolSource(doc=p.draft.doc, rev=p.draft.rev, sha256=p.draft.sha256),
+            latest_draft_rev=draft_source.latest_revision(session, p),
+            draft_steps=None if listing is None else [_draft_step(e) for e in listing],
         )
 
     @router.post("/runs/{run_id}/protocol", operation_id="startProtocol", status_code=201)
-    def start_protocol(run_id: str, who: Annotated[Principal, Depends(principal)]) -> ProtocolView:
+    def start_protocol(
+        run_id: str,
+        who: Annotated[Principal, Depends(principal)],
+        body: StartProtocol | None = None,
+    ) -> ProtocolView:
         """Starts the Protocol of the run's Equipment from this imported run, in Draft status,
-        with its Audit Trail entry. Refused (409) while a Protocol of the Equipment is open
-        (Draft or Submitted), once one is approved, and for a run whose folder has
-        ``drafts.json`` but which holds no drafted Test Step Proposals. Needs the deciding
-        role."""
+        with its Audit Trail entry. With ``from_draft`` it starts from the Protocol Draft the
+        run read: pinned to the run and the draft's document, revision and hash, and never
+        re-synced (a later revision is a new run: Return or Withdraw this one and start another
+        from it). Refused (409) while a Protocol of the Equipment is open (Draft or Submitted),
+        once one is approved, for a run whose folder has ``drafts.json`` but which holds no
+        drafted Test Step Proposals, and with ``from_draft`` for a run that read no draft. Needs
+        the deciding role."""
         if not who.may_decide:
             raise HTTPException(403, "starting a Protocol needs the deciding role")
         folder = find_run(runs, run_id)
@@ -583,7 +855,11 @@ def create_router(
         try:
             with transaction(database()) as session:
                 started = lifecycle.start(
-                    session, actor_of(who), run_id, drafted=(folder / DRAFTS_FILE).is_file()
+                    session,
+                    actor_of(who),
+                    run_id,
+                    drafted=(folder / DRAFTS_FILE).is_file(),
+                    from_draft=body is not None and body.from_draft,
                 )
                 return view(session, started)
         except lifecycle.NotFound as e:
@@ -614,7 +890,7 @@ def create_router(
         status_code=201,
     )
     def write_test_step(
-        protocol_id: int,
+        protocol_id: ProtocolId,
         requirement: str,
         body: NewWrittenVersion,
         who: Annotated[Principal, Depends(principal)],
@@ -642,8 +918,8 @@ def create_router(
         status_code=201,
     )
     def edit_drafted_test_step(
-        protocol_id: int,
-        proposal_id: int,
+        protocol_id: ProtocolId,
+        proposal_id: ProposalId,
         body: DraftEdit,
         who: Annotated[Principal, Depends(principal)],
     ) -> ProtocolView:
@@ -674,7 +950,9 @@ def create_router(
         status_code=201,
     )
     def decide_missed_number(
-        protocol_id: int, body: MissedDisposition, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId,
+        body: MissedDisposition,
+        who: Annotated[Principal, Depends(principal)],
     ) -> ProtocolView:
         """Records the disposition of a printed requirement number the Protocol's run missed,
         in a Protocol in Draft status: ``not_a_requirement`` or ``not_tested_here``, with a
@@ -706,7 +984,7 @@ def create_router(
 
     @router.post("/protocols/{protocol_id}/submit", operation_id="submitProtocol")
     def submit_protocol(
-        protocol_id: int, body: SubmitRequest, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: SubmitRequest, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         """Submits a Protocol in Draft status that no check blocks; the submitter becomes its
         Preparer. Stores the frozen copy and its hash in the ``submitted`` event, with its
@@ -714,8 +992,11 @@ def create_router(
         and missed-number dispositions are refused. Refused (409) unless in Draft status, and
         while any check of ``checklist`` blocks (the reason lists them with their counts), and
         when ``expected_draft_hash`` is not the ``draft_hash`` of the draft now (another
-        decider changed it after the Preparer read it); 422 without one. Needs the deciding
-        role."""
+        decider changed it after the Preparer read it); 422 without one. A Protocol started
+        from the Protocol Draft is frozen as a version 2 copy and needs
+        ``expected_latest_draft_rev`` (422 without it; 409 when the Protocol is pinned to an
+        older revision than the latest, or the caller read another than the latest).
+        Needs the deciding role."""
         if not who.may_decide:
             raise HTTPException(403, "submitting a Protocol needs the deciding role")
         who = fresh_auth(who)
@@ -731,18 +1012,21 @@ def create_router(
                     auth_time=who.auth_time,
                     jti=who.jti,
                     is_demo=who.is_demo,
+                    expected_latest_draft_rev=body.expected_latest_draft_rev,
                 )
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
         except audit.SignatureAuthRequired as e:
             raise reauthentication_required(str(e)) from e
+        except lifecycle.Refused as e:
+            raise HTTPException(422, str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
-            raise HTTPException(409, str(e)) from e
+            raise _signing_conflict(e) from e
 
     @router.post("/protocols/{protocol_id}/withdraw", operation_id="withdrawProtocol")
     def withdraw_protocol(
-        protocol_id: int, body: Withdrawal, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: Withdrawal, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         """Withdraws a Protocol in Draft status, with a reason and its Audit Trail entry, so
         a new Protocol of the Equipment can be started. Needs the deciding role."""
@@ -768,12 +1052,16 @@ submission's, else 409 (a resubmission after a return has the same hash but a ne
 Refused (409) for the Preparer and for anyone the frozen copy records as an author: of a
 decision in force (Coverage, and every current decision on a drafted Test Step, rejections
 included), or of any version of a written Test Step or of a disposition of a missed number;
-the check reads the copy only. Refused (409) unless Submitted. Once approved, no new
-Protocol of the Equipment can be started (a new version is step 6). With its Audit Trail
-entry. Needs the approving role.""",
+the check reads the copy only; for a Protocol started from the Protocol Draft that includes
+everyone who decided a finding, mapped a draft step or wrote a reason. A Protocol started from
+the draft also needs ``expected_latest_draft_rev`` (422 without it; 409 when the Protocol is
+pinned to an older revision than the latest, or the caller read another than the latest),
+and the latest revision is recorded in the approval event. Refused (409) unless
+Submitted. Once approved, no new Protocol of the Equipment can be started (a new version is
+step 6). With its Audit Trail entry. Needs the approving role.""",
     )
     def approve_protocol(
-        protocol_id: int, body: Approval, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: Approval, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         if not who.may_approve:
             raise HTTPException(403, "approving a Protocol needs the approving role")
@@ -789,18 +1077,21 @@ entry. Needs the approving role.""",
                     auth_time=who.auth_time,
                     jti=who.jti,
                     is_demo=who.is_demo,
+                    expected_latest_draft_rev=body.expected_latest_draft_rev,
                 )
                 return view(session, done)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
         except audit.SignatureAuthRequired as e:
             raise reauthentication_required(str(e)) from e
+        except lifecycle.Refused as e:
+            raise HTTPException(422, str(e)) from e
         except (lifecycle.Conflict, audit.SignatureReplayConflict) as e:
-            raise HTTPException(409, str(e)) from e
+            raise _signing_conflict(e) from e
 
     @router.post("/protocols/{protocol_id}/return", operation_id="returnProtocol")
     def return_protocol(
-        protocol_id: int, body: Return, who: Annotated[Principal, Depends(principal)]
+        protocol_id: ProtocolId, body: Return, who: Annotated[Principal, Depends(principal)]
     ) -> ProtocolView:
         """Returns a Submitted Protocol to Draft with a reason (422 without one) and its Audit
         Trail entry. It reads the current decisions again; the returned copy stays readable in
@@ -823,7 +1114,7 @@ entry. Needs the approving role.""",
         operation_id="setRowAttributes",
     )
     def set_row_attributes(
-        protocol_id: int,
+        protocol_id: ProtocolId,
         requirement: str,
         body: StepAttributesUpdate,
         who: Annotated[Principal, Depends(principal)],
@@ -847,6 +1138,67 @@ entry. Needs the approving role.""",
                 return reread(session, protocol_id)
         except lifecycle.NotFound as e:
             raise HTTPException(404, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.put(
+        "/protocols/{protocol_id}/draft-steps/{step}/mapping",
+        operation_id="mapDraftStep",
+    )
+    def map_draft_step(
+        protocol_id: ProtocolId,
+        step: str,
+        body: DraftMapping,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ProtocolView:
+        """Maps a Test Step of the pinned Protocol Draft to exactly one requirement of the
+        run, when the draft's traceability table maps it to none or to several or the citation
+        check dropped it; until then it is listed and unusable. Every mapping is kept with its
+        author (the Approver may be none of them), and the latest counts; it does not carry
+        over to another Protocol. Refused (409) unless the Protocol is in Draft status and was
+        started from the draft, for a step the table maps to exactly one requirement, and
+        while the step is edited into a written Test Step of this Protocol; 404 for an unknown
+        step or requirement. Needs the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "mapping a draft Test Step needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                draft_source.map_step(session, actor_of(who), protocol_id, step, body.requirement)
+                return reread(session, protocol_id)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Conflict as e:
+            raise HTTPException(409, str(e)) from e
+
+    @router.post(
+        "/protocols/{protocol_id}/findings/{proposal_id}/reason",
+        operation_id="giveFindingReason",
+        status_code=201,
+    )
+    def give_finding_reason(
+        protocol_id: ProtocolId,
+        proposal_id: ProposalId,
+        body: FindingReason,
+        who: Annotated[Principal, Depends(principal)],
+    ) -> ProtocolView:
+        """Records why the row of a finding accepted on its content is submitted as it is: a
+        non-blank written reason (422 without one), every version kept with its author, the
+        latest counting. Needed to submit a row whose Test Step is not written in this
+        Protocol. Refused (409) unless the Protocol is in Draft status and was started from the
+        draft, and for a finding not accepted; 404 for a finding the run does not hold. Needs
+        the deciding role."""
+        if not who.may_decide:
+            raise HTTPException(403, "giving a reason needs the deciding role")
+        try:
+            with transaction(database()) as session:
+                draft_source.give_reason(
+                    session, actor_of(who), protocol_id, proposal_id, body.reason
+                )
+                return reread(session, protocol_id)
+        except lifecycle.NotFound as e:
+            raise HTTPException(404, str(e)) from e
+        except lifecycle.Refused as e:
+            raise HTTPException(422, str(e)) from e
         except lifecycle.Conflict as e:
             raise HTTPException(409, str(e)) from e
 

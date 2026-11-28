@@ -42,15 +42,14 @@ export function SignatureBadge({
     ? "border-warn-edge bg-warn-soft text-warn"
     : signature.is_demo
       ? "border-info-edge bg-info-soft text-info"
-      : check === "verified"
-        ? "border-pass-edge bg-pass-soft text-pass"
-        : check === "failed"
+      : // A matching hash is not an approval: the outer pill is neutral, only a failure is red.
+        check === "failed"
           ? "border-fail-edge bg-fail-soft text-fail"
           : "border-border bg-surface text-ink-muted";
 
-  // A voided signature is not a valid signature: its check mark is never green.
-  const checkTone =
-    check === "failed" ? "text-fail" : check === "verified" && !voided ? "text-pass" : "text-ink-muted";
+  // The check beside "Hash cocok" is neutral, never green: a matching hash says the stored
+  // data is unchanged, not that anyone approved it. A failed check stays red.
+  const checkTone = check === "failed" ? "text-fail" : "text-ink-muted";
 
   return (
     <div

@@ -13,3 +13,9 @@ output_per_mtok = 10.00
 [models.claude-opus-5-5]
 input_per_mtok = 4.00
 output_per_mtok = 20.00
+
+# Mode Pabrik (spec #442): trial key, price not published (28 Nov 2026). Reports write the
+# cost as "unknown (trial)"; --max-live-calls and --deadline-minutes brake a live run instead.
+[models."aisingapore/Qwen-SEA-LION-v4.5-27B-IT"]
+input_per_mtok = 0.0
+output_per_mtok = 0.0

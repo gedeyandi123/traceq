@@ -377,6 +377,61 @@ def test_blocked_rows_are_rejected_then_edited_with_a_shaped_acceptance_then_sub
     assert ("http://api/protocols/7/submit", {"expected_draft_hash": "d" * 64}) in client.posts
 
 
+def _candidate(proposal_id: int, decision: str | None) -> dict[str, Any]:
+    """The part of a ``RowCandidate`` the seed reads: its Proposal and that Proposal's state."""
+    return {
+        "proposal": {
+            "id": proposal_id,
+            "state": "undecided" if decision is None else "decided",
+            "decisions": [] if decision is None else [{"decision": decision}],
+        }
+    }
+
+
+class _OneStepClient(_SeedClient):
+    """Refuses an edit while another draft step of the row is accepted, as the API does."""
+
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
+        super().__init__(rows)
+        self.candidates = [
+            _candidate(105, "accepted"),
+            _candidate(106, "accepted"),
+            _candidate(107, "rejected"),
+        ]
+        self.accepted = {105, 106}
+
+    def get(self, url: str, headers: Any = None) -> _FakeResp:
+        resp = super().get(url, headers)
+        if url.endswith("/protocol"):
+            body = resp.json()
+            for row in body["rows"]:
+                row["candidates"] = self.candidates
+            return _FakeResp(200, body)
+        return resp
+
+    def post(self, url: str, headers: Any = None, json: Any = None) -> _FakeResp:
+        if url.endswith("/decisions") and url.split("/proposals/")[1].split("/")[0].isdigit():
+            pid = int(url.split("/proposals/")[1].split("/")[0])
+            if json["decision"] == "rejected":
+                self.accepted.discard(pid)
+        if "/drafts/" in url and url.endswith("/edit"):
+            pid = int(url.split("/drafts/")[1].split("/")[0])
+            if self.accepted - {pid}:
+                return _FakeResp(409, {"detail": "another drafted Test Step is accepted"})
+        return super().post(url, headers, json)
+
+
+def test_every_other_accepted_draft_step_of_a_blocked_row_is_rejected_before_the_edit() -> None:
+    ds = _load_demo_seed()
+    row = _row("URS-1", "Speed shall be 20-70 rpm.", None, 105)
+    client = _OneStepClient([row])
+    proto = ds._ensure_approved_protocol(client, "http://api", "http://iss", "r1", {"a": "1"})
+    assert proto["status"] == "approved"
+    urls = [u for u, _ in client.posts]
+    assert "http://api/runs/r1/proposals/106/decisions" in urls
+    assert "http://api/runs/r1/proposals/107/decisions" not in urls
+
+
 def test_unblocked_protocol_is_not_edited_again() -> None:
     ds = _load_demo_seed()
     client = _SeedClient([_row("URS-1", "x", {"type": "present", "value": None}, 11)])
@@ -432,9 +487,14 @@ class _RunsClient:
     def __init__(self, runs: list[dict[str, Any]]) -> None:
         self._runs = runs
 
-    def get(self, url: str, **_: Any) -> _FakeResp:
+    def get(self, url: str, **kwargs: Any) -> _FakeResp:
         assert url.endswith("/runs")
+        assert kwargs["headers"] == {"Authorization": "Bearer tok-ayu"}  # runs need a token
         return _FakeResp(200, self._runs)
+
+    def post(self, url: str, json: Any = None, **_: Any) -> _FakeResp:
+        assert url.endswith("/demo/token")
+        return _FakeResp(200, {"access_token": f"tok-{json['username']}"})
 
 
 def _two_rounds_args(**over: Any) -> Any:

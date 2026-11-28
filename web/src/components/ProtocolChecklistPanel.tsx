@@ -22,6 +22,7 @@ export function ProtocolChecklistPanel({
   runId,
   protocolId,
   draftHash,
+  latestDraftRev = null,
   controls,
   signingAuth = { oidcMode: false, reauthAuthTime: null, signer: null },
   initialReauthTarget = null,
@@ -35,6 +36,8 @@ export function ProtocolChecklistPanel({
   protocolId: number;
   /** The `draft_hash` of the Protocol the Preparer is reading: what the submission is bound to. */
   draftHash: string | null;
+  /** The `latest_draft_rev` the page read, for a Protocol started from the Protocol Draft. */
+  latestDraftRev?: number | null;
   controls: ProtocolControls;
   signingAuth?: SigningAuthState;
   initialReauthTarget?: string | null;
@@ -114,6 +117,9 @@ export function ProtocolChecklistPanel({
                 <input type="hidden" name="run_id" value={runId} />
                 <input type="hidden" name="protocol_id" value={protocolId} />
                 <input type="hidden" name="expected_draft_hash" value={draftHash ?? ""} />
+                {latestDraftRev !== null && (
+                  <input type="hidden" name="expected_latest_draft_rev" value={latestDraftRev} />
+                )}
               </ElectronicSignatureDialog>
             </>
           )}

@@ -6,7 +6,14 @@ hash), not an Electronic Signature (ADR 0007 phase 2). The Approver is neither t
 anyone the frozen copy records as an author: of a decision in force (on Coverage, on the Test
 Step, and every current decision on a drafted Test Step, rejections included), or of any
 version of a written Test Step or of a disposition of a missed number (owner decision on #256).
-The check reads the copy only, so a decision recorded after submission does not change it.
+The check reads the copy only, so a decision recorded after submission does not change it. For
+a Protocol started from the Protocol Draft (version 2 copy, spec #375, S4a2) the Approver is also
+none of those who decided a finding of the run (rejections too), mapped a draft Test Step,
+decided a draft step or its criterion, or wrote a reason; and the approval is refused when a
+newer revision of the draft arrived since the Approver opened it, recording the latest revision
+in its event. The Approver also did not upload the revision of the draft the Protocol is pinned
+to (ADR 0012, amended 27 November 2026): the upload queue names the uploader, so this is read
+there, not from the copy (that revision only, not earlier ones).
 
 A return sends a Submitted Protocol back to Draft with a reason; its copy stays as history.
 Both take the per-Protocol lock and check the status inside it, so approve and return cannot
@@ -20,9 +27,16 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from traceq import audit
-from traceq.assembly import lifecycle
+from traceq.assembly import draft_source, lifecycle
 from traceq.assembly.lifecycle import Conflict, Refused
-from traceq.assembly.submission import Author, ProtocolCopy, Submission, submissions_of
+from traceq.assembly.submission import (
+    Author,
+    FrozenDecision,
+    ProtocolCopy,
+    ProtocolCopyV2,
+    Submission,
+    submissions_of,
+)
 
 APPROVAL_NOTE = "a recorded status, not an Electronic Signature (ADR 0007 phase 2)"
 
@@ -39,11 +53,56 @@ def authors(copy: ProtocolCopy) -> list[Author]:
         found.extend(a.author for a in r.step_attributes)
     for u in copy.urs or ():
         found.extend(d.author for m in u.missed for d in m.dispositions)
+    if isinstance(copy, ProtocolCopyV2):
+        found.extend(_authors_v2(copy))
     return found
 
 
-def _same(a: Author, actor: audit.Actor) -> bool:
+def _by(decisions: tuple[FrozenDecision, ...]) -> list[Author]:
+    return [d.author for d in decisions]
+
+
+def _authors_v2(copy: ProtocolCopyV2) -> list[Author]:
+    """The authors only a version 2 copy records: the decisions on the criterion of an accepted
+    draft step and on each candidate, every finding decision and reason of the run (findings tied
+    to no row too), and every draft step's mapping and decisions."""
+    found: list[Author] = []
+    for r in copy.row_details:
+        if r.criterion_decision is not None:
+            found.append(r.criterion_decision.author)
+        for c in r.candidates:
+            found.extend(_by(tuple(d for d in (c.step_decision, c.criterion_decision) if d)))
+    for f in copy.findings:
+        found.extend(_by(f.decisions))
+        found.extend(x.author for x in f.reasons)
+    for s in copy.draft_steps:
+        found.extend(m.author for m in s.mappings)
+        found.extend(_by(s.decisions))
+        found.extend(_by(s.criterion_decisions))
+    return found
+
+
+def _same(a: Author | audit.Actor, actor: audit.Actor) -> bool:
     return (a.subject, a.issuer) == (actor.subject, actor.issuer)
+
+
+def _check_not_the_source_of_the_pin(
+    session: Session, actor: audit.Actor, protocol: lifecycle.AssembledProtocol, rev: int
+) -> None:
+    """``UploaderApproves`` when ``actor`` uploaded the bytes of the pinned Protocol Draft
+    revision (an upload job of any status) or registered that revision by an import: both are
+    refused, each with their own words (ADR 0012, amended 27 and 28 November 2026)."""
+    if any(_same(u, actor) for u in draft_source.uploaders_of_pinned(session, protocol)):
+        raise draft_source.UploaderApproves(
+            f"{actor.name} uploaded the Protocol Draft revision {rev} that Protocol"
+            f" {protocol.id} is pinned to: an Approver did not"
+        )
+    importer = draft_source.importer_of_pinned(session, protocol)
+    if importer is not None and _same(importer, actor):
+        raise draft_source.UploaderApproves(
+            f"{actor.name} imported the Protocol Draft revision {rev} that Protocol"
+            f" {protocol.id} is pinned to: an Approver did not"
+        )
 
 
 def _submitted(
@@ -66,12 +125,16 @@ def approve(
     auth_time: datetime | None,
     jti: str | None,
     is_demo: bool = False,
+    expected_latest_draft_rev: int | None = None,
 ) -> lifecycle.AssembledProtocol:
     """Approves the Submitted Protocol whose current submission is ``event_id`` with copy hash
-    ``hashed``: what the Approver read. Signs it: ``SignatureAuthRequired`` without a fresh
-    ``auth_time`` and ``jti``, before anything is written."""
+    ``hashed``: what the Approver read. ``expected_latest_draft_rev``: for a Protocol started
+    from the Protocol Draft, the latest draft revision the Approver saw; ``Conflict`` when a
+    newer one arrived since, ``Refused`` without it. Signs it: ``SignatureAuthRequired``
+    without a fresh ``auth_time`` and ``jti``, before anything is written."""
     auth_time, jti = audit.require_signing_claims(auth_time, jti)
     current, latest = _submitted(session, protocol_id)
+    latest_rev = draft_source.check_latest(session, current, expected_latest_draft_rev)
     if event_id != latest.event_id:
         raise Conflict(
             f"submission {event_id} is not the current submission of Protocol {protocol_id}"
@@ -90,10 +153,14 @@ def approve(
     if any(_same(a, actor) for a in authors(copy)):
         raise Conflict(
             f"{actor.name} recorded part of what Protocol {protocol_id} rests on (a decision in"
-            " force, a disposition of a missed number, a written Test Step or step attributes):"
-            " an Approver did not"
+            " force, a decision on a finding, a draft step mapping, a disposition of a missed"
+            " number, a written Test Step or step attributes): an Approver did not"
         )
-    done = lifecycle.append(session, actor, protocol_id, "approved", None)
+    if current.draft is not None:
+        _check_not_the_source_of_the_pin(session, actor, current, current.draft.rev)
+    done = lifecycle.append(
+        session, actor, protocol_id, "approved", None, latest_draft_rev=latest_rev
+    )
     sig = audit.record_signature(
         session,
         actor,
@@ -112,6 +179,8 @@ def approve(
         "hash": latest.hash,
         "signature_id": sig.id,
     }
+    if latest_rev is not None:
+        new_audit["latest_draft_rev"] = latest_rev
     audit.append(
         session,
         actor,
