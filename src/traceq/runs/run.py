@@ -10,7 +10,8 @@ metadata: the run settings, model, prompt hashes, tokens, cost in USD, which cal
 replayed, which claims the citation check dropped, the wall-clock duration with the time spent
 waiting for live calls apart (0 for a replayed run), and per document read its ingest engine,
 seconds per page and peak RAM (a Mode Pabrik run adds ``latency``, the seconds its calls
-waited for their answers, from their recordings also on replay, and when live ``adapter``, how
+waited for their answers, and ``format``, what was stripped from the answers and why answers
+were asked again, both rebuilt from the recordings also on replay; when live, ``adapter``, how
 it asked and what came back); ``completeness.json`` is the URS completeness check (printed
 requirement numbers that did not become a requirement, and URS text no requirement
 quotes). Ingest output is cached in ``<recordings>/ingest`` beside the LLM recordings, so
@@ -52,6 +53,7 @@ import math
 import secrets
 import statistics
 import time
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -156,6 +158,34 @@ def _latency(calls: Sequence[Call]) -> dict[str, Any] | None:
         "total_s": round(sum(seconds), 3),
         "attempts": sum(c.attempts or 1 for c in timed),
     }
+
+
+def _answer_format(calls: Sequence[Call]) -> dict[str, Any] | None:
+    """How the answers of a one-at-a-time adapter came, from their recordings (Mode Pabrik):
+    what was stripped from the answers used and the kinds of unusable answers asked again;
+    none when no call carries them."""
+    carried = [c for c in calls if c.stripped is not None or c.unusable is not None]
+    if not carried:
+        return None
+    stripped: Counter[str] = Counter({"think": 0, "fence": 0})
+    unusable: Counter[str] = Counter()
+    for c in carried:
+        stripped.update(c.stripped or ())
+        unusable.update(c.unusable or ())
+    return {"calls": len(carried), "stripped": dict(stripped), "unusable": dict(unusable)}
+
+
+def _with_draft(
+    measure: Callable[[Sequence[Call]], dict[str, Any] | None],
+    calls: Sequence[Call],
+    draft_calls: Sequence[Call] | None,
+) -> dict[str, Any] | None:
+    """``measure`` over all the calls, with the draft's calls apart under ``draft``."""
+    whole = measure(calls)
+    if whole is None:
+        return None
+    draft = measure(draft_calls) if draft_calls is not None else None
+    return whole | ({"draft": draft} if draft is not None else {})
 
 
 @dataclass(frozen=True)
@@ -404,10 +434,13 @@ def run(
         ],
     }
     # Mode Pabrik only (spec #442): a Mode Cloud run's metadata is unchanged.
-    latency = _latency(calls)
+    package_calls = calls[equipment_calls:] if package is not None else None
+    latency = _with_draft(_latency, calls, package_calls)
     if latency is not None:
-        draft_latency = _latency(calls[equipment_calls:]) if package is not None else None
-        metadata["latency"] = latency | ({"draft": draft_latency} if draft_latency else {})
+        metadata["latency"] = latency
+    answer_format = _with_draft(_answer_format, calls, package_calls)
+    if answer_format is not None:
+        metadata["format"] = answer_format
     if max_live_calls is not None or deadline_seconds is not None:
         metadata["brakes"] = {
             "max_live_calls": max_live_calls,

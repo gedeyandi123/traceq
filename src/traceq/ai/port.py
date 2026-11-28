@@ -77,6 +77,10 @@ class Sent:
     """How many times the request was asked: an unusable answer is asked again."""
     latency_s: float
     """Seconds spent waiting for the endpoint over all attempts, pacing and back-off apart."""
+    stripped: tuple[str, ...] = ()
+    """What was stripped from the answer used before parsing (``think``, ``fence``)."""
+    unusable: tuple[str, ...] = ()
+    """The kind of each unusable answer before the one used, in order."""
 
 
 @runtime_checkable

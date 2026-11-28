@@ -7,8 +7,9 @@ keeps the key it always had. A recording
 holds the request, the response, the tokens and the model. Without a live adapter every
 call must already be recorded; with one, only the calls not yet recorded are sent, after the
 budget has authorised them. An adapter that sends one request at a time (``OneAtATime``,
-Mode Pabrik) is charged and saved call by call, and its recordings carry two more keys:
-``attempts`` and ``latency_s``.
+Mode Pabrik) is charged and saved call by call, and its recordings carry four more keys:
+``attempts``, ``latency_s``, ``stripped`` and ``unusable`` (``Sent``). A recording without them
+parses and replays as before.
 
 A recorder writes to one store, ``store``, and also reads the stores in ``reads``, which it
 never writes: a Review Package run writes the package's recordings and replays the Equipment
@@ -44,6 +45,10 @@ class Call:
     a batch adapter."""
     latency_s: float | None = None
     """Seconds the one-at-a-time adapter waited for the answer; none for a batch adapter."""
+    stripped: tuple[str, ...] | None = None
+    """What the one-at-a-time adapter stripped from the answer; none for a batch adapter."""
+    unusable: tuple[str, ...] | None = None
+    """The kinds of the unusable answers before this one; none for a batch adapter."""
 
 
 class Recorder:
@@ -110,12 +115,15 @@ class Recorder:
             path = store / name
             if path.exists():
                 data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+                stripped, unusable = data.get("stripped"), data.get("unusable")
                 return Call(
                     r,
                     Response(**data["response"]),
                     replayed=True,
                     attempts=data.get("attempts"),
                     latency_s=data.get("latency_s"),
+                    stripped=None if stripped is None else tuple(stripped),
+                    unusable=None if unusable is None else tuple(unusable),
                 )
         return None
 
@@ -156,7 +164,15 @@ class Recorder:
                     one = self.live.send(r)
                     self.budget.charge([one.response])
                     self._save(r, one.response, one)
-                    sent[i] = Call(r, one.response, False, one.attempts, one.latency_s)
+                    sent[i] = Call(
+                        r,
+                        one.response,
+                        False,
+                        one.attempts,
+                        one.latency_s,
+                        one.stripped,
+                        one.unusable,
+                    )
             else:
                 batch = [requests[i] for i in misses]
                 self.budget.authorise(self._model, batch)
@@ -199,6 +215,8 @@ class Recorder:
         if sent is not None:  # a one-at-a-time adapter only: every other recording is unchanged
             record["attempts"] = sent.attempts
             record["latency_s"] = sent.latency_s
+            record["stripped"] = list(sent.stripped)
+            record["unusable"] = list(sent.unusable)
         text = json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         self._path(r).write_text(text, encoding="utf-8", newline="\n")
 

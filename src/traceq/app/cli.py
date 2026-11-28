@@ -5,7 +5,8 @@ Usage::
     traceq run CORPUS_DIR [--equipment TAG] [--out runs] [--recordings recordings]
         [--model M] [--llm cloud|pabrik|no-llm] [--live] [--max-usd 1]
         [--max-live-calls N] [--deadline-minutes M] [--no-vendor-reuse]
-        [--base-url URL] [--structured-output json_schema|tool] [--no-thinking-param]
+        [--base-url URL] [--structured-output json_schema|tool]
+        [--thinking-param both|enable_thinking|thinking_mode|none]
         [--review-package PACKAGE_DIR --package-recordings DIR [--draft-rev N]]
     traceq serve [--runs runs] [--corpus CORPUS_DIR] [--host 127.0.0.1] [--port 8000]
         [--issuer URL --database URL [--audience traceq] [--role-claim roles]]
@@ -38,15 +39,19 @@ by default AI Singapore's hosted API (``--base-url https://api.sea-lion.ai/v1``)
 endpoint's key in the environment variable ``TRACEQ_PABRIK_API_KEY`` (never logged, recorded
 or printed), and sends calls one at a time, each recorded as soon as it is answered.
 ``--structured-output`` picks how the schema is asked for (the endpoint's JSON-schema response
-format, or a forced function call); ``--no-thinking-param`` sends no thinking-off parameter
-(for an endpoint that refuses it; the run metadata records what was sent). A live run that
-fails, or stops at a brake, resumes when the same command is run again: recorded calls replay
-and only the rest is sent. ``traceq serve`` and uploads stay Mode Cloud only.
+format with ``strict: true``, or as the fallback a forced function call); ``--thinking-param``
+picks which chat-template parameter asks thinking off (``both`` by default, ``none`` for an
+endpoint that refuses them; the run metadata records what was sent). A live run that fails, or
+stops at a brake, resumes when the same command is run again: recorded calls replay and only
+the rest is sent. ``traceq serve`` and uploads stay Mode Cloud only.
 
 ``--max-live-calls N`` refuses the live call that would pass N; ``--deadline-minutes M`` stops
-live sending once M minutes have passed since the first live call. Both brake a model priced
-at 0, beside ``--max-usd``, and need ``--live``. A failed LLM call (an answer still unusable
-after it was asked again, an HTTP error, a brake) exits with code 2 and its message.
+live sending once M minutes have passed since the first live call. Both brake Mode Pabrik,
+whose model is priced at 0, beside ``--max-usd``, and need ``--llm pabrik --live``. The
+deadline is checked before every HTTP request and every back-off, so a run overruns it by at
+most one HTTP request in flight (its timeout is 300 s per phase: connect, write, read). A
+failed LLM call (an answer still unusable after it was asked again, an HTTP error with the
+endpoint's text, a brake) exits with code 2 and its message.
 
 ``--no-vendor-reuse`` drafts a Test Step for every requirement, also those the vendor
 covered, for the "could be saved by reuse" framing. Eval runs keep the default
@@ -78,8 +83,13 @@ import sys
 from pathlib import Path
 
 from traceq.ai import LLM, BudgetExceeded, LLMError, MissingRecording
-from traceq.ai.pabrik import API_KEY_ENV as PABRIK_KEY_ENV
-from traceq.ai.pabrik import PABRIK_BASE_URL, PABRIK_MODEL
+from traceq.ai.pabrik_settings import API_KEY_ENV as PABRIK_KEY_ENV
+from traceq.ai.pabrik_settings import (
+    PABRIK_BASE_URL,
+    PABRIK_MODEL,
+    STRUCTURED_OUTPUTS,
+    THINKING_PARAMS,
+)
 from traceq.documents import OcrUnavailable
 
 DEFAULT_MODEL = "claude-haiku-5-5"
@@ -114,12 +124,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--max-live-calls",
         type=int,
-        help="refuse the live call that would pass this many (needs --live)",
+        help="Mode Pabrik: refuse the live call that would pass this many (needs --live)",
     )
     p.add_argument(
         "--deadline-minutes",
         type=float,
-        help="stop live sending this many minutes after the first live call (needs --live)",
+        help="Mode Pabrik: stop live sending this many minutes after the first live call"
+        " (needs --live); checked before every HTTP request and back-off, so a run overruns it"
+        " by at most one HTTP request in flight (timeout 300 s per phase)",
     )
     p.add_argument(
         "--base-url",
@@ -127,14 +139,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--structured-output",
-        choices=("json_schema", "tool"),
-        help="Mode Pabrik: ask for the schema as a JSON-schema response format (default) or"
-        " a forced function call",
+        choices=STRUCTURED_OUTPUTS,
+        help="Mode Pabrik: ask for the schema as a JSON-schema response format, strict"
+        " (default), or as the fallback a forced function call",
     )
     p.add_argument(
-        "--no-thinking-param",
-        action="store_true",
-        help="Mode Pabrik: send no thinking-off parameter (for an endpoint that refuses it)",
+        "--thinking-param",
+        choices=tuple(THINKING_PARAMS),
+        help="Mode Pabrik: the chat-template parameter that asks thinking off (default both;"
+        " none for an endpoint that refuses them)",
     )
     p.add_argument(
         "--review-package",
@@ -265,12 +278,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"traceq run: {message}", file=sys.stderr)
         return 2
 
-    pabrik_only = (
-        args.base_url is not None or args.structured_output is not None or args.no_thinking_param
+    brakes = args.max_live_calls is not None or args.deadline_minutes is not None
+    pabrik_only = brakes or any(
+        v is not None for v in (args.base_url, args.structured_output, args.thinking_param)
     )
     if pabrik_only and args.llm != "pabrik":
-        return refuse("--base-url, --structured-output and --no-thinking-param need --llm pabrik")
-    brakes = args.max_live_calls is not None or args.deadline_minutes is not None
+        return refuse(
+            "--base-url, --structured-output, --thinking-param, --max-live-calls and"
+            " --deadline-minutes need --llm pabrik"
+        )
     if brakes and not args.live:
         return refuse("--max-live-calls and --deadline-minutes brake a live run: add --live")
     if args.max_live_calls is not None and args.max_live_calls < 1:
@@ -280,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
     ):
         return refuse("--deadline-minutes must be a finite number above 0")
     model = args.model or (PABRIK_MODEL if args.llm == "pabrik" else DEFAULT_MODEL)
+    deadline_seconds = None if args.deadline_minutes is None else args.deadline_minutes * 60
     answers = None
     if args.llm == "no-llm":
         if args.live:
@@ -298,14 +315,15 @@ def main(argv: list[str] | None = None) -> int:
         key = os.environ.get(PABRIK_KEY_ENV, "")
         if not key:
             return refuse(f"--llm pabrik --live needs the endpoint's key in {PABRIK_KEY_ENV}")
-        from traceq.ai.pabrik import THINKING_OFF, PabrikLLM
+        from traceq.ai.pabrik import PabrikLLM
 
         live = PabrikLLM(
             model,
             api_key=key,
             base_url=args.base_url or PABRIK_BASE_URL,
             structured_output=args.structured_output or "json_schema",
-            thinking_off=None if args.no_thinking_param else THINKING_OFF,
+            thinking_param=args.thinking_param or "both",
+            deadline_seconds=deadline_seconds,
         )
     elif args.live:
         from traceq.ai.cloud import CloudLLM
@@ -326,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
             package_recordings=args.package_recordings,
             answers=answers,
             max_live_calls=args.max_live_calls,
-            deadline_seconds=None if args.deadline_minutes is None else args.deadline_minutes * 60,
+            deadline_seconds=deadline_seconds,
         )
     except (
         MissingRecording,

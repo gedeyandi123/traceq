@@ -16,6 +16,7 @@ import pytest
 from traceq.ai import (
     Budget,
     BudgetExceeded,
+    Call,
     LLMError,
     PriceTable,
     Prompt,
@@ -164,13 +165,40 @@ def test_the_other_mechanism_forces_a_function_call_with_the_schema_as_parameter
     assert response.text == '{"value": 7}'
 
 
-def test_another_base_url_and_no_thinking_parameter() -> None:
+def test_another_base_url() -> None:
     endpoint = Endpoint(_completion())
-    llm = _llm(endpoint, base_url="http://gpu.local:8000/v1", thinking_off=None)
-    llm.complete([REQUEST])
+    _llm(endpoint, base_url="http://gpu.local:8000/v1").complete([REQUEST])
     assert str(endpoint.sent[0].url) == "http://gpu.local:8000/v1/chat/completions"
-    assert "chat_template_kwargs" not in endpoint.bodies[0]
-    assert llm.describe()["parameters"] == {"temperature": 0, "thinking_off": None}
+
+
+@pytest.mark.parametrize(
+    ("choice", "sent"),
+    [
+        ("both", {"enable_thinking": False, "thinking_mode": "off"}),
+        ("enable_thinking", {"enable_thinking": False}),
+        ("thinking_mode", {"thinking_mode": "off"}),
+        ("none", None),
+    ],
+)
+def test_the_thinking_parameter_is_chosen_and_described(
+    choice: str, sent: dict[str, Any] | None
+) -> None:
+    endpoint = Endpoint(_completion())
+    llm = _llm(endpoint, thinking_param=choice)
+    llm.complete([REQUEST])
+    assert endpoint.bodies[0].get("chat_template_kwargs") == sent
+    assert llm.describe()["parameters"] == {
+        "temperature": 0,
+        "thinking_param": choice,
+        "chat_template_kwargs": sent,
+    }
+
+
+def test_a_refused_parameter_fails_with_the_endpoints_text() -> None:
+    refusal = {"error": {"message": "Unknown parameter: chat_template_kwargs.thinking_mode"}}
+    endpoint = Endpoint(lambda _: httpx.Response(400, json=refusal))
+    with pytest.raises(LLMError, match=r"HTTP 400 .*Unknown parameter: chat_template_kwargs"):
+        _llm(endpoint).send(REQUEST)
 
 
 def test_the_answer_carries_the_configured_model_whatever_the_endpoint_names() -> None:
@@ -206,6 +234,10 @@ UNUSABLE: dict[str, dict[str, Any]] = {
     "not JSON": _completion("The value is 7."),
     "schema violation": _completion('{"value": "seven"}'),
     "no usage": _completion(usage=False),
+    "usage not counted": {
+        **_completion(),
+        "usage": {"prompt_tokens": True, "completion_tokens": 8},
+    },
 }
 
 
@@ -296,6 +328,16 @@ def test_a_timeout_is_tried_again() -> None:
     assert len(endpoint.sent) == 2
 
 
+@pytest.mark.parametrize("error", [httpx.ConnectError, httpx.DecodingError])
+def test_a_failed_request_is_tried_again(error: type[httpx.RequestError]) -> None:
+    def fail(request: httpx.Request) -> httpx.Response:
+        raise error("failed", request=request)
+
+    endpoint = Endpoint(fail, _completion())
+    assert _llm(endpoint).send(REQUEST).response.text == '{"value": 7}'
+    assert len(endpoint.sent) == 2
+
+
 def test_a_call_that_keeps_timing_out_fails() -> None:
     endpoint = Endpoint(_timeout)
     with pytest.raises(LLMError, match=r"timed out after 30 s after 2 tries"):
@@ -358,8 +400,41 @@ def test_a_retried_call_is_recorded_once_under_its_key_with_attempts_and_latency
     assert record["latency_s"] == 4.0
     assert record["model"] == PABRIK_MODEL
     assert record["response"]["model"] == PABRIK_MODEL
+    assert record["unusable"] == ["schema violation"]
+    assert record["stripped"] == []
     (call,) = rec.calls
     assert (call.replayed, call.attempts, call.latency_s) == (False, 2, 4.0)
+    assert (call.unusable, call.stripped) == (("schema violation",), ())
+
+
+def test_the_format_evidence_of_a_call_is_recorded_and_replayed(tmp_path: Path) -> None:
+    """What was stripped from the answer used and why each earlier answer was unusable."""
+    endpoint = Endpoint(
+        _completion(usage=False),
+        _completion('{"value": '),
+        _completion('<think>\nseven\n</think>\n```json\n{"value": 7}\n```'),
+    )
+    live = Recorder(tmp_path, PABRIK_MODEL, "1", live=_llm(endpoint), budget=_budget())
+    live.complete([REQUEST])
+    (record,) = _records(tmp_path)
+    assert record["attempts"] == 3
+    assert record["unusable"] == ["no usage", "invalid JSON"]
+    assert record["stripped"] == ["think", "fence"]
+
+    replay = Recorder(tmp_path, PABRIK_MODEL, "1")
+    replay.complete([REQUEST])
+    (call,) = replay.calls
+    assert (call.attempts, call.unusable, call.stripped) == (
+        3,
+        ("no usage", "invalid JSON"),
+        ("think", "fence"),
+    )
+
+
+def test_a_fence_on_one_line_is_not_stripped_but_asked_again() -> None:
+    endpoint = Endpoint(_completion('```json {"value": 7} ```'), _completion())
+    sent = _llm(endpoint).send(REQUEST)
+    assert (sent.attempts, sent.unusable, sent.stripped) == (2, ("invalid JSON",), ())
 
 
 def test_answers_are_saved_under_the_configured_model_whatever_the_endpoint_names(
@@ -434,6 +509,30 @@ def test_the_deadline_stops_live_sending_once_it_has_passed(tmp_path: Path) -> N
     assert len(_records(tmp_path)) == 3
 
 
+def test_the_deadline_stops_a_call_before_a_back_off_would_pass_it() -> None:
+    """The first request ends at 2 s and its 20 s back-off ends at 22 s, under 30 s; the second
+    ends at 24 s and a back-off to 44 s would pass 30 s, so the call stops without sleeping."""
+    time = FakeTime()
+    busy = httpx.Response(429, headers={"retry-after": "20"}, json={"error": "busy"})
+    endpoint = Endpoint(lambda _: busy, time=time)
+    llm = _llm(endpoint, deadline_seconds=30.0)
+    with pytest.raises(LLMError, match=r"'extract': live sending would pass --deadline-minutes"):
+        llm.send(REQUEST)
+    assert len(endpoint.sent) == 2
+    assert time.sleeps == [20.0]
+
+
+def test_the_deadline_stops_an_answer_from_being_asked_again() -> None:
+    """The unusable answer ends at 2 s; asking again after the pacing, at 6.5 s, passes 5 s."""
+    time = FakeTime()
+    endpoint = Endpoint(_completion("not JSON"), time=time)
+    llm = _llm(endpoint, deadline_seconds=5.0)
+    with pytest.raises(LLMError, match="--deadline-minutes"):
+        llm.send(REQUEST)
+    assert len(endpoint.sent) == 1
+    assert time.sleeps == []
+
+
 def test_a_batch_adapter_is_still_sent_its_calls_in_one_batch(tmp_path: Path) -> None:
     class Batch:
         model = "m"
@@ -450,8 +549,16 @@ def test_a_batch_adapter_is_still_sent_its_calls_in_one_batch(tmp_path: Path) ->
     rec = Recorder(tmp_path, "m", "1", live=batch, budget=Budget(1.0, prices))
     rec.complete(_requests(3))
     assert batch.batches == [3]
-    assert all("attempts" not in r and "latency_s" not in r for r in _records(tmp_path))
-    assert all(c.attempts is None and c.latency_s is None for c in rec.calls)
+    extras = ("attempts", "latency_s", "stripped", "unusable")
+    assert all(k not in r for r in _records(tmp_path) for k in extras)
+    for calls in (rec.calls, _replayed(tmp_path, "m", _requests(3))):
+        assert all(c.attempts is c.latency_s is c.stripped is c.unusable is None for c in calls)
+
+
+def _replayed(store: Path, model: str, requests: list[Request]) -> list[Call]:
+    replay = Recorder(store, model, "1")
+    replay.complete(requests)
+    return replay.calls
 
 
 # --- traceq run --llm pabrik --------------------------------------------------------------
@@ -509,7 +616,9 @@ def test_a_live_pabrik_run_sends_through_the_pabrik_adapter_with_its_brakes(
     assert live.model == ran.args[3] == PABRIK_MODEL
     assert live.structured_output == "tool"
     assert live.base_url == "https://api.sea-lion.ai/v1"
+    assert live.thinking_param == "both"
     assert (ran.kwargs["max_live_calls"], ran.kwargs["deadline_seconds"]) == (200, 2400.0)
+    assert live.deadline_seconds == 2400.0  # the adapter checks it too, before each retry
 
 
 def test_a_live_pabrik_run_takes_another_base_url_and_model(
@@ -517,14 +626,15 @@ def test_a_live_pabrik_run_takes_another_base_url_and_model(
 ) -> None:
     monkeypatch.setenv(API_KEY_ENV, KEY)
     argv = [*ARGV, "--llm", "pabrik", "--live", "--base-url", "http://gpu.local:8000/v1"]
-    assert cli.main([*argv, "--model", "local-27b", "--no-thinking-param"]) == 0
+    assert cli.main([*argv, "--model", "local-27b", "--thinking-param", "none"]) == 0
     live = ran.kwargs["live"]
     assert isinstance(live, PabrikLLM)
-    assert (live.base_url, live.model, live.thinking_off) == (
+    assert (live.base_url, live.model, live.thinking_param) == (
         "http://gpu.local:8000/v1",
         "local-27b",
-        None,
+        "none",
     )
+    assert live.deadline_seconds is None
     assert ran.args[3] == "local-27b"
 
 
@@ -539,7 +649,9 @@ def test_a_live_pabrik_run_takes_another_base_url_and_model(
         ([*ARGV, "--llm", "pabrik", "--live", "--deadline-minutes", "0"], "--deadline-minutes"),
         ([*ARGV, "--base-url", "http://gpu.local:8000/v1"], "--llm pabrik"),
         ([*ARGV, "--structured-output", "tool"], "--llm pabrik"),
-        ([*ARGV, "--no-thinking-param"], "--llm pabrik"),
+        ([*ARGV, "--thinking-param", "none"], "--llm pabrik"),
+        ([*ARGV, "--live", "--max-live-calls", "5"], "--llm pabrik"),
+        ([*ARGV, "--live", "--deadline-minutes", "5"], "--llm pabrik"),
     ],
 )
 def test_a_pabrik_run_is_refused_before_anything_runs(
@@ -569,7 +681,11 @@ def test_a_failed_llm_call_exits_2_with_its_message(
     assert KEY not in err
 
 
-def test_the_help_names_the_key_variable(capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_help_names_the_key_variable_and_the_deadlines_worst_case(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     with pytest.raises(SystemExit):
         cli.main(["run", "--help"])
-    assert API_KEY_ENV in capsys.readouterr().out
+    out = " ".join(capsys.readouterr().out.split())
+    assert API_KEY_ENV in out
+    assert "overruns it by at most one HTTP request" in out

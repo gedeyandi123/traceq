@@ -14,10 +14,11 @@ from typing import Any
 import pytest
 from conftest import DemoIssuer, runs_client
 
-from traceq.ai import BudgetExceeded, PriceTable, Request, Response, Sent
+from traceq.ai import BudgetExceeded, PriceTable, Recorder, Request, Response, Sent
 from traceq.ai.cost import Price
 from traceq.app import cli
 from traceq.documents import OcrUnavailable, pdf
+from traceq.review.draft import DRAFT_STAGE_VERSION
 from traceq.runs.run import RunOutput, run
 from traceq.traceability.evidence import TRANSPORT_VOTES
 from traceq_dataset import render
@@ -997,8 +998,9 @@ def test_a_replayed_run_reports_live_time_zero(
 
 
 class _OneAtATimeLLM(ScriptedLLM):
-    """Sends one request at a time, as Mode Pabrik does: the n-th call took n seconds and was
-    asked twice when n is even."""
+    """Sends one request at a time, as Mode Pabrik does: the n-th call took n seconds, was
+    asked twice after an answer that was not JSON when n is even, and had a code fence
+    stripped when n is a multiple of 3."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -1006,8 +1008,15 @@ class _OneAtATimeLLM(ScriptedLLM):
 
     def send(self, request: Request) -> Sent:
         self.singles += 1
+        n = self.singles
         (response,) = self.complete([request])
-        return Sent(response, attempts=2 - self.singles % 2, latency_s=float(self.singles))
+        return Sent(
+            response,
+            attempts=2 - n % 2,
+            latency_s=float(n),
+            stripped=("fence",) if n % 3 == 0 else (),
+            unusable=("invalid JSON",) if n % 2 == 0 else (),
+        )
 
     def describe(self) -> dict[str, Any]:
         return {"adapter": "one-at-a-time", "singles": self.singles}
@@ -1028,13 +1037,20 @@ def test_a_one_at_a_time_run_reports_its_latency_live_and_on_replay(
         "total_s": n * (n + 1) / 2,
         "attempts": n + n // 2,
     }
+    answers = {
+        "calls": n,
+        "stripped": {"think": 0, "fence": n // 3},
+        "unusable": {"invalid JSON": n // 2},
+    }
     assert out.metadata["latency"] == latency
+    assert out.metadata["format"] == answers
     assert out.metadata["adapter"] == {"adapter": "one-at-a-time", "singles": n}
     assert "review_package" not in out.metadata
 
     replayed = run(corpus_dir, tmp_path / "replay", recordings, MODEL)
     assert replayed.metadata["calls"]["live"] == 0
     assert replayed.metadata["latency"] == latency
+    assert replayed.metadata["format"] == answers  # rebuilt from the recordings
     assert "adapter" not in replayed.metadata
 
 
@@ -1056,3 +1072,77 @@ def test_a_live_run_stops_at_its_call_brake(
     assert llm.singles == 5
     assert len(list(recordings.glob("*.json"))) == 5
     assert not (tmp_path / "runs").exists()
+
+
+# --- A Review Package run, one call at a time ---------------------------------------------
+
+RECORDINGS = ROOT / "recordings"
+HAIKU = "claude-haiku-5-5"
+
+
+class _DraftAnswers:
+    """Sends one request at a time and answers each draft page as the recorded Haiku run did
+    (``haiku-oq-draft-r3``): the k-th call took k seconds."""
+
+    def __init__(self) -> None:
+        self.recorded = Recorder(RECORDINGS / "haiku-oq-draft-r3", HAIKU, DRAFT_STAGE_VERSION)
+        self.singles = 0
+
+    @property
+    def model(self) -> str:
+        return HAIKU
+
+    def complete(self, requests: Sequence[Request]) -> list[Response]:
+        return [self.send(r).response for r in requests]
+
+    def send(self, request: Request) -> Sent:
+        self.singles += 1
+        (response,) = self.recorded.complete([request])
+        return Sent(response, attempts=1, latency_s=float(self.singles))
+
+
+@pytest.mark.usefixtures("no_ocr_model")
+def test_a_review_package_run_one_call_at_a_time_reports_the_drafts_latency(
+    tmp_path: Path,
+) -> None:
+    """The Equipment calls replay from Haiku's r10, whose recordings carry no latency; only the
+    draft's calls are sent, one at a time, so they are all the latency counts."""
+    store = tmp_path / "package"
+    shutil.copytree(RECORDINGS / "haiku-oq-draft-r3" / "ingest", store / "ingest")
+    free = PriceTable(batch_discount=0.5, models={HAIKU: Price(0.0, 0.0)})
+    llm = _DraftAnswers()
+
+    def package_run(out: Path, live: _DraftAnswers | None) -> RunOutput:
+        return run(
+            RECORDINGS / "corpus-0.1.1",
+            out,
+            RECORDINGS / "haiku-r10",
+            HAIKU,
+            equipment="TP-201",
+            review_package=RECORDINGS / "TP-201-OQ-draft-0.1.0",
+            package_recordings=store,
+            live=live,
+            prices=free,
+        )
+
+    out = package_run(tmp_path / "live", llm)
+    d = llm.singles
+    assert d == out.metadata["review_package"]["calls"]["live"] == out.metadata["calls"]["live"]
+    assert d > 1
+    draft = {
+        "calls": d,
+        "median_s": (d + 1) / 2,
+        "p95_s": float(math.ceil(0.95 * d)),
+        "total_s": d * (d + 1) / 2,
+        "attempts": d,
+    }
+    answers = {"calls": d, "stripped": {"think": 0, "fence": 0}, "unusable": {}}
+    assert out.metadata["latency"] == {**draft, "draft": draft}
+    assert out.metadata["format"] == {**answers, "draft": answers}
+    assert "latency" not in out.metadata["review_package"]
+
+    replayed = package_run(tmp_path / "replay", None)
+    assert replayed.metadata["calls"]["live"] == 0
+    assert replayed.metadata["latency"] == out.metadata["latency"]
+    assert replayed.metadata["format"] == out.metadata["format"]
+    assert replayed.metadata["review_package"]["test_steps"] == 26
