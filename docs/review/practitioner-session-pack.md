@@ -114,7 +114,7 @@ Dari #375 (cerita pengguna 3 sampai 11, 20 dan 21; S7) dan ADR 0010. Tanyakan de
 Dari #375 (S7 dan cerita 12 sampai 18) dan #245; dua pertanyaan terbuka ADR 0010 ada di nomor 1 dan 2.
 
 1. **Apakah pabrik menjalankan draf yang ditinjaunya?** Bila tidak, jalur draf ke Protocol dihapus (ADR 0012). Bila ya, apakah baris yang dicakup draf dan sisanya (misalnya IQ) dari rancangan TraceQ cukup wajar?
-2. **Apakah pabrik menerima model cloud?** Mode Cloud mengirim teks ke penyedia eksternal; apakah itu dapat diterima, dan dengan syarat apa (#343)? Jawaban ini membentuk Mode Pabrik.
+2. **Apakah pabrik menerima model cloud?** Mode Cloud mengirim teks ke penyedia eksternal; apakah itu dapat diterima, dan dengan syarat apa (#343)? Rujukan angka `dev only` dari pengukuran #343a (`aisingapore/Qwen-SEA-LION-v4.5-27B-IT` berstatus `tidak layak (format)` pada aturan format, sehingga `#343b` tetap ditunda) ada di `docs/review/s7-interview-material.md` dan `docs/eval/mode-pabrik-spike.md`.
 3. **Cetak dan tanda tangan basah.** Apakah pabrik mencetak Protocol dan menandatanganinya di kertas sebelum ada tanda tangan elektronik? Protocol di TraceQ tidak punya cetak atau ekspor (#245).
 4. **IQ dan OQ.** Biasanya satu Protocol gabungan atau dua? Demo memakai satu Protocol dengan Tahap IQ atau OQ per Langkah uji.
 5. **Alasan tertulis.** Bila temuan disetujui sebagai nyata tetapi baris diajukan tanpa perubahan, apakah wajar diwajibkan alasan tertulis? Bagaimana hal serupa dicatat sekarang?
@@ -122,7 +122,7 @@ Dari #375 (S7 dan cerita 12 sampai 18) dan #245; dua pertanyaan terbuka ADR 0010
 7. **Revisi baru saat menunggu persetujuan.** Bila revisi draf baru datang sesudah Protocol diajukan, apakah kembalikan atau tarik lalu mulai ulang sesuai kebiasaan pabrik? Apakah penolakan menandatangani salinan basi (409) sejalan dengan praktik?
 8. **Bentuk kriteria penerimaan.** Batas eksklusif (`< 0,8 µm`) dan toleransi (`380 V ± 10 %`) dinilai persis atau ditolak sebagai belum berbentuk, bukan dipaksa menjadi rentang inklusif. Bagaimana kriteria teks bebas pada langkah fungsional biasanya diputuskan lulus atau gagalnya?
 9. **Eksekusi, Deviasi, Laporan.** Apakah alur hasil, Retest, Deviasi, Saksi dan Laporan Kualifikasi di demo sesuai urutan yang dikenal praktisi? (Batas yang diketahui ada di runbook bagian 12 dan 14.)
-10. **Daftar kerja ulang bila bawaan dibantah.** Catat jawaban yang membantah bawaan (default [D]) supaya masuk daftar kerja ulang S7 (#394): jenis temuan dihapus, jalur draf ke Protocol dihapus, atau aturan pemisahan tugas diubah. Tidak ada satu pun yang diubah di sesi.
+10. **Daftar kerja ulang bila bawaan dibantah.** Catat jawaban yang membantah bawaan (default `[D]`) ke dalam daftar kerja ulang S7 (`docs/review/s7-interview-material.md`, #394): jenis temuan dihapus, jalur draf ke Protocol dihapus, aturan pemisahan tugas diubah, atau kebutuhan model lokal sesudah `#343a`. Tidak ada satu pun yang diubah di sesi.
 
 ### 6.4 Lembar catatan tambahan
 
