@@ -185,6 +185,11 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--package-recordings", type=Path, help="recordings and ingest of drafts")
     s.add_argument("--model", default=DEFAULT_MODEL)
     s.add_argument("--upload-budget-usd", type=float, default=0.0)
+    s.add_argument(
+        "--review-package",
+        type=Path,
+        help="released Review Package directory for opening its Protocol Draft PDF",
+    )
     i = commands.add_parser(
         "demo-issuer", help="start the demo OIDC issuer (demo identities, local machine only)"
     )
@@ -265,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
                 database=args.database,
                 uploads=uploads,
                 run_worker=uploads is not None,
+                review_package=args.review_package,
             )
         except ValueError as e:
             print(f"traceq serve: {e}", file=sys.stderr)

@@ -21,8 +21,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
@@ -51,6 +52,33 @@ _MEDIA = {
     ".pdf": "application/pdf",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
+ExtraDocumentResolver = Callable[[str, str, int, str], tuple[bytes, str] | None]
+
+
+def _is_safe_filename(name: str) -> bool:
+    return (
+        bool(name)
+        and name not in (".", "..")
+        and not any(ch in name for ch in ('"', "\r", "\n", "\x00", "/", "\\", ";"))
+        and all(32 <= ord(ch) != 127 for ch in name)
+    )
+
+
+def _safe_filename(raw: str, doc_id: str, rev: int) -> str:
+    name = Path(raw.replace("\\", "/")).name
+    if _is_safe_filename(name):
+        return name
+    fallback = f"{doc_id}_rev{rev}.pdf"
+    return fallback if _is_safe_filename(fallback) else "document.pdf"
+
+
+def _document_headers(filename: str, sha256: str) -> dict[str, str]:
+    return {
+        "Content-Disposition": f'inline; filename="{filename}"',
+        "Content-Security-Policy": "frame-ancestors 'self'",
+        "Cache-Control": "private, max-age=300",
+        "ETag": f'"{sha256}"',
+    }
 
 
 def _etag_matches(header: str | None, etag: str) -> bool:
@@ -116,9 +144,16 @@ def scan_runs(runs: Path) -> list[RunSummary]:
     return sorted(found, key=lambda r: r.created, reverse=True)
 
 
-def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
+def create_router(
+    runs: Path,
+    corpus: Path | None = None,
+    *,
+    extra_document: ExtraDocumentResolver | None = None,
+) -> APIRouter:
     """``runs``: the directory ``traceq run`` writes run folders into. ``corpus``: the
     released corpus the runs read, for opening a cited page (none: no document route).
+    ``extra_document``: optional resolver ``(run_id, doc_id, rev, expected_sha256)`` for
+    non-corpus documents such as a run's Protocol Draft.
     The router does not authenticate: ``traceq.app`` mounts it behind the principal, so no
     run is served to an anonymous caller."""
     router = APIRouter()
@@ -170,22 +205,40 @@ def create_router(runs: Path, corpus: Path | None = None) -> APIRouter:
         read = {
             (str(d["doc_id"]), int(d["rev"])): str(d["sha256"]) for d in meta["corpus"]["documents"]
         }
-        if corpus is None or (doc_id, rev) not in read:
-            raise HTTPException(404, f"{doc_id} rev {rev} is not a document of this run")
-        doc = Corpus.load(corpus, str(meta["corpus"]["equipment"])).find(doc_id, rev)
-        if doc is None or doc.sha256 != read[(doc_id, rev)] or not doc.path.is_file():
-            raise HTTPException(404, f"{doc_id} rev {rev} is not in the served corpus")
-        data = doc.path.read_bytes()
-        if hashlib.sha256(data).hexdigest() != doc.sha256:
-            raise HTTPException(404, f"{doc_id} rev {rev}: bytes do not match the manifest")
-        media = _MEDIA.get(doc.path.suffix.lower(), "application/octet-stream")
-        headers = {
-            "Content-Disposition": f'inline; filename="{doc.path.name}"',
-            "Content-Security-Policy": "frame-ancestors 'self'",
-            "Cache-Control": "private, max-age=300",
-            "ETag": f'"{doc.sha256}"',
-        }
-        return data, media, headers
+        if corpus is not None and (doc_id, rev) in read:
+            doc = Corpus.load(corpus, str(meta["corpus"]["equipment"])).find(doc_id, rev)
+            if doc is None or doc.sha256 != read[(doc_id, rev)] or not doc.path.is_file():
+                raise HTTPException(404, f"{doc_id} rev {rev} is not in the served corpus")
+            data = doc.path.read_bytes()
+            if hashlib.sha256(data).hexdigest() != doc.sha256:
+                raise HTTPException(404, f"{doc_id} rev {rev}: bytes do not match the manifest")
+            media = _MEDIA.get(doc.path.suffix.lower(), "application/octet-stream")
+            return data, media, _document_headers(doc.path.name, doc.sha256)
+
+        package = meta.get("review_package")
+        pkg_doc: Any = (
+            cast(dict[str, Any], package).get("document") if isinstance(package, dict) else None
+        )
+        if extra_document is not None and isinstance(pkg_doc, dict):
+            doc_entry = cast(dict[str, Any], pkg_doc)
+            try:
+                matches = (str(doc_entry["doc_id"]), int(doc_entry["rev"])) == (doc_id, rev)
+                expected_sha = str(doc_entry["sha256"])
+            except (KeyError, TypeError, ValueError):
+                matches = False
+                expected_sha = ""
+            if matches:
+                resolved = extra_document(run_id, doc_id, rev, expected_sha)
+                if resolved is None:
+                    raise HTTPException(404, f"{doc_id} rev {rev} is not available")
+                data, raw_name = resolved
+                if hashlib.sha256(data).hexdigest() != expected_sha:
+                    raise HTTPException(404, f"{doc_id} rev {rev}: bytes do not match the manifest")
+                safe_name = _safe_filename(raw_name, doc_id, rev)
+                media = _MEDIA.get(Path(safe_name).suffix.lower(), "application/pdf")
+                return data, media, _document_headers(safe_name, expected_sha)
+
+        raise HTTPException(404, f"{doc_id} rev {rev} is not a document of this run")
 
     @router.get(
         "/runs/{run_id}/documents/{doc_id}/{rev}",

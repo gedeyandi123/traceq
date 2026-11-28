@@ -270,9 +270,11 @@ def test_the_demo_serves_uploads_in_replay_mode_with_a_zero_budget(tmp_path: Pat
     assert args[args.index("--recordings") + 1] == str(R10)
     assert args[args.index("--package-recordings") + 1] == str(PACKAGE_RUN)
     assert args[args.index("--upload-budget-usd") + 1] == "0"
+    assert args[args.index("--review-package") + 1] == str(PACKAGE)
     assert "--live" not in args
     bare = serve_args(DemoSettings(corpus=tmp_path, equipment="TP-201", recordings=R10))
     assert "--uploads" not in bare
+    assert "--review-package" not in bare
 
 
 def test_the_demo_loads_the_review_package_draft_at_start(
@@ -493,6 +495,7 @@ def test_upload_drafts_mode_serves_uploads_in_replay_mode_with_zero_budget(
     assert args[args.index("--recordings") + 1] == str(R10)
     assert args[args.index("--package-recordings") + 1] == str(PACKAGE_RUN)
     assert args[args.index("--upload-budget-usd") + 1] == "0"
+    assert "--review-package" not in args
     assert "--live" not in args
 
 

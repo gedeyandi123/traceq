@@ -23,7 +23,6 @@ import {
 } from "@/components/FindingDecisionPanel";
 import { useRunShell } from "@/components/RunShellContext";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { TooltipProvider } from "@/components/ui/Tooltip";
 import { DecisionStateBadge } from "@/components/ui/StatusBadge";
 import { shouldIgnoreRowShortcut } from "@/lib/keyboard";
 
@@ -232,8 +231,7 @@ export function ProtocolDraftView({
   ];
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className="space-y-4">
+    <div className="space-y-4">
       <div className="rounded-lg border border-border bg-surface px-4 py-3 text-xs">
         <div className="flex items-center gap-2 font-semibold text-ink tabular-nums">
           <FileText className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -365,7 +363,7 @@ export function ProtocolDraftView({
                               <div className="text-[11px] text-ink-muted">{t("notParsed")}</div>
                             )}
                             <div className="mt-0.5">
-                              <DraftCite cite={ac.citation} />
+                              <DraftCite cite={ac.citation} runId={runId} />
                             </div>
                           </td>
                           <td className="px-3 py-2.5 align-top">
@@ -554,7 +552,6 @@ export function ProtocolDraftView({
         }}
         onCancelProceed={() => setPendingStepId(undefined)}
       />
-      </div>
-    </TooltipProvider>
+    </div>
   );
 }

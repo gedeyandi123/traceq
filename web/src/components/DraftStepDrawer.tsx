@@ -9,7 +9,6 @@ import { FindingDecisionPanel } from "@/components/FindingDecisionPanel";
 import { DirtyGuardBanner } from "@/components/ui/DirtyGuardBanner";
 import { Drawer } from "@/components/ui/Drawer";
 import { PdfCitationButton } from "@/components/ui/PdfCitationModal";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 
 type T = ReturnType<typeof useTranslations<"draft">>;
 type VendorDoc = Draft["vendor_documents"][number];
@@ -53,31 +52,12 @@ export function formatPrinted(t: T, v: DraftTestStep["traced"][number]["urs_limi
   }
 }
 
-/** A citation into the draft. The draft is not a corpus document the API serves, so it names
- * the page, with the verbatim quote in a Radix Tooltip, and links nowhere (K22). */
-export function DraftCite({ cite }: { cite: Cite }) {
-  const c = useTranslations("common");
-  const t = useTranslations("draft");
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          title={cite.quote}
-          className="inline-block cursor-help rounded text-left text-[11px] text-ink-muted underline decoration-dotted underline-offset-2 tabular-nums hover:text-ink"
-        >
-          {c("cite", { doc: cite.doc, rev: cite.rev, page: cite.page })}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-xs space-y-1">
-        {cite.quote && <p className="m-0 font-normal">&ldquo;{cite.quote}&rdquo;</p>}
-        <p className="m-0 text-[10px] opacity-80">{t("citeTooltipNote")}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
+/** A citation into the draft: opens the PDF citation modal at the cited page. */
+export function DraftCite({ cite, runId }: { cite: Cite; runId: string }) {
+  return <PdfCitationButton runId={runId} cite={cite} compact />;
 }
 
-/** A citation: into the draft (no link) or into a document the run read (PdfCitationButton). */
+/** A citation: opens the PDF citation modal for both draft and corpus documents. */
 export function AnyCite({
   cite,
   runId,
@@ -88,7 +68,7 @@ export function AnyCite({
   draftDoc: string;
 }) {
   return cite.doc === draftDoc ? (
-    <DraftCite cite={cite} />
+    <DraftCite cite={cite} runId={runId} />
   ) : (
     <PdfCitationButton runId={runId} cite={cite} compact />
   );
@@ -295,7 +275,7 @@ export function DraftStepDrawer({
               {step.acceptance.value === null && (
                 <div className="text-xs text-ink-muted">{t("notParsed")}</div>
               )}
-              <DraftCite cite={step.acceptance.citation} />
+              <DraftCite cite={step.acceptance.citation} runId={runId} />
             </div>
           )}
         </section>
