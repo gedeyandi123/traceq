@@ -1204,3 +1204,97 @@ def test_has_review_package_detects_review_package_runs() -> None:
     rp_client = _RunClient({"doc_id": "OQ-TP201"})
     assert ds._has_review_package(rp_client, "http://api", "run-1", {}) is True
     assert ds._has_review_package(_RunClient(None), "http://api", "run-1", {}) is False
+
+
+def test_from_draft_only_writes_reason_for_accepted_findings_and_handles_changed() -> None:
+    ds = _load_demo_seed()
+    client = _DraftProtocolClient(latest_draft_rev=0)
+    orig_proto = client._proto
+    changed_accepted = False
+    reason_targets: list[int] = []
+
+    def _proto_two_findings() -> dict[str, Any]:
+        p = orig_proto()
+        r1 = p["rows"][0]
+        r1["test_step"] = {
+            "origin": "accepted_draft",
+            "proposal_id": 101,
+            "version": None,
+            "description": "Check speed",
+            "method": "Measure",
+            "instrument": "Tach",
+            "acceptance": {"type": "range", "min": 20.0, "max": 70.0, "unit": "rpm"},
+        }
+        r1["step_source"] = "draft"
+        r1["candidates"][0]["ready"] = True
+        r1["candidates"][0]["accepted"] = True
+        r1["findings"] = [
+            {
+                "finding": {"type": "unit_error", "requirement": "URS-1"},
+                "proposal": {
+                    "id": 302,
+                    "state": "decided",
+                    "decisions": [{"decision": "rejected", "at": "2026-11-28T00:00:00Z"}],
+                },
+                "reasons": [],
+            },
+            {
+                "finding": {"type": "ac_deviates_from_urs", "requirement": "URS-1"},
+                "proposal": {
+                    "id": 301,
+                    "state": "decided" if changed_accepted else "changed",
+                    "decisions": (
+                        [{"decision": "accepted", "at": "2026-11-28T00:05:00Z"}]
+                        if changed_accepted
+                        else []
+                    ),
+                },
+                "reasons": [
+                    {"version": 1, "reason": "Old rev 0 reason", "at": "2026-11-28T00:01:00Z"},
+                    *(
+                        [{"version": 2, "reason": r, "at": "2026-11-28T00:06:00Z"}]
+                        for r in client.finding_reasons
+                    ),
+                ],
+            },
+        ]
+        finding_b = (
+            ["finding_undecided"]
+            if not changed_accepted
+            else ([] if client.finding_reasons else ["finding_reason_missing"])
+        )
+        r1["blockers"] = finding_b + (["stage_missing"] if "URS-1" not in client.stages else [])
+        p["draft_hash"] = (
+            None
+            if any(r["blockers"] for r in p["rows"])
+            or any(not d["resolved"] for d in p["draft_steps"])
+            or not client.missed_disposed
+            else "f" * 64
+        )
+        return p
+
+    client._proto = _proto_two_findings  # type: ignore[method-assign]
+    orig_post = client.post
+
+    def _post(url: str, headers: Any = None, json: Any = None) -> _FakeResp:
+        nonlocal changed_accepted
+        if url.endswith("/proposals/301/decisions") and json["decision"] == "accepted":
+            changed_accepted = True
+            return _FakeResp(201, {"id": 3010})
+        if "/findings/" in url and url.endswith("/reason"):
+            pid = int(url.split("/findings/")[1].split("/")[0])
+            if pid == 302:
+                return _FakeResp(
+                    409, {"detail": f"finding {pid} is not accepted: it needs no reason"}
+                )
+            reason_targets.append(pid)
+            client.finding_reasons.append(json["reason"])
+            return _FakeResp(201, client._proto())
+        return orig_post(url, headers=headers, json=json)
+
+    client.post = _post  # type: ignore[method-assign]
+    proto = ds._ensure_approved_protocol(
+        client, "http://api", "http://iss", "run-draft-1", {"a": "1"}, from_draft=True
+    )
+    assert proto["status"] == "approved"
+    assert reason_targets == [301]

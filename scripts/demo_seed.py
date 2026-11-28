@@ -308,7 +308,7 @@ def _shape_acceptances(
                     "description": (step.get("description") or "").strip()
                     or f"Test {row['requirement']}",
                     "method": (step.get("method") or "").strip() or "Verify per procedure.",
-                    "instrument": step.get("instrument"),
+                    "instrument": (step.get("instrument") or "").strip() or None,
                     "acceptance": _demo_acceptance(str(row["text"])),
                 },
             },
@@ -615,7 +615,7 @@ def _resolve_row_traceq_drafts(
                 "rejected",
                 reason="Demo seed: row takes a single Test Step",
             )
-    if chosen["proposal"].get("state") != "decided":
+    if not _is_currently_accepted(chosen["proposal"]):
         _post_decision(client, api_url, run_id, chosen["proposal"], ayu, "accepted")
 
 
@@ -638,20 +638,31 @@ def _resolve_draft_protocol_rows(
     ).json()
     proto = _shape_acceptances(client, api_url, protocol_id, proto, ayu)
 
+    newly_accepted_findings: set[int] = set()
     for row in proto.get("rows") or []:
-        req = str(row["requirement"])
-        blockers = set(row.get("blockers") or [])
-        accepted_new_finding = False
         for f in row.get("findings") or []:
             fp = f["proposal"]
             if fp.get("state") != "decided":
                 _post_decision(client, api_url, run_id, fp, ayu, "accepted")
-                accepted_new_finding = True
-        if "finding_reason_missing" in blockers or accepted_new_finding:
+                newly_accepted_findings.add(int(fp["id"]))
+
+    if newly_accepted_findings:
+        proto = _checked(
+            client.get(f"{api_url}/runs/{run_id}/protocol", headers=ayu),
+            f"Re-reading Protocol {protocol_id}",
+        ).json()
+
+    for row in proto.get("rows") or []:
+        req = str(row["requirement"])
+        blockers = set(row.get("blockers") or [])
+        if "finding_reason_missing" in blockers or any(
+            int(f["proposal"]["id"]) in newly_accepted_findings for f in row.get("findings") or []
+        ):
             for f in row.get("findings") or []:
                 fp = f["proposal"]
+                pid = int(fp["id"])
                 decisions = fp.get("decisions") or []
-                is_accepted = accepted_new_finding or (
+                is_accepted = pid in newly_accepted_findings or (
                     fp.get("state") == "decided"
                     and bool(decisions)
                     and decisions[0].get("decision") == "accepted"
@@ -660,12 +671,14 @@ def _resolve_draft_protocol_rows(
                     continue
                 reasons = f.get("reasons") or []
                 latest_at = decisions[0].get("at") if decisions else None
-                has_current = bool(reasons) and (
-                    latest_at is None or str(reasons[-1]["at"]) > str(latest_at)
+                has_current = (
+                    pid not in newly_accepted_findings
+                    and bool(reasons)
+                    and (latest_at is None or str(reasons[-1]["at"]) > str(latest_at))
                 )
                 if not has_current:
                     resp = client.post(
-                        f"{api_url}/protocols/{protocol_id}/findings/{fp['id']}/reason",
+                        f"{api_url}/protocols/{protocol_id}/findings/{pid}/reason",
                         headers=ayu,
                         json={
                             "reason": (
@@ -1030,6 +1043,8 @@ def main() -> int:
                 )
             )
             return 0
+        if args.stage == "two-rounds" and args.draft_pdf is not None:
+            parser.error("--draft-pdf cannot be combined with --stage two-rounds")
         if args.draft_pdf is not None:
             api_url, issuer_url, _, idp = _resolve_connection(args)
             ayu = _token(client, issuer_url, "ayu", idp=idp)
