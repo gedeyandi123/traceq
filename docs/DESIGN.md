@@ -40,6 +40,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 ### 2.3. Typography
 - **Font family:** `--font-inter` (`@fontsource-variable/inter`) with system fallback `"Segoe UI", system-ui, sans-serif`.
 - **Numeric discipline:** `font-variant-numeric: tabular-nums` is mandatory on all URS/step IDs (`URS-…`), measured values, tolerances, `k/n` counts, and timestamps.
+- **Display timestamps vs UTC storage:** Every UI timestamp (`formatWhen.ts`) defaults to **WIB (`Asia/Jakarta`)**, configurable via `NEXT_PUBLIC_TRACEQ_TIMEZONE` and `NEXT_PUBLIC_TRACEQ_TZ_LABEL` (automatically mapping `Asia/Jakarta` → `WIB`, `Asia/Makassar` → `WITA`, `Asia/Jayapura` → `WIT`, `UTC` → `UTC`, or `timeZoneName: "short"`). Database timestamps remain UTC.
 - **Heading hierarchy:** Strict `h1` → `h2` → `h3` per screen (no skipped levels).
 
 ---
@@ -99,6 +100,7 @@ Declared in `web/src/app/globals.css` inside `@theme` with `--color-*: initial` 
 ## 5. Data Presentation & Mutation Ergonomics
 
 - **Required vs Observed Comparison:** Displayed together in one structured unit (`Disyaratkan` | `Teramati` + stage without duplicated prefix such as `FAT FAT-M-02` | `Status`).
+- **Timestamps & Execution Calibration Date Input:** UI timestamps render in the configured display timezone (default `WIB` / `Asia/Jakarta`), while the Execution instrument calibration due date input keeps its explicit `Kedaluwarsa kalibrasi (UTC)` label to match the backend's `database_utc_date` validation.
 - **GMP-Safe `ambiguous` Precedence:** `result === "fail"` (red) **always** takes precedence over `observed_value.type === "ambiguous"`. Only when `result !== "fail"` and `ambiguous` is true does the UI render amber `warn` + warning icon + *"Perlu konfirmasi nilai (ambigu)"* consistently in both the table chip and drawer detail.
 - **Inline PDF Citation Viewer:**
   - Triggering a citation runs a `HEAD` pre-check on `/api/runs/{runId}/documents/{docId}/{rev}`.

@@ -13,6 +13,7 @@ import type {
   Value,
 } from "@/api/client";
 import type { ProtocolFormActionState } from "@/protocol/actions";
+import type { Acceptance } from "@/protocol/form";
 import type { ProtocolControls } from "./AssembledProtocolView";
 import type { DecisionView } from "./Decisions";
 import { FindingDecisionPanel } from "./FindingDecisionPanel";
@@ -27,17 +28,52 @@ import { SubmitButton } from "./ui/SubmitButton";
 type T = ReturnType<typeof useTranslations<"protocol">>;
 
 /** The drafted Acceptance Criterion as the edit form can start from it: only a shape a Test
- * Step can hold; a reading the form cannot hold (tolerance, free text, ambiguous) is set by a
- * human. Starting from null would drop a criterion the draft read. */
+ * Step can hold; a reading the form cannot hold (unjudgeable tolerance, free text, ambiguous) is
+ * set by a human. Starting from null would drop a criterion the draft read. */
 function formShape(
-  v: { type: string; min_exclusive?: boolean; max_exclusive?: boolean } | null | undefined,
-): Value | null {
+  v:
+    | {
+        type: string;
+        min?: number | null;
+        max?: number | null;
+        min_exclusive?: boolean;
+        max_exclusive?: boolean;
+        nominal?: number;
+        tolerance?: number;
+        tolerance_unit?: string;
+        unit?: string;
+        value?: unknown;
+        allowed?: readonly string[];
+      }
+    | null
+    | undefined,
+): Acceptance | null {
   if (v === null || v === undefined) return null;
-  // The form has no strict-bound inputs: a strict range would be saved as an inclusive one
-  // ("< 0,8" as "<= 0,8"), so it is left for a human to set (ExclusiveRange form: later ticket).
-  if (v.type === "range" && (v.min_exclusive === true || v.max_exclusive === true)) return null;
+  if (v.type === "range" && (v.min_exclusive === true || v.max_exclusive === true)) {
+    return {
+      type: "exclusive_range",
+      min: v.min ?? null,
+      max: v.max ?? null,
+      min_exclusive: Boolean(v.min_exclusive),
+      max_exclusive: Boolean(v.max_exclusive),
+      unit: v.unit ?? "",
+    };
+  }
+  if (v.type === "tolerance") {
+    const unit = (v.unit ?? "").trim();
+    const tolUnit = (v.tolerance_unit ?? "").trim();
+    if (tolUnit !== "%" && (unit === "" || tolUnit !== unit)) return null;
+    return {
+      type: "tolerance",
+      nominal: v.nominal ?? 0,
+      tolerance: v.tolerance ?? 0,
+      tolerance_unit: tolUnit,
+      unit,
+    };
+  }
+  if (v.type === "exclusive_range") return v as Acceptance;
   return v.type === "range" || v.type === "number" || v.type === "one_of" || v.type === "present"
-    ? (v as Value)
+    ? (v as Acceptance)
     : null;
 }
 

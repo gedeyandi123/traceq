@@ -146,7 +146,7 @@ test("a finding sits on its Test Step, and document-level findings sit below the
   expect(doc.getByText("Persyaratan tanpa langkah uji")).toBeDefined();
   expect(doc.getByText("URS-TP201-031")).toBeDefined();
   expect(doc.getByText(notTested.detail)).toBeDefined();
-  expect(doc.getByText("Diterima oleh Ayu Kartika Sari, 16/11/2026 09.30 UTC")).toBeDefined();
+  expect(doc.getByText("Diterima oleh Ayu Kartika Sari, 16/11/2026 16.30 WIB")).toBeDefined();
   expect(doc.getByText("OQ-TP201 rev 0, hlm. 8").getAttribute("title")).toBe("URS-TP201-031 OQ-21");
 
   // Document order: the steps come before the findings about the whole document.
@@ -214,7 +214,7 @@ test("Drawer Prev/Next, useActionState accept/reject, and dirty-form guard work 
 
 test("a reader sees the decisions and no decision control", () => {
   renderDraft(imported);
-  expect(screen.getByText("Diterima oleh Ayu Kartika Sari, 16/11/2026 09.30 UTC")).toBeDefined();
+  expect(screen.getByText("Diterima oleh Ayu Kartika Sari, 16/11/2026 16.30 WIB")).toBeDefined();
   expect(screen.queryByRole("button", { name: /Terima|Tolak/ })).toBeNull();
   expect(screen.queryByText("Tolak…")).toBeNull();
   expect(screen.getByText(/Hanya membaca: identitas ini tidak memiliki peran/)).toBeDefined();

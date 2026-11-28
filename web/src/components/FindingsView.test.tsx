@@ -138,10 +138,10 @@ test("an imported run shows each finding's decision state, inline decision forms
 
   const detail = within(screen.getByRole("region", { name: "Rincian" }));
   expect(detail.getByText("Sudah diputuskan")).toBeDefined();
-  expect(detail.getByText("Diterima oleh Ayu Kartika Sari, 16/11/2026 09.30 UTC")).toBeDefined();
+  expect(detail.getByText("Diterima oleh Ayu Kartika Sari, 16/11/2026 16.30 WIB")).toBeDefined();
 
   fireEvent.click(check.getByRole("button", { name: /Protokol vendor belum disetujui/ }));
-  expect(detail.getByText("Ditolak oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC")).toBeDefined();
+  expect(detail.getByText("Ditolak oleh Bima Arya Nugraha, 16/11/2026 16.30 WIB")).toBeDefined();
   expect(detail.getByText("Protokol disetujui di halaman 2")).toBeDefined();
 
   const ai = within(screen.getByRole("region", { name: "Temuan AI (saran)" }));

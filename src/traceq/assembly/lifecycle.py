@@ -311,7 +311,7 @@ def start(
         if p.status == "approved":
             raise Conflict(
                 f"Protocol {p.id} of {equipment} is approved: a new version of an approved"
-                " Protocol is step 6, not yet built"
+                " Protocol is not yet supported"
             )
         if p.status in OPEN:
             raise Conflict(

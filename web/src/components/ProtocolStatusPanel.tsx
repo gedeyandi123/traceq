@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, CheckCircle2, History as HistoryIcon, Info } from "lucide-react";
+import { AlertTriangle, ArrowRight, History as HistoryIcon, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
@@ -299,9 +299,9 @@ export function ProtocolStatusPanel({
 
       {protocol.status === "approved" && (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-pass-edge bg-pass-soft px-3 py-2 text-xs text-pass">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-info-edge bg-info-soft px-3 py-2 text-xs text-info">
             <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{t("limits.noNewVersion")}</span>
             </div>
             <Link

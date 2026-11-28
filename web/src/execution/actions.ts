@@ -88,7 +88,12 @@ function buildAttemptBody(form: FormData): RecordAttemptBody | null {
     };
   } else {
     const acType = field(form, "acceptance_type");
-    if (acType === "range" || acType === "number") {
+    if (
+      acType === "range" ||
+      acType === "exclusive_range" ||
+      acType === "tolerance" ||
+      acType === "number"
+    ) {
       const raw = field(form, "numeric_value");
       const num = raw !== undefined ? Number(raw) : Number.NaN;
       if (!Number.isFinite(num)) {

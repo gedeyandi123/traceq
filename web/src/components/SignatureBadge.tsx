@@ -8,7 +8,7 @@ import { formatWhen } from "./formatWhen";
 import { CopyHashButton } from "./ui/CopyHashButton";
 
 /** Displays an Electronic Signature binding (or honest pre-Step-8 recorded-status fallback)
- * with signer name, UTC timestamp, Signature Meaning, content_hash, verification status, and
+ * with signer name, formatted timestamp, Signature Meaning, content_hash, verification status, and
  * ADR 0007 Demo vs Electronic Signature label. `verified` is three-valued: `true` (the bound
  * hash matches the hash recomputed from the stored data), `false` (it does not) and
  * `null`/absent ("not checked": nothing was compared, never shown as verified). */
