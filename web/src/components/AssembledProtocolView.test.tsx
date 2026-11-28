@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 
 import type { ProtocolView } from "@/api/client";
+import { stepFrom } from "@/protocol/form";
 import messages from "../../messages/id.json";
 import {
   type ApprovalControls,
@@ -100,7 +101,7 @@ test("a Protocol in Draft status shows its status, history tab and one row per r
 
   await user.click(screen.getByRole("tab", { name: "Riwayat & Salinan" }));
   expect(
-    await screen.findByText("Dimulai oleh Ayu Kartika Sari, 19/11/2026 09.00 UTC"),
+    await screen.findByText("Dimulai oleh Ayu Kartika Sari, 19/11/2026 16.00 WIB"),
   ).toBeDefined();
 });
 
@@ -172,8 +173,8 @@ test("a written Test Step is the row's Test Step, with every version who and whe
   expect(drawer.getByText("Langkah uji tertulis, versi 2")).toBeDefined();
   expect(drawer.getByText("Verifikasi tombol darurat menghentikan turret.")).toBeDefined();
   expect(drawer.getByText("Riwayat versi (2)")).toBeDefined();
-  expect(drawer.getByText("Versi 1 oleh Ayu Kartika Sari, 19/11/2026 09.10 UTC")).toBeDefined();
-  expect(drawer.getByText("Versi 2 oleh Bima Arya Nugraha, 19/11/2026 09.20 UTC")).toBeDefined();
+  expect(drawer.getByText("Versi 1 oleh Ayu Kartika Sari, 19/11/2026 16.10 WIB")).toBeDefined();
+  expect(drawer.getByText("Versi 2 oleh Bima Arya Nugraha, 19/11/2026 16.20 WIB")).toBeDefined();
   expect(drawer.getByText(/^Verifikasi tombol darurat\. · .* · tidak disebut · Harus ada$/)).toBeDefined();
   expect(
     drawer.getByText(/^Verifikasi tombol darurat menghentikan turret\. · .* · Stopwatch · ≤ 2 s$/),
@@ -191,7 +192,15 @@ test("the deciding role gets the write form with the four AC shapes, prefilled i
   );
   const shape = form.getByRole("combobox", { name: "Bentuk" }) as HTMLSelectElement;
   expect(shape.value).toBe("range");
-  expect([...shape.options].map((o) => o.value)).toEqual(["", "range", "number", "one_of", "present"]);
+  expect([...shape.options].map((o) => o.value)).toEqual([
+    "",
+    "range",
+    "exclusive_range",
+    "tolerance",
+    "number",
+    "one_of",
+    "present",
+  ]);
   expect((form.getByRole("textbox", { name: "Batas bawah" }) as HTMLInputElement).value).toBe("20");
   expect((form.getByRole("textbox", { name: "Satuan" }) as HTMLInputElement).value).toBe("rpm");
   expect(vendorDrawer.getByText("Diisi dari langkah uji rancangan.")).toBeDefined();
@@ -254,7 +263,7 @@ test("a draft edited shows as edited in the drawer, not as a class", async () =>
   });
   renderPage(edited);
   const drawer = await openRowDrawer(user, "URS-TP201-030");
-  expect(drawer.getByText("Disunting oleh Ayu Kartika Sari, 16/11/2026 09.30 UTC")).toBeDefined();
+  expect(drawer.getByText("Disunting oleh Ayu Kartika Sari, 16/11/2026 16.30 WIB")).toBeDefined();
 });
 
 test("a reader sees the rows and no controls at all", () => {
@@ -268,7 +277,7 @@ test("a reader sees the rows and no controls at all", () => {
 test("a withdrawn Protocol shows its reason and lets the deciding role start a new one", () => {
   const { unmount } = renderPage(withdrawn, decider);
   expect(screen.getByText("Ditarik")).toBeDefined();
-  expect(screen.getByText("Ditarik oleh Bima Arya Nugraha, 19/11/2026 09.00 UTC")).toBeDefined();
+  expect(screen.getByText("Ditarik oleh Bima Arya Nugraha, 19/11/2026 16.00 WIB")).toBeDefined();
   expect(screen.getByText("run yang lebih baru")).toBeDefined();
   expect(screen.queryByRole("region", { name: "Baris protokol" })).toBeNull();
   expect(screen.getByRole("button", { name: "Mulai protokol baru dari run ini" })).toBeDefined();
@@ -287,20 +296,20 @@ test("a submitted Protocol shows its frozen copy and hash, no live rows, and can
   expect(screen.queryByRole("region", { name: "Yang memblokir pengajuan" })).toBeNull();
   const copy = within(screen.getByRole("region", { name: /Salinan beku yang diajukan/ }));
   expect(copy.getByTestId("copy-hash").textContent).toBe("a".repeat(64));
-  expect(copy.getByText("Ayu Kartika Sari, diajukan 19/11/2026 10.00 UTC")).toBeDefined();
+  expect(copy.getByText("Ayu Kartika Sari, diajukan 19/11/2026 17.00 WIB")).toBeDefined();
   const r002 = within(copy.getByTestId("copy-URS-TP201-002"));
   expect(r002.getByText("Langkah uji rancangan yang diterima")).toBeDefined();
-  expect(r002.getAllByText("Diterima oleh Ayu Kartika Sari, 19/11/2026 09.06 UTC")).toHaveLength(1);
-  expect(r002.getByText("Diterima oleh Ayu Kartika Sari, 19/11/2026 09.05 UTC")).toBeDefined();
+  expect(r002.getAllByText("Diterima oleh Ayu Kartika Sari, 19/11/2026 16.06 WIB")).toHaveLength(1);
+  expect(r002.getByText("Diterima oleh Ayu Kartika Sari, 19/11/2026 16.05 WIB")).toBeDefined();
   const r026 = within(copy.getByTestId("copy-URS-TP201-026"));
   expect(r026.getByText("Langkah uji tertulis, versi 1")).toBeDefined();
-  expect(r026.getByText("Versi 1 oleh Bima Arya Nugraha, 19/11/2026 09.08 UTC")).toBeDefined();
+  expect(r026.getByText("Versi 1 oleh Bima Arya Nugraha, 19/11/2026 16.08 WIB")).toBeDefined();
   expect(
     copy.getByText(/URS-TP201-004 \(URS-TP201 rev 0\): persyaratan yang tidak diuji protokol ini/),
   ).toBeDefined();
   const history = within(copy.getByRole("list", { name: "Riwayat jawaban (2)" }));
-  expect(history.getByText("Versi 1 oleh Bima Arya Nugraha, 19/11/2026 09.07 UTC")).toBeDefined();
-  expect(history.getByText("Versi 2 oleh Ayu Kartika Sari, 19/11/2026 09.09 UTC")).toBeDefined();
+  expect(history.getByText("Versi 1 oleh Bima Arya Nugraha, 19/11/2026 16.07 WIB")).toBeDefined();
+  expect(history.getByText("Versi 2 oleh Ayu Kartika Sari, 19/11/2026 16.09 WIB")).toBeDefined();
   expect(history.getByText("Bukan persyaratan · Nomor judul bagian.")).toBeDefined();
 });
 
@@ -362,7 +371,7 @@ test("the known limits are always shown", () => {
     "IQ dan OQ digabung dalam satu protokol.",
     "Tidak ada protokol cetak atau ekspor.",
     "Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007).",
-    "Belum ada versi baru setelah protokol disetujui (langkah 6).",
+    "Protokol ini telah disetujui. Versi baru setelah persetujuan belum tersedia.",
   ]);
 });
 
@@ -399,8 +408,8 @@ test("an answered number shows the answer in force and every answer, who and whe
   expect(r.queryByText(/Memblokir/)).toBeNull();
   expect(r.getByText("Bukan persyaratan")).toBeDefined();
   await user.click(r.getByRole("button", { name: "Riwayat jawaban (2)" }));
-  expect(await r.findByText("Versi 1 oleh Ayu Kartika Sari, 19/11/2026 09.30 UTC")).toBeDefined();
-  expect(r.getByText("Versi 2 oleh Bima Arya Nugraha, 19/11/2026 09.40 UTC")).toBeDefined();
+  expect(await r.findByText("Versi 1 oleh Ayu Kartika Sari, 19/11/2026 16.30 WIB")).toBeDefined();
+  expect(r.getByText("Versi 2 oleh Bima Arya Nugraha, 19/11/2026 16.40 WIB")).toBeDefined();
   expect(r.getByText("Persyaratan yang tidak diuji protokol ini · Diuji di IQ.")).toBeDefined();
 });
 
@@ -507,12 +516,18 @@ test("the deciding role and a reader get no approve or return control", () => {
   expect(screen.queryByRole("button", { name: "Kembalikan ke Draft" })).toBeNull();
 });
 
-test("an approved Protocol shows the approval note and no controls", async () => {
+test("an approved Protocol shows the neutral approval note and no controls", async () => {
   const user = userEvent.setup();
   renderForApprover(approved);
   expect(screen.getByText("Disetujui")).toBeDefined();
-  expect(screen.getAllByText("Belum ada versi baru setelah protokol disetujui (langkah 6).").length).toBeGreaterThan(0);
-  expect(screen.queryByText("Versi baru protokol ini adalah langkah 6.")).toBeNull();
+  const notes = screen.getAllByText(
+    "Protokol ini telah disetujui. Versi baru setelah persetujuan belum tersedia.",
+  );
+  expect(notes.length).toBeGreaterThan(0);
+  const banner = notes[0]!.closest("div.rounded-md");
+  expect(banner?.className).toContain("bg-info-soft");
+  expect(banner?.className).not.toContain("bg-pass-soft");
+  expect(screen.queryByText(/langkah 6/i)).toBeNull();
   expect(screen.queryByText(/bukan Tanda Tangan Elektronik(?! \(pra-Langkah 8\))/)).toBeNull();
   expect(screen.queryByText(/status yang dicatat/i)).toBeNull();
   expect(screen.getByTestId("copy-hash").textContent).toBe("a".repeat(64));
@@ -520,7 +535,7 @@ test("an approved Protocol shows the approval note and no controls", async () =>
 
   await user.click(screen.getByRole("tab", { name: "Riwayat & Salinan" }));
   expect(
-    await screen.findByText("Disetujui oleh Dewi Anggraini Lestari, 19/11/2026 11.00 UTC"),
+    await screen.findByText("Disetujui oleh Dewi Anggraini Lestari, 19/11/2026 18.00 WIB"),
   ).toBeDefined();
 });
 
@@ -535,7 +550,7 @@ test("a returned Protocol reads live again and lists its earlier copy with the r
   const earlier = within(await screen.findByTestId("earlier-12"));
   expect(earlier.getByText("a".repeat(64))).toBeDefined();
   expect(
-    earlier.getByText("Dikembalikan ke Draft oleh Dewi Anggraini Lestari, 19/11/2026 11.00 UTC"),
+    earlier.getByText("Dikembalikan ke Draft oleh Dewi Anggraini Lestari, 19/11/2026 18.00 WIB"),
   ).toBeDefined();
   expect(earlier.getByText("Takometer belum dikalibrasi.")).toBeDefined();
 });
@@ -730,4 +745,73 @@ test("J/K shortcuts do nothing while a modal dialog is open (#349)", () => {
   fireEvent.keyDown(button, { key: "k" });
   expect(openDialogCount()).toBe(1);
   expect(document.activeElement).toBe(button);
+});
+
+test("WriteForm prefills exclusive_range and tolerance completely for exact round-trips (#426)", async () => {
+  const user = userEvent.setup();
+  const base = protocolView();
+  const baseRows = base.rows ?? [];
+  const exRow = baseRows.find((r) => r.requirement === "URS-TP201-010")!;
+  const tolRow = baseRows.find((r) => r.requirement === "URS-TP201-026")!;
+  const view = protocolView({
+    rows: [
+      {
+        ...exRow,
+        prefill: {
+          origin: "draft",
+          description: "Ukur kekasaran permukaan.",
+          method: "Gunakan roughness tester.",
+          instrument: "RT-01",
+          acceptance: {
+            type: "exclusive_range",
+            min: null,
+            max: 0.8,
+            min_exclusive: false,
+            max_exclusive: true,
+            unit: "µm",
+          },
+        },
+      },
+      {
+        ...tolRow,
+        prefill: {
+          origin: "written",
+          description: "Ukur tegangan listrik.",
+          method: "Gunakan multimeter.",
+          instrument: "DMM-01",
+          acceptance: {
+            type: "tolerance",
+            nominal: 380,
+            tolerance: 10,
+            tolerance_unit: "%",
+            unit: "V",
+          },
+        },
+      },
+    ],
+  });
+
+  renderPage(view, decider);
+
+  const exDrawer = await openRowDrawer(user, "URS-TP201-010");
+  const exForm = exDrawer.getByRole("form", { name: "Tulis langkah uji" }) as HTMLFormElement;
+  expect(stepFrom(new FormData(exForm))?.acceptance).toEqual({
+    type: "exclusive_range",
+    min: null,
+    max: 0.8,
+    min_exclusive: false,
+    max_exclusive: true,
+    unit: "µm",
+  });
+  await user.click(exDrawer.getByRole("button", { name: "Tutup panel" }));
+
+  const tolDrawer = await openRowDrawer(user, "URS-TP201-026");
+  const tolForm = tolDrawer.getByRole("form", { name: "Ubah langkah uji tertulis" }) as HTMLFormElement;
+  expect(stepFrom(new FormData(tolForm))?.acceptance).toEqual({
+    type: "tolerance",
+    nominal: 380,
+    tolerance: 10,
+    tolerance_unit: "%",
+    unit: "V",
+  });
 });

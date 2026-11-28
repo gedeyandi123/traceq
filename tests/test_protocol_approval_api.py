@@ -365,7 +365,7 @@ def test_no_protocol_is_started_once_one_is_approved(
     r = client.post(f"/runs/{RUN_ID}/protocol", headers=decider)
     assert r.status_code == 409
     assert "approved" in r.json()["detail"]
-    assert "step 6" in r.json()["detail"]
+    assert "not yet supported" in r.json()["detail"]
 
 
 def test_an_approved_protocol_cannot_be_withdrawn_returned_or_written(

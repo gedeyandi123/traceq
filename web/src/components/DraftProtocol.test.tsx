@@ -411,8 +411,9 @@ test("an unchanged edit of an inclusive range submits the same range it was give
   expect(sent.get("ac_unit")).toBe("rpm");
 });
 
-test("a strict range is not prefilled, so it cannot be saved as an inclusive one", async () => {
+test("a strict range is prefilled as exclusive_range and cannot be saved as an inclusive range", async () => {
   const u = user();
+  const editInline = vi.fn<Inline>(async () => ({ ok: true, submittedAt: 1 }));
   const strict = fromDraftRows.map((r) =>
     r.requirement === "URS-TP201-002"
       ? {
@@ -429,13 +430,21 @@ test("a strict range is not prefilled, so it cannot be saved as an inclusive one
         }
       : r,
   );
-  render(page({ ...fromDraft, rows: strict }, { decisions: decider, controls }));
+  render(page({ ...fromDraft, rows: strict }, { decisions: decider, controls: { ...controls, editInline } }));
   const drawer = await openRow(u, "URS-TP201-002");
   const form = within(drawer.getByTestId("candidate-OQ-02")).getByRole("form", {
     name: "Sunting rancangan",
   });
-  expect(form.querySelector<HTMLSelectElement>("[name=ac_type]")?.value).toBe("");
-  expect(form.querySelector("[name=ac_max]")).toBeNull();
+  expect(form.querySelector<HTMLSelectElement>("[name=ac_type]")?.value).toBe("exclusive_range");
+  expect(form.querySelector<HTMLInputElement>("[name=ac_min_exclusive]")?.checked).toBe(false);
+  expect(form.querySelector<HTMLInputElement>("[name=ac_max_exclusive]")?.checked).toBe(true);
+  await u.type(within(form).getByRole("textbox", { name: "Alasan perubahan" }), "Sesuaikan");
+  await u.click(within(form).getByRole("button", { name: "Simpan suntingan" }));
+  await waitFor(() => expect(editInline).toHaveBeenCalledTimes(1));
+  const sent = editInline.mock.calls[0]?.[1] as FormData;
+  expect(sent.get("ac_type")).toBe("exclusive_range");
+  expect(sent.get("ac_max_exclusive")).toBe("on");
+  expect(sent.get("ac_min_exclusive")).toBeNull();
 });
 
 test("a map refusal says why in words of its own", async () => {

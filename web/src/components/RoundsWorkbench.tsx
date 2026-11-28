@@ -22,6 +22,7 @@ import type {
   RunRoundsView,
 } from "@/api/client";
 import type { Session } from "@/auth/session";
+import { formatWhen } from "@/components/formatWhen";
 import { Alert } from "@/components/ui/Alert";
 import { CopyHashButton } from "@/components/ui/CopyHashButton";
 import { DirtyGuardBanner } from "@/components/ui/DirtyGuardBanner";
@@ -116,6 +117,7 @@ export function RoundsWorkbench({
 }) {
   const t = useTranslations("rounds");
   const ui = useTranslations("ui");
+  const when = useTranslations("decisions");
   const findingTypes = useTranslations("draft");
 
   const currentRound =
@@ -231,9 +233,17 @@ export function RoundsWorkbench({
                     <td className={cell.id}>{doc.doc_id}</td>
                     <td className="tabular-nums whitespace-nowrap">{doc.rev}</td>
                     <td className="whitespace-nowrap text-xs text-ink-muted">
-                      {doc.doc_type ?? t("documents.typeUnknown")}
+                      {doc.doc_type
+                        ? t.has(`documents.docTypes.${doc.doc_type.toLowerCase()}`)
+                          ? t(`documents.docTypes.${doc.doc_type.toLowerCase()}`)
+                          : doc.doc_type
+                        : t("documents.typeUnknown")}
                     </td>
-                    <td className="whitespace-nowrap text-xs text-ink-muted">{doc.source}</td>
+                    <td className="whitespace-nowrap text-xs text-ink-muted">
+                      {t.has(`documents.sources.${doc.source}`)
+                        ? t(`documents.sources.${doc.source}`)
+                        : doc.source}
+                    </td>
                     <td className="whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">
                         <code
@@ -353,7 +363,7 @@ export function RoundsWorkbench({
                     </span>
                   </div>
                   <span className="text-xs text-ink-muted tabular-nums">
-                    {t("reviewRounds.openedAt", { when: round.at })}
+                    {t("reviewRounds.openedAt", { when: formatWhen(when, round.at) })}
                   </span>
                 </div>
 
@@ -368,7 +378,7 @@ export function RoundsWorkbench({
                           {t(`reviewRounds.eventLabels.${ev.event}`)}
                         </span>{" "}
                         <span className="text-ink-muted tabular-nums">
-                          ({t("reviewRounds.eventBy", { name: ev.name, when: ev.at })})
+                          ({t("reviewRounds.eventBy", { name: ev.name, when: formatWhen(when, ev.at) })})
                         </span>
                         {ev.reason && (
                           <p className="mt-0.5 mb-0 rounded border border-border bg-canvas px-2.5 py-1 text-ink">
@@ -581,7 +591,7 @@ export function RoundsWorkbench({
                   <tr key={exp.id}>
                     <td className={cell.id}>R{roundNumber}</td>
                     <td className="text-xs text-ink-muted tabular-nums whitespace-nowrap">
-                      {exp.at}
+                      {formatWhen(when, exp.at)}
                     </td>
                     <td className="text-xs text-ink whitespace-nowrap">{exp.name}</td>
                     <td className="whitespace-nowrap">

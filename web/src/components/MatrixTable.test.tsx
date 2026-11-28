@@ -138,12 +138,12 @@ test("an imported run shows each row's decision state, prior decisions (K15), an
   let dialog = await screen.findByRole("dialog", { name: "URS-TP201-002" });
   expect(within(dialog).getByText("Sudah diputuskan")).toBeDefined();
   expect(
-    within(dialog).getByText("Diubah ke Celah oleh Ayu Kartika Sari, 16/11/2026 10.15 UTC"),
+    within(dialog).getByText("Diubah ke Celah oleh Ayu Kartika Sari, 16/11/2026 17.15 WIB"),
   ).toBeDefined();
   expect(within(dialog).getByText("Rentang FAT tidak mencakup 70 rpm")).toBeDefined();
   expect(within(dialog).getByText("Keputusan sebelumnya atas isi ini:")).toBeDefined();
   expect(
-    within(dialog).getByText("Diterima oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC"),
+    within(dialog).getByText("Diterima oleh Bima Arya Nugraha, 16/11/2026 16.30 WIB"),
   ).toBeDefined();
 
   // Replacing a decision on the same content uses a single form + single Reason for Change (K8, K15)
@@ -159,7 +159,7 @@ test("an imported run shows each row's decision state, prior decisions (K15), an
   expect(within(dialog).getByText("Isi berubah")).toBeDefined();
   expect(
     within(dialog).getByText(
-      "Keputusan sebelumnya, atas isi lain: Diterima oleh Bima Arya Nugraha, 16/11/2026 09.30 UTC",
+      "Keputusan sebelumnya, atas isi lain: Diterima oleh Bima Arya Nugraha, 16/11/2026 16.30 WIB",
     ),
   ).toBeDefined();
   expect(within(dialog).getByText("sebelumnya: Dicakup vendor")).toBeDefined();

@@ -32,8 +32,8 @@ type Start = {
 };
 
 /** A drafted Acceptance Criterion as a form can start from it: free text is not one of the
- * four shapes, so the human sets it. */
-function shaped(v: Value | null | undefined): Acceptance | null {
+ * Acceptance shapes, so the human sets it. */
+function shaped(v: Value | Acceptance | null | undefined): Acceptance | null {
   if (!v || v.type === "text") return null;
   return v;
 }
@@ -111,10 +111,22 @@ function Fields({
       <AcShapeFields
         id={id}
         initialShape={a?.type ?? ""}
-        initialMin={a?.type === "range" ? (a.min ?? "") : ""}
-        initialMax={a?.type === "range" ? (a.max ?? "") : ""}
+        initialMin={a?.type === "range" || a?.type === "exclusive_range" ? (a.min ?? "") : ""}
+        initialMax={a?.type === "range" || a?.type === "exclusive_range" ? (a.max ?? "") : ""}
+        initialMinExclusive={a?.type === "exclusive_range" ? a.min_exclusive : false}
+        initialMaxExclusive={a?.type === "exclusive_range" ? a.max_exclusive : false}
+        initialNominal={a?.type === "tolerance" ? a.nominal : ""}
+        initialTolerance={a?.type === "tolerance" ? a.tolerance : ""}
+        initialToleranceUnit={a?.type === "tolerance" ? a.tolerance_unit : ""}
         initialValue={a?.type === "number" ? a.value : ""}
-        initialUnit={a?.type === "range" || a?.type === "number" ? a.unit : ""}
+        initialUnit={
+          a?.type === "range" ||
+          a?.type === "exclusive_range" ||
+          a?.type === "tolerance" ||
+          a?.type === "number"
+            ? a.unit
+            : ""
+        }
         initialAllowed={a?.type === "one_of" ? a.allowed.join("; ") : ""}
         shapes={SHAPES.map((shape) => ({ value: shape, label: t(`form.shapes.${shape}`) }))}
         labels={{
@@ -123,6 +135,11 @@ function Fields({
           chooseShape: t("form.chooseShape"),
           min: t("form.min"),
           max: t("form.max"),
+          minExclusive: t("form.minExclusive"),
+          maxExclusive: t("form.maxExclusive"),
+          nominal: t("form.nominal"),
+          tolerance: t("form.tolerance"),
+          toleranceUnit: t("form.toleranceUnit"),
           value: t("form.value"),
           unit: t("form.unit"),
           allowed: t("form.allowed"),
@@ -313,7 +330,7 @@ export function EditDraftForm({
     description: string | null;
     method: string | null;
     instrument: string | null;
-    acceptance: Value | null;
+    acceptance: Value | Acceptance | null;
   };
   runId: string;
   protocolId: number;

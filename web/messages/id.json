@@ -260,7 +260,7 @@
       "changed": "Berubah sejak diputuskan: belum diputuskan lagi",
       "undecided": "Belum diputuskan"
     },
-    "when": "{date} {time} UTC",
+    "when": "{date} {time} {tz}",
     "made": {
       "accepted": "Diterima oleh {name}, {when}",
       "rejected": "Ditolak oleh {name}, {when}",
@@ -566,7 +566,7 @@
       "combined": "IQ dan OQ digabung dalam satu protokol.",
       "noPrint": "Tidak ada protokol cetak atau ekspor.",
       "notSignature": "Tanda tangan dirancang untuk 21 CFR Part 11, CPOB Annex 7, dan draf EU GMP Annex 11 (2025), belum divalidasi; mode demo memakai tanda tangan demo (ADR 0007).",
-      "noNewVersion": "Belum ada versi baru setelah protokol disetujui (langkah 6)."
+      "noNewVersion": "Protokol ini telah disetujui. Versi baru setelah persetujuan belum tersedia."
     },
     "none": "Belum ada protokol yang dimulai dari run ini",
     "noneBody": "Orang dengan peran pengambil keputusan memulai protokol peralatan dari run yang sudah diimpor. Satu protokol per peralatan boleh terbuka sekaligus.",
@@ -797,12 +797,19 @@
       "chooseShape": "Pilih bentuk",
       "shapes": {
         "range": "Rentang (satu atau dua batas, dengan satuan)",
+        "exclusive_range": "Rentang eksklusif (batas ketat > / <, dengan satuan)",
+        "tolerance": "Toleransi (nilai nominal ± toleransi, dengan satuan)",
         "number": "Angka (nilai tepat, dengan satuan)",
         "one_of": "Salah satu dari (nilai yang diizinkan)",
         "present": "Ada (tanpa nilai)"
       },
       "min": "Batas bawah",
       "max": "Batas atas",
+      "minExclusive": "Eksklusif (>)",
+      "maxExclusive": "Eksklusif (<)",
+      "nominal": "Nilai nominal",
+      "tolerance": "Toleransi (±)",
+      "toleranceUnit": "Satuan toleransi (% atau sama dengan satuan)",
       "value": "Nilai",
       "unit": "Satuan",
       "allowed": "Nilai yang diizinkan (pisahkan dengan ;)",
@@ -916,7 +923,7 @@
     "noInstrument": "Tidak ada instrumen",
     "evidenceStep": "{doc} rev {rev}, langkah {step}",
     "vendorNoControls": "Referensi vendor — tidak memerlukan tindakan saat eksekusi.",
-    "utcNote": "Semua tanggal dan waktu dicatat dalam zona waktu UTC sesuai jam basis data.",
+    "utcNote": "Semua tanggal dan waktu disimpan dalam zona waktu UTC sesuai jam basis data; tampilan waktu mengikuti zona waktu aplikasi (bawaan WIB).",
     "colResult": "Hasil",
     "recordResult": "Catat hasil",
     "recordResultTitle": "Catat hasil — {requirement}",
@@ -1100,7 +1107,26 @@
       "diffRemoved": "Dihapus dari ronde",
       "removedHeading": "Dokumen yang Dihapus dari Ronde Sebelumnya",
       "previewLink": "Buka PDF",
-      "typeUnknown": "—"
+      "typeUnknown": "—",
+      "sources": {
+        "site": "Lokasi",
+        "vendor": "Vendor",
+        "review_package_draft": "Draf paket tinjauan"
+      },
+      "docTypes": {
+        "urs": "URS",
+        "risk_assessment": "Penilaian risiko",
+        "datasheet": "Lembar data",
+        "functional_spec": "Spesifikasi fungsional",
+        "material_certificate": "Sertifikat material",
+        "calibration_certificate": "Sertifikat kalibrasi",
+        "dq_report": "Laporan DQ",
+        "fat": "FAT",
+        "sat": "SAT",
+        "iq_protocol": "Protokol IQ",
+        "oq_protocol": "Protokol OQ",
+        "protocol_draft": "Draf protokol"
+      }
     },
     "reviewRounds": {
       "heading": "Daftar Ronde Tinjauan",
@@ -1167,7 +1193,7 @@
       "historyHeading": "Riwayat Ekspor",
       "empty": "Belum ada laporan pra-tinjauan yang diterbitkan untuk ronde ini.",
       "colRound": "Ronde",
-      "colIssuedAt": "Diterbitkan (UTC)",
+      "colIssuedAt": "Diterbitkan",
       "colIssuer": "Penerbit",
       "colSnapshotHash": "Snapshot Hash",
       "colPdfSha256": "PDF SHA-256",
@@ -1224,7 +1250,7 @@
     "exportsEmpty": "Penyetuju dapat menerbitkan revisi pertama Laporan Kualifikasi dari formulir di atas.",
     "colRevision": "Revisi",
     "colConclusion": "Kesimpulan",
-    "colIssuer": "Penyetuju & Waktu (UTC)",
+    "colIssuer": "Penyetuju & Waktu",
     "colRequalDate": "Rekualifikasi Berikutnya",
     "colHashes": "Hash Verifikasi",
     "colDownload": "Berkas",

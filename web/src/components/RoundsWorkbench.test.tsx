@@ -241,6 +241,10 @@ describe("RoundsWorkbench", () => {
     expect(screen.getByText("Digantikan")).toBeDefined();
     expect(screen.getAllByText("Aktif")).toHaveLength(3);
     expect(screen.getByText("999988887777")).toBeDefined();
+    expect(screen.getByText("Lokasi")).toBeDefined();
+    expect(screen.getAllByText("Vendor")).toHaveLength(3);
+    expect(screen.queryByText("site")).toBeNull();
+    expect(screen.queryByText("vendor")).toBeNull();
   });
 
   it("renders review rounds & diff tab and enforces role gating for closing round", async () => {
@@ -250,6 +254,7 @@ describe("RoundsWorkbench", () => {
     await user.click(screen.getByRole("tab", { name: /Ronde Tinjauan & Diff/ }));
     expect(screen.getByText("Diff Lintas-Ronde (vs R1)")).toBeDefined();
     expect(screen.getByText("Revisi sertifikat FAT diperlukan")).toBeDefined();
+    expect(screen.getByText("Dibuka 20/11/2026 15.00 WIB")).toBeDefined();
     expect(screen.getByRole("button", { name: /Tutup ronde/ })).toBeDefined();
     // A persisted-but-changed finding is shown as that, and a plain persisted one is not listed.
     expect(screen.getAllByText("Bertahan, berubah")).toHaveLength(2);
@@ -271,6 +276,7 @@ describe("RoundsWorkbench", () => {
     expect(screen.queryByRole("button", { name: /Tutup ronde/ })).toBeNull();
 
     await user.click(screen.getByRole("tab", { name: /Ekspor Laporan/ }));
+    expect(screen.getByText("20/11/2026 15.30 WIB")).toBeDefined();
     expect(screen.getByRole("button", { name: /Terbitkan Laporan Pra-Tinjauan/ })).toBeDefined();
     expect(screen.getByRole("link", { name: /Unduh PDF/ }).getAttribute("href")).toBe(
       "/api/rounds/1/exports/100/pdf",

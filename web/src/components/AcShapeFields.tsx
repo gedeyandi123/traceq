@@ -9,6 +9,11 @@ export type AcShapeFieldsProps = {
   initialShape: string;
   initialMin: string | number;
   initialMax: string | number;
+  initialMinExclusive?: boolean;
+  initialMaxExclusive?: boolean;
+  initialNominal?: string | number;
+  initialTolerance?: string | number;
+  initialToleranceUnit?: string;
   initialValue: string | number;
   initialUnit: string;
   initialAllowed: string;
@@ -19,6 +24,11 @@ export type AcShapeFieldsProps = {
     chooseShape: string;
     min: string;
     max: string;
+    minExclusive: string;
+    maxExclusive: string;
+    nominal: string;
+    tolerance: string;
+    toleranceUnit: string;
     value: string;
     unit: string;
     allowed: string;
@@ -35,6 +45,11 @@ export function AcShapeFields({
   initialShape,
   initialMin,
   initialMax,
+  initialMinExclusive = false,
+  initialMaxExclusive = false,
+  initialNominal = "",
+  initialTolerance = "",
+  initialToleranceUnit = "",
   initialValue,
   initialUnit,
   initialAllowed,
@@ -45,6 +60,11 @@ export function AcShapeFields({
   const [shape, setShape] = useState(initialShape);
   const [minVal, setMinVal] = useState(String(initialMin));
   const [maxVal, setMaxVal] = useState(String(initialMax));
+  const [minExclusive, setMinExclusive] = useState(initialMinExclusive);
+  const [maxExclusive, setMaxExclusive] = useState(initialMaxExclusive);
+  const [nominalVal, setNominalVal] = useState(String(initialNominal));
+  const [toleranceVal, setToleranceVal] = useState(String(initialTolerance));
+  const [toleranceUnitVal, setToleranceUnitVal] = useState(initialToleranceUnit);
   const [numVal, setNumVal] = useState(String(initialValue));
   const [unitVal, setUnitVal] = useState(initialUnit);
   const [allowedVal, setAllowedVal] = useState(initialAllowed);
@@ -77,29 +97,92 @@ export function AcShapeFields({
           ))}
         </select>
       </label>
-      {shape === "range" && (
+      {(shape === "range" || shape === "exclusive_range") && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="space-y-1">
+            <label className="block space-y-1 text-xs font-medium text-ink">
+              <span>{labels.min}</span>
+              <input
+                name="ac_min"
+                inputMode="decimal"
+                value={minVal}
+                onChange={(e) => {
+                  setMinVal(e.target.value);
+                  onDirty?.();
+                }}
+                className={`${INPUT_CLASS} tabular-nums`}
+              />
+            </label>
+            {shape === "exclusive_range" && (
+              <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-ink">
+                <input
+                  type="checkbox"
+                  name="ac_min_exclusive"
+                  checked={minExclusive}
+                  onChange={(e) => {
+                    setMinExclusive(e.target.checked);
+                    onDirty?.();
+                  }}
+                  className="h-3.5 w-3.5 rounded border-border-strong accent-accent"
+                />
+                <span>{labels.minExclusive}</span>
+              </label>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="block space-y-1 text-xs font-medium text-ink">
+              <span>{labels.max}</span>
+              <input
+                name="ac_max"
+                inputMode="decimal"
+                value={maxVal}
+                onChange={(e) => {
+                  setMaxVal(e.target.value);
+                  onDirty?.();
+                }}
+                className={`${INPUT_CLASS} tabular-nums`}
+              />
+            </label>
+            {shape === "exclusive_range" && (
+              <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-ink">
+                <input
+                  type="checkbox"
+                  name="ac_max_exclusive"
+                  checked={maxExclusive}
+                  onChange={(e) => {
+                    setMaxExclusive(e.target.checked);
+                    onDirty?.();
+                  }}
+                  className="h-3.5 w-3.5 rounded border-border-strong accent-accent"
+                />
+                <span>{labels.maxExclusive}</span>
+              </label>
+            )}
+          </div>
           <label className="block space-y-1 text-xs font-medium text-ink">
-            <span>{labels.min}</span>
+            <span>{labels.unit}</span>
             <input
-              name="ac_min"
-              inputMode="decimal"
-              value={minVal}
+              name="ac_unit"
+              value={unitVal}
               onChange={(e) => {
-                setMinVal(e.target.value);
+                setUnitVal(e.target.value);
                 onDirty?.();
               }}
-              className={`${INPUT_CLASS} tabular-nums`}
+              className={INPUT_CLASS}
             />
           </label>
+        </div>
+      )}
+      {shape === "tolerance" && (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="block space-y-1 text-xs font-medium text-ink">
-            <span>{labels.max}</span>
+            <span>{labels.nominal}</span>
             <input
-              name="ac_max"
+              name="ac_nominal"
               inputMode="decimal"
-              value={maxVal}
+              value={nominalVal}
               onChange={(e) => {
-                setMaxVal(e.target.value);
+                setNominalVal(e.target.value);
                 onDirty?.();
               }}
               className={`${INPUT_CLASS} tabular-nums`}
@@ -112,6 +195,31 @@ export function AcShapeFields({
               value={unitVal}
               onChange={(e) => {
                 setUnitVal(e.target.value);
+                onDirty?.();
+              }}
+              className={INPUT_CLASS}
+            />
+          </label>
+          <label className="block space-y-1 text-xs font-medium text-ink">
+            <span>{labels.tolerance}</span>
+            <input
+              name="ac_tolerance"
+              inputMode="decimal"
+              value={toleranceVal}
+              onChange={(e) => {
+                setToleranceVal(e.target.value);
+                onDirty?.();
+              }}
+              className={`${INPUT_CLASS} tabular-nums`}
+            />
+          </label>
+          <label className="block space-y-1 text-xs font-medium text-ink">
+            <span>{labels.toleranceUnit}</span>
+            <input
+              name="ac_tolerance_unit"
+              value={toleranceUnitVal}
+              onChange={(e) => {
+                setToleranceUnitVal(e.target.value);
                 onDirty?.();
               }}
               className={INPUT_CLASS}

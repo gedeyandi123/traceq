@@ -40,7 +40,14 @@ export function formatAttemptValue(
   if (!v) return "—";
   if (v.type === "number") {
     const ac = row.test_step?.acceptance;
-    const unit = ac && (ac.type === "number" || ac.type === "range") ? ` ${ac.unit}` : "";
+    const unit =
+      ac &&
+      (ac.type === "number" ||
+        ac.type === "range" ||
+        ac.type === "exclusive_range" ||
+        ac.type === "tolerance")
+        ? ` ${ac.unit}`
+        : "";
     return `${numberFormatter.format(v.value)}${unit}`;
   }
   if (v.type === "one_of") {

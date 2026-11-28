@@ -47,6 +47,6 @@ test("an AI Finding's timestamp reads like a decision's", () => {
   fireEvent.click(ai.getByRole("button", { name: /Data tidak konsisten/ }));
 
   const detail = within(screen.getByRole("region", { name: "Rincian" }));
-  expect(detail.getByText(/13\/11\/2026 09\.00 UTC/)).toBeDefined();
+  expect(detail.getByText(/13\/11\/2026 16\.00 WIB/)).toBeDefined();
   expect(detail.queryByText(/2026-11-13T09:00:00/)).toBeNull();
 });

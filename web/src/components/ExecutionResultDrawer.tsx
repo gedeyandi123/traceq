@@ -264,7 +264,10 @@ export function ExecutionResultDrawer({
           </div>
         ) : (
           <div className="space-y-2">
-            {(ac.type === "number" || ac.type === "range") && (
+            {(ac.type === "number" ||
+              ac.type === "range" ||
+              ac.type === "exclusive_range" ||
+              ac.type === "tolerance") && (
               <div className="space-y-1">
                 <label
                   htmlFor={`num-val-${row.requirement}`}
