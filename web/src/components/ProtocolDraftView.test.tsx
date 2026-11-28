@@ -1,7 +1,7 @@
 // The Protocol Draft screen (Opsi A Compact Ordered Table + Slide-Over Drawer): Test Steps
 // in sequential draft order, 1-click triage filters, Drawer with Prev/Next + useActionState +
-// dirty-form guard, RunShellContext wiring, whole-document findings below, and non-link draft
-// citations (K22).
+// dirty-form guard, RunShellContext wiring, whole-document findings below, and clickable draft
+// PDF citations.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { vi } from "vitest";
@@ -55,36 +55,57 @@ function stepRows() {
   return steps.getAllByRole("row").slice(1);
 }
 
-test("lists every Test Step in draft order with non-link draft citations and opens Drawer for full URS/comparators", async () => {
-  renderDraft(imported);
+test("lists every Test Step in draft order with clickable draft PDF citations and opens Drawer for full URS/comparators", async () => {
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(null, {
+      status: 200,
+      headers: { "content-type": "application/pdf" },
+    }),
+  );
+  try {
+    renderDraft(imported);
 
-  expect(screen.getByText("OQ-TP201 rev 0, paket tinjauan TP-201-OQ-draft")).toBeDefined();
-  expect(screen.getByText(/dirancang TraceQ sendiri tidak ditampilkan/)).toBeDefined();
-  const rows = stepRows();
-  expect(
-    rows.map((r) => within(within(r).getByRole("rowheader")).getByRole("button").textContent),
-  ).toEqual(["OQ-01", "OQ-02", "OQ-03"]);
+    expect(screen.getByText("OQ-TP201 rev 0, paket tinjauan TP-201-OQ-draft")).toBeDefined();
+    expect(screen.getByText(/dirancang TraceQ sendiri tidak ditampilkan/)).toBeDefined();
+    const rows = stepRows();
+    expect(
+      rows.map((r) => within(within(r).getByRole("rowheader")).getByRole("button").textContent),
+    ).toEqual(["OQ-01", "OQ-02", "OQ-03"]);
 
-  const first = within(rows[0]!);
-  expect(first.getByText("minimal 100 kN")).toBeDefined();
-  expect(first.getByText("URS-TP201-001")).toBeDefined();
-  expect(first.getByText("≥ 100 kN")).toBeDefined();
-  // K22: draft citation is a tooltip span, never a link
-  const ac = first.getByText("OQ-TP201 rev 0, hlm. 1");
-  expect(ac.closest("a")).toBeNull();
-  expect(ac.getAttribute("title")).toBe("OQ-01 Gaya kompresi minimal 100 kN");
-  expect(first.getByText("Sesuai URS")).toBeDefined();
-  expect(first.getByText("Tidak ada temuan")).toBeDefined();
+    const first = within(rows[0]!);
+    expect(first.getByText("minimal 100 kN")).toBeDefined();
+    expect(first.getByText("URS-TP201-001")).toBeDefined();
+    expect(first.getByText("≥ 100 kN")).toBeDefined();
+    const acBtn = first.getByRole("button", { name: "OQ-TP201 rev 0, hlm. 1" });
+    expect(acBtn.getAttribute("title")).toBe("OQ-01 Gaya kompresi minimal 100 kN");
+    expect(first.getByText("Sesuai URS")).toBeDefined();
+    expect(first.getByText("Tidak ada temuan")).toBeDefined();
 
-  // Open OQ-01 in Drawer and verify URS + comparator citation buttons and RunShellContext wiring
-  expect(screen.getByTestId("shell-drawer-open").textContent).toBe("closed");
-  fireEvent.click(first.getByRole("button", { name: "OQ-01" }));
-  expect(screen.getByTestId("shell-drawer-open").textContent).toBe("open");
+    // Clicking the draft citation button opens the PDF modal at the cited page
+    fireEvent.click(acBtn);
+    const pdfIframe = await screen.findByTitle("OQ-TP201 rev 0, hlm. 1");
+    expect(pdfIframe.getAttribute("src")).toContain(`/api/runs/${RUN_ID}/documents/OQ-TP201/0#page=1`);
+    fireEvent.click(within(screen.getByRole("dialog", { name: /Sitasi:/ })).getByRole("button", { name: "Tutup dialog" }));
 
-  const dialog = await screen.findByRole("dialog", { name: "OQ-01" });
-  const ursBtn = within(dialog).getByRole("button", { name: "URS-TP201 rev 1, hlm. 1" });
-  expect(ursBtn.getAttribute("title")).toBe("Gaya kompresi minimal 100 kN.");
-  expect(within(dialog).getByRole("button", { name: "FAT-TP201-M rev 0, hlm. 1" })).toBeDefined();
+    // Open OQ-01 in Drawer and verify draft AC + URS + comparator citation buttons and RunShellContext wiring
+    expect(screen.getByTestId("shell-drawer-open").textContent).toBe("closed");
+    fireEvent.click(first.getByRole("button", { name: "OQ-01" }));
+    expect(screen.getByTestId("shell-drawer-open").textContent).toBe("open");
+
+    const dialog = await screen.findByRole("dialog", { name: "OQ-01" });
+    const drawerDraftBtn = within(dialog).getByRole("button", { name: "OQ-TP201 rev 0, hlm. 1" });
+    expect(drawerDraftBtn.getAttribute("title")).toBe("OQ-01 Gaya kompresi minimal 100 kN");
+    const ursBtn = within(dialog).getByRole("button", { name: "URS-TP201 rev 1, hlm. 1" });
+    expect(ursBtn.getAttribute("title")).toBe("Gaya kompresi minimal 100 kN.");
+    expect(within(dialog).getByRole("button", { name: "FAT-TP201-M rev 0, hlm. 1" })).toBeDefined();
+
+    // Clicking the draft citation inside the Drawer opens the PDF modal on page 1
+    fireEvent.click(drawerDraftBtn);
+    const drawerIframe = await screen.findByTitle("OQ-TP201 rev 0, hlm. 1");
+    expect(drawerIframe.getAttribute("src")).toContain(`/api/runs/${RUN_ID}/documents/OQ-TP201/0#page=1`);
+  } finally {
+    fetchSpy.mockRestore();
+  }
 });
 
 test("shows, per vendor document, the facts for the step's requirement or none", () => {
@@ -147,7 +168,9 @@ test("a finding sits on its Test Step, and document-level findings sit below the
   expect(doc.getByText("URS-TP201-031")).toBeDefined();
   expect(doc.getByText(notTested.detail)).toBeDefined();
   expect(doc.getByText("Diterima oleh Ayu Kartika Sari, 16/11/2026 16.30 WIB")).toBeDefined();
-  expect(doc.getByText("OQ-TP201 rev 0, hlm. 8").getAttribute("title")).toBe("URS-TP201-031 OQ-21");
+  expect(doc.getByRole("button", { name: "OQ-TP201 rev 0, hlm. 8" }).getAttribute("title")).toBe(
+    "URS-TP201-031 OQ-21",
+  );
 
   // Document order: the steps come before the findings about the whole document.
   const steps = screen.getByRole("region", { name: "Langkah uji" });
@@ -231,6 +254,9 @@ test("a run not imported shows the findings without decision state", async () =>
   const dialog = await screen.findByRole("dialog", { name: "OQ-03" });
   expect(within(dialog).getByText(deviates.detail)).toBeDefined();
   expect(within(dialog).queryByText("Belum diputuskan")).toBeNull();
+  const findingsSection = within(dialog).getByRole("heading", { name: "Temuan" }).closest("section")!;
+  const findingDraftCite = within(findingsSection).getByRole("button", { name: "OQ-TP201 rev 0, hlm. 2" });
+  expect(findingDraftCite.getAttribute("title")).toBe("OQ-03 Kebisingan maks. 65 dB(A)");
 });
 
 test("J/K shortcuts do nothing while a modal dialog is open (#349)", () => {

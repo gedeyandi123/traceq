@@ -38,6 +38,53 @@ from traceq.rounds import register_import as register_round_import
 from traceq.runs.api import create_router as runs_router
 from traceq.uploads import UploadSettings, Worker, package_runner
 from traceq.uploads import create_router as uploads_router
+from traceq.uploads.store import blob_path
+
+
+def _resolve_package_document(
+    review_package: Path, doc_id: str, rev: int, expected_sha256: str
+) -> tuple[bytes, str] | None:
+    manifest_path = review_package / "manifest.json"
+    if not manifest_path.is_file():
+        return None
+    try:
+        manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    package_name = str(manifest.get("package", ""))
+    entries = manifest.get("documents", [])
+    if not isinstance(entries, list):
+        return None
+    root_resolved = review_package.resolve()
+    for raw_entry in cast(list[Any], entries):
+        if not isinstance(raw_entry, dict):
+            continue
+        entry = cast(dict[str, Any], raw_entry)
+        try:
+            entry_match = (
+                str(entry["doc_id"]) == doc_id
+                and int(entry["rev"]) == rev
+                and str(entry["sha256"]) == expected_sha256
+            )
+            raw_rel = str(entry["path"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not entry_match:
+            continue
+        rel = Path(raw_rel)
+        if rel.is_absolute():
+            return None
+        parts = rel.parts
+        candidate = (
+            review_package.joinpath(*parts[1:])
+            if len(parts) > 1 and parts[0] == package_name
+            else review_package / rel
+        )
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(root_resolved) or not resolved.is_file():
+            return None
+        return resolved.read_bytes(), resolved.name
+    return None
 
 
 def create_app(
@@ -48,12 +95,14 @@ def create_app(
     database: URL | str | None = None,
     uploads: UploadSettings | None = None,
     run_worker: bool = False,
+    review_package: Path | None = None,
 ) -> FastAPI:
     """``runs``: the directory ``traceq run`` writes run folders into. ``corpus``: the
     released corpus the runs read, for opening a cited page (none: no document route).
     ``identity``: the trusted issuer; ``database``: the database, connected as the
     application role. Both or neither. ``uploads``: where drafts may be uploaded (needs the
-    database); ``run_worker``: also run the one upload worker in this process."""
+    database); ``run_worker``: also run the one upload worker in this process.
+    ``review_package``: released Review Package directory for serving its Protocol Draft."""
     if (identity is None) != (database is None):
         raise ValueError("configure both a trusted issuer and a database, or neither")
     if uploads is not None and database is None:
@@ -88,7 +137,26 @@ def create_app(
     db = None if database is None else engine(make_url(database))
     principal = authenticate(verifier)
     fresh_auth = require_fresh_auth(verifier)
-    app.include_router(runs_router(runs, corpus), dependencies=[Depends(principal)])
+
+    def _extra_document(
+        _run_id: str, doc_id: str, rev: int, expected_sha256: str
+    ) -> tuple[bytes, str] | None:
+        if uploads is not None:
+            try:
+                path = blob_path(uploads.blobs, expected_sha256)
+            except ValueError:
+                path = None
+            if path is not None and path.is_file():
+                return path.read_bytes(), f"{doc_id}_rev{rev}.pdf"
+        if review_package is not None:
+            return _resolve_package_document(review_package, doc_id, rev, expected_sha256)
+        return None
+
+    extra_document = _extra_document if uploads is not None or review_package is not None else None
+    app.include_router(
+        runs_router(runs, corpus, extra_document=extra_document),
+        dependencies=[Depends(principal)],
+    )
     app.include_router(
         proposals_router(
             runs,

@@ -468,6 +468,8 @@ def serve_args(
         "--database",
         database_url,
     ]
+    if settings.review_package is not None:
+        args += ["--review-package", str(settings.review_package)]
     if (
         settings.review_package is not None or settings.upload_drafts
     ) and settings.package_recordings is not None:

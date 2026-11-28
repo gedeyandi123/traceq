@@ -527,7 +527,6 @@
       "inspect": "Periksa"
     },
     "noMatches": "Tidak ada langkah uji yang cocok dengan filter ini.",
-    "citeTooltipNote": "Kutipan dari draf (tidak dibuka sebagai tautan PDF).",
     "wholeFindingsJump": "{count} temuan dokumen"
   },
   "protocol": {
